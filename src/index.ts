@@ -241,6 +241,30 @@ export interface IntegrationGuardContext {
   action?: IntegrationConnectorAction
 }
 
+export type IntegrationPolicyDecision =
+  | { decision: 'allow'; reason: string; metadata?: Record<string, unknown> }
+  | { decision: 'require_approval'; reason: string; approval: IntegrationApprovalRequest; metadata?: Record<string, unknown> }
+  | { decision: 'deny'; reason: string; metadata?: Record<string, unknown> }
+
+export interface IntegrationApprovalRequest {
+  id: string
+  connectionId: string
+  providerId: string
+  connectorId: string
+  action: string
+  actor: IntegrationActor
+  risk: IntegrationActionRisk
+  dataClass: IntegrationDataClass
+  reason: string
+  requestedAt: string
+  inputPreview?: unknown
+  metadata?: Record<string, unknown>
+}
+
+export interface IntegrationPolicyEngine {
+  decide(ctx: IntegrationGuardContext & { subject: IntegrationActor }): Promise<IntegrationPolicyDecision> | IntegrationPolicyDecision
+}
+
 export interface IntegrationHubOptions {
   providers: IntegrationProvider[]
   store: IntegrationConnectionStore
@@ -248,6 +272,10 @@ export interface IntegrationHubOptions {
   /** Optional cross-cutting guard. If provided, every invokeAction call
    *  passes through it before reaching the provider. See {@link IntegrationActionGuard}. */
   guard?: IntegrationActionGuard
+  /** Optional policy engine. Runs after capability/scope checks and before
+   *  provider invocation. Use it to pause writes, deny destructive actions,
+   *  or apply tenant-specific allow rules. */
+  policy?: IntegrationPolicyEngine
   now?: () => Date
 }
 
@@ -277,7 +305,9 @@ export class IntegrationError extends Error {
       | 'capability_expired'
       | 'scope_denied'
       | 'action_denied'
-      | 'action_not_found',
+      | 'action_not_found'
+      | 'approval_required'
+      | 'policy_denied',
   ) {
     super(message)
     this.name = 'IntegrationError'
@@ -311,6 +341,7 @@ export class IntegrationHub {
   private readonly store: IntegrationConnectionStore
   private readonly capabilitySecret: string
   private readonly guard: IntegrationActionGuard | undefined
+  private readonly policy: IntegrationPolicyEngine | undefined
   private readonly now: () => Date
 
   constructor(options: IntegrationHubOptions) {
@@ -321,6 +352,7 @@ export class IntegrationHub {
     this.store = options.store
     this.capabilitySecret = options.capabilitySecret
     this.guard = options.guard
+    this.policy = options.policy
     this.now = options.now ?? (() => new Date())
   }
 
@@ -389,6 +421,25 @@ export class IntegrationHub {
     assertScopes(connection, action.requiredScopes)
     assertScopes({ ...connection, grantedScopes: capability.scopes }, action.requiredScopes)
     const fullRequest: IntegrationActionRequest = { ...request, connectionId: connection.id }
+    if (this.policy) {
+      const decision = await this.policy.decide({
+        connection,
+        request: fullRequest,
+        action,
+        subject: capability.subject,
+      })
+      if (decision.decision === 'deny') {
+        throw new IntegrationError(decision.reason, 'policy_denied')
+      }
+      if (decision.decision === 'require_approval') {
+        return {
+          ok: false,
+          action: request.action,
+          output: { approvalRequired: true, approval: decision.approval },
+          metadata: { policyDecision: decision.decision, reason: decision.reason, ...decision.metadata },
+        }
+      }
+    }
     const proceed = () => Promise.resolve(provider.invokeAction(connection, fullRequest))
     if (this.guard) {
       return this.guard.invokeAction({ connection, request: fullRequest, action }, proceed)
@@ -626,3 +677,7 @@ function unique<T>(values: T[]): T[] {
 // these; one provider can wrap many connectors. See `src/connectors/types.ts`
 // for the layering details.
 export * from './connectors/index.js'
+export * from './catalog.js'
+export * from './policy.js'
+export * from './sandbox.js'
+export * from './adapter-provider.js'

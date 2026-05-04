@@ -75,12 +75,12 @@ Exit criteria:
 
 ### PR 2: Catalog Search and Tool Export
 
-- Add `IntegrationToolDefinition`.
-- Add `buildIntegrationToolCatalog(connectors)`.
-- Add `searchIntegrationTools(catalog, query, filters)`.
-- Add `integrationToolName(providerId, connectorId, actionId)`.
-- Add `parseIntegrationToolName(name)`.
-- Add MCP-compatible tool export shape.
+- [x] Add `IntegrationToolDefinition`.
+- [x] Add `buildIntegrationToolCatalog(connectors)`.
+- [x] Add `searchIntegrationTools(catalog, query, filters)`.
+- [x] Add `integrationToolName(providerId, connectorId, actionId)`.
+- [x] Add `parseIntegrationToolName(name)`.
+- [x] Add MCP-compatible tool export shape.
 
 Exit criteria:
 
@@ -89,11 +89,11 @@ Exit criteria:
 
 ### PR 3: Policy Engine and Approvals
 
-- Add `IntegrationPolicyRule`.
-- Add `IntegrationPolicyEngine`.
-- Add decision states: `allow`, `require_approval`, `deny`.
-- Add approval artifact types: `IntegrationApprovalRequest`, `IntegrationApprovalResolution`.
-- Add default policy: reads allowed, writes require approval by default, destructive denied unless explicitly allowed.
+- [x] Add `IntegrationPolicyRule`.
+- [x] Add `IntegrationPolicyEngine`.
+- [x] Add decision states: `allow`, `require_approval`, `deny`.
+- [x] Add approval artifact types: `IntegrationApprovalRequest`, `IntegrationApprovalResolution`.
+- [x] Add default policy: reads allowed, writes require approval by default, destructive denied unless explicitly allowed.
 
 Exit criteria:
 
@@ -102,10 +102,10 @@ Exit criteria:
 
 ### PR 4: Sandbox Invocation Envelope
 
-- Add `IntegrationInvocationEnvelope`.
-- Add helper to build a sandbox-safe invocation request from a capability and tool call.
-- Add redaction helpers for logs/events.
-- Add action result normalization for conflict/rate-limit/approval states.
+- [x] Add `IntegrationInvocationEnvelope`.
+- [x] Add helper to build a sandbox-safe invocation request from a capability and tool call.
+- [x] Add redaction helpers for logs/events.
+- [x] Add action result normalization for conflict/rate-limit/approval states.
 
 Exit criteria:
 
@@ -113,10 +113,10 @@ Exit criteria:
 
 ### PR 5: First-Party Provider Registry
 
-- Add `createConnectorAdapterProvider`.
-- Convert `ConnectorAdapter` manifests into `IntegrationConnector` catalog entries.
-- Route read/mutation calls to adapter methods.
-- Enforce capability class alignment and idempotency key defaults.
+- [x] Add `createConnectorAdapterProvider`.
+- [x] Convert `ConnectorAdapter` manifests into `IntegrationConnector` catalog entries.
+- [x] Route read/mutation calls to adapter methods.
+- [x] Enforce capability class alignment and idempotency key defaults.
 
 Exit criteria:
 
@@ -199,14 +199,14 @@ Executor-style systems are priority inspiration for catalog, policy, MCP, and lo
 
 ## Launch Gate Checklist
 
-- [ ] Tool catalog search works over first-party and imported tools.
-- [ ] MCP-compatible tool export is stable.
-- [ ] Default policy engine gates writes and destructive actions.
-- [ ] Approval artifacts are typed and audit-safe.
-- [ ] Sandbox invocation envelope never contains provider credentials.
-- [ ] First-party adapters are callable through `IntegrationHub`.
+- [x] Tool catalog search works over first-party tools.
+- [x] MCP-compatible tool export is stable.
+- [x] Default policy engine gates writes and destructive actions.
+- [x] Approval artifacts are typed and audit-safe.
+- [x] Sandbox invocation envelope never contains provider credentials.
+- [x] First-party adapters are callable through `IntegrationHub`.
 - [ ] Webhook receivers verify signatures and reject replay where provider supports timestamps.
-- [ ] Redaction helper covers connections, capabilities, approvals, and invocation logs.
+- [x] Redaction helper covers connections, capabilities, approvals, and invocation logs.
 - [ ] Agent Builder can declare required connectors from generated app specs.
 - [ ] Agent Builder can ask users to connect missing accounts.
 - [ ] Agent Builder can pass scoped capabilities to generated sandbox apps.

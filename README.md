@@ -37,18 +37,48 @@ capability. The sandbox should never receive reusable provider secrets.
 
 ## Core Usage
 
+### Product Flow
+
+For Agent Builder and sandbox apps, the intended flow is:
+
+```txt
+generated app declares required tools
+  -> app searches the integration catalog by intent
+  -> user connects the missing accounts
+  -> runtime issues a short-lived capability to the sandbox
+  -> reads run immediately
+  -> writes pause for policy approval
+  -> every call returns an audit-safe result
+```
+
+The SDK surface for that flow is:
+
+- `buildIntegrationToolCatalog` and `searchIntegrationTools` for discoverable
+  tool catalogs.
+- `toMcpTools` for MCP-compatible tool export.
+- `IntegrationHub.issueCapability` for scoped sandbox handoff.
+- `createDefaultIntegrationPolicyEngine` for allow / approval / deny decisions.
+- `buildIntegrationInvocationEnvelope` for sandbox-safe tool calls.
+- `createConnectorAdapterProvider` to run first-party adapters through the hub.
+
 ```ts
 import {
   InMemoryConnectionStore,
   IntegrationHub,
+  buildIntegrationToolCatalog,
   createMockIntegrationProvider,
+  searchIntegrationTools,
 } from '@tangle-network/agent-integrations'
 
+const provider = createMockIntegrationProvider()
 const hub = new IntegrationHub({
-  providers: [createMockIntegrationProvider()],
+  providers: [provider],
   store: new InMemoryConnectionStore(),
   capabilitySecret: 'dev-secret',
 })
+
+const catalog = buildIntegrationToolCatalog(await hub.listConnectors())
+const tools = searchIntegrationTools(catalog, 'search unread gmail', { maxRisk: 'read' })
 
 const connection = await hub.upsertConnection({
   id: 'conn_1',
