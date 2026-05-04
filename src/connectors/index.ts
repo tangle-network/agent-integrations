@@ -16,3 +16,4 @@
 export * from './types.js'
 export * from './oauth.js'
 export * from './webhooks.js'
+export * from './adapters/index.js'
