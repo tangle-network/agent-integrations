@@ -124,8 +124,8 @@ Exit criteria:
 
 ### PR 6: Catalog Importers
 
-- Add source importer contracts for OpenAPI, GraphQL, and MCP catalogs.
-- Add manifest normalization helpers.
+- [x] Add source importer contracts for OpenAPI, GraphQL, and MCP catalogs.
+- [x] Add manifest normalization helpers.
 - Add license-safe notes for importing MIT/open catalogs and deriving patterns from restricted-license systems.
 
 Exit criteria:
@@ -205,7 +205,7 @@ Executor-style systems are priority inspiration for catalog, policy, MCP, and lo
 - [x] Approval artifacts are typed and audit-safe.
 - [x] Sandbox invocation envelope never contains provider credentials.
 - [x] First-party adapters are callable through `IntegrationHub`.
-- [ ] Webhook receivers verify signatures and reject replay where provider supports timestamps.
+- [x] Webhook receivers verify signatures and reject replay where provider supports timestamps.
 - [x] Redaction helper covers connections, capabilities, approvals, and invocation logs.
 - [ ] Agent Builder can declare required connectors from generated app specs.
 - [ ] Agent Builder can ask users to connect missing accounts.
