@@ -165,11 +165,11 @@ function tokenize(value: string): string[] {
 }
 
 function encodeToolPart(value: string): string {
-  return Buffer.from(value, 'utf8').toString('base64url')
+  return Buffer.from(value, 'utf8').toString('base64url').replace(/_/g, '.')
 }
 
 function decodeToolPart(value: string): string {
-  return Buffer.from(value, 'base64url').toString('utf8')
+  return Buffer.from(value.replace(/\./g, '_'), 'base64url').toString('utf8')
 }
 
 function unique<T>(values: T[]): T[] {
