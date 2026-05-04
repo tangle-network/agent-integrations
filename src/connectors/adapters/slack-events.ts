@@ -20,42 +20,12 @@
  * to bound replay risk.
  */
 
-import { createHmac, timingSafeEqual } from 'crypto'
 import {
   type ConnectorAdapter,
-  type ConnectorInvocation,
-  type CapabilityReadResult,
-  type CapabilityMutationResult,
   type EventHandlerResult,
   type InboundEvent,
 } from '../types.js'
-
-/** Slack recommends 5-minute tolerance; same threat model as Stripe. */
-const SIGNATURE_TOLERANCE_SECONDS = 5 * 60
-
-function firstHeader(h: Record<string, string | string[] | undefined>, name: string): string | undefined {
-  const v = h[name] ?? h[name.toLowerCase()]
-  if (Array.isArray(v)) return v[0]
-  return typeof v === 'string' ? v : undefined
-}
-
-function verifySlackSignature(
-  rawBody: string,
-  signatureHeader: string,
-  timestampHeader: string,
-  secret: string,
-  now: number,
-): boolean {
-  if (!signatureHeader.startsWith('v0=')) return false
-  const ts = Number(timestampHeader)
-  if (!Number.isFinite(ts)) return false
-  if (Math.abs(now - ts) > SIGNATURE_TOLERANCE_SECONDS) return false
-  const expected = 'v0=' + createHmac('sha256', secret).update(`v0:${ts}:${rawBody}`).digest('hex')
-  const expectedBuf = Buffer.from(expected, 'utf8')
-  const sigBuf = Buffer.from(signatureHeader, 'utf8')
-  if (sigBuf.length !== expectedBuf.length) return false
-  return timingSafeEqual(sigBuf, expectedBuf)
-}
+import { firstHeader, verifySlackSignature } from '../webhooks.js'
 
 export const slackEventsConnector: ConnectorAdapter = {
   manifest: {
@@ -70,18 +40,10 @@ export const slackEventsConnector: ConnectorAdapter = {
       "Receive workspace events (messages, reactions, app mentions, …) from Slack's Events API. Outbound bot messaging will land in a follow-up.",
     auth: { kind: 'hmac' },
     category: 'comms',
-    // Inbound-only today; outbound read/mutation scaffolded. Events are
-    // advisory in this incarnation — agents observe and react, no CAS.
+    // Inbound-only. Events are advisory in this incarnation — agents observe
+    // and react, no CAS.
     defaultConsistencyModel: 'advisory',
     capabilities: [],
-  },
-
-  async executeRead(_inv: ConnectorInvocation): Promise<CapabilityReadResult> {
-    throw new Error('not_implemented: slack outbound read is scaffolded')
-  },
-
-  async executeMutation(_inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-    throw new Error('not_implemented: slack outbound mutation is scaffolded')
   },
 
   verifySignature({ rawBody, headers, source }) {
@@ -89,7 +51,7 @@ export const slackEventsConnector: ConnectorAdapter = {
     const sig = firstHeader(headers, 'x-slack-signature')
     const ts = firstHeader(headers, 'x-slack-request-timestamp')
     if (!sig || !ts) return { valid: false, reason: 'missing_slack_headers' }
-    const ok = verifySlackSignature(rawBody, sig, ts, source.credentials.secret, Math.floor(Date.now() / 1000))
+    const ok = verifySlackSignature(rawBody, sig, ts, source.credentials.secret)
     return ok ? { valid: true } : { valid: false, reason: 'invalid_signature' }
   },
 
@@ -142,6 +104,3 @@ export const slackEventsConnector: ConnectorAdapter = {
     return { ok: true }
   },
 }
-
-// Exported for unit tests.
-export const __test__ = { verifySlackSignature }
