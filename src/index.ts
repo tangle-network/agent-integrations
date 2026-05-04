@@ -617,3 +617,12 @@ function base64UrlDecode(value: string): string {
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)]
 }
+
+// ─── Connectors namespace ───────────────────────────────────────────────
+//
+// Lower-level adapter primitives — the contract a concrete first-party
+// integration (Google Calendar, HubSpot, Stripe, ...) implements. The
+// hub-side `IntegrationProvider` interface is the *catalog* facade above
+// these; one provider can wrap many connectors. See `src/connectors/types.ts`
+// for the layering details.
+export * from './connectors/index.js'
