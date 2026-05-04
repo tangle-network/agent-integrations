@@ -2,6 +2,7 @@ import type {
   IntegrationActionResult,
   IntegrationApprovalRequest,
   IntegrationCapability,
+  IntegrationConnector,
   InvokeWithCapabilityRequest,
 } from './index.js'
 import { parseIntegrationToolName } from './catalog.js'
@@ -15,6 +16,12 @@ export interface IntegrationInvocationEnvelope {
   idempotencyKey: string
   dryRun?: boolean
   metadata?: Record<string, unknown>
+}
+
+export interface IntegrationInvocationEnvelopeValidationOptions {
+  connectors?: IntegrationConnector[]
+  maxInputBytes?: number
+  requireKnownTool?: boolean
 }
 
 export type NormalizedIntegrationResult =
@@ -31,7 +38,7 @@ export function buildIntegrationInvocationEnvelope(input: {
   metadata?: Record<string, unknown>
 }): IntegrationInvocationEnvelope {
   const parsed = parseIntegrationToolName(input.toolName)
-  return {
+  const envelope: IntegrationInvocationEnvelope = {
     kind: 'integration.invocation',
     capabilityToken: input.capabilityToken,
     toolName: input.toolName,
@@ -41,15 +48,50 @@ export function buildIntegrationInvocationEnvelope(input: {
     dryRun: input.dryRun,
     metadata: input.metadata,
   }
+  validateIntegrationInvocationEnvelope(envelope)
+  return envelope
 }
 
 export function invocationRequestFromEnvelope(envelope: IntegrationInvocationEnvelope): InvokeWithCapabilityRequest {
+  validateIntegrationInvocationEnvelope(envelope)
   return {
     action: envelope.action,
     input: envelope.input,
     idempotencyKey: envelope.idempotencyKey,
     dryRun: envelope.dryRun,
     metadata: envelope.metadata,
+  }
+}
+
+export function validateIntegrationInvocationEnvelope(
+  envelope: IntegrationInvocationEnvelope,
+  options: IntegrationInvocationEnvelopeValidationOptions = {},
+): void {
+  if (!envelope || typeof envelope !== 'object') throw new Error('Integration invocation envelope is required.')
+  if (envelope.kind !== 'integration.invocation') throw new Error('Invalid integration invocation envelope kind.')
+  if (!isNonEmptyString(envelope.capabilityToken)) throw new Error('Integration invocation envelope is missing capabilityToken.')
+  if (!isNonEmptyString(envelope.toolName)) throw new Error('Integration invocation envelope is missing toolName.')
+  if (!isNonEmptyString(envelope.action)) throw new Error('Integration invocation envelope is missing action.')
+  if (!isNonEmptyString(envelope.idempotencyKey)) throw new Error('Integration invocation envelope is missing idempotencyKey.')
+  if (envelope.metadata !== undefined && !isPlainRecord(envelope.metadata)) {
+    throw new Error('Integration invocation envelope metadata must be an object.')
+  }
+  const parsed = parseIntegrationToolName(envelope.toolName)
+  if (parsed.actionId !== envelope.action) {
+    throw new Error(`Integration invocation action ${envelope.action} does not match tool ${parsed.actionId}.`)
+  }
+  const inputBytes = Buffer.byteLength(JSON.stringify(envelope.input ?? null), 'utf8')
+  const maxInputBytes = options.maxInputBytes ?? 256 * 1024
+  if (inputBytes > maxInputBytes) {
+    throw new Error(`Integration invocation input exceeds ${maxInputBytes} bytes.`)
+  }
+  if (options.requireKnownTool || options.connectors) {
+    if (!options.connectors) throw new Error('connectors are required when requireKnownTool is true.')
+    const connector = options.connectors.find((candidate) =>
+      candidate.providerId === parsed.providerId && candidate.id === parsed.connectorId
+    )
+    const action = connector?.actions.find((candidate) => candidate.id === parsed.actionId)
+    if (!connector || !action) throw new Error(`Unknown integration tool ${envelope.toolName}.`)
   }
 }
 
@@ -106,4 +148,12 @@ function redactUnknown(value: unknown): unknown {
     }
   }
   return out
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

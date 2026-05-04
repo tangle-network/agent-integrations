@@ -8,10 +8,12 @@ import {
   createConnectorAdapterProvider,
   createDefaultIntegrationPolicyEngine,
   invocationRequestFromEnvelope,
+  integrationToolName,
   normalizeIntegrationResult,
   parseIntegrationToolName,
   searchIntegrationTools,
   toMcpTools,
+  validateIntegrationInvocationEnvelope,
   type ConnectorAdapter,
   type ResolvedDataSource,
 } from '../src/index'
@@ -93,6 +95,16 @@ describe('execution layer', () => {
     expect(results[0].tool.action.id).toBe('notes.search')
     expect(parsed).toEqual({ providerId: 'first-party', connectorId: 'notes', actionId: 'notes.search' })
     expect(mcpTools[0]).toMatchObject({ name: results[0].tool.name })
+  })
+
+  it('round-trips tool names for ids whose base64url encoding contains separators', () => {
+    const parsed = parseIntegrationToolName(integrationToolName('provider?', 'connector?', 'action?'))
+
+    expect(parsed).toEqual({
+      providerId: 'provider?',
+      connectorId: 'connector?',
+      actionId: 'action?',
+    })
   })
 
   it('routes first-party adapter reads through IntegrationHub capabilities', async () => {
@@ -218,6 +230,52 @@ describe('execution layer', () => {
       dryRun: undefined,
       metadata: undefined,
     })
+  })
+
+  it('validates invocation envelopes before they cross the sandbox boundary', () => {
+    const connectors = [{
+      id: 'notes',
+      providerId: 'first-party',
+      title: 'Notes',
+      category: 'docs' as const,
+      auth: 'none' as const,
+      scopes: [],
+      actions: [{
+        id: 'notes.search',
+        title: 'Search notes',
+        risk: 'read' as const,
+        requiredScopes: [],
+        dataClass: 'private' as const,
+      }],
+    }]
+    const envelope = buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'notes', 'notes.search'),
+      args: { q: 'launch' },
+      idempotencyKey: 'search-1',
+    })
+
+    expect(() => validateIntegrationInvocationEnvelope(envelope, { connectors, requireKnownTool: true })).not.toThrow()
+    expect(() => validateIntegrationInvocationEnvelope({
+      ...envelope,
+      action: 'notes.create',
+    })).toThrow(/does not match/)
+    expect(() => validateIntegrationInvocationEnvelope({
+      ...envelope,
+      idempotencyKey: '',
+    })).toThrow(/idempotencyKey/)
+    expect(() => validateIntegrationInvocationEnvelope({
+      ...envelope,
+      metadata: [] as never,
+    })).toThrow(/metadata/)
+    expect(() => validateIntegrationInvocationEnvelope({
+      ...envelope,
+      input: { body: 'x'.repeat(128) },
+    }, { maxInputBytes: 32 })).toThrow(/exceeds/)
+    expect(() => validateIntegrationInvocationEnvelope(envelope, {
+      connectors: [{ ...connectors[0], actions: [] }],
+      requireKnownTool: true,
+    })).toThrow(/Unknown integration tool/)
   })
 
   it('denies destructive actions by default policy', async () => {

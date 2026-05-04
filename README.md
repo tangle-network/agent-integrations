@@ -58,7 +58,10 @@ The SDK surface for that flow is:
 - `toMcpTools` for MCP-compatible tool export.
 - `IntegrationHub.issueCapability` for scoped sandbox handoff.
 - `createDefaultIntegrationPolicyEngine` for allow / approval / deny decisions.
-- `buildIntegrationInvocationEnvelope` for sandbox-safe tool calls.
+- `buildIntegrationInvocationEnvelope` and
+  `validateIntegrationInvocationEnvelope` for sandbox-safe tool calls with
+  action/tool consistency, idempotency-key, metadata-shape, known-tool, and
+  input-size checks.
 - `createConnectorAdapterProvider` to run first-party adapters through the hub.
 
 ```ts
@@ -143,6 +146,7 @@ without changing agent code.
 - Capability tokens contain no provider credential.
 - Secret refs are redacted from public telemetry.
 - Write/destructive actions can be policy-gated.
+- Sandbox invocation envelopes are validated before conversion to hub requests.
 - Action invocation checks connection ownership, status, scopes, allowed
   actions, and expiration.
 - Optional `IntegrationActionGuard` wraps every action invocation for

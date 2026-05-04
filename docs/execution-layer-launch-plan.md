@@ -40,7 +40,9 @@ Missing for full launch:
 - canonical policy engine with approval decisions, not only a hook
 - approval request/result types and helpers
 - MCP/tool-call export helpers
-- runtime invocation envelope for sandboxes
+- runtime invocation envelope for sandboxes, with central validation for
+  tool/action consistency, idempotency keys, metadata shape, known-tool checks,
+  and input-size limits
 - connection requirement planning for generated apps
 - provider import pipeline for OpenAPI/GraphQL/MCP catalogs
 - first-party provider registry that wraps `ConnectorAdapter[]` into `IntegrationProvider`
