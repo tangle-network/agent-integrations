@@ -237,4 +237,68 @@ describe('IntegrationHub', () => {
       authorization: 'Bearer provider-token',
     })
   })
+
+  it('threads invokeWithCapability through an IntegrationActionGuard, allowing short-circuit and pass-through', async () => {
+    const guardCalls: Array<{ action: string; proceeded: boolean }> = []
+    let providerInvocations = 0
+    const provider = createMockIntegrationProvider({
+      onInvoke: () => {
+        providerInvocations++
+        return { ok: true, action: 'messages.search', output: { items: [] } }
+      },
+    })
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+      guard: {
+        async invokeAction(ctx, proceed) {
+          // First call: short-circuit (replay scenario).
+          if (ctx.request.idempotencyKey === 'cached-key') {
+            guardCalls.push({ action: ctx.request.action, proceeded: false })
+            return { ok: true, action: ctx.request.action, output: { items: [], cached: true } }
+          }
+          // Second call: proceed.
+          guardCalls.push({ action: ctx.request.action, proceeded: true })
+          return proceed()
+        },
+      },
+    })
+    await hub.upsertConnection({
+      id: 'conn_mock',
+      owner,
+      providerId: 'mock',
+      connectorId: 'gmail',
+      status: 'active',
+      grantedScopes: ['email.read'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+    const capability = await hub.issueCapability({
+      subject: { type: 'agent', id: 'agent_1' },
+      connectionId: 'conn_mock',
+      scopes: ['email.read'],
+      allowedActions: ['messages.search'],
+      ttlMs: 60_000,
+    })
+
+    const cached = await hub.invokeWithCapability(capability.token, {
+      action: 'messages.search',
+      input: {},
+      idempotencyKey: 'cached-key',
+    })
+    const live = await hub.invokeWithCapability(capability.token, {
+      action: 'messages.search',
+      input: {},
+      idempotencyKey: 'fresh-key',
+    })
+
+    expect(cached.output).toMatchObject({ cached: true })
+    expect(live.output).toMatchObject({ items: [] })
+    expect(guardCalls).toHaveLength(2)
+    expect(guardCalls[0].proceeded).toBe(false)
+    expect(guardCalls[1].proceeded).toBe(true)
+    // The guard short-circuited the first call → only one provider invocation.
+    expect(providerInvocations).toBe(1)
+  })
 })

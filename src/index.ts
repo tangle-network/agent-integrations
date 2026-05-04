@@ -199,10 +199,55 @@ export interface IssuedIntegrationCapability {
   token: string
 }
 
+/**
+ * Wraps every action invocation with cross-cutting discipline (idempotency,
+ * conflict detection, rate-limiting, audit logging). Optional. When set on
+ * the hub, runs BEFORE provider.invokeAction; can short-circuit (return a
+ * result directly) or pass through (call `proceed()` to invoke the provider).
+ *
+ * Why this hook exists: production deployments need conflict-resolution
+ * guarantees that span every provider — first-party, Nango, Composio,
+ * webhook receivers — and providers shouldn't re-implement them. The
+ * canonical implementation is a "MutationGuard" that:
+ *   1. Short-circuits on a known idempotency key (returns recorded response).
+ *   2. Refuses same-key-different-args (drift detection).
+ *   3. Wraps `proceed()` and audit-logs the outcome.
+ *   4. Translates upstream conflict signals into a structured result with
+ *      alternatives the agent can act on.
+ *
+ * Implementations live in consumers (every product has different
+ * persistence + telemetry needs); this interface is the contract.
+ */
+export interface IntegrationActionGuard {
+  /** Wrap an invokeAction call. Implementations MUST call `proceed()` to
+   *  invoke the underlying provider unless they're returning a cached or
+   *  short-circuited result.
+   *
+   *  @param ctx connection + request the hub is about to dispatch
+   *  @param proceed call to invoke the wrapped provider; returns the
+   *                 underlying IntegrationActionResult
+   *  @returns the result the hub should return to the caller
+   */
+  invokeAction(
+    ctx: IntegrationGuardContext,
+    proceed: () => Promise<IntegrationActionResult>,
+  ): Promise<IntegrationActionResult>
+}
+
+export interface IntegrationGuardContext {
+  connection: IntegrationConnection
+  request: IntegrationActionRequest
+  /** The action descriptor from the connector manifest, if discovered. */
+  action?: IntegrationConnectorAction
+}
+
 export interface IntegrationHubOptions {
   providers: IntegrationProvider[]
   store: IntegrationConnectionStore
   capabilitySecret: string
+  /** Optional cross-cutting guard. If provided, every invokeAction call
+   *  passes through it before reaching the provider. See {@link IntegrationActionGuard}. */
+  guard?: IntegrationActionGuard
   now?: () => Date
 }
 
@@ -265,6 +310,7 @@ export class IntegrationHub {
   private readonly providers = new Map<string, IntegrationProvider>()
   private readonly store: IntegrationConnectionStore
   private readonly capabilitySecret: string
+  private readonly guard: IntegrationActionGuard | undefined
   private readonly now: () => Date
 
   constructor(options: IntegrationHubOptions) {
@@ -274,6 +320,7 @@ export class IntegrationHub {
     for (const provider of options.providers) this.providers.set(provider.id, provider)
     this.store = options.store
     this.capabilitySecret = options.capabilitySecret
+    this.guard = options.guard
     this.now = options.now ?? (() => new Date())
   }
 
@@ -341,7 +388,12 @@ export class IntegrationHub {
     if (!action) throw new IntegrationError(`Action ${request.action} is not defined by connector ${connector.id}.`, 'action_not_found')
     assertScopes(connection, action.requiredScopes)
     assertScopes({ ...connection, grantedScopes: capability.scopes }, action.requiredScopes)
-    return provider.invokeAction(connection, { ...request, connectionId: connection.id })
+    const fullRequest: IntegrationActionRequest = { ...request, connectionId: connection.id }
+    const proceed = () => Promise.resolve(provider.invokeAction(connection, fullRequest))
+    if (this.guard) {
+      return this.guard.invokeAction({ connection, request: fullRequest, action }, proceed)
+    }
+    return proceed()
   }
 
   async subscribeTrigger(connectionId: string, trigger: string, targetUrl?: string): Promise<IntegrationTriggerSubscription> {
