@@ -14,6 +14,7 @@ import {
   verifyStripeSignature,
   verifySlackSignature,
   verifyHmacSignature,
+  verifyTwilioSignature,
   firstHeader,
   startOAuthFlow,
   consumePendingFlow,
@@ -271,5 +272,68 @@ describe('validateConnectorManifest', () => {
       category: 'other',
       capabilities: [],
     })).toThrow(/kind/)
+  })
+})
+
+describe('verifyTwilioSignature', () => {
+  const authToken = 'twilio_auth_token_test'
+  const fullUrl = 'https://api.example.com/twilio/sms'
+
+  function compute(params: Record<string, string>, token = authToken, url = fullUrl): string {
+    const data = Object.keys(params).sort().reduce((acc, k) => acc + k + params[k], url)
+    return createHmac('sha1', token).update(data).digest('base64')
+  }
+
+  it('accepts a correctly-signed POST', () => {
+    const params = { From: '+15551234567', Body: 'hi', MessageSid: 'SM1' }
+    const sig = compute(params)
+    expect(verifyTwilioSignature({ authToken, signatureHeader: sig, fullUrl, params })).toBe(true)
+  })
+
+  it('is order-insensitive on params (canonical sort applied)', () => {
+    const sig = compute({ a: '1', b: '2', c: '3' })
+    expect(verifyTwilioSignature({
+      authToken, signatureHeader: sig, fullUrl, params: { c: '3', a: '1', b: '2' },
+    })).toBe(true)
+  })
+
+  it('rejects a wrong signature', () => {
+    expect(verifyTwilioSignature({
+      authToken, signatureHeader: 'AAAAA=', fullUrl, params: { x: 'y' },
+    })).toBe(false)
+  })
+
+  it('rejects an array signature header', () => {
+    expect(verifyTwilioSignature({
+      authToken, signatureHeader: ['a', 'b'], fullUrl, params: {},
+    })).toBe(false)
+  })
+
+  it('rejects a missing fullUrl', () => {
+    expect(verifyTwilioSignature({
+      authToken, signatureHeader: 'x', fullUrl: null, params: {},
+    })).toBe(false)
+  })
+
+  it('rejects when authToken missing and dev-skip not set', () => {
+    expect(verifyTwilioSignature({
+      authToken: null, signatureHeader: 'x', fullUrl, params: {},
+    })).toBe(false)
+  })
+
+  it('returns true when authToken missing AND skipWhenAuthTokenMissing is set', () => {
+    expect(verifyTwilioSignature({
+      authToken: null, signatureHeader: 'x', fullUrl, params: {},
+    }, { skipWhenAuthTokenMissing: true })).toBe(true)
+  })
+
+  it('signs the raw body when bodyAsRaw=true (JSON Conversations webhooks)', () => {
+    const rawBody = '{"foo":"bar"}'
+    const data = fullUrl + rawBody
+    const sig = createHmac('sha1', authToken).update(data).digest('base64')
+    expect(verifyTwilioSignature(
+      { authToken, signatureHeader: sig, fullUrl, params: undefined },
+      { bodyAsRaw: true, rawBody },
+    )).toBe(true)
   })
 })
