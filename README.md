@@ -55,6 +55,8 @@ The SDK surface for that flow is:
 
 - `buildIntegrationToolCatalog` and `searchIntegrationTools` for discoverable
   tool catalogs.
+- `buildIntegrationCoverageConnectors` for broad planning coverage across
+  100+ high-value integrations before each one has a first-party executor.
 - `toMcpTools` for MCP-compatible tool export.
 - `IntegrationHub.issueCapability` for scoped sandbox handoff.
 - `createDefaultIntegrationPolicyEngine` for allow / approval / deny decisions.
