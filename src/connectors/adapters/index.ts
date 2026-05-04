@@ -23,9 +23,21 @@ export { microsoftCalendar, type MicrosoftCalendarOptions } from './microsoft-ca
 export { hubspot, type HubSpotOptions } from './hubspot.js'
 export { slack, type SlackOptions } from './slack.js'
 export { notionDatabase, type NotionDatabaseOptions } from './notion-database.js'
+export {
+  declarativeRestConnector,
+  type RestConnectorSpec,
+  type RestOperationSpec,
+  type RestRequestSpec,
+  type RestCredentialPlacement,
+} from './declarative-rest.js'
 
 export { twilioSmsConnector } from './twilio-sms.js'
 export { stripePackConnector } from './stripe-pack.js'
 export { webhookConnector } from './webhook.js'
 export { stripeWebhookReceiverConnector } from './stripe-webhook-receiver.js'
 export { slackEventsConnector } from './slack-events.js'
+export { githubConnector } from './github.js'
+export { gitlabConnector } from './gitlab.js'
+export { airtableConnector } from './airtable.js'
+export { asanaConnector } from './asana.js'
+export { salesforceConnector } from './salesforce.js'

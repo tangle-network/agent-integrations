@@ -15,7 +15,8 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] One normalized connector contract for apps, sandboxes, and agents.
 - [x] Central sandbox invocation envelope validation.
 - [x] Coverage catalog for 100+ high-value integrations.
-- [ ] Builder UI consumes the coverage catalog for app planning.
+- [x] Builder API consumes the coverage catalog for app planning.
+- [x] Declarative REST adapter factory for fast first-party promotion of REST-shaped APIs.
 - [ ] Generated sandbox apps can request missing connections from the catalog.
 - [ ] Live smoke credentials exist for Tier 0 connectors.
 - [ ] Tier 0 connector failures are classified by auth, scope, rate-limit, provider outage, validation, approval, and conflict.
@@ -39,11 +40,11 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [ ] Google Docs
 - [ ] Microsoft Teams
 - [ ] OneDrive
-- [ ] Airtable
-- [ ] Salesforce
+- [x] Airtable
+- [x] Salesforce
 - [ ] Linear
 - [ ] Jira
-- [ ] GitHub
+- [x] GitHub
 - [ ] Zendesk
 - [ ] Intercom
 - [ ] QuickBooks
@@ -80,7 +81,9 @@ The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown
 
 - [ ] Wire Builder to show Tier 0 missing connections from the coverage catalog.
 - [ ] Add Gmail first-party adapter.
-- [ ] Add GitHub first-party adapter.
-- [ ] Add Salesforce or Zendesk first-party adapter.
+- [x] Add GitHub first-party adapter.
+- [x] Add Salesforce or Zendesk first-party adapter.
+- [x] Add reusable declarative REST adapter factory.
+- [x] Add Airtable, GitLab, and Asana via declarative REST.
 - [ ] Add live smoke-test harness that skips only when explicit credentials are absent.
 - [ ] Add gateway sync job for Nango/Pipedream/Activepieces metadata.
