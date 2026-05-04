@@ -101,6 +101,12 @@ const provider = createHttpIntegrationProvider({
 The HTTP adapter keeps product code stable while the backing provider can be
 Nango, Pipedream, Activepieces, a Zapier-style service, or an internal gateway.
 
+See [Provider Decision Matrix](./docs/provider-decision-matrix.md) for the
+build-vs-buy policy. The short version: use a vendor gateway only to compress
+time-to-coverage, but keep all product and sandbox code on this package's
+contracts so high-volume or strategic connectors can be moved first-party
+without changing agent code.
+
 ## Security Defaults
 
 - Capabilities expire.
@@ -109,3 +115,6 @@ Nango, Pipedream, Activepieces, a Zapier-style service, or an internal gateway.
 - Write/destructive actions can be policy-gated.
 - Action invocation checks connection ownership, status, scopes, allowed
   actions, and expiration.
+- Optional `IntegrationActionGuard` wraps every action invocation for
+  idempotency, audit logging, conflict detection, rate limits, and
+  approval gates.
