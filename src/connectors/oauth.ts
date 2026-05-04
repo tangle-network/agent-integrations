@@ -7,16 +7,15 @@
  * `clientSecret`, `tokenUrl`, optional `extraAuthParams` and the rest is
  * mechanical.
  *
- * State and code_verifier are kept in a short-TTL in-memory map keyed by
- * the opaque `state` we round-trip through the provider. We do NOT use a
- * cookie — the provider's redirect happens on a different origin and
- * cookie scoping gets messy. The map is small (capped) and a single
- * Railway container handles each user's flow within a few seconds.
+ * State and code_verifier are kept in a short-TTL flow store keyed by the
+ * opaque `state` we round-trip through the provider. The default store is
+ * in-memory for local/dev and tests. Production deployments should inject a
+ * durable store backed by KV/Redis/D1/etc. so callbacks can land on any worker.
  */
 
 import { createHash, randomBytes } from 'crypto'
 
-interface PendingFlow {
+export interface PendingOAuthFlow {
   /** code_verifier for PKCE. */
   codeVerifier: string
   /** Opaque-state value also returned in the OAuth redirect. */
@@ -34,15 +33,41 @@ interface PendingFlow {
   redirectUri: string
 }
 
-const pendingFlows = new Map<string, PendingFlow>()
 const PENDING_TTL_MS = 10 * 60 * 1000
 
-function sweep(): void {
-  const now = Date.now()
-  for (const [k, v] of pendingFlows) {
-    if (v.expiresAt <= now) pendingFlows.delete(k)
+export interface OAuthFlowStore {
+  put(state: string, flow: PendingOAuthFlow): Promise<void> | void
+  consume(state: string): Promise<PendingOAuthFlow | undefined> | PendingOAuthFlow | undefined
+  sweep?(now: number): Promise<void> | void
+  clear?(): Promise<void> | void
+}
+
+export class InMemoryOAuthFlowStore implements OAuthFlowStore {
+  private readonly pendingFlows = new Map<string, PendingOAuthFlow>()
+
+  put(state: string, flow: PendingOAuthFlow): void {
+    this.pendingFlows.set(state, flow)
+  }
+
+  consume(state: string): PendingOAuthFlow | undefined {
+    const flow = this.pendingFlows.get(state)
+    this.pendingFlows.delete(state)
+    if (!flow || flow.expiresAt <= Date.now()) return undefined
+    return flow
+  }
+
+  sweep(now: number): void {
+    for (const [k, v] of this.pendingFlows) {
+      if (v.expiresAt <= now) this.pendingFlows.delete(k)
+    }
+  }
+
+  clear(): void {
+    this.pendingFlows.clear()
   }
 }
+
+const defaultFlowStore = new InMemoryOAuthFlowStore()
 
 export interface StartOAuthInput {
   projectId: string
@@ -55,6 +80,11 @@ export interface StartOAuthInput {
   /** Optional extra query params; Google needs `access_type=offline` and
    *  `prompt=consent` to issue refresh tokens reliably. */
   extraAuthParams?: Record<string, string>
+  /** Optional flow store. Use a durable store in distributed production
+   *  runtimes; omitted means local in-memory storage. */
+  store?: OAuthFlowStore
+  /** Override clock for tests. */
+  now?: number
 }
 
 export interface StartOAuthOutput {
@@ -69,19 +99,21 @@ export interface StartOAuthOutput {
  *  user consents; provider redirects back to redirectUri with `code` +
  *  `state`. The caller's callback then invokes `consumePendingFlow`. */
 export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
-  sweep()
+  const store = input.store ?? defaultFlowStore
+  const now = input.now ?? Date.now()
+  store.sweep?.(now)
   const codeVerifier = base64Url(randomBytes(48))
   const codeChallenge = base64Url(createHash('sha256').update(codeVerifier).digest())
   const state = base64Url(randomBytes(24))
 
-  pendingFlows.set(state, {
+  store.put(state, {
     codeVerifier,
     state,
     projectId: input.projectId,
     kind: input.kind,
     label: input.label,
     redirectUri: input.redirectUri,
-    expiresAt: Date.now() + PENDING_TTL_MS,
+    expiresAt: now + PENDING_TTL_MS,
   })
 
   const url = new URL(input.authorizationUrl)
@@ -102,13 +134,12 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
 
 /** Look up + remove the pending flow record. Throws if state is unknown
  *  or expired (CSRF guard / replay protection). */
-export function consumePendingFlow(state: string): PendingFlow {
-  sweep()
-  const flow = pendingFlows.get(state)
+export async function consumePendingFlow(state: string, store: OAuthFlowStore = defaultFlowStore): Promise<PendingOAuthFlow> {
+  await store.sweep?.(Date.now())
+  const flow = await store.consume(state)
   if (!flow) {
-    throw new Error('Unknown or expired OAuth state — likely CSRF or stale flow')
+    throw new Error('Unknown or expired OAuth state: possible CSRF, replay, or stale flow')
   }
-  pendingFlows.delete(state)
   return flow
 }
 
@@ -215,5 +246,5 @@ function base64Url(buf: Buffer): string {
 
 /** Test-only — drop pending flows between unit-test runs. */
 export function _resetPendingFlowsForTests(): void {
-  pendingFlows.clear()
+  defaultFlowStore.clear?.()
 }

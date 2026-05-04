@@ -19,10 +19,9 @@
  * Three load-bearing decisions encoded here:
  *
  * 1. Capabilities are typed (`read` vs `mutation`). Every mutation MUST
- *    declare an idempotency strategy + a CAS strategy. Conflict resolution
- *    is the SDK's job, not the connector's. A mutation that doesn't
- *    declare CAS is rejected at registration time so a careless
- *    contributor can't ship a connector that double-books reservations.
+ *    declare a CAS strategy. Conflict resolution is the SDK's job, not the
+ *    connector's. `validateConnectorManifest()` rejects unsafe manifests
+ *    before a connector is registered.
  *
  * 2. ConsistencyModel pins what the rest of the system can assume:
  *      authoritative → the source IS the truth (Calendar, payments)
@@ -110,7 +109,7 @@ export interface DataSourceMetadata {
 }
 
 /** A connected, authenticated, ready-to-call data source for a project.
- *  Persistence shape mirrors prisma `DataSource` but normalized — the
+ *  Persistence shape mirrors the product's connection/source row but normalized — the
  *  encrypted credentials envelope is decrypted at hand-out time and held
  *  in memory only for the duration of the call. */
 export interface ResolvedDataSource {
@@ -195,7 +194,7 @@ export interface ConnectorInvocation {
   idempotencyKey: string
   /** Optional caller-supplied etag the connector should send as If-Match. */
   expectedEtag?: string
-  /** Voice-api session id (if any) for forensic logging. */
+  /** Product/session id (if any) for forensic logging. */
   callSessionId?: string
 }
 
@@ -226,14 +225,16 @@ export interface EventHandlerResult {
 export interface ConnectorAdapter {
   /** Manifest entry the registry uses to render UI + validate args. */
   manifest: ConnectorManifest
-  /** Read invocation. Should return whatever shape the capability declared
+  /** Read invocation. Required when manifest.capabilities contains reads.
+   *  Should return whatever shape the capability declared
    *  in its parameters output schema. */
-  executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult>
-  /** Mutation invocation. Throws ResourceContention on a CAS miss; throws
+  executeRead?(inv: ConnectorInvocation): Promise<CapabilityReadResult>
+  /** Mutation invocation. Required when manifest.capabilities contains mutations.
+   *  Throws ResourceContention on a CAS miss; throws
    *  any other Error for upstream failures. The MutationGuard wraps this
    *  with idempotency-key short-circuit + audit logging — adapters do
    *  NOT manage their own dedup. */
-  executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult>
+  executeMutation?(inv: ConnectorInvocation): Promise<CapabilityMutationResult>
   /** Inbound webhook signature verifier. Called BEFORE handleInboundEvent.
    *  MUST use constant-time comparison (`crypto.timingSafeEqual`) for any
    *  HMAC check. The receiver returns 401 on `valid=false` without invoking
@@ -371,5 +372,54 @@ export class CredentialsExpired extends Error {
   override readonly name = 'CredentialsExpired'
   constructor(message: string, public readonly dataSourceId: string) {
     super(message)
+  }
+}
+
+export interface ConnectorManifestValidationIssue {
+  path: string
+  message: string
+}
+
+export interface ConnectorManifestValidationResult {
+  ok: boolean
+  issues: ConnectorManifestValidationIssue[]
+}
+
+/** Validate the static connector manifest before a provider registers it.
+ *  This catches the expensive mistakes early: duplicate capability names,
+ *  mutation capabilities without CAS, authoritative fire-and-forget writes,
+ *  and invalid rate-limit specs. */
+export function validateConnectorManifest(manifest: ConnectorManifest): ConnectorManifestValidationResult {
+  const issues: ConnectorManifestValidationIssue[] = []
+  if (!manifest.kind.trim()) issues.push({ path: 'kind', message: 'kind is required' })
+  if (!manifest.displayName.trim()) issues.push({ path: 'displayName', message: 'displayName is required' })
+  const seen = new Set<string>()
+  for (const [index, capability] of manifest.capabilities.entries()) {
+    const path = `capabilities[${index}]`
+    if (!capability.name.trim()) issues.push({ path: `${path}.name`, message: 'capability name is required' })
+    if (seen.has(capability.name)) issues.push({ path: `${path}.name`, message: `duplicate capability name: ${capability.name}` })
+    seen.add(capability.name)
+    if (capability.class === 'mutation') {
+      if (!capability.cas) issues.push({ path: `${path}.cas`, message: 'mutation capability must declare a CAS strategy' })
+      if (manifest.defaultConsistencyModel === 'authoritative' && capability.cas === 'none') {
+        issues.push({ path: `${path}.cas`, message: 'authoritative mutations cannot use cas="none"' })
+      }
+    }
+  }
+  if (manifest.rateLimit) {
+    if (!Number.isFinite(manifest.rateLimit.requests) || manifest.rateLimit.requests <= 0) {
+      issues.push({ path: 'rateLimit.requests', message: 'rateLimit.requests must be positive' })
+    }
+    if (!Number.isFinite(manifest.rateLimit.windowMs) || manifest.rateLimit.windowMs <= 0) {
+      issues.push({ path: 'rateLimit.windowMs', message: 'rateLimit.windowMs must be positive' })
+    }
+  }
+  return { ok: issues.length === 0, issues }
+}
+
+export function assertValidConnectorManifest(manifest: ConnectorManifest): void {
+  const result = validateConnectorManifest(manifest)
+  if (!result.ok) {
+    throw new Error(`Invalid connector manifest ${manifest.kind || '<unknown>'}: ${result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; ')}`)
   }
 }
