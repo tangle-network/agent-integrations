@@ -65,6 +65,8 @@ The SDK surface for that flow is:
   action/tool consistency, idempotency-key, metadata-shape, known-tool, and
   input-size checks.
 - `createConnectorAdapterProvider` to run first-party adapters through the hub.
+- `declarativeRestConnector` to promote REST-shaped providers from compact,
+  reviewed specs instead of hand-writing one brittle adapter per API.
 
 ```ts
 import {
@@ -135,6 +137,21 @@ const provider = createHttpIntegrationProvider({
 
 The HTTP adapter keeps product code stable while the backing provider can be
 Nango, Pipedream, Activepieces, a Zapier-style service, or an internal gateway.
+
+For first-party REST APIs, use the declarative adapter factory:
+
+```ts
+import { createConnectorAdapterProvider, githubConnector } from '@tangle-network/agent-integrations'
+
+const provider = createConnectorAdapterProvider({
+  adapters: [githubConnector],
+  resolveDataSource: async (connection) => loadSourceAndCredentials(connection),
+})
+```
+
+Current first-party adapters include Google Calendar, Microsoft Calendar,
+Google Sheets, Slack, HubSpot, Notion database, Stripe, Twilio, webhooks,
+GitHub, GitLab, Airtable, Asana, and Salesforce.
 
 See [Provider Decision Matrix](./docs/provider-decision-matrix.md) for the
 build-vs-buy policy. The short version: use a vendor gateway only to compress
