@@ -158,6 +158,68 @@ export function verifyHmacSignature(
   return timingSafeEqual(sigBuf, expectedBuf)
 }
 
+// ─── Twilio ─────────────────────────────────────────────────────────────
+//
+// Twilio's webhook signature scheme is unlike Stripe/Slack — it doesn't
+// sign the raw body. It signs the concatenation of:
+//
+//     fullUrl + sortedConcatenatedParams
+//
+// where `fullUrl` is the public URL Twilio called (scheme + host + path
+// + query, exactly as Twilio constructed it from your console config),
+// and `sortedConcatenatedParams` is `key1+value1+key2+value2+...` over
+// the alphabetically-sorted keys of the POST body params (form-encoded).
+//
+// For JSON-bodied Twilio webhooks (Conversations API), the body is signed
+// as raw bytes — pass `{ bodyAsRaw: true, rawBody }` for that path.
+//
+// HMAC-SHA1, base64-encoded. Header: `X-Twilio-Signature`.
+//
+// https://www.twilio.com/docs/usage/webhooks/webhooks-security
+
+export interface TwilioVerifyOptions {
+  /** Skip verification when the auth token isn't configured. Useful in
+   *  dev where the receiver wants to accept any payload. Default `false`
+   *  — production should always require a configured token. */
+  skipWhenAuthTokenMissing?: boolean
+  /** When true, sign the raw body instead of the URL-encoded sorted-params
+   *  reduction. Twilio uses raw-body signing for `application/json`
+   *  webhook bodies. Default `false`. */
+  bodyAsRaw?: boolean
+  /** When `bodyAsRaw` is true, the raw body to sign. Ignored otherwise. */
+  rawBody?: string
+}
+
+/** Verify a Twilio webhook signature. */
+export function verifyTwilioSignature(
+  input: {
+    authToken: string | null | undefined
+    signatureHeader: string | string[] | undefined
+    fullUrl: string | null | undefined
+    params: Record<string, string> | undefined
+  },
+  options: TwilioVerifyOptions = {},
+): boolean {
+  if (!input.authToken) {
+    return options.skipWhenAuthTokenMissing === true
+  }
+  const signature = input.signatureHeader
+  if (!signature || Array.isArray(signature)) return false
+  if (!input.fullUrl) return false
+
+  const data = options.bodyAsRaw === true
+    ? input.fullUrl + (options.rawBody ?? '')
+    : Object.keys(input.params ?? {})
+        .sort()
+        .reduce((acc, key) => acc + key + (input.params![key] ?? ''), input.fullUrl)
+
+  const expected = createHmac('sha1', input.authToken).update(data).digest('base64')
+  const expectedBuf = Buffer.from(expected)
+  const sigBuf = Buffer.from(signature)
+  if (expectedBuf.length !== sigBuf.length) return false
+  return timingSafeEqual(expectedBuf, sigBuf)
+}
+
 // ─── Header helper ──────────────────────────────────────────────────────
 //
 // Most fastify/express adapters expose request headers as
