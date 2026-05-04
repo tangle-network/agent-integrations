@@ -1,0 +1,156 @@
+# Agent Integrations Coverage Checklist
+
+Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the product can plan/request/connect the integration; executable first-party adapters are promoted separately behind the same provider contract.
+
+## Summary
+
+- Total cataloged integrations: 142
+- Tier 0: 38
+- Tier 1: 89
+- Tier 2: 14
+- Long tail: 1
+
+## Checklist
+
+- [ ] tier_0 / email / Gmail (gmail) - email, google, workspace, inbox
+- [ ] tier_0 / email / Outlook Mail (outlook-mail) - email, microsoft, office, inbox
+- [ ] tier_0 / calendar / Google Calendar (google-calendar) - calendar, google, workspace, scheduling
+- [ ] tier_0 / calendar / Outlook Calendar (outlook-calendar) - calendar, microsoft, office, scheduling
+- [ ] tier_0 / chat / Slack (slack) - chat, collaboration, internal-comms
+- [ ] tier_0 / chat / Microsoft Teams (microsoft-teams) - chat, microsoft, collaboration
+- [ ] tier_0 / storage / Google Drive (google-drive) - files, google, workspace, storage
+- [ ] tier_0 / storage / OneDrive (onedrive) - files, microsoft, office, storage
+- [ ] tier_1 / storage / Dropbox (dropbox) - files, storage
+- [ ] tier_1 / storage / Box (box) - files, enterprise, storage
+- [ ] tier_0 / docs / Google Docs (google-docs) - docs, google, workspace
+- [ ] tier_0 / database / Google Sheets (google-sheets) - sheets, spreadsheet, google, database
+- [ ] tier_0 / database / Microsoft Excel (microsoft-excel) - sheets, spreadsheet, microsoft, database
+- [ ] tier_0 / docs / Notion (notion) - docs, wiki, knowledge
+- [ ] tier_0 / database / Airtable (airtable) - database, spreadsheet, ops
+- [ ] tier_1 / docs / Coda (coda) - docs, wiki, ops
+- [ ] tier_1 / docs / Confluence (confluence) - docs, wiki, atlassian
+- [ ] tier_1 / storage / SharePoint (sharepoint) - files, microsoft, enterprise
+- [ ] tier_0 / crm / HubSpot (hubspot) - crm, sales, marketing
+- [ ] tier_0 / crm / Salesforce (salesforce) - crm, sales, enterprise
+- [ ] tier_1 / crm / Pipedrive (pipedrive) - crm, sales
+- [ ] tier_1 / crm / Zoho CRM (zoho-crm) - crm, sales
+- [ ] tier_1 / crm / Close (close) - crm, sales
+- [ ] tier_1 / crm / Attio (attio) - crm, sales, startups
+- [ ] tier_0 / workflow / Linear (linear) - project, engineering, tickets
+- [ ] tier_0 / workflow / Jira (jira) - project, engineering, tickets, atlassian
+- [ ] tier_0 / workflow / GitHub (github) - code, dev, issues, git
+- [ ] tier_1 / workflow / GitLab (gitlab) - code, dev, issues, git
+- [ ] tier_2 / workflow / Bitbucket (bitbucket) - code, dev, git, atlassian
+- [ ] tier_1 / workflow / Asana (asana) - project, tasks
+- [ ] tier_1 / workflow / Trello (trello) - project, tasks, atlassian
+- [ ] tier_1 / workflow / monday.com (monday) - project, tasks, ops
+- [ ] tier_1 / workflow / ClickUp (clickup) - project, tasks, ops
+- [ ] tier_2 / workflow / Basecamp (basecamp) - project, tasks
+- [ ] tier_0 / crm / Zendesk (zendesk) - support, tickets, customer-success
+- [ ] tier_0 / crm / Intercom (intercom) - support, chat, customer-success
+- [ ] tier_1 / crm / Freshdesk (freshdesk) - support, tickets
+- [ ] tier_1 / crm / Help Scout (helpscout) - support, tickets
+- [ ] tier_1 / email / Front (front) - support, email, shared-inbox
+- [ ] tier_1 / crm / Gorgias (gorgias) - support, ecommerce
+- [ ] tier_0 / workflow / Stripe (stripe) - payments, billing, finance
+- [ ] tier_0 / workflow / QuickBooks (quickbooks) - accounting, finance
+- [ ] tier_1 / workflow / Xero (xero) - accounting, finance
+- [ ] tier_1 / workflow / NetSuite (netsuite) - erp, finance, enterprise
+- [ ] tier_2 / workflow / Sage (sage) - accounting, finance
+- [ ] tier_1 / workflow / Plaid (plaid) - banking, finance
+- [ ] tier_0 / workflow / Shopify (shopify) - ecommerce, orders, commerce
+- [ ] tier_1 / workflow / WooCommerce (woocommerce) - ecommerce, orders, wordpress
+- [ ] tier_1 / workflow / BigCommerce (bigcommerce) - ecommerce, orders
+- [ ] tier_1 / workflow / Amazon Seller Central (amazon-seller-central) - marketplace, ecommerce
+- [ ] tier_2 / workflow / eBay (ebay) - marketplace, ecommerce
+- [ ] tier_2 / workflow / Etsy (etsy) - marketplace, ecommerce
+- [ ] tier_0 / workflow / Mailchimp (mailchimp) - email-marketing, marketing
+- [ ] tier_0 / workflow / Klaviyo (klaviyo) - email-marketing, ecommerce, marketing
+- [ ] tier_1 / workflow / Marketo (marketo) - marketing, enterprise
+- [ ] tier_1 / workflow / Braze (braze) - marketing, lifecycle
+- [ ] tier_1 / workflow / Customer.io (customer-io) - marketing, lifecycle
+- [ ] tier_1 / email / SendGrid (sendgrid) - email, transactional
+- [ ] tier_1 / email / Postmark (postmark) - email, transactional
+- [ ] tier_0 / chat / Twilio (twilio) - sms, voice, communications
+- [ ] tier_1 / chat / Discord (discord) - chat, community
+- [ ] tier_1 / chat / Telegram (telegram) - chat, community
+- [ ] tier_1 / chat / WhatsApp Business (whatsapp-business) - chat, meta, customer-comms
+- [ ] tier_1 / workflow / Facebook Pages (facebook-pages) - social, meta, marketing
+- [ ] tier_1 / workflow / Instagram Business (instagram-business) - social, meta, marketing
+- [ ] tier_1 / workflow / LinkedIn (linkedin) - social, sales, gtm
+- [ ] tier_1 / workflow / X / Twitter (x-twitter) - social, marketing
+- [ ] tier_1 / storage / YouTube (youtube) - video, content
+- [ ] tier_2 / workflow / TikTok (tiktok) - social, video, marketing
+- [ ] tier_0 / database / Google Analytics (google-analytics) - analytics, web, marketing
+- [ ] tier_1 / database / Mixpanel (mixpanel) - analytics, product
+- [ ] tier_1 / database / Amplitude (amplitude) - analytics, product
+- [ ] tier_1 / database / Segment (segment) - analytics, cdp
+- [ ] tier_0 / database / Snowflake (snowflake) - warehouse, data
+- [ ] tier_0 / database / BigQuery (bigquery) - warehouse, google, data
+- [ ] tier_1 / database / Redshift (redshift) - warehouse, aws, data
+- [ ] tier_0 / database / Postgres (postgres) - database, sql
+- [ ] tier_1 / database / MySQL (mysql) - database, sql
+- [ ] tier_1 / database / MongoDB (mongodb) - database, nosql
+- [ ] tier_1 / database / Supabase (supabase) - database, postgres
+- [ ] tier_1 / database / Firebase (firebase) - database, google, app
+- [ ] tier_2 / database / Redis (redis) - database, cache
+- [ ] tier_0 / storage / Amazon S3 (aws-s3) - files, aws, storage
+- [ ] tier_1 / workflow / AWS Lambda (aws-lambda) - aws, serverless, dev
+- [ ] tier_1 / database / AWS CloudWatch (aws-cloudwatch) - aws, logs, observability
+- [ ] tier_1 / storage / Google Cloud Storage (google-cloud-storage) - files, gcp, storage
+- [ ] tier_1 / storage / Azure Blob Storage (azure-blob-storage) - files, azure, storage
+- [ ] tier_1 / workflow / Vercel (vercel) - deployments, dev
+- [ ] tier_2 / workflow / Netlify (netlify) - deployments, dev
+- [ ] tier_1 / workflow / Cloudflare (cloudflare) - edge, dev, dns
+- [ ] tier_1 / workflow / Sentry (sentry) - errors, observability, dev
+- [ ] tier_1 / database / Datadog (datadog) - observability, logs, metrics
+- [ ] tier_2 / database / New Relic (new-relic) - observability, logs, metrics
+- [ ] tier_1 / workflow / PagerDuty (pagerduty) - incident, on-call
+- [ ] tier_2 / workflow / Opsgenie (opsgenie) - incident, on-call, atlassian
+- [ ] tier_1 / internal / Okta (okta) - identity, security
+- [ ] tier_1 / internal / Auth0 (auth0) - identity, security
+- [ ] tier_1 / workflow / Workday (workday) - hr, finance, enterprise
+- [ ] tier_1 / workflow / BambooHR (bamboohr) - hr, people
+- [ ] tier_1 / workflow / Greenhouse (greenhouse) - recruiting, hr
+- [ ] tier_1 / workflow / Lever (lever) - recruiting, hr
+- [ ] tier_1 / workflow / Gusto (gusto) - payroll, hr
+- [ ] tier_1 / workflow / Rippling (rippling) - hr, it, identity
+- [ ] tier_1 / docs / DocuSign (docusign) - contracts, signature, legal
+- [ ] tier_1 / docs / PandaDoc (pandadoc) - contracts, signature, sales
+- [ ] tier_2 / docs / Dropbox Sign (hellosign) - contracts, signature
+- [ ] tier_1 / workflow / Clio (clio) - legal, practice-management
+- [ ] tier_1 / docs / Ironclad (ironclad) - legal, contracts
+- [ ] tier_2 / docs / LexisNexis (lexisnexis) - legal, research
+- [ ] tier_0 / calendar / Calendly (calendly) - scheduling, calendar
+- [ ] tier_1 / calendar / Cal.com (cal-com) - scheduling, calendar
+- [ ] tier_0 / calendar / Zoom (zoom) - meetings, video, calendar
+- [ ] tier_1 / calendar / Google Meet (google-meet) - meetings, google, video
+- [ ] tier_0 / internal / Microsoft Graph (microsoft-graph) - microsoft, enterprise, identity
+- [ ] tier_0 / workflow / OpenAI (openai) - ai, llm
+- [ ] tier_1 / workflow / Anthropic (anthropic) - ai, llm
+- [ ] tier_1 / workflow / Google Gemini (gemini) - ai, llm, google
+- [ ] tier_1 / workflow / Hugging Face (huggingface) - ai, models
+- [ ] tier_1 / database / Pinecone (pinecone) - vector, database, ai
+- [ ] tier_1 / database / Weaviate (weaviate) - vector, database, ai
+- [ ] tier_1 / database / Qdrant (qdrant) - vector, database, ai
+- [ ] tier_1 / workflow / Zapier (zapier) - automation, workflow
+- [ ] tier_1 / workflow / Make (make) - automation, workflow
+- [ ] tier_1 / workflow / Nango (nango) - integration-platform, oauth
+- [ ] tier_1 / workflow / Pipedream (pipedream) - integration-platform, workflow
+- [ ] tier_1 / workflow / Activepieces (activepieces) - automation, workflow, open-source
+- [ ] tier_0 / webhook / Generic Webhook (webhook) - webhook, http, events
+- [ ] tier_0 / workflow / HTTP Request (http) - http, api, webhook
+- [ ] tier_1 / webhook / RSS (rss) - feeds, content
+- [ ] long_tail / workflow / Zapier Transfer (zapier-transfer) - automation, migration
+- [ ] tier_1 / workflow / Typeform (typeform) - forms, marketing
+- [ ] tier_1 / workflow / Google Forms (google-forms) - forms, google
+- [ ] tier_2 / workflow / Jotform (jotform) - forms
+- [ ] tier_1 / workflow / Webflow (webflow) - cms, website
+- [ ] tier_1 / workflow / WordPress (wordpress) - cms, website
+- [ ] tier_1 / docs / Contentful (contentful) - cms, content
+- [ ] tier_1 / docs / Sanity (sanity) - cms, content
+- [ ] tier_0 / docs / Figma (figma) - design, creative
+- [ ] tier_1 / docs / Canva (canva) - design, creative
+- [ ] tier_1 / storage / Adobe Creative Cloud (adobe-creative-cloud) - design, creative, files
+- [ ] tier_1 / docs / Miro (miro) - whiteboard, collaboration
+- [ ] tier_2 / docs / FigJam (figjam) - whiteboard, design
