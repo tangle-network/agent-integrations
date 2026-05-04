@@ -2,8 +2,8 @@
  * Connector primitives: contracts, OAuth helpers, signature verifiers.
  *
  * This namespace contains the substrate every Tangle product builds on
- * when implementing first-party adapters: the BaseConnector contract
- * (manifest + executeRead + executeMutation + signature/event hooks),
+ * when implementing first-party adapters: the ConnectorAdapter contract
+ * (manifest + read/mutation execution + signature/event hooks),
  * generic OAuth machinery (PKCE, state, refresh), and pure-function
  * webhook signature verifiers (Stripe, Slack, generic HMAC).
  *

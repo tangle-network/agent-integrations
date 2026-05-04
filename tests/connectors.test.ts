@@ -3,7 +3,7 @@
  *   - signature verifiers (Stripe, Slack, generic HMAC)
  *   - OAuth helper (PKCE flow + state round-trip + replay refused)
  *
- * Type contracts (BaseConnector / Capability / CASStrategy / ResolvedDataSource)
+ * Type contracts (ConnectorAdapter / Capability / CASStrategy / ResolvedDataSource)
  * are exercised at compile time and via the bridge tests in downstream consumers.
  */
 
@@ -17,6 +17,9 @@ import {
   firstHeader,
   startOAuthFlow,
   consumePendingFlow,
+  InMemoryOAuthFlowStore,
+  validateConnectorManifest,
+  assertValidConnectorManifest,
   _resetPendingFlowsForTests,
 } from '../src/connectors/index'
 
@@ -122,6 +125,13 @@ describe('verifyHmacSignature (generic)', () => {
   it('rejects mismatched signature', () => {
     expect(verifyHmacSignature('hello', 'deadbeef', 's')).toBe(false)
   })
+
+  it('rejects missing required prefix when configured', () => {
+    const body = 'hello'
+    const secret = 's'
+    const sig = createHmac('sha256', secret).update(body).digest('hex')
+    expect(verifyHmacSignature(body, sig, secret, { signaturePrefix: 'sha256=' })).toBe(false)
+  })
 })
 
 describe('firstHeader', () => {
@@ -131,6 +141,10 @@ describe('firstHeader', () => {
 
   it('lowercases lookup', () => {
     expect(firstHeader({ 'x-foo': 'bar' }, 'X-Foo')).toBe('bar')
+  })
+
+  it('handles mixed-case header keys', () => {
+    expect(firstHeader({ 'X-Slack-Signature': 'sig' }, 'x-slack-signature')).toBe('sig')
   })
 
   it('takes first of array', () => {
@@ -165,28 +179,97 @@ describe('startOAuthFlow / consumePendingFlow', () => {
     expect(url.searchParams.get('state')).toBe(out.state)
   })
 
-  it('round-trips a pending flow', () => {
+  it('round-trips a pending flow', async () => {
     const out = startOAuthFlow({
       projectId: 'p1', kind: 'k', label: 'l',
       authorizationUrl: 'https://x/auth', scopes: ['x'],
       clientId: 'CID', redirectUri: 'https://a/cb',
     })
-    const flow = consumePendingFlow(out.state)
+    const flow = await consumePendingFlow(out.state)
     expect(flow.projectId).toBe('p1')
     expect(flow.codeVerifier.length).toBeGreaterThan(40)
   })
 
-  it('refuses replay (consume twice = throw)', () => {
+  it('round-trips through an injected flow store', async () => {
+    const store = new InMemoryOAuthFlowStore()
+    const out = startOAuthFlow({
+      projectId: 'p1', kind: 'k', label: 'l',
+      authorizationUrl: 'https://x/auth', scopes: ['x'],
+      clientId: 'CID', redirectUri: 'https://a/cb',
+      store,
+    })
+    const flow = await consumePendingFlow(out.state, store)
+    expect(flow.kind).toBe('k')
+  })
+
+  it('refuses replay (consume twice = throw)', async () => {
     const out = startOAuthFlow({
       projectId: 'p1', kind: 'k', label: 'l',
       authorizationUrl: 'https://x/auth', scopes: ['x'],
       clientId: 'CID', redirectUri: 'https://a/cb',
     })
-    consumePendingFlow(out.state)
-    expect(() => consumePendingFlow(out.state)).toThrow(/Unknown or expired/)
+    await consumePendingFlow(out.state)
+    await expect(consumePendingFlow(out.state)).rejects.toThrow(/Unknown or expired/)
   })
 
-  it('rejects unknown state (CSRF)', () => {
-    expect(() => consumePendingFlow('garbage')).toThrow(/Unknown or expired/)
+  it('rejects unknown state (CSRF)', async () => {
+    await expect(consumePendingFlow('garbage')).rejects.toThrow(/Unknown or expired/)
+  })
+})
+
+describe('validateConnectorManifest', () => {
+  it('accepts an authoritative mutation with CAS', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: { kind: 'oauth2', authorizationUrl: 'https://x/auth', tokenUrl: 'https://x/token', scopes: ['calendar.write'], clientIdEnv: 'CID', clientSecretEnv: 'SECRET' },
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [{
+        name: 'events.create',
+        class: 'mutation',
+        description: 'Create event',
+        parameters: {},
+        cas: 'etag-if-match',
+        externalEffect: true,
+      }],
+    })
+    expect(result).toEqual({ ok: true, issues: [] })
+  })
+
+  it('rejects duplicate names and authoritative fire-and-forget mutation', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: { kind: 'none' },
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [
+        { name: 'events.create', class: 'read', description: 'Read', parameters: {} },
+        { name: 'events.create', class: 'mutation', description: 'Create', parameters: {}, cas: 'none', externalEffect: true },
+      ],
+      rateLimit: { requests: 0, windowMs: -1 },
+    })
+    expect(result.ok).toBe(false)
+    expect(result.issues.map((issue) => issue.path)).toEqual(expect.arrayContaining([
+      'capabilities[1].name',
+      'capabilities[1].cas',
+      'rateLimit.requests',
+      'rateLimit.windowMs',
+    ]))
+  })
+
+  it('assertValidConnectorManifest throws with actionable paths', () => {
+    expect(() => assertValidConnectorManifest({
+      kind: '',
+      displayName: '',
+      description: 'Bad',
+      auth: { kind: 'none' },
+      defaultConsistencyModel: 'advisory',
+      category: 'other',
+      capabilities: [],
+    })).toThrow(/kind/)
   })
 })

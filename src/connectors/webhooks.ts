@@ -146,7 +146,10 @@ export function verifyHmacSignature(
   const prefix = options.signaturePrefix ?? ''
   const lower = options.lowercaseHex ?? true
   let candidate = signatureHeader
-  if (prefix && candidate.startsWith(prefix)) candidate = candidate.slice(prefix.length)
+  if (prefix) {
+    if (!candidate.startsWith(prefix)) return false
+    candidate = candidate.slice(prefix.length)
+  }
   if (lower) candidate = candidate.toLowerCase()
   const expected = createHmac(algorithm, secret).update(rawBody).digest('hex')
   const expectedBuf = Buffer.from(expected, 'utf8')
@@ -165,7 +168,9 @@ export function firstHeader(
   headers: Record<string, string | string[] | undefined>,
   name: string,
 ): string | undefined {
-  const v = headers[name] ?? headers[name.toLowerCase()]
+  const v = headers[name]
+    ?? headers[name.toLowerCase()]
+    ?? Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1]
   if (Array.isArray(v)) return v[0]
   return typeof v === 'string' ? v : undefined
 }
