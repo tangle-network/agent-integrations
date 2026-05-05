@@ -35,6 +35,8 @@ agent-facing tool contract.
 - A declarative REST adapter factory for promoting REST APIs from reviewed specs.
 - A broad coverage catalog for planning hundreds of integrations without
   pretending every catalog item is executable.
+- A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
+  normalized permissions, healthcheck plans, and tool descriptions.
 
 ## Architecture
 
@@ -78,6 +80,9 @@ pnpm add @tangle-network/agent-integrations
 | `createHttpIntegrationProvider` | Adapter for hosted integration gateways. |
 | `createConnectorAdapterProvider` | Runs first-party `ConnectorAdapter`s through the same provider contract. |
 | `declarativeRestConnector` | Builds REST-backed first-party adapters from compact specs. |
+| `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
+| `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |
+| `validateCredentialSet` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
 
 ## Provider Strategy
 

@@ -77,7 +77,7 @@ The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown
 - HR/legal/signature: Workday, BambooHR, Greenhouse, Lever, Gusto, Rippling, DocuSign, Ironclad, Clio.
 - AI/vector/workflow: OpenAI, Anthropic, Gemini, Hugging Face, Pinecone, Weaviate, Qdrant, Zapier, Make, Nango, Pipedream, Activepieces.
 
-## Next Build Loop
+## Remaining Work
 
 - [ ] Wire Builder to show Tier 0 missing connections from the coverage catalog.
 - [ ] Add Gmail first-party adapter.
@@ -85,5 +85,6 @@ The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown
 - [x] Add Salesforce or Zendesk first-party adapter.
 - [x] Add reusable declarative REST adapter factory.
 - [x] Add Airtable, GitLab, and Asana via declarative REST.
+- [x] Add generated integration setup specs, renderers, validation, and healthcheck plans.
 - [ ] Add live smoke-test harness that skips only when explicit credentials are absent.
 - [ ] Add gateway sync job for Nango/Pipedream/Activepieces metadata.
