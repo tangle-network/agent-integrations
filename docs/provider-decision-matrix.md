@@ -159,6 +159,4 @@ This avoids two bad extremes:
 
 - locking the product into a vendor abstraction that becomes expensive and
   limiting;
-- spending months cloning hundreds of integrations before knowing which ones
-  matter.
-
+- cloning hundreds of integrations before knowing which ones matter.

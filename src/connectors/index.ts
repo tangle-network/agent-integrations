@@ -8,9 +8,7 @@
  * webhook signature verifiers (Stripe, Slack, generic HMAC).
  *
  * Concrete adapter implementations (Google Calendar, HubSpot, Stripe,
- * etc.) consume these primitives. They land in a follow-up PR (see
- * "Phase 1b" in https://github.com/tangle-network/agent-integrations
- * roadmap).
+ * etc.) consume these primitives and are exported from `adapters/index.ts`.
  */
 
 export * from './types.js'
