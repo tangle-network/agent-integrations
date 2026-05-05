@@ -29,6 +29,14 @@ export type NormalizedIntegrationResult =
   | { status: 'approval_required'; action: string; approval: IntegrationApprovalRequest; metadata?: Record<string, unknown> }
   | { status: 'failed'; action: string; error: string; metadata?: Record<string, unknown> }
 
+export interface IntegrationSandboxHostHub {
+  invokeWithCapability(token: string, request: InvokeWithCapabilityRequest): Promise<IntegrationActionResult> | IntegrationActionResult
+}
+
+export interface IntegrationSandboxHostOptions extends IntegrationInvocationEnvelopeValidationOptions {
+  hub: IntegrationSandboxHostHub
+}
+
 export function buildIntegrationInvocationEnvelope(input: {
   capabilityToken: string
   toolName: string
@@ -133,6 +141,38 @@ export function normalizeIntegrationResult(result: IntegrationActionResult): Nor
     action: result.action,
     output: result.output,
     metadata: result.metadata,
+  }
+}
+
+export async function dispatchIntegrationInvocation(
+  envelope: IntegrationInvocationEnvelope,
+  options: IntegrationSandboxHostOptions,
+): Promise<NormalizedIntegrationResult> {
+  try {
+    validateIntegrationInvocationEnvelope(envelope, options)
+    const result = await options.hub.invokeWithCapability(
+      envelope.capabilityToken,
+      invocationRequestFromEnvelope(envelope),
+    )
+    return normalizeIntegrationResult(result)
+  } catch (error) {
+    return {
+      status: 'failed',
+      action: typeof envelope?.action === 'string' ? envelope.action : 'unknown',
+      error: error instanceof Error ? error.message : 'Integration invocation failed.',
+    }
+  }
+}
+
+export class IntegrationSandboxHost {
+  private readonly options: IntegrationSandboxHostOptions
+
+  constructor(options: IntegrationSandboxHostOptions) {
+    this.options = options
+  }
+
+  dispatch(envelope: IntegrationInvocationEnvelope): Promise<NormalizedIntegrationResult> {
+    return dispatchIntegrationInvocation(envelope, this.options)
   }
 }
 

@@ -45,6 +45,8 @@ agent-facing tool contract.
   same user-owned connections safely.
 - Workflow trigger installation and normalized event dispatch for non-agent UI
   automation, sync jobs, webhooks, and product workflows.
+- Approval persistence, audit events, healthchecks, credential resolution,
+  webhook ingestion, idempotency guards, and sandbox/CLI bridge payloads.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
 
@@ -86,6 +88,12 @@ pnpm add @tangle-network/agent-integrations
 | `IntegrationGrant` | Persistent grant from a user-owned connection to an app, agent, or sandbox consumer. |
 | `createIntegrationRuntime` | Facade for manifest resolution, grant creation, and sandbox capability bundles. |
 | `createIntegrationWorkflowRuntime` | Installs trigger workflows and dispatches normalized provider events. |
+| `createApprovalBackedPolicyEngine` | Persists approval requests and allows approved invocations to resume. |
+| `createDefaultIntegrationActionGuard` | Adds idempotency replay, dry-run mutation handling, rate-limit hooks, and audit events. |
+| `createConnectionCredentialResolver` | Resolves secret refs into in-memory connector credentials and refreshes expired OAuth credentials. |
+| `runIntegrationHealthchecks` | Checks connection status, registry executability, scope shape, and optional live provider tests. |
+| `receiveIntegrationWebhook` | Verifies inbound webhooks, dedupes provider events, and dispatches normalized trigger events. |
+| `buildIntegrationBridgeEnvironment` | Encodes scoped sandbox capabilities for sandbox processes or executor-style CLIs. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
@@ -142,6 +150,8 @@ const bundle = await runtime.buildSandboxBundle({
 
 Generated apps and sandboxes receive scoped capability tokens and tool
 definitions. They never receive OAuth refresh tokens, API keys, or raw secrets.
+For sandbox processes, pass the bundle through `buildIntegrationBridgeEnvironment()`;
+the payload contains short-lived capability tokens and tool names only.
 
 The same manifest/grant model works for non-agent workflows:
 
@@ -214,9 +224,14 @@ without obscuring the package contract.
 - Capability tokens expire.
 - Capability tokens do not contain provider credentials.
 - Connection records carry secret references, not raw secrets.
+- Secret stores are consumer-pluggable; the package only resolves secret refs at
+  call time and keeps raw credentials in memory.
 - Write and destructive actions can require approval.
+- Approval records are bound to the subject, connection, connector, and action.
+- Default guards provide idempotency replay and same-key drift detection.
 - Invocation envelopes validate action/tool consistency, idempotency keys,
   metadata shape, known tools, and input size.
+- Webhook ingestion supports signature verification and provider-event dedupe.
 - Action invocation checks ownership, connection status, scopes, allowed actions,
   and expiration.
 - `IntegrationActionGuard` can enforce idempotency, approval, audit logging,

@@ -16,6 +16,10 @@
 - connection store interface
 - sandbox-safe capability token minting and verification
 - invocation policy enforcement
+- approval persistence contracts and resume helpers
+- audit, idempotency, healthcheck, and webhook-ingestion primitives
+- credential resolver interfaces over product-owned vaults
+- sandbox/CLI bridge payloads for scoped capabilities
 - event normalization
 - redaction helpers
 
@@ -44,3 +48,6 @@ Product apps own:
 - Agents can invoke only actions allowed by that capability.
 - Triggers can wake or enqueue sandbox workflows without exposing credentials.
 - Audit logs can show what happened without leaking secrets.
+- Writes can pause for approval, resume by approval id, and replay safely by
+  idempotency key.
+- Products can healthcheck connections and ingest webhooks with dedupe.

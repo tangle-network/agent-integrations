@@ -5,6 +5,14 @@ import {
   type IntegrationRegistry,
 } from './registry.js'
 
+export * from './audit.js'
+export * from './approval.js'
+export * from './bridge.js'
+export * from './credentials.js'
+export * from './events.js'
+export * from './guard.js'
+export * from './healthcheck.js'
+
 export type IntegrationProviderKind =
   | 'first_party'
   | 'nango'
