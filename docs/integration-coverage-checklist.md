@@ -18,6 +18,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] Builder API consumes the coverage catalog for app planning.
 - [x] Declarative REST adapter factory for fast first-party promotion of REST-shaped APIs.
 - [x] Provider gateway catalog adapter can normalize 500+ Nango/Pipedream/Activepieces-style connectors.
+- [x] Canonical registry dedupes overlapping catalogs, aliases, support tiers, and conflict diagnostics.
 - [ ] Generated sandbox apps can request missing connections from the catalog.
 - [ ] Live smoke credentials exist for Tier 0 connectors.
 - [ ] Tier 0 connector failures are classified by auth, scope, rate-limit, provider outage, validation, approval, and conflict.

@@ -1,0 +1,294 @@
+import { buildActivepiecesConnectors } from './activepieces-catalog.js'
+import type {
+  IntegrationConnector,
+  IntegrationConnectorAction,
+  IntegrationConnectorTrigger,
+} from './index.js'
+import { integrationSpecToConnector, listIntegrationSpecs } from './specs/registry.js'
+
+export type IntegrationSupportTier =
+  | 'catalogOnly'
+  | 'setupReady'
+  | 'gatewayExecutable'
+  | 'firstPartyExecutable'
+  | 'sandboxExecutable'
+
+export interface IntegrationCatalogSource {
+  id: string
+  connectors: IntegrationConnector[]
+  precedence?: number
+}
+
+export interface IntegrationRegistrySourceRef {
+  sourceId: string
+  providerId: string
+  connectorId: string
+  supportTier: IntegrationSupportTier
+  actionCount: number
+  triggerCount: number
+}
+
+export interface IntegrationRegistryConflict {
+  field: 'auth' | 'category'
+  values: Array<{
+    value: string
+    sourceId: string
+    connectorId: string
+  }>
+}
+
+export interface IntegrationRegistryEntry {
+  canonicalId: string
+  connector: IntegrationConnector
+  aliases: string[]
+  supportTier: IntegrationSupportTier
+  sources: IntegrationRegistrySourceRef[]
+  conflicts: IntegrationRegistryConflict[]
+}
+
+export interface IntegrationRegistry {
+  entries: IntegrationRegistryEntry[]
+  connectors: IntegrationConnector[]
+  byId: Map<string, IntegrationRegistryEntry>
+}
+
+export interface ComposeIntegrationRegistryOptions {
+  aliases?: Record<string, string>
+  sourcePrecedence?: Record<string, number>
+}
+
+const DEFAULT_ALIASES: Record<string, string> = {
+  notion: 'notion-database',
+  'outlook-calendar': 'microsoft-calendar',
+  stripe: 'stripe-pack',
+  twilio: 'twilio-sms',
+}
+
+const DEFAULT_SOURCE_PRECEDENCE: Record<string, number> = {
+  'first-party': 500,
+  spec: 400,
+  gateway: 300,
+  activepieces: 100,
+  coverage: 50,
+}
+
+const SUPPORT_RANK: Record<IntegrationSupportTier, number> = {
+  catalogOnly: 0,
+  setupReady: 1,
+  gatewayExecutable: 2,
+  firstPartyExecutable: 3,
+  sandboxExecutable: 4,
+}
+
+export function buildDefaultIntegrationRegistry(options: {
+  includeSpecs?: boolean
+  includeActivepieces?: boolean
+} = {}): IntegrationRegistry {
+  const includeSpecs = options.includeSpecs ?? true
+  const includeActivepieces = options.includeActivepieces ?? true
+  const sources: IntegrationCatalogSource[] = []
+  if (includeSpecs) {
+    sources.push({
+      id: 'spec',
+      connectors: listIntegrationSpecs().map((spec) => integrationSpecToConnector(spec, 'spec')),
+    })
+  }
+  if (includeActivepieces) {
+    sources.push({
+      id: 'activepieces',
+      connectors: buildActivepiecesConnectors(),
+    })
+  }
+  return composeIntegrationRegistry(sources)
+}
+
+export function composeIntegrationRegistry(
+  sources: IntegrationCatalogSource[],
+  options: ComposeIntegrationRegistryOptions = {},
+): IntegrationRegistry {
+  const aliases = { ...DEFAULT_ALIASES, ...(options.aliases ?? {}) }
+  const precedence = { ...DEFAULT_SOURCE_PRECEDENCE, ...(options.sourcePrecedence ?? {}) }
+  const grouped = new Map<string, Candidate[]>()
+
+  for (const source of sources) {
+    for (const connector of source.connectors) {
+      const canonicalId = canonicalConnectorId(connector.id, aliases)
+      const candidates = grouped.get(canonicalId) ?? []
+      candidates.push({
+        source,
+        connector,
+        supportTier: inferIntegrationSupportTier(connector),
+      })
+      grouped.set(canonicalId, candidates)
+    }
+  }
+
+  const entries = [...grouped.entries()]
+    .map(([canonicalId, candidates]) => registryEntry(canonicalId, candidates, precedence, aliases))
+    .sort((a, b) => a.canonicalId.localeCompare(b.canonicalId))
+  const byId = new Map<string, IntegrationRegistryEntry>()
+  for (const entry of entries) {
+    byId.set(entry.canonicalId, entry)
+    for (const alias of entry.aliases) byId.set(alias, entry)
+  }
+  return {
+    entries,
+    connectors: entries.map((entry) => entry.connector),
+    byId,
+  }
+}
+
+export function canonicalConnectorId(id: string, aliases: Record<string, string> = DEFAULT_ALIASES): string {
+  const normalized = slug(id)
+  let current = normalized
+  const seen = new Set<string>()
+  while (aliases[current] && !seen.has(current)) {
+    seen.add(current)
+    current = aliases[current]
+  }
+  return current
+}
+
+export function inferIntegrationSupportTier(connector: IntegrationConnector): IntegrationSupportTier {
+  const metadata = connector.metadata ?? {}
+  const explicit = metadata.supportTier
+  if (isSupportTier(explicit)) return explicit
+  if (metadata.sandboxExecutable === true) return 'sandboxExecutable'
+  if (metadata.source === 'first-party-adapter' || connector.providerId === 'first-party') return 'firstPartyExecutable'
+  if (metadata.source === 'gateway-catalog' && metadata.executable === true) return 'gatewayExecutable'
+  if (metadata.source === 'integration-spec') return 'setupReady'
+  return 'catalogOnly'
+}
+
+function registryEntry(
+  canonicalId: string,
+  candidates: Candidate[],
+  precedence: Record<string, number>,
+  aliases: Record<string, string>,
+): IntegrationRegistryEntry {
+  const ordered = [...candidates].sort((a, b) => compareCandidates(a, b, precedence))
+  const primary = ordered[0]!
+  const actions = mergeActions(ordered)
+  const triggers = mergeTriggers(ordered)
+  const scopes = unique(ordered.flatMap((candidate) => candidate.connector.scopes ?? []))
+  const supportTier = ordered.reduce<IntegrationSupportTier>(
+    (best, candidate) => SUPPORT_RANK[candidate.supportTier] > SUPPORT_RANK[best] ? candidate.supportTier : best,
+    primary.supportTier,
+  )
+  const aliasesForEntry = unique([
+    ...ordered.map((candidate) => candidate.connector.id),
+    ...Object.entries(aliases)
+      .filter(([, target]) => canonicalConnectorId(target, aliases) === canonicalId)
+      .map(([alias]) => alias),
+  ].map(slug).filter((id) => id && id !== canonicalId)).sort()
+  const sources = ordered.map((candidate): IntegrationRegistrySourceRef => ({
+    sourceId: candidate.source.id,
+    providerId: candidate.connector.providerId,
+    connectorId: candidate.connector.id,
+    supportTier: candidate.supportTier,
+    actionCount: candidate.connector.actions.length,
+    triggerCount: candidate.connector.triggers?.length ?? 0,
+  }))
+  const conflicts = conflictDiagnostics(ordered)
+
+  return {
+    canonicalId,
+    aliases: aliasesForEntry,
+    supportTier,
+    sources,
+    conflicts,
+    connector: {
+      ...primary.connector,
+      id: canonicalId,
+      scopes,
+      actions,
+      triggers,
+      metadata: {
+        ...(primary.connector.metadata ?? {}),
+        registry: {
+          canonicalId,
+          aliases: aliasesForEntry,
+          supportTier,
+          sources,
+          conflicts,
+        },
+      },
+    },
+  }
+}
+
+function compareCandidates(a: Candidate, b: Candidate, precedence: Record<string, number>): number {
+  return SUPPORT_RANK[b.supportTier] - SUPPORT_RANK[a.supportTier]
+    || (b.source.precedence ?? precedence[b.source.id] ?? 0) - (a.source.precedence ?? precedence[a.source.id] ?? 0)
+    || b.connector.actions.length - a.connector.actions.length
+    || a.connector.id.localeCompare(b.connector.id)
+}
+
+function mergeActions(candidates: Candidate[]): IntegrationConnectorAction[] {
+  const out = new Map<string, IntegrationConnectorAction>()
+  for (const candidate of candidates) {
+    for (const action of candidate.connector.actions) {
+      if (!out.has(action.id)) out.set(action.id, action)
+    }
+  }
+  return [...out.values()]
+}
+
+function mergeTriggers(candidates: Candidate[]): IntegrationConnectorTrigger[] | undefined {
+  const out = new Map<string, IntegrationConnectorTrigger>()
+  for (const candidate of candidates) {
+    for (const trigger of candidate.connector.triggers ?? []) {
+      if (!out.has(trigger.id)) out.set(trigger.id, trigger)
+    }
+  }
+  return out.size > 0 ? [...out.values()] : undefined
+}
+
+function conflictDiagnostics(candidates: Candidate[]): IntegrationRegistryConflict[] {
+  return [
+    conflictFor('auth', candidates.map((candidate) => ({
+      value: candidate.connector.auth,
+      sourceId: candidate.source.id,
+      connectorId: candidate.connector.id,
+    }))),
+    conflictFor('category', candidates.map((candidate) => ({
+      value: candidate.connector.category,
+      sourceId: candidate.source.id,
+      connectorId: candidate.connector.id,
+    }))),
+  ].filter((conflict): conflict is IntegrationRegistryConflict => Boolean(conflict))
+}
+
+function conflictFor(
+  field: IntegrationRegistryConflict['field'],
+  values: IntegrationRegistryConflict['values'],
+): IntegrationRegistryConflict | undefined {
+  const uniqueValues = new Set(values.map((entry) => entry.value))
+  if (uniqueValues.size <= 1) return undefined
+  return { field, values }
+}
+
+function isSupportTier(value: unknown): value is IntegrationSupportTier {
+  return value === 'catalogOnly'
+    || value === 'setupReady'
+    || value === 'gatewayExecutable'
+    || value === 'firstPartyExecutable'
+    || value === 'sandboxExecutable'
+}
+
+function slug(value: string): string {
+  return value.trim().toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function unique<T>(values: T[]): T[] {
+  return [...new Set(values)]
+}
+
+interface Candidate {
+  source: IntegrationCatalogSource
+  connector: IntegrationConnector
+  supportTier: IntegrationSupportTier
+}

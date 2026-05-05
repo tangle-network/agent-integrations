@@ -92,6 +92,11 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
         approvalRequired: capability.class === 'mutation',
         inputSchema: capability.parameters,
       })),
+    metadata: {
+      source: 'first-party-adapter',
+      supportTier: 'firstPartyExecutable',
+      executable: true,
+    },
   }
 }
 
