@@ -15,6 +15,7 @@ agent-facing tool contract.
 - [Architecture](#architecture)
 - [Install](#install)
 - [Core Primitives](#core-primitives)
+- [Catalog Registry](#catalog-registry)
 - [Provider Strategy](#provider-strategy)
 - [Executable Coverage](#executable-coverage)
 - [Examples](#examples)
@@ -37,6 +38,8 @@ agent-facing tool contract.
 - A declarative REST adapter factory for promoting REST APIs from reviewed specs.
 - A broad coverage catalog for planning hundreds of integrations without
   pretending every catalog item is executable.
+- A canonical registry that deduplicates overlapping catalogs, keeps support
+  tiers explicit, and reports auth/category conflicts.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
 
@@ -76,6 +79,8 @@ pnpm add @tangle-network/agent-integrations
 | `IntegrationCapability` | Short-lived authorization for a specific subject, connection, scope set, and action set. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
+| `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
+| `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
 | `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
@@ -86,6 +91,23 @@ pnpm add @tangle-network/agent-integrations
 | `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
 | `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |
 | `validateCredentialSet` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
+
+## Catalog Registry
+
+Catalog breadth and runtime execution are separate. Activepieces metadata gives
+the package broad connector inventory; first-party adapters and gateways decide
+which connectors can actually run.
+
+Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
+connection pickers. It produces one canonical connector per integration,
+dedupes aliases such as `notion -> notion-database`, keeps source provenance in
+metadata, and marks each connector with a support tier:
+
+```txt
+catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExecutable
+```
+
+See [Catalog Registry](./docs/catalog-registry.md).
 
 ## Provider Strategy
 

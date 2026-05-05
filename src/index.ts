@@ -1,4 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import {
+  composeIntegrationRegistry,
+  type ComposeIntegrationRegistryOptions,
+  type IntegrationRegistry,
+} from './registry.js'
 
 export type IntegrationProviderKind =
   | 'first_party'
@@ -361,6 +366,14 @@ export class IntegrationHub {
     return catalogs.flat()
   }
 
+  async listRegistry(options: ComposeIntegrationRegistryOptions = {}): Promise<IntegrationRegistry> {
+    const sources = await Promise.all([...this.providers.values()].map(async (provider) => ({
+      id: provider.id,
+      connectors: await provider.listConnectors(),
+    })))
+    return composeIntegrationRegistry(sources, options)
+  }
+
   async startAuth(providerId: string, request: StartAuthRequest): Promise<StartAuthResult> {
     const provider = this.requireProvider(providerId)
     if (!provider.startAuth) throw new IntegrationError(`Provider ${providerId} does not support auth start.`, 'auth_not_supported')
@@ -684,5 +697,6 @@ export * from './adapter-provider.js'
 export * from './importers.js'
 export * from './gateway-catalog.js'
 export * from './activepieces-catalog.js'
+export * from './registry.js'
 export * from './coverage-catalog.js'
 export * from './specs/index.js'
