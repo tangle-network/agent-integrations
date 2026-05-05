@@ -43,6 +43,8 @@ agent-facing tool contract.
 - App/agent manifests, grants, and sandbox bundles so Builder, generated apps,
   vertical agents, Blueprint Agent, and executor-backed runtimes can reuse the
   same user-owned connections safely.
+- Workflow trigger installation and normalized event dispatch for non-agent UI
+  automation, sync jobs, webhooks, and product workflows.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
 
@@ -83,6 +85,7 @@ pnpm add @tangle-network/agent-integrations
 | `IntegrationManifest` | Generated app or agent requirements: connectors, actions, scopes, and reasons. |
 | `IntegrationGrant` | Persistent grant from a user-owned connection to an app, agent, or sandbox consumer. |
 | `createIntegrationRuntime` | Facade for manifest resolution, grant creation, and sandbox capability bundles. |
+| `createIntegrationWorkflowRuntime` | Installs trigger workflows and dispatches normalized provider events. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
@@ -139,6 +142,20 @@ const bundle = await runtime.buildSandboxBundle({
 
 Generated apps and sandboxes receive scoped capability tokens and tool
 definitions. They never receive OAuth refresh tokens, API keys, or raw secrets.
+
+The same manifest/grant model works for non-agent workflows:
+
+```ts
+await workflows.install({
+  workflow,
+  owner: user,
+  grantee: { type: 'app', id: 'github-pr-sync' },
+})
+```
+
+That installs provider trigger subscriptions against the user's connection and
+lets the product dispatch normalized events to UI workflows, sync jobs, or
+agent runs.
 
 ## Provider Strategy
 
