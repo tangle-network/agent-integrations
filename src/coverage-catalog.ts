@@ -198,18 +198,222 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['figjam', 'FigJam', 'docs', 'docs', 'tier_2', 'whiteboard,design'],
 ]
 
+type LongTailGroup = {
+  category: IntegrationConnectorCategory
+  actionPack: IntegrationActionPack
+  domains: string
+  names: string[]
+  auth?: IntegrationConnector['auth']
+}
+
+const LONG_TAIL_GROUPS: LongTailGroup[] = [
+  {
+    category: 'crm',
+    actionPack: 'crm',
+    domains: 'crm,sales,gtm,long-tail',
+    names: [
+      'ActiveCampaign', 'Agile CRM', 'Capsule CRM', 'Copper', 'Creatio', 'Daylite',
+      'Freshsales', 'HighLevel', 'Insightly', 'Keap', 'Less Annoying CRM', 'Nimble',
+      'Nutshell', 'OnePageCRM', 'Pipeline CRM', 'Really Simple Systems', 'Salesflare',
+      'Salesloft', 'Streak', 'SugarCRM', 'Teamleader', 'Vtiger', 'Zendesk Sell',
+      'Zoho Bigin', 'Bullhorn', 'Recruit CRM', 'Affinity', 'Folk', 'Funnel CRM',
+      'NoCRM', 'Pipeliner', 'Prophet CRM', 'Salesmate', 'Shape CRM', 'Upsales',
+    ],
+  },
+  {
+    category: 'email',
+    actionPack: 'email',
+    domains: 'email,inbox,transactional,long-tail',
+    names: [
+      'Fastmail', 'Proton Mail', 'Zoho Mail', 'Yahoo Mail', 'AOL Mail', 'iCloud Mail',
+      'GMX Mail', 'Mailgun', 'SparkPost', 'Amazon SES', 'Brevo', 'MailerLite',
+      'Moosend', 'Omnisend', 'ConvertKit', 'Campaign Monitor', 'Constant Contact',
+      'AWeber', 'GetResponse', 'Drip', 'Elastic Email', 'SMTP2GO', 'Resend',
+      'Loops', 'Beehiiv', 'Substack', 'Buttondown', 'Ghost Mail', 'MailerSend',
+      'Mailjet', 'SendPulse', 'Benchmark Email', 'Emma', 'Klaviyo Transactional',
+    ],
+  },
+  {
+    category: 'chat',
+    actionPack: 'chat',
+    domains: 'chat,communications,community,long-tail',
+    names: [
+      'Mattermost', 'Rocket.Chat', 'Zulip', 'Matrix', 'Element', 'Signal',
+      'Vonage', 'MessageBird', 'Sinch', 'Plivo', 'Telnyx', 'Bandwidth',
+      'OpenPhone', 'Dialpad', 'Aircall', 'RingCentral', 'Nextiva', 'GoTo Connect',
+      'Grasshopper', '8x8', 'Intermedia', 'Freshchat', 'Tawk.to', 'Crisp',
+      'LiveChat', 'Olark', 'Drift', 'Userlike', 'Kustomer Chat', 'CometChat',
+      'Stream Chat', 'PubNub', 'Pusher Channels', 'Ably', 'Sendbird',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'project',
+    domains: 'project,tasks,work-management,long-tail',
+    names: [
+      'Wrike', 'Smartsheet', 'Teamwork', 'Todoist', 'Height', 'Shortcut',
+      'YouTrack', 'Azure DevOps', 'Pivotal Tracker', 'Taiga', 'OpenProject',
+      'Redmine', 'Phabricator', 'Workfront', 'Planview', 'Targetprocess',
+      'Productboard', 'Aha', 'Roadmunk', 'Craft.io', 'Kanbanize', 'MeisterTask',
+      'Quire', 'Paymo', 'Freedcamp', 'Hive', 'ProofHub', 'Podio', 'Scoro',
+      'Flow', 'Ora', 'Plaky', 'GoodDay', 'Backlog', 'Clubhouse Legacy',
+    ],
+  },
+  {
+    category: 'storage',
+    actionPack: 'storage',
+    domains: 'files,storage,enterprise,long-tail',
+    names: [
+      'Egnyte', 'Citrix ShareFile', 'Wasabi', 'Backblaze B2', 'DigitalOcean Spaces',
+      'Oracle Object Storage', 'IBM Cloud Object Storage', 'MinIO', 'Ceph',
+      'pCloud', 'Sync.com', 'Tresorit', 'Mega', 'Koofr', 'Nextcloud',
+      'ownCloud', 'Seafile', 'MediaFire', 'IDrive', 'SugarSync', 'Jottacloud',
+      'Yandex Disk', 'Internxt', 'Storj', 'Filebase', 'Tardigrade', 'Bunny Storage',
+      'Cloudinary', 'ImageKit', 'Uploadcare', 'Filestack', 'Mux Assets',
+    ],
+  },
+  {
+    category: 'docs',
+    actionPack: 'docs',
+    domains: 'docs,knowledge,cms,collaboration,long-tail',
+    names: [
+      'Slab', 'Guru', 'Tettra', 'Nuclino', 'BookStack', 'DokuWiki', 'MediaWiki',
+      'GitBook', 'ReadMe', 'Archbee', 'HelpDocs', 'Document360', 'Bloomfire',
+      'Kipwise', 'Slite', 'Outline', 'Craft Docs', 'Dropbox Paper', 'Quip',
+      'OnlyOffice', 'Collabora', 'Zoho Writer', 'Zoho Sheet', 'Zoho WorkDrive',
+      'Quip Spreadsheet', 'Obsidian Sync', 'Roam Research', 'Logseq', 'Mem',
+      'Tana', 'ClickUp Docs', 'Nuclino Graph', 'Scrivener Cloud',
+    ],
+  },
+  {
+    category: 'database',
+    actionPack: 'database',
+    domains: 'database,warehouse,vector,backend,long-tail',
+    names: [
+      'CockroachDB', 'PlanetScale', 'Neon', 'Railway Postgres', 'Turso',
+      'SingleStore', 'ClickHouse', 'Timescale', 'InfluxDB', 'Elasticsearch',
+      'OpenSearch', 'Meilisearch', 'Typesense', 'Algolia', 'DynamoDB',
+      'Cassandra', 'ScyllaDB', 'Couchbase', 'CouchDB', 'Fauna', 'Dgraph',
+      'Neo4j', 'ArangoDB', 'MariaDB', 'Oracle Database', 'SQL Server',
+      'DuckDB', 'MotherDuck', 'Firebolt', 'Starburst', 'Trino', 'Presto',
+      'Databricks SQL', 'Pinecone Serverless', 'Milvus', 'Chroma',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'commerce',
+    domains: 'commerce,ecommerce,marketplace,long-tail',
+    names: [
+      'Square', 'Lightspeed', 'Toast', 'Clover', 'Revel Systems', 'Wix Stores',
+      'Squarespace Commerce', 'Ecwid', 'Magento', 'Adobe Commerce',
+      'PrestaShop', 'OpenCart', 'Saleor', 'VTEX', 'Commercetools',
+      'Elastic Path', 'Mirakl', 'Faire', 'Reverb', 'Walmart Marketplace',
+      'Target Plus', 'TikTok Shop', 'Shopware', 'Salla', 'Ecwid by Lightspeed',
+      'ShipStation', 'Shippo', 'EasyPost', 'AfterShip', 'Returnly', 'Loop Returns',
+      'Recharge', 'Bold Subscriptions', 'Yotpo', 'Judge.me', 'Stamped',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'finance',
+    domains: 'finance,accounting,billing,long-tail',
+    names: [
+      'Wave Accounting', 'FreshBooks', 'FreeAgent', 'KashFlow', 'Zoho Books',
+      'Zoho Invoice', 'Chargebee', 'Recurly', 'Zuora', 'Maxio', 'Paddle',
+      'Adyen', 'Braintree', 'Checkout.com', 'GoCardless', 'Mollie', 'PayPal',
+      'Venmo Business', 'Wise Business', 'Ramp', 'Brex', 'Mercury', 'Airwallex',
+      'Bill.com', 'Melio', 'Expensify', 'Navan', 'Concur', 'Spendesk',
+      'Pilot', 'Bench', 'Finmark', 'Pulley', 'Carta', 'Ledgy',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'hr',
+    domains: 'hr,people,recruiting,payroll,long-tail',
+    names: [
+      'ADP', 'Paychex', 'Justworks', 'TriNet', 'Deel', 'Remote', 'Papaya Global',
+      'HiBob', 'CharlieHR', 'Personio', 'Factorial HR', 'Namely', 'Zenefits',
+      'Paylocity', 'Paycom', 'UKG', 'Ceridian Dayforce', 'SAP SuccessFactors',
+      'Oracle HCM', 'Lattice', '15Five', 'Culture Amp', 'Leapsome', 'Bonusly',
+      'Officevibe', 'Workable', 'Ashby', 'SmartRecruiters', 'JazzHR', 'iCIMS',
+      'Teamtailor', 'Breezy HR', 'Pinpoint', 'Homerun', 'GoHire',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'marketing',
+    domains: 'marketing,growth,ads,cms,long-tail',
+    names: [
+      'HubSpot Marketing Hub', 'Ortto', 'Iterable', 'Sailthru', 'Emarsys',
+      'Acoustic Campaign', 'Oracle Eloqua', 'Salesforce Marketing Cloud',
+      'Hootsuite', 'Buffer', 'Sprout Social', 'Later', 'SocialPilot',
+      'Agorapulse', 'Planable', 'Sprinklr', 'Brandwatch', 'Mention',
+      'Ahrefs', 'Semrush', 'Moz', 'Surfer SEO', 'Clearscope', 'Frase',
+      'Unbounce', 'Instapage', 'Leadpages', 'Optimizely', 'VWO', 'Hotjar',
+      'FullStory', 'Crazy Egg', 'Heap', 'Customer.io Journeys', 'RudderStack',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'dev',
+    domains: 'dev,cloud,observability,security,long-tail',
+    names: [
+      'CircleCI', 'GitHub Actions', 'GitLab CI', 'Buildkite', 'Travis CI',
+      'Jenkins', 'TeamCity', 'Semaphore', 'Drone CI', 'Heroku', 'Render',
+      'Fly.io', 'Railway', 'Northflank', 'Qovery', 'Kubernetes', 'Docker Hub',
+      'Quay', 'JFrog Artifactory', 'Sonatype Nexus', 'Terraform Cloud',
+      'Pulumi Cloud', 'HashiCorp Vault', '1Password', 'Doppler', 'Akeyless',
+      'LaunchDarkly', 'Statsig', 'Split', 'Honeycomb', 'Grafana Cloud',
+      'Prometheus', 'Logtail', 'Better Stack', 'Statuspage', 'Incident.io',
+    ],
+  },
+  {
+    category: 'calendar',
+    actionPack: 'calendar',
+    domains: 'calendar,scheduling,meetings,long-tail',
+    names: [
+      'Acuity Scheduling', 'SavvyCal', 'Cron Calendar', 'Fantastical',
+      'When2meet', 'Doodle', 'YouCanBookMe', 'Setmore', 'SimplyBook.me',
+      'Square Appointments', 'Microsoft Bookings', 'Calendars.com',
+      'OnceHub', 'Chili Piper', 'RevenueHero', 'Motion Calendar', 'Reclaim.ai',
+      'Clockwise', 'Sunsama', 'Akiflow', 'MeetFox', 'Whereby', 'Livestorm',
+      'Demio', 'Webex', 'BlueJeans', 'Google Appointment Schedule',
+    ],
+  },
+  {
+    category: 'webhook',
+    actionPack: 'webhook',
+    domains: 'webhook,forms,events,long-tail',
+    auth: 'none',
+    names: [
+      'Formstack', 'Paperform', 'Tally', 'Fillout', 'Formspree', 'Wufoo',
+      'Cognito Forms', '123FormBuilder', 'Gravity Forms', 'Ninja Forms',
+      'WPForms', 'HubSpot Forms', 'Feathery', 'Formaloo', 'Landbot',
+      'Voiceflow', 'Botpress', 'Manychat', 'Chatfuel', 'Webhook Relay',
+      'Svix', 'Hookdeck', 'EventBridge', 'CloudEvents', 'IFTTT Webhooks',
+      'Albato Webhooks', 'Make Webhooks', 'Pipedream Webhooks',
+    ],
+  },
+  {
+    category: 'workflow',
+    actionPack: 'ai',
+    domains: 'ai,ml,models,automation,long-tail',
+    names: [
+      'Cohere', 'Mistral AI', 'Perplexity', 'Together AI', 'Fireworks AI',
+      'Replicate', 'Stability AI', 'ElevenLabs', 'Runway', 'AssemblyAI',
+      'Deepgram', 'Rev.ai', 'Whisper API', 'LangSmith', 'Langfuse',
+      'Weights & Biases', 'Comet ML', 'Humanloop', 'PromptLayer', 'Helicone',
+      'OpenRouter', 'Groq', 'Cerebras Cloud', 'Baseten', 'Modal', 'Anyscale',
+      'DataRobot', 'Dataiku', 'Vertex AI', 'Azure AI Foundry',
+    ],
+  },
+]
+
 export function listIntegrationCoverageSpecs(): IntegrationCoverageSpec[] {
-  return COVERAGE_SPECS.map(([id, title, category, actionPack, priority, domains, auth = 'oauth2']) => ({
-    id,
-    title,
-    category,
-    actionPack,
-    priority,
-    auth,
-    providerKinds: providerKindsFor(auth),
-    domains: domains.split(',').map((domain) => domain.trim()).filter(Boolean),
-    scopes: scopesFor(id, actionPack),
-  }))
+  return dedupeSpecs([
+    ...COVERAGE_SPECS,
+    ...generatedLongTailSpecs(),
+  ]).map(tupleToSpec)
 }
 
 export function buildIntegrationCoverageConnectors(options: {
@@ -344,6 +548,52 @@ function triggersFor(pack: IntegrationActionPack, scopes: string[]): Integration
 function scopesFor(id: string, pack: IntegrationActionPack): string[] {
   if (pack === 'webhook') return []
   return [`${id}.read`, `${id}.write`]
+}
+
+function generatedLongTailSpecs(): SpecTuple[] {
+  return LONG_TAIL_GROUPS.flatMap((group) =>
+    group.names.map((name): SpecTuple => [
+      slug(name),
+      name,
+      group.category,
+      group.actionPack,
+      'long_tail',
+      group.domains,
+      group.auth,
+    ]),
+  )
+}
+
+function dedupeSpecs(specs: SpecTuple[]): SpecTuple[] {
+  const seen = new Set<string>()
+  const out: SpecTuple[] = []
+  for (const spec of specs) {
+    if (seen.has(spec[0])) continue
+    seen.add(spec[0])
+    out.push(spec)
+  }
+  return out
+}
+
+function tupleToSpec([id, title, category, actionPack, priority, domains, auth = 'oauth2']: SpecTuple): IntegrationCoverageSpec {
+  return {
+    id,
+    title,
+    category,
+    actionPack,
+    priority,
+    auth,
+    providerKinds: providerKindsFor(auth),
+    domains: domains.split(',').map((domain) => domain.trim()).filter(Boolean),
+    scopes: scopesFor(id, actionPack),
+  }
+}
+
+function slug(value: string): string {
+  return value.trim().toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function providerKindsFor(auth: IntegrationConnector['auth']): IntegrationProviderKind[] {

@@ -31,9 +31,11 @@ agent-facing tool contract.
 - Policy checks for read/write/destructive actions.
 - Invocation-envelope validation before sandbox tool calls reach the hub.
 - A generic HTTP provider boundary for hosted integration gateways.
+- A gateway catalog provider for Nango, Pipedream, Activepieces, Zapier,
+  executor-style gateways, and internal connector registries.
 - A first-party `ConnectorAdapter` boundary for direct provider execution.
 - A declarative REST adapter factory for promoting REST APIs from reviewed specs.
-- A broad coverage catalog for planning hundreds of integrations without
+- A broad 500+ connector coverage catalog for planning integrations without
   pretending every catalog item is executable.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
@@ -75,6 +77,7 @@ pnpm add @tangle-network/agent-integrations
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
+| `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
 | `validateIntegrationInvocationEnvelope` | Runtime validation for tool/action consistency and input limits. |
 | `createHttpIntegrationProvider` | Adapter for hosted integration gateways. |

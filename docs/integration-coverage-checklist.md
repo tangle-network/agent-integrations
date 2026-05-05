@@ -14,14 +14,15 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 
 - [x] One normalized connector contract for apps, sandboxes, and agents.
 - [x] Central sandbox invocation envelope validation.
-- [x] Coverage catalog for 100+ high-value integrations.
+- [x] Coverage catalog for 500+ high-value and long-tail integrations.
 - [x] Builder API consumes the coverage catalog for app planning.
 - [x] Declarative REST adapter factory for fast first-party promotion of REST-shaped APIs.
+- [x] Provider gateway catalog adapter can normalize 500+ Nango/Pipedream/Activepieces-style connectors.
 - [ ] Generated sandbox apps can request missing connections from the catalog.
 - [ ] Live smoke credentials exist for Tier 0 connectors.
 - [ ] Tier 0 connector failures are classified by auth, scope, rate-limit, provider outage, validation, approval, and conflict.
 - [ ] Tier 0 write actions have idempotency and approval tests.
-- [ ] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
+- [x] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
 
 ## Tier 0 First-Party Promotion Queue
 

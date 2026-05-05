@@ -8,13 +8,14 @@ import {
 } from '../src/index'
 
 describe('integration coverage catalog', () => {
-  it('covers more than one hundred high-value integrations with unique ids', () => {
+  it('covers 500+ high-value and long-tail integrations with unique ids', () => {
     const specs = listIntegrationCoverageSpecs()
     const ids = specs.map((spec) => spec.id)
 
-    expect(specs.length).toBeGreaterThanOrEqual(120)
+    expect(specs.length).toBeGreaterThanOrEqual(500)
     expect(new Set(ids).size).toBe(ids.length)
     expect(specs.filter((spec) => spec.priority === 'tier_0').length).toBeGreaterThanOrEqual(25)
+    expect(specs.filter((spec) => spec.priority === 'long_tail').length).toBeGreaterThanOrEqual(350)
   })
 
   it('builds normalized connector contracts without executable-provider claims', () => {

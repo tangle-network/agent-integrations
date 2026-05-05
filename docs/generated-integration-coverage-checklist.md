@@ -4,11 +4,11 @@ Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the prod
 
 ## Summary
 
-- Total cataloged integrations: 142
+- Total cataloged integrations: 644
 - Tier 0: 38
 - Tier 1: 89
 - Tier 2: 14
-- Long tail: 1
+- Long tail: 503
 
 ## Checklist
 
@@ -154,3 +154,505 @@ Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the prod
 - [ ] tier_1 / storage / Adobe Creative Cloud (adobe-creative-cloud) - design, creative, files
 - [ ] tier_1 / docs / Miro (miro) - whiteboard, collaboration
 - [ ] tier_2 / docs / FigJam (figjam) - whiteboard, design
+- [ ] long_tail / crm / ActiveCampaign (activecampaign) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Agile CRM (agile-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Capsule CRM (capsule-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Copper (copper) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Creatio (creatio) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Daylite (daylite) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Freshsales (freshsales) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / HighLevel (highlevel) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Insightly (insightly) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Keap (keap) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Less Annoying CRM (less-annoying-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Nimble (nimble) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Nutshell (nutshell) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / OnePageCRM (onepagecrm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Pipeline CRM (pipeline-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Really Simple Systems (really-simple-systems) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Salesflare (salesflare) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Salesloft (salesloft) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Streak (streak) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / SugarCRM (sugarcrm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Teamleader (teamleader) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Vtiger (vtiger) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Zendesk Sell (zendesk-sell) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Zoho Bigin (zoho-bigin) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Bullhorn (bullhorn) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Recruit CRM (recruit-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Affinity (affinity) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Folk (folk) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Funnel CRM (funnel-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / NoCRM (nocrm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Pipeliner (pipeliner) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Prophet CRM (prophet-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Salesmate (salesmate) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Shape CRM (shape-crm) - crm, sales, gtm, long-tail
+- [ ] long_tail / crm / Upsales (upsales) - crm, sales, gtm, long-tail
+- [ ] long_tail / email / Fastmail (fastmail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Proton Mail (proton-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Zoho Mail (zoho-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Yahoo Mail (yahoo-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / AOL Mail (aol-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / iCloud Mail (icloud-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / GMX Mail (gmx-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Mailgun (mailgun) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / SparkPost (sparkpost) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Amazon SES (amazon-ses) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Brevo (brevo) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / MailerLite (mailerlite) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Moosend (moosend) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Omnisend (omnisend) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / ConvertKit (convertkit) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Campaign Monitor (campaign-monitor) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Constant Contact (constant-contact) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / AWeber (aweber) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / GetResponse (getresponse) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Drip (drip) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Elastic Email (elastic-email) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / SMTP2GO (smtp2go) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Resend (resend) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Loops (loops) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Beehiiv (beehiiv) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Substack (substack) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Buttondown (buttondown) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Ghost Mail (ghost-mail) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / MailerSend (mailersend) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Mailjet (mailjet) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / SendPulse (sendpulse) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Benchmark Email (benchmark-email) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Emma (emma) - email, inbox, transactional, long-tail
+- [ ] long_tail / email / Klaviyo Transactional (klaviyo-transactional) - email, inbox, transactional, long-tail
+- [ ] long_tail / chat / Mattermost (mattermost) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Rocket.Chat (rocket-chat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Zulip (zulip) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Matrix (matrix) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Element (element) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Signal (signal) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Vonage (vonage) - chat, communications, community, long-tail
+- [ ] long_tail / chat / MessageBird (messagebird) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Sinch (sinch) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Plivo (plivo) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Telnyx (telnyx) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Bandwidth (bandwidth) - chat, communications, community, long-tail
+- [ ] long_tail / chat / OpenPhone (openphone) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Dialpad (dialpad) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Aircall (aircall) - chat, communications, community, long-tail
+- [ ] long_tail / chat / RingCentral (ringcentral) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Nextiva (nextiva) - chat, communications, community, long-tail
+- [ ] long_tail / chat / GoTo Connect (goto-connect) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Grasshopper (grasshopper) - chat, communications, community, long-tail
+- [ ] long_tail / chat / 8x8 (8x8) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Intermedia (intermedia) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Freshchat (freshchat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Tawk.to (tawk-to) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Crisp (crisp) - chat, communications, community, long-tail
+- [ ] long_tail / chat / LiveChat (livechat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Olark (olark) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Drift (drift) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Userlike (userlike) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Kustomer Chat (kustomer-chat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / CometChat (cometchat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Stream Chat (stream-chat) - chat, communications, community, long-tail
+- [ ] long_tail / chat / PubNub (pubnub) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Pusher Channels (pusher-channels) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Ably (ably) - chat, communications, community, long-tail
+- [ ] long_tail / chat / Sendbird (sendbird) - chat, communications, community, long-tail
+- [ ] long_tail / workflow / Wrike (wrike) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Smartsheet (smartsheet) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Teamwork (teamwork) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Todoist (todoist) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Height (height) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Shortcut (shortcut) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / YouTrack (youtrack) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Azure DevOps (azure-devops) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Pivotal Tracker (pivotal-tracker) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Taiga (taiga) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / OpenProject (openproject) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Redmine (redmine) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Phabricator (phabricator) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Workfront (workfront) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Planview (planview) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Targetprocess (targetprocess) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Productboard (productboard) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Aha (aha) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Roadmunk (roadmunk) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Craft.io (craft-io) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Kanbanize (kanbanize) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / MeisterTask (meistertask) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Quire (quire) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Paymo (paymo) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Freedcamp (freedcamp) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Hive (hive) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / ProofHub (proofhub) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Podio (podio) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Scoro (scoro) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Flow (flow) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Ora (ora) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Plaky (plaky) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / GoodDay (goodday) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Backlog (backlog) - project, tasks, work-management, long-tail
+- [ ] long_tail / workflow / Clubhouse Legacy (clubhouse-legacy) - project, tasks, work-management, long-tail
+- [ ] long_tail / storage / Egnyte (egnyte) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Citrix ShareFile (citrix-sharefile) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Wasabi (wasabi) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Backblaze B2 (backblaze-b2) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / DigitalOcean Spaces (digitalocean-spaces) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Oracle Object Storage (oracle-object-storage) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / IBM Cloud Object Storage (ibm-cloud-object-storage) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / MinIO (minio) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Ceph (ceph) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / pCloud (pcloud) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Sync.com (sync-com) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Tresorit (tresorit) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Mega (mega) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Koofr (koofr) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Nextcloud (nextcloud) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / ownCloud (owncloud) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Seafile (seafile) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / MediaFire (mediafire) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / IDrive (idrive) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / SugarSync (sugarsync) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Jottacloud (jottacloud) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Yandex Disk (yandex-disk) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Internxt (internxt) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Storj (storj) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Filebase (filebase) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Tardigrade (tardigrade) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Bunny Storage (bunny-storage) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Cloudinary (cloudinary) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / ImageKit (imagekit) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Uploadcare (uploadcare) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Filestack (filestack) - files, storage, enterprise, long-tail
+- [ ] long_tail / storage / Mux Assets (mux-assets) - files, storage, enterprise, long-tail
+- [ ] long_tail / docs / Slab (slab) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Guru (guru) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Tettra (tettra) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Nuclino (nuclino) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / BookStack (bookstack) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / DokuWiki (dokuwiki) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / MediaWiki (mediawiki) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / GitBook (gitbook) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / ReadMe (readme) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Archbee (archbee) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / HelpDocs (helpdocs) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Document360 (document360) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Bloomfire (bloomfire) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Kipwise (kipwise) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Slite (slite) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Outline (outline) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Craft Docs (craft-docs) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Dropbox Paper (dropbox-paper) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Quip (quip) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / OnlyOffice (onlyoffice) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Collabora (collabora) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Zoho Writer (zoho-writer) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Zoho Sheet (zoho-sheet) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Zoho WorkDrive (zoho-workdrive) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Quip Spreadsheet (quip-spreadsheet) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Obsidian Sync (obsidian-sync) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Roam Research (roam-research) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Logseq (logseq) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Mem (mem) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Tana (tana) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / ClickUp Docs (clickup-docs) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Nuclino Graph (nuclino-graph) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / docs / Scrivener Cloud (scrivener-cloud) - docs, knowledge, cms, collaboration, long-tail
+- [ ] long_tail / database / CockroachDB (cockroachdb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / PlanetScale (planetscale) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Neon (neon) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Railway Postgres (railway-postgres) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Turso (turso) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / SingleStore (singlestore) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / ClickHouse (clickhouse) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Timescale (timescale) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / InfluxDB (influxdb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Elasticsearch (elasticsearch) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / OpenSearch (opensearch) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Meilisearch (meilisearch) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Typesense (typesense) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Algolia (algolia) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / DynamoDB (dynamodb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Cassandra (cassandra) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / ScyllaDB (scylladb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Couchbase (couchbase) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / CouchDB (couchdb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Fauna (fauna) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Dgraph (dgraph) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Neo4j (neo4j) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / ArangoDB (arangodb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / MariaDB (mariadb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Oracle Database (oracle-database) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / SQL Server (sql-server) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / DuckDB (duckdb) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / MotherDuck (motherduck) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Firebolt (firebolt) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Starburst (starburst) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Trino (trino) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Presto (presto) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Databricks SQL (databricks-sql) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Pinecone Serverless (pinecone-serverless) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Milvus (milvus) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / database / Chroma (chroma) - database, warehouse, vector, backend, long-tail
+- [ ] long_tail / workflow / Square (square) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Lightspeed (lightspeed) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Toast (toast) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Clover (clover) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Revel Systems (revel-systems) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Wix Stores (wix-stores) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Squarespace Commerce (squarespace-commerce) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Ecwid (ecwid) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Magento (magento) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Adobe Commerce (adobe-commerce) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / PrestaShop (prestashop) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / OpenCart (opencart) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Saleor (saleor) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / VTEX (vtex) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Commercetools (commercetools) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Elastic Path (elastic-path) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Mirakl (mirakl) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Faire (faire) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Reverb (reverb) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Walmart Marketplace (walmart-marketplace) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Target Plus (target-plus) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / TikTok Shop (tiktok-shop) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Shopware (shopware) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Salla (salla) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Ecwid by Lightspeed (ecwid-by-lightspeed) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / ShipStation (shipstation) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Shippo (shippo) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / EasyPost (easypost) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / AfterShip (aftership) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Returnly (returnly) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Loop Returns (loop-returns) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Recharge (recharge) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Bold Subscriptions (bold-subscriptions) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Yotpo (yotpo) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Judge.me (judge-me) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Stamped (stamped) - commerce, ecommerce, marketplace, long-tail
+- [ ] long_tail / workflow / Wave Accounting (wave-accounting) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / FreshBooks (freshbooks) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / FreeAgent (freeagent) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / KashFlow (kashflow) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Zoho Books (zoho-books) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Zoho Invoice (zoho-invoice) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Chargebee (chargebee) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Recurly (recurly) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Zuora (zuora) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Maxio (maxio) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Paddle (paddle) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Adyen (adyen) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Braintree (braintree) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Checkout.com (checkout-com) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / GoCardless (gocardless) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Mollie (mollie) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / PayPal (paypal) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Venmo Business (venmo-business) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Wise Business (wise-business) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Ramp (ramp) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Brex (brex) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Mercury (mercury) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Airwallex (airwallex) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Bill.com (bill-com) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Melio (melio) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Expensify (expensify) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Navan (navan) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Concur (concur) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Spendesk (spendesk) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Pilot (pilot) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Bench (bench) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Finmark (finmark) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Pulley (pulley) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Carta (carta) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / Ledgy (ledgy) - finance, accounting, billing, long-tail
+- [ ] long_tail / workflow / ADP (adp) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Paychex (paychex) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Justworks (justworks) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / TriNet (trinet) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Deel (deel) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Remote (remote) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Papaya Global (papaya-global) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / HiBob (hibob) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / CharlieHR (charliehr) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Personio (personio) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Factorial HR (factorial-hr) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Namely (namely) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Zenefits (zenefits) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Paylocity (paylocity) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Paycom (paycom) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / UKG (ukg) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Ceridian Dayforce (ceridian-dayforce) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / SAP SuccessFactors (sap-successfactors) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Oracle HCM (oracle-hcm) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Lattice (lattice) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / 15Five (15five) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Culture Amp (culture-amp) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Leapsome (leapsome) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Bonusly (bonusly) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Officevibe (officevibe) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Workable (workable) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Ashby (ashby) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / SmartRecruiters (smartrecruiters) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / JazzHR (jazzhr) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / iCIMS (icims) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Teamtailor (teamtailor) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Breezy HR (breezy-hr) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Pinpoint (pinpoint) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / Homerun (homerun) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / GoHire (gohire) - hr, people, recruiting, payroll, long-tail
+- [ ] long_tail / workflow / HubSpot Marketing Hub (hubspot-marketing-hub) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Ortto (ortto) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Iterable (iterable) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Sailthru (sailthru) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Emarsys (emarsys) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Acoustic Campaign (acoustic-campaign) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Oracle Eloqua (oracle-eloqua) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Salesforce Marketing Cloud (salesforce-marketing-cloud) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Hootsuite (hootsuite) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Buffer (buffer) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Sprout Social (sprout-social) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Later (later) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / SocialPilot (socialpilot) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Agorapulse (agorapulse) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Planable (planable) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Sprinklr (sprinklr) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Brandwatch (brandwatch) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Mention (mention) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Ahrefs (ahrefs) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Semrush (semrush) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Moz (moz) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Surfer SEO (surfer-seo) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Clearscope (clearscope) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Frase (frase) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Unbounce (unbounce) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Instapage (instapage) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Leadpages (leadpages) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Optimizely (optimizely) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / VWO (vwo) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Hotjar (hotjar) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / FullStory (fullstory) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Crazy Egg (crazy-egg) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Heap (heap) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / Customer.io Journeys (customer-io-journeys) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / RudderStack (rudderstack) - marketing, growth, ads, cms, long-tail
+- [ ] long_tail / workflow / CircleCI (circleci) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / GitHub Actions (github-actions) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / GitLab CI (gitlab-ci) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Buildkite (buildkite) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Travis CI (travis-ci) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Jenkins (jenkins) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / TeamCity (teamcity) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Semaphore (semaphore) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Drone CI (drone-ci) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Heroku (heroku) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Render (render) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Fly.io (fly-io) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Railway (railway) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Northflank (northflank) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Qovery (qovery) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Kubernetes (kubernetes) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Docker Hub (docker-hub) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Quay (quay) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / JFrog Artifactory (jfrog-artifactory) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Sonatype Nexus (sonatype-nexus) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Terraform Cloud (terraform-cloud) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Pulumi Cloud (pulumi-cloud) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / HashiCorp Vault (hashicorp-vault) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / 1Password (1password) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Doppler (doppler) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Akeyless (akeyless) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / LaunchDarkly (launchdarkly) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Statsig (statsig) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Split (split) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Honeycomb (honeycomb) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Grafana Cloud (grafana-cloud) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Prometheus (prometheus) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Logtail (logtail) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Better Stack (better-stack) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Statuspage (statuspage) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / workflow / Incident.io (incident-io) - dev, cloud, observability, security, long-tail
+- [ ] long_tail / calendar / Acuity Scheduling (acuity-scheduling) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / SavvyCal (savvycal) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Cron Calendar (cron-calendar) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Fantastical (fantastical) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / When2meet (when2meet) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Doodle (doodle) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / YouCanBookMe (youcanbookme) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Setmore (setmore) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / SimplyBook.me (simplybook-me) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Square Appointments (square-appointments) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Microsoft Bookings (microsoft-bookings) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Calendars.com (calendars-com) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / OnceHub (oncehub) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Chili Piper (chili-piper) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / RevenueHero (revenuehero) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Motion Calendar (motion-calendar) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Reclaim.ai (reclaim-ai) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Clockwise (clockwise) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Sunsama (sunsama) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Akiflow (akiflow) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / MeetFox (meetfox) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Whereby (whereby) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Livestorm (livestorm) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Demio (demio) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Webex (webex) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / BlueJeans (bluejeans) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / calendar / Google Appointment Schedule (google-appointment-schedule) - calendar, scheduling, meetings, long-tail
+- [ ] long_tail / webhook / Formstack (formstack) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Paperform (paperform) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Tally (tally) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Fillout (fillout) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Formspree (formspree) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Wufoo (wufoo) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Cognito Forms (cognito-forms) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / 123FormBuilder (123formbuilder) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Gravity Forms (gravity-forms) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Ninja Forms (ninja-forms) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / WPForms (wpforms) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / HubSpot Forms (hubspot-forms) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Feathery (feathery) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Formaloo (formaloo) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Landbot (landbot) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Voiceflow (voiceflow) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Botpress (botpress) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Manychat (manychat) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Chatfuel (chatfuel) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Webhook Relay (webhook-relay) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Svix (svix) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Hookdeck (hookdeck) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / EventBridge (eventbridge) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / CloudEvents (cloudevents) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / IFTTT Webhooks (ifttt-webhooks) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Albato Webhooks (albato-webhooks) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Make Webhooks (make-webhooks) - webhook, forms, events, long-tail
+- [ ] long_tail / webhook / Pipedream Webhooks (pipedream-webhooks) - webhook, forms, events, long-tail
+- [ ] long_tail / workflow / Cohere (cohere) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Mistral AI (mistral-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Perplexity (perplexity) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Together AI (together-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Fireworks AI (fireworks-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Replicate (replicate) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Stability AI (stability-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / ElevenLabs (elevenlabs) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Runway (runway) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / AssemblyAI (assemblyai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Deepgram (deepgram) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Rev.ai (rev-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Whisper API (whisper-api) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / LangSmith (langsmith) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Langfuse (langfuse) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Weights & Biases (weights-and-biases) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Comet ML (comet-ml) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Humanloop (humanloop) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / PromptLayer (promptlayer) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Helicone (helicone) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / OpenRouter (openrouter) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Groq (groq) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Cerebras Cloud (cerebras-cloud) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Baseten (baseten) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Modal (modal) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Anyscale (anyscale) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / DataRobot (datarobot) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Dataiku (dataiku) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Vertex AI (vertex-ai) - ai, ml, models, automation, long-tail
+- [ ] long_tail / workflow / Azure AI Foundry (azure-ai-foundry) - ai, ml, models, automation, long-tail
