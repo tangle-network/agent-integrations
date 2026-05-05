@@ -7,11 +7,18 @@ import {
 
 export * from './audit.js'
 export * from './approval.js'
+export * from './actions.js'
 export * from './bridge.js'
+export * from './client.js'
+export * from './consent.js'
 export * from './credentials.js'
+export * from './errors.js'
 export * from './events.js'
 export * from './guard.js'
 export * from './healthcheck.js'
+export * from './manifest.js'
+export * from './passthrough.js'
+export * from './presets.js'
 
 export type IntegrationProviderKind =
   | 'first_party'
