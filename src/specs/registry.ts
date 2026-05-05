@@ -10,6 +10,7 @@ import type {
   IntegrationDataClass,
 } from '../index.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
+import { getIntegrationOverride } from './overrides.js'
 import type {
   ApiKeyAuthSpec,
   HealthcheckSpec,
@@ -99,6 +100,17 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
   const permissions = permissionsFor(coverage, connector.actions)
   const auth = authFor(coverage, family, permissions)
   const status = statusFor(kind)
+  // Per-kind overrides layer in here — see specs/overrides.ts. The override
+  // is consulted under the canonical kind AND the original coverage id so
+  // alias-collapsed kinds (e.g. notion → notion-database) can carry an
+  // override under either name.
+  const override =
+    getIntegrationOverride(kind) ?? getIntegrationOverride(coverage.id)
+  // Family quirks + override quirks are concatenated; everything else is
+  // a replace (override fields take precedence when present).
+  const knownQuirks = override?.knownQuirks
+    ? [...(familySpec.knownQuirks ?? []), ...override.knownQuirks]
+    : familySpec.knownQuirks
   return {
     kind,
     title: connector.title,
@@ -110,12 +122,13 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
     actions: connector.actions,
     triggers: connector.triggers,
     setup: {
-      consoleUrl: familySpec.consoleUrl,
-      consoleSteps: familySpec.consoleSteps,
-      credentialFields: credentialFieldsFor(auth),
+      consoleUrl: override?.consoleUrl ?? familySpec.consoleUrl,
+      consoleSteps: override?.consoleSteps ?? familySpec.consoleSteps,
+      credentialFields: override?.credentialFields ?? credentialFieldsFor(auth),
       redirectUriTemplate: auth.mode === 'oauth2' ? auth.redirectUriTemplate : familySpec.redirectUriTemplate,
-      knownQuirks: familySpec.knownQuirks,
-      healthcheck: healthcheckFor(kind, status, auth),
+      knownQuirks,
+      postSetup: override?.postSetup,
+      healthcheck: override?.healthcheck ?? healthcheckFor(kind, status, auth),
     },
     lifecycle: familySpec.lifecycle,
     plannerHints: plannerHintsFor(coverage, connector.actions),

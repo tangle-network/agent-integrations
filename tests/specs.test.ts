@@ -82,3 +82,51 @@ describe('integration specs', () => {
     expect(getIntegrationSpec('gmail')?.status).toBe('catalog')
   })
 })
+
+describe('integration overrides — per-kind setup richness', () => {
+  it('stripe-pack carries restricted-key guidance + dashboard URL', () => {
+    const spec = getIntegrationSpec('stripe-pack')
+    expect(spec).toBeDefined()
+    expect(spec!.setup.consoleUrl).toBe('https://dashboard.stripe.com/apikeys')
+    expect(spec!.setup.credentialFields).toHaveLength(1)
+    const f = spec!.setup.credentialFields[0]
+    expect(f.label).toMatch(/Stripe secret key/i)
+    expect(f.description).toMatch(/restricted key/i)
+    expect(f.regex).toBeDefined()
+    // The provided regex matches both live + test secrets/restricted keys.
+    expect(validateCredentialFormat(f, 'sk_live_abc123').ok).toBe(true)
+    expect(validateCredentialFormat(f, 'rk_live_abc123').ok).toBe(true)
+    expect(validateCredentialFormat(f, 'pk_live_abc123').ok).toBe(false) // publishable rejected
+  })
+
+  it('twilio-sms exposes a two-field credential set (Account SID + Auth Token)', () => {
+    const spec = getIntegrationSpec('twilio-sms')
+    expect(spec).toBeDefined()
+    const fields = spec!.setup.credentialFields
+    expect(fields).toHaveLength(2)
+    const sid = fields.find((f) => f.label.includes('Account SID'))
+    const token = fields.find((f) => f.label.includes('Auth Token'))
+    expect(sid).toBeDefined()
+    expect(token).toBeDefined()
+    expect(sid!.secret).toBe(false)
+    expect(token!.secret).toBe(true)
+    // Account SID regex enforces AC-prefixed 32-hex format
+    expect(validateCredentialFormat(sid!, 'AC' + 'a'.repeat(32)).ok).toBe(true)
+    expect(validateCredentialFormat(sid!, 'XX' + 'a'.repeat(32)).ok).toBe(false)
+  })
+
+  it('twilio-sms surfaces the subaccount-tokens quirk via the override layer', () => {
+    const spec = getIntegrationSpec('twilio-sms')
+    const quirks = spec!.setup.knownQuirks ?? []
+    expect(quirks.some((q) => q.id === 'subaccount-tokens')).toBe(true)
+  })
+
+  it('kinds without overrides fall through to family defaults', () => {
+    // gmail has no override; should use the google family's default fields
+    // (Client ID + Client Secret) and the Google Cloud Console URL.
+    const spec = getIntegrationSpec('gmail')
+    expect(spec!.setup.consoleUrl).toBe('https://console.cloud.google.com/apis/credentials')
+    expect(spec!.setup.credentialFields).toHaveLength(2)
+    expect(spec!.setup.credentialFields[0].label).toMatch(/client id/i)
+  })
+})
