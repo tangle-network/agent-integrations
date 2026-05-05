@@ -188,6 +188,8 @@ export function inferIntegrationSupportTier(connector: IntegrationConnector): In
   if (metadata.source === 'first-party-adapter' || connector.providerId === 'first-party') return 'firstPartyExecutable'
   if (metadata.source === 'gateway-catalog' && metadata.executable === true) return 'gatewayExecutable'
   if (metadata.source === 'integration-spec') return 'setupReady'
+  if (metadata.source === 'coverage-catalog' || metadata.source === 'activepieces-community' || metadata.catalogOnly === true) return 'catalogOnly'
+  if (connector.actions.length > 0) return 'gatewayExecutable'
   return 'catalogOnly'
 }
 
@@ -245,7 +247,7 @@ function registryEntry(
           toolBindable: actions.length > 0,
           catalogOnlyActionCount: ordered
             .filter((candidate) => candidate.supportTier === 'catalogOnly')
-            .reduce((sum, candidate) => sum + candidate.connector.actions.length, 0),
+            .reduce((sum, candidate) => sum + catalogActionCount(candidate.connector), 0),
         },
       },
     },
@@ -282,6 +284,11 @@ function mergeTriggers(candidates: Candidate[]): IntegrationConnectorTrigger[] |
 function toolBindableCandidates(candidates: Candidate[]): Candidate[] {
   const bindable = candidates.filter((candidate) => candidate.supportTier !== 'catalogOnly')
   return bindable.length > 0 ? bindable : []
+}
+
+function catalogActionCount(connector: IntegrationConnector): number {
+  const value = connector.metadata?.catalogActionCount
+  return typeof value === 'number' ? value : connector.actions.length
 }
 
 function conflictDiagnostics(candidates: Candidate[]): IntegrationRegistryConflict[] {

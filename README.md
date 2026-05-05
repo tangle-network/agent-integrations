@@ -40,6 +40,9 @@ agent-facing tool contract.
   pretending every catalog item is executable.
 - A canonical registry that deduplicates overlapping catalogs, keeps support
   tiers explicit, and reports auth/category conflicts.
+- App/agent manifests, grants, and sandbox bundles so Builder, generated apps,
+  vertical agents, Blueprint Agent, and executor-backed runtimes can reuse the
+  same user-owned connections safely.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
 
@@ -77,6 +80,9 @@ pnpm add @tangle-network/agent-integrations
 | `IntegrationConnection` | User/team/agent-owned grant with scopes and secret references. |
 | `IntegrationHub` | Facade for provider catalogs, connection storage, capabilities, and invocation. |
 | `IntegrationCapability` | Short-lived authorization for a specific subject, connection, scope set, and action set. |
+| `IntegrationManifest` | Generated app or agent requirements: connectors, actions, scopes, and reasons. |
+| `IntegrationGrant` | Persistent grant from a user-owned connection to an app, agent, or sandbox consumer. |
+| `createIntegrationRuntime` | Facade for manifest resolution, grant creation, and sandbox capability bundles. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
@@ -108,6 +114,31 @@ catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExe
 ```
 
 See [Catalog Registry](./docs/catalog-registry.md).
+
+## App And Agent Grants
+
+Use `IntegrationManifest` for any app or agent that needs integrations:
+Agent Builder-generated apps, tax/legal/GTM/creative agents, Blueprint Agent
+sandboxes, and executor-backed workflows all use the same shape.
+
+```ts
+const runtime = createIntegrationRuntime({ hub, grants })
+
+const resolution = await runtime.resolveManifest(manifest, user)
+const grants = await runtime.createGrants({
+  manifest,
+  owner: user,
+  grantee: { type: 'app', id: manifest.id },
+})
+const bundle = await runtime.buildSandboxBundle({
+  manifestId: manifest.id,
+  subject: { type: 'sandbox', id: sandboxId },
+  ttlMs: 15 * 60_000,
+})
+```
+
+Generated apps and sandboxes receive scoped capability tokens and tool
+definitions. They never receive OAuth refresh tokens, API keys, or raw secrets.
 
 ## Provider Strategy
 

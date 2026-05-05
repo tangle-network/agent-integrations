@@ -31,7 +31,7 @@ export type IntegrationActionRisk = 'read' | 'write' | 'destructive'
 export type IntegrationDataClass = 'public' | 'internal' | 'private' | 'sensitive' | 'secret'
 
 export interface IntegrationActor {
-  type: 'user' | 'team' | 'agent' | 'sandbox' | 'system'
+  type: 'user' | 'team' | 'app' | 'agent' | 'sandbox' | 'system'
   id: string
 }
 
@@ -394,6 +394,10 @@ export class IntegrationHub {
     return connection
   }
 
+  async listConnections(owner: IntegrationActor): Promise<IntegrationConnection[]> {
+    return this.store.listByOwner(owner)
+  }
+
   async issueCapability(request: IssueCapabilityRequest): Promise<IssuedIntegrationCapability> {
     const connection = await this.requireConnection(request.connectionId)
     this.assertConnectionActive(connection)
@@ -699,5 +703,6 @@ export * from './gateway-catalog.js'
 export * from './activepieces-catalog.js'
 export * from './activepieces-overrides.js'
 export * from './registry.js'
+export * from './runtime.js'
 export * from './coverage-catalog.js'
 export * from './specs/index.js'

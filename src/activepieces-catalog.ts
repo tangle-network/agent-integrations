@@ -60,29 +60,32 @@ export function listActivepiecesCatalogEntries(): ActivepiecesCatalogEntry[] {
   }))
 }
 
-export function buildActivepiecesConnectors(options: { providerId?: string } = {}): IntegrationConnector[] {
+export function buildActivepiecesConnectors(options: { providerId?: string; includeCatalogActions?: boolean } = {}): IntegrationConnector[] {
   const providerId = options.providerId ?? 'activepieces'
   return listActivepiecesCatalogEntries().map((entry) => {
     const override = getActivepiecesOverride(entry.id)
     const category = override?.category ?? entry.category
     const scopes = [`${entry.id}.read`, `${entry.id}.write`]
-    const actions = entry.actions.length > 0
+    const catalogActions = entry.actions.length > 0
       ? entry.actions.map((action) => toAction(applyActionOverride(action, override), scopes, dataClassFor(category)))
       : defaultActions(entry.id, scopes, dataClassFor(category))
+    const catalogTriggers = entry.triggers.map((trigger) => toTrigger(trigger, scopes, dataClassFor(category)))
     return {
       id: entry.id,
       providerId,
       title: entry.title,
       category,
       auth: entry.auth,
-      scopes,
-      actions,
-      triggers: entry.triggers.map((trigger) => toTrigger(trigger, scopes, dataClassFor(category))),
+      scopes: options.includeCatalogActions ? scopes : [],
+      actions: options.includeCatalogActions ? catalogActions : [],
+      triggers: options.includeCatalogActions ? catalogTriggers : undefined,
       metadata: {
         source: 'activepieces-community',
         executable: false,
         runtime: 'activepieces-piece',
         catalogOnly: true,
+        catalogActionCount: catalogActions.length,
+        catalogTriggerCount: catalogTriggers.length,
         npmPackage: entry.npmPackage,
         version: entry.version,
         license: entry.source.license,

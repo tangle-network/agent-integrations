@@ -35,19 +35,29 @@ describe('Activepieces community catalog import', () => {
       catalogOnly: true,
       license: 'MIT',
     })
+    expect(slack?.actions).toEqual([])
+    expect(slack?.triggers).toBeUndefined()
+    expect(slack?.metadata?.catalogActionCount).toBeGreaterThan(0)
+    expect(slack?.metadata?.catalogTriggerCount).toBeGreaterThan(0)
+  })
+
+  it('does not feed catalog-only entries into the normal agent tool search path by default', () => {
+    const tools = buildIntegrationToolCatalog(buildActivepiecesConnectors())
+    const results = searchIntegrationTools(tools, 'send a slack message', { maxRisk: 'write' })
+
+    expect(results).toEqual([])
+  })
+
+  it('can expose raw catalog action names for inspection when explicitly requested', () => {
+    const slack = buildActivepiecesConnectors({ includeCatalogActions: true })
+      .find((connector) => connector.id === 'slack')
+
     expect(slack?.actions.some((action) => action.id.includes('send.message'))).toBe(true)
     expect(slack?.triggers?.length).toBeGreaterThan(0)
   })
 
-  it('feeds the normal agent tool search path', () => {
-    const tools = buildIntegrationToolCatalog(buildActivepiecesConnectors())
-    const results = searchIntegrationTools(tools, 'send a slack message', { maxRisk: 'write' })
-
-    expect(results[0].tool.connectorId).toBe('slack')
-  })
-
   it('applies curated overrides for top connectors', () => {
-    const connectors = buildActivepiecesConnectors()
+    const connectors = buildActivepiecesConnectors({ includeCatalogActions: true })
     const stripe = connectors.find((c) => c.id === 'stripe')
 
     expect(stripe?.metadata?.overridden).toBe(true)
