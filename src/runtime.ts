@@ -22,6 +22,7 @@ export interface IntegrationRequirement {
   reason: string
   mode: IntegrationRequirementMode
   requiredActions?: string[]
+  requiredTriggers?: string[]
   requiredScopes?: string[]
   optional?: boolean
 }
@@ -42,6 +43,7 @@ export interface IntegrationRequirementResolution {
   connection?: IntegrationConnection
   missingScopes: string[]
   missingActions: string[]
+  missingTriggers: string[]
   message: string
 }
 
@@ -63,6 +65,7 @@ export interface IntegrationGrant {
   connectorId: string
   scopes: string[]
   allowedActions: string[]
+  allowedTriggers: string[]
   status: 'active' | 'revoked'
   createdAt: string
   updatedAt: string
@@ -84,6 +87,7 @@ export interface IntegrationCapabilityBinding {
   grantId: string
   scopes: string[]
   allowedActions: string[]
+  allowedTriggers: string[]
   capability: IssuedIntegrationCapability
 }
 
@@ -192,6 +196,7 @@ export class IntegrationRuntime {
       connectorId: ready.connector!.id,
       scopes: requiredScopes(ready.requirement, ready.connector!),
       allowedActions: requiredActions(ready.requirement, ready.connector!),
+      allowedTriggers: requiredTriggers(ready.requirement, ready.connector!),
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -220,6 +225,7 @@ export class IntegrationRuntime {
       const connector = {
         ...entry.connector,
         actions: entry.connector.actions.filter((action) => grant.allowedActions.includes(action.id)),
+        triggers: entry.connector.triggers?.filter((trigger) => grant.allowedTriggers.includes(trigger.id)),
         scopes: entry.connector.scopes.filter((scope) => grant.scopes.includes(scope)),
       }
       const capability = await this.hub.issueCapability({
@@ -241,6 +247,7 @@ export class IntegrationRuntime {
         grantId: grant.id,
         scopes: grant.scopes,
         allowedActions: grant.allowedActions,
+        allowedTriggers: grant.allowedTriggers,
         capability,
       })
       connectors.push(connector)
@@ -273,11 +280,12 @@ function resolveRequirement(
     return missing(requirement, 'unknown_connector', `Unknown connector ${requirement.connectorId}.`)
   }
   const connector = entry.connector
-  if (connector.actions.length === 0) {
+  if (connector.actions.length === 0 && (connector.triggers?.length ?? 0) === 0) {
     return missing(requirement, 'not_executable', `${connector.title} is catalog-only and cannot be invoked yet.`, connector, entry)
   }
   const scopes = requiredScopes(requirement, connector)
   const actions = requiredActions(requirement, connector)
+  const triggers = requiredTriggers(requirement, connector)
   const connection = connections.find((candidate) =>
     sameActor(candidate.owner, owner)
     && candidate.status === 'active'
@@ -292,6 +300,7 @@ function resolveRequirement(
       registryEntry: entry,
       missingScopes: scopes,
       missingActions: actions,
+      missingTriggers: triggers,
       message: `${connector.title} needs an active user connection with the required scopes.`,
     }
   }
@@ -303,6 +312,7 @@ function resolveRequirement(
     connection,
     missingScopes: [],
     missingActions: [],
+    missingTriggers: [],
     message: `${connector.title} is ready.`,
   }
 }
@@ -321,11 +331,13 @@ function missing(
     registryEntry,
     missingScopes: [],
     missingActions: [],
+    missingTriggers: [],
     message,
   }
 }
 
 function requiredActions(requirement: IntegrationRequirement, connector: IntegrationConnector): string[] {
+  if (requirement.mode === 'trigger') return []
   if (requirement.requiredActions?.length) return unique(requirement.requiredActions)
   const actions = connector.actions.filter((action) => {
     if (requirement.mode === 'read') return action.risk === 'read'
@@ -335,12 +347,24 @@ function requiredActions(requirement: IntegrationRequirement, connector: Integra
   return unique(actions.map((action) => action.id))
 }
 
+function requiredTriggers(requirement: IntegrationRequirement, connector: IntegrationConnector): string[] {
+  if (requirement.requiredTriggers?.length) return unique(requirement.requiredTriggers)
+  if (requirement.mode !== 'trigger') return []
+  return unique((connector.triggers ?? []).map((trigger) => trigger.id))
+}
+
 function requiredScopes(requirement: IntegrationRequirement, connector: IntegrationConnector): string[] {
   if (requirement.requiredScopes?.length) return unique(requirement.requiredScopes)
   const actionIds = new Set(requiredActions(requirement, connector))
-  return unique(connector.actions
-    .filter((action) => actionIds.has(action.id))
-    .flatMap((action) => action.requiredScopes))
+  const triggerIds = new Set(requiredTriggers(requirement, connector))
+  return unique([
+    ...connector.actions
+      .filter((action) => actionIds.has(action.id))
+      .flatMap((action) => action.requiredScopes),
+    ...(connector.triggers ?? [])
+      .filter((trigger) => triggerIds.has(trigger.id))
+      .flatMap((trigger) => trigger.requiredScopes),
+  ])
 }
 
 function sameActor(a: IntegrationActor, b: IntegrationActor): boolean {
