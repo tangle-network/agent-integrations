@@ -1,173 +1,158 @@
-# Agent Integrations
+# @tangle-network/agent-integrations
 
-`@tangle-network/agent-integrations` is a vendor-neutral integration layer for
-apps, sandboxes, and agents that need user-authorized connections such as email,
-calendar, Slack, CRM, storage, webhooks, and workflow triggers.
+Vendor-neutral integration contracts for agent apps, sandboxes, and generated
+software that need user-authorized access to external systems.
 
-The package does not pick a single integration vendor. Nango, Pipedream,
-Zapier-style platforms, Activepieces, executor services, and first-party
-connectors should all sit behind the same provider interface.
+The package standardizes connector catalogs, user connections, scoped sandbox
+capabilities, action invocation, trigger events, provider adapters, and
+first-party connector adapters. Product code can route through Nango, Pipedream,
+Activepieces, a custom gateway, or first-party adapters without changing the
+agent-facing tool contract.
 
-## Mental Model
+## Contents
 
-```txt
-Connector catalog -> User connection -> Scoped capability -> Action or trigger
-```
+- [What It Provides](#what-it-provides)
+- [Architecture](#architecture)
+- [Install](#install)
+- [Core Primitives](#core-primitives)
+- [Provider Strategy](#provider-strategy)
+- [Executable Coverage](#executable-coverage)
+- [Examples](#examples)
+- [Security Model](#security-model)
+- [Development](#development)
 
-- **Connectors** describe what can be connected: Gmail, Google Calendar, Slack,
-  HubSpot, webhooks, internal tools.
-- **Connections** are user/team-owned grants. They carry secret references, not
-  raw credentials.
-- **Capabilities** are short-lived, sandbox-safe tokens that authorize a subset
-  of actions on a connection.
-- **Actions** are read/write/destructive operations.
-- **Triggers** normalize inbound events from providers into one event shape.
+## What It Provides
 
-## Why This Exists
+- A normalized connector/action/trigger catalog.
+- User-owned connection records that reference secrets without storing raw
+  credentials in public shapes.
+- Short-lived capability tokens for sandbox-safe access to a subset of a user's
+  connection.
+- Policy checks for read/write/destructive actions.
+- Invocation-envelope validation before sandbox tool calls reach the hub.
+- A generic HTTP provider boundary for hosted integration gateways.
+- A first-party `ConnectorAdapter` boundary for direct provider execution.
+- A declarative REST adapter factory for promoting REST APIs from reviewed specs.
+- A broad coverage catalog for planning hundreds of integrations without
+  pretending every catalog item is executable.
 
-Agent Builder and sandbox apps need to support prompts like:
-
-```txt
-At Gmail, build me an app that summarizes unread support emails and drafts replies.
-```
-
-The generated app should be able to request Gmail access, instantiate inside the
-user's sandbox, and let the agent read/write through a scoped integration
-capability. The sandbox should never receive reusable provider secrets.
-
-## Core Usage
-
-### Product Flow
-
-For Agent Builder and sandbox apps, the intended flow is:
+## Architecture
 
 ```txt
-generated app declares required tools
-  -> app searches the integration catalog by intent
-  -> user connects the missing accounts
-  -> runtime issues a short-lived capability to the sandbox
-  -> reads run immediately
-  -> writes pause for policy approval
-  -> every call returns an audit-safe result
+connector catalog
+  -> user connection
+  -> scoped capability
+  -> policy decision
+  -> provider/action invocation
+  -> audit-safe result or normalized trigger event
 ```
 
-The SDK surface for that flow is:
+Main boundaries:
 
-- `buildIntegrationToolCatalog` and `searchIntegrationTools` for discoverable
-  tool catalogs.
-- `buildIntegrationCoverageConnectors` for broad planning coverage across
-  100+ high-value integrations before each one has a first-party executor.
-- `toMcpTools` for MCP-compatible tool export.
-- `IntegrationHub.issueCapability` for scoped sandbox handoff.
-- `createDefaultIntegrationPolicyEngine` for allow / approval / deny decisions.
-- `buildIntegrationInvocationEnvelope` and
-  `validateIntegrationInvocationEnvelope` for sandbox-safe tool calls with
-  action/tool consistency, idempotency-key, metadata-shape, known-tool, and
-  input-size checks.
-- `createConnectorAdapterProvider` to run first-party adapters through the hub.
-- `declarativeRestConnector` to promote REST-shaped providers from compact,
-  reviewed specs instead of hand-writing one brittle adapter per API.
+- `IntegrationHub`: product-facing facade for catalogs, connections,
+  capabilities, and action invocation.
+- `IntegrationProvider`: vendor or gateway implementation boundary.
+- `ConnectorAdapter`: first-party connector boundary for direct API execution.
+- `IntegrationActionGuard`: optional cross-cutting hook for idempotency,
+  approval, audit logging, rate limits, and conflict handling.
 
-```ts
-import {
-  InMemoryConnectionStore,
-  IntegrationHub,
-  buildIntegrationToolCatalog,
-  createMockIntegrationProvider,
-  searchIntegrationTools,
-} from '@tangle-network/agent-integrations'
+## Install
 
-const provider = createMockIntegrationProvider()
-const hub = new IntegrationHub({
-  providers: [provider],
-  store: new InMemoryConnectionStore(),
-  capabilitySecret: 'dev-secret',
-})
-
-const catalog = buildIntegrationToolCatalog(await hub.listConnectors())
-const tools = searchIntegrationTools(catalog, 'search unread gmail', { maxRisk: 'read' })
-
-const connection = await hub.upsertConnection({
-  id: 'conn_1',
-  owner: { type: 'user', id: 'user_1' },
-  providerId: 'mock',
-  connectorId: 'gmail',
-  status: 'active',
-  grantedScopes: ['email.read'],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-})
-
-const capability = await hub.issueCapability({
-  subject: { type: 'sandbox', id: 'sandbox_1' },
-  connectionId: connection.id,
-  scopes: ['email.read'],
-  allowedActions: ['messages.search'],
-  ttlMs: 60_000,
-})
-
-const result = await hub.invokeWithCapability(capability.token, {
-  action: 'messages.search',
-  input: { q: 'is:unread' },
-})
+```sh
+pnpm add @tangle-network/agent-integrations
 ```
 
-## Provider Boundary
+## Core Primitives
 
-Providers implement OAuth, action execution, and optional triggers. Product code
-should depend on `IntegrationHub`, not on a vendor SDK.
+| Primitive | Purpose |
+|---|---|
+| `IntegrationConnector` | Normalized catalog entry for a provider connection. |
+| `IntegrationConnection` | User/team/agent-owned grant with scopes and secret references. |
+| `IntegrationHub` | Facade for provider catalogs, connection storage, capabilities, and invocation. |
+| `IntegrationCapability` | Short-lived authorization for a specific subject, connection, scope set, and action set. |
+| `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
+| `searchIntegrationTools` | Intent search over normalized integration tools. |
+| `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
+| `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
+| `validateIntegrationInvocationEnvelope` | Runtime validation for tool/action consistency and input limits. |
+| `createHttpIntegrationProvider` | Adapter for hosted integration gateways. |
+| `createConnectorAdapterProvider` | Runs first-party `ConnectorAdapter`s through the same provider contract. |
+| `declarativeRestConnector` | Builds REST-backed first-party adapters from compact specs. |
 
-Provider adapters are expected to store raw credentials in their own secure
-vault or return secret references. Connection records should remain safe to log
-after sanitization.
+## Provider Strategy
 
-For a hosted integration gateway, use the generic HTTP adapter:
+The package deliberately avoids vendor lock-in.
 
-```ts
-import { createHttpIntegrationProvider } from '@tangle-network/agent-integrations'
+- Use a hosted gateway when it compresses long-tail OAuth/API coverage.
+- Promote high-volume, sensitive, or strategically important integrations to
+  first-party adapters.
+- Keep product and sandbox code on `IntegrationHub` contracts so provider changes
+  do not alter generated apps or agent tool calls.
+- Treat catalog coverage and executable coverage as different states.
 
-const provider = createHttpIntegrationProvider({
-  id: 'gateway',
-  kind: 'pipedream',
-  baseUrl: 'https://integrations.example',
-  bearer: process.env.INTEGRATION_GATEWAY_TOKEN,
-  connectors: [/* normalized connector catalog */],
-})
+See [Provider Decision Matrix](./docs/provider-decision-matrix.md).
+
+## Executable Coverage
+
+Current first-party adapters:
+
+- Google Calendar
+- Microsoft Calendar
+- Google Sheets
+- Slack
+- Slack Events
+- HubSpot
+- Notion database
+- Stripe payments pack
+- Stripe webhook receiver
+- Twilio SMS
+- Generic webhook
+- GitHub
+- GitLab
+- Airtable
+- Asana
+- Salesforce
+
+Broad planning coverage is generated from
+`buildIntegrationCoverageConnectors()` and tracked in
+[Integration Coverage Checklist](./docs/integration-coverage-checklist.md).
+
+## Examples
+
+Runnable examples live in [`examples/`](./examples):
+
+- [`examples/basic-hub.ts`](./examples/basic-hub.ts) - catalog search,
+  connection storage, capability issue, and action invocation.
+- [`examples/first-party-adapter.ts`](./examples/first-party-adapter.ts) -
+  first-party adapter provider wiring.
+- [`examples/declarative-rest.ts`](./examples/declarative-rest.ts) - compact
+  REST connector spec.
+
+The README stays short; examples are separate so they can be copied and expanded
+without obscuring the package contract.
+
+## Security Model
+
+- Capability tokens expire.
+- Capability tokens do not contain provider credentials.
+- Connection records carry secret references, not raw secrets.
+- Write and destructive actions can require approval.
+- Invocation envelopes validate action/tool consistency, idempotency keys,
+  metadata shape, known tools, and input size.
+- Action invocation checks ownership, connection status, scopes, allowed actions,
+  and expiration.
+- `IntegrationActionGuard` can enforce idempotency, approval, audit logging,
+  conflict handling, and rate limits across all providers.
+
+## Development
+
+```sh
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-The HTTP adapter keeps product code stable while the backing provider can be
-Nango, Pipedream, Activepieces, a Zapier-style service, or an internal gateway.
+## License
 
-For first-party REST APIs, use the declarative adapter factory:
-
-```ts
-import { createConnectorAdapterProvider, githubConnector } from '@tangle-network/agent-integrations'
-
-const provider = createConnectorAdapterProvider({
-  adapters: [githubConnector],
-  resolveDataSource: async (connection) => loadSourceAndCredentials(connection),
-})
-```
-
-Current first-party adapters include Google Calendar, Microsoft Calendar,
-Google Sheets, Slack, HubSpot, Notion database, Stripe, Twilio, webhooks,
-GitHub, GitLab, Airtable, Asana, and Salesforce.
-
-See [Provider Decision Matrix](./docs/provider-decision-matrix.md) for the
-build-vs-buy policy. The short version: use a vendor gateway only to compress
-time-to-coverage, but keep all product and sandbox code on this package's
-contracts so high-volume or strategic connectors can be moved first-party
-without changing agent code.
-
-## Security Defaults
-
-- Capabilities expire.
-- Capability tokens contain no provider credential.
-- Secret refs are redacted from public telemetry.
-- Write/destructive actions can be policy-gated.
-- Sandbox invocation envelopes are validated before conversion to hub requests.
-- Action invocation checks connection ownership, status, scopes, allowed
-  actions, and expiration.
-- Optional `IntegrationActionGuard` wraps every action invocation for
-  idempotency, audit logging, conflict detection, rate limits, and
-  approval gates.
+MIT
