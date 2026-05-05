@@ -52,6 +52,14 @@ export interface IntegrationRegistry {
   byId: Map<string, IntegrationRegistryEntry>
 }
 
+export interface IntegrationRegistrySummary {
+  totalEntries: number
+  totalSources: number
+  toolBindableEntries: number
+  conflictEntries: number
+  bySupportTier: Record<IntegrationSupportTier, number>
+}
+
 export interface ComposeIntegrationRegistryOptions {
   aliases?: Record<string, string>
   sourcePrecedence?: Record<string, number>
@@ -60,8 +68,13 @@ export interface ComposeIntegrationRegistryOptions {
 const DEFAULT_ALIASES: Record<string, string> = {
   notion: 'notion-database',
   'outlook-calendar': 'microsoft-calendar',
+  'microsoft-outlook-calendar': 'microsoft-calendar',
+  'microsoft-outlook': 'outlook-mail',
+  'gmail-mail': 'gmail',
+  'slack-bolt': 'slack',
   stripe: 'stripe-pack',
   twilio: 'twilio-sms',
+  'twilio-voice': 'twilio-sms',
 }
 
 const DEFAULT_SOURCE_PRECEDENCE: Record<string, number> = {
@@ -138,6 +151,24 @@ export function composeIntegrationRegistry(
   }
 }
 
+export function summarizeIntegrationRegistry(registry: IntegrationRegistry): IntegrationRegistrySummary {
+  const bySupportTier = {
+    catalogOnly: 0,
+    setupReady: 0,
+    gatewayExecutable: 0,
+    firstPartyExecutable: 0,
+    sandboxExecutable: 0,
+  } satisfies Record<IntegrationSupportTier, number>
+  for (const entry of registry.entries) bySupportTier[entry.supportTier] += 1
+  return {
+    totalEntries: registry.entries.length,
+    totalSources: registry.entries.reduce((sum, entry) => sum + entry.sources.length, 0),
+    toolBindableEntries: registry.entries.filter((entry) => entry.connector.actions.length > 0).length,
+    conflictEntries: registry.entries.filter((entry) => entry.conflicts.length > 0).length,
+    bySupportTier,
+  }
+}
+
 export function canonicalConnectorId(id: string, aliases: Record<string, string> = DEFAULT_ALIASES): string {
   const normalized = slug(id)
   let current = normalized
@@ -170,7 +201,7 @@ function registryEntry(
   const primary = ordered[0]!
   const actions = mergeActions(ordered)
   const triggers = mergeTriggers(ordered)
-  const scopes = unique(ordered.flatMap((candidate) => candidate.connector.scopes ?? []))
+  const scopes = unique(toolBindableCandidates(ordered).flatMap((candidate) => candidate.connector.scopes ?? []))
   const supportTier = ordered.reduce<IntegrationSupportTier>(
     (best, candidate) => SUPPORT_RANK[candidate.supportTier] > SUPPORT_RANK[best] ? candidate.supportTier : best,
     primary.supportTier,
@@ -211,6 +242,10 @@ function registryEntry(
           supportTier,
           sources,
           conflicts,
+          toolBindable: actions.length > 0,
+          catalogOnlyActionCount: ordered
+            .filter((candidate) => candidate.supportTier === 'catalogOnly')
+            .reduce((sum, candidate) => sum + candidate.connector.actions.length, 0),
         },
       },
     },
@@ -226,7 +261,7 @@ function compareCandidates(a: Candidate, b: Candidate, precedence: Record<string
 
 function mergeActions(candidates: Candidate[]): IntegrationConnectorAction[] {
   const out = new Map<string, IntegrationConnectorAction>()
-  for (const candidate of candidates) {
+  for (const candidate of toolBindableCandidates(candidates)) {
     for (const action of candidate.connector.actions) {
       if (!out.has(action.id)) out.set(action.id, action)
     }
@@ -236,12 +271,17 @@ function mergeActions(candidates: Candidate[]): IntegrationConnectorAction[] {
 
 function mergeTriggers(candidates: Candidate[]): IntegrationConnectorTrigger[] | undefined {
   const out = new Map<string, IntegrationConnectorTrigger>()
-  for (const candidate of candidates) {
+  for (const candidate of toolBindableCandidates(candidates)) {
     for (const trigger of candidate.connector.triggers ?? []) {
       if (!out.has(trigger.id)) out.set(trigger.id, trigger)
     }
   }
   return out.size > 0 ? [...out.values()] : undefined
+}
+
+function toolBindableCandidates(candidates: Candidate[]): Candidate[] {
+  const bindable = candidates.filter((candidate) => candidate.supportTier !== 'catalogOnly')
+  return bindable.length > 0 ? bindable : []
 }
 
 function conflictDiagnostics(candidates: Candidate[]): IntegrationRegistryConflict[] {

@@ -45,4 +45,19 @@ describe('Activepieces community catalog import', () => {
 
     expect(results[0].tool.connectorId).toBe('slack')
   })
+
+  it('applies curated overrides for top connectors', () => {
+    const connectors = buildActivepiecesConnectors()
+    const stripe = connectors.find((c) => c.id === 'stripe')
+
+    expect(stripe?.metadata?.overridden).toBe(true)
+    const cancelSub = stripe?.actions.find((a) => a.id === 'stripe.cancel.subscription')
+    expect(cancelSub?.risk).toBe('destructive')
+    const createRefund = stripe?.actions.find((a) => a.id === 'stripe.create.refund')
+    expect(createRefund?.risk).toBe('destructive')
+
+    const slack = connectors.find((c) => c.id === 'slack')
+    expect(slack?.category).toBe('chat')
+    expect(stripe?.category).toBe('crm')
+  })
 })
