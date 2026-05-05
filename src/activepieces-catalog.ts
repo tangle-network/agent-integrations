@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import type {
   IntegrationActionRisk,
   IntegrationConnector,
@@ -6,7 +9,7 @@ import type {
   IntegrationConnectorTrigger,
   IntegrationDataClass,
 } from './index.js'
-import { ACTIVEPIECES_COMMUNITY_CATALOG } from './activepieces-catalog.generated.js'
+import { getActivepiecesOverride } from './activepieces-overrides.js'
 
 export interface ActivepiecesCatalogEntry {
   id: string
@@ -33,8 +36,22 @@ export interface ActivepiecesCatalogEntry {
   }
 }
 
+const CATALOG_RESOURCE_RELATIVE = '../data/activepieces-catalog.json'
+
+let CACHED_CATALOG: ReadonlyArray<ActivepiecesCatalogEntry> | undefined
+
+function loadCatalog(): ReadonlyArray<ActivepiecesCatalogEntry> {
+  if (CACHED_CATALOG) return CACHED_CATALOG
+  const here = dirname(fileURLToPath(import.meta.url))
+  const path = resolve(here, CATALOG_RESOURCE_RELATIVE)
+  const raw = readFileSync(path, 'utf8')
+  const parsed = JSON.parse(raw) as ActivepiecesCatalogEntry[]
+  CACHED_CATALOG = parsed
+  return parsed
+}
+
 export function listActivepiecesCatalogEntries(): ActivepiecesCatalogEntry[] {
-  return ACTIVEPIECES_COMMUNITY_CATALOG.map((entry) => ({
+  return loadCatalog().map((entry) => ({
     ...entry,
     actions: [...entry.actions],
     triggers: [...entry.triggers],
@@ -46,19 +63,21 @@ export function listActivepiecesCatalogEntries(): ActivepiecesCatalogEntry[] {
 export function buildActivepiecesConnectors(options: { providerId?: string } = {}): IntegrationConnector[] {
   const providerId = options.providerId ?? 'activepieces'
   return listActivepiecesCatalogEntries().map((entry) => {
+    const override = getActivepiecesOverride(entry.id)
+    const category = override?.category ?? entry.category
     const scopes = [`${entry.id}.read`, `${entry.id}.write`]
     const actions = entry.actions.length > 0
-      ? entry.actions.map((action) => toAction(action, scopes, dataClassFor(entry.category)))
-      : defaultActions(entry.id, scopes, dataClassFor(entry.category))
+      ? entry.actions.map((action) => toAction(applyActionOverride(action, override), scopes, dataClassFor(category)))
+      : defaultActions(entry.id, scopes, dataClassFor(category))
     return {
       id: entry.id,
       providerId,
       title: entry.title,
-      category: entry.category,
+      category,
       auth: entry.auth,
       scopes,
       actions,
-      triggers: entry.triggers.map((trigger) => toTrigger(trigger, scopes, dataClassFor(entry.category))),
+      triggers: entry.triggers.map((trigger) => toTrigger(trigger, scopes, dataClassFor(category))),
       metadata: {
         source: 'activepieces-community',
         executable: false,
@@ -69,9 +88,19 @@ export function buildActivepiecesConnectors(options: { providerId?: string } = {
         license: entry.source.license,
         sourcePath: entry.source.path,
         domains: entry.domains,
+        ...(override ? { overridden: true } : {}),
       },
     }
   })
+}
+
+function applyActionOverride(
+  action: ActivepiecesCatalogEntry['actions'][number],
+  override: ReturnType<typeof getActivepiecesOverride>,
+): ActivepiecesCatalogEntry['actions'][number] {
+  if (!override) return action
+  const risk = override.actionRisks?.[action.id] ?? action.risk
+  return { ...action, risk }
 }
 
 function toAction(

@@ -8,6 +8,7 @@ import {
   InMemoryConnectionStore,
   IntegrationHub,
   searchIntegrationTools,
+  summarizeIntegrationRegistry,
   type IntegrationConnector,
 } from '../src/index'
 
@@ -23,7 +24,10 @@ describe('integration registry', () => {
     expect(slack?.supportTier).toBe('setupReady')
     expect(slack?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['spec', 'activepieces']))
     expect(slack?.connector.actions.some((action) => action.id === 'messages.post')).toBe(true)
-    expect(slack?.connector.actions.some((action) => action.id.includes('send.message'))).toBe(true)
+    expect(slack?.connector.actions.some((action) => action.id.includes('send.message'))).toBe(false)
+    expect(slack?.connector.metadata?.registry).toMatchObject({
+      toolBindable: true,
+    })
   })
 
   it('surfaces catalog conflicts instead of hiding mismatched facts', () => {
@@ -48,7 +52,7 @@ describe('integration registry', () => {
     expect(canonical?.connector.id).toBe('notion-database')
   })
 
-  it('lets executable first-party connectors win while retaining lower-tier action coverage', () => {
+  it('lets executable first-party connectors win without exposing catalog-only actions as tools', () => {
     const firstParty = connector({
       id: 'gmail',
       providerId: 'first-party',
@@ -70,7 +74,33 @@ describe('integration registry', () => {
 
     expect(gmail?.supportTier).toBe('firstPartyExecutable')
     expect(gmail?.connector.providerId).toBe('first-party')
-    expect(gmail?.connector.actions.map((action) => action.id).sort()).toEqual(['messages.search', 'messages.send'])
+    expect(gmail?.connector.actions.map((action) => action.id).sort()).toEqual(['messages.send'])
+    expect(gmail?.connector.metadata?.registry).toMatchObject({
+      catalogOnlyActionCount: 1,
+      toolBindable: true,
+    })
+  })
+
+  it('keeps pure catalog-only connectors discoverable but not tool-bindable', () => {
+    const registry = composeIntegrationRegistry([
+      {
+        id: 'activepieces',
+        connectors: [connector({
+          id: 'long-tail',
+          providerId: 'activepieces',
+          actions: [{ id: 'records.upsert', title: 'Upsert record', risk: 'write' }],
+          metadata: { source: 'activepieces-community', catalogOnly: true },
+        })],
+      },
+    ])
+    const entry = registry.byId.get('long-tail')
+
+    expect(entry?.supportTier).toBe('catalogOnly')
+    expect(entry?.connector.actions).toEqual([])
+    expect(entry?.connector.metadata?.registry).toMatchObject({
+      catalogOnlyActionCount: 1,
+      toolBindable: false,
+    })
   })
 
   it('feeds the existing tool search path from the deduplicated registry', () => {
@@ -119,6 +149,16 @@ describe('integration registry', () => {
     expect(canonicalConnectorId('Outlook Calendar')).toBe('microsoft-calendar')
     expect(canonicalConnectorId('notion')).toBe('notion-database')
     expect(canonicalConnectorId('stripe')).toBe('stripe-pack')
+  })
+
+  it('summarizes support tiers and conflict load for admin surfaces', () => {
+    const summary = summarizeIntegrationRegistry(buildDefaultIntegrationRegistry())
+
+    expect(summary.totalEntries).toBeGreaterThanOrEqual(650)
+    expect(summary.bySupportTier.catalogOnly).toBeGreaterThan(500)
+    expect(summary.bySupportTier.setupReady).toBeGreaterThanOrEqual(100)
+    expect(summary.toolBindableEntries).toBeLessThan(summary.totalEntries)
+    expect(summary.conflictEntries).toBeGreaterThan(0)
   })
 })
 
