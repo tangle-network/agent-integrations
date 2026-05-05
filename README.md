@@ -47,6 +47,9 @@ agent-facing tool contract.
   automation, sync jobs, webhooks, and product workflows.
 - Approval persistence, audit events, healthchecks, credential resolution,
   webhook ingestion, idempotency guards, and sandbox/CLI bridge payloads.
+- Generated-app client helpers, manifest inference/validation, consent copy,
+  platform policy presets, canonical launch action schemas, and controlled
+  provider-native passthrough validation.
 - A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
   normalized permissions, healthcheck plans, and tool descriptions.
 
@@ -94,6 +97,12 @@ pnpm add @tangle-network/agent-integrations
 | `runIntegrationHealthchecks` | Checks connection status, registry executability, scope shape, and optional live provider tests. |
 | `receiveIntegrationWebhook` | Verifies inbound webhooks, dedupes provider events, and dispatches normalized trigger events. |
 | `buildIntegrationBridgeEnvironment` | Encodes scoped sandbox capabilities for sandbox processes or executor-style CLIs. |
+| `createTangleIntegrationsClient` | Tiny generated-app/sandbox client for platform `/v1/integrations/invoke`. |
+| `inferIntegrationManifestFromTools` / `validateIntegrationManifest` | Deterministic manifest helpers for Builder and platform APIs. |
+| `renderConsentSummary` / `renderApprovalCopy` | User-facing consent and approval copy from manifests/actions. |
+| `createPlatformIntegrationPolicyPreset` | Secure defaults: reads allowed after grant, writes need approval, destructive denied, passthrough disabled. |
+| `buildCanonicalLaunchConnectors` | Product-ready launch action schemas for Calendar, Gmail, Drive, GitHub, and Slack. |
+| `validateProviderPassthroughRequest` | Policy-gated provider-native HTTP escape hatch validation. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
@@ -152,6 +161,20 @@ Generated apps and sandboxes receive scoped capability tokens and tool
 definitions. They never receive OAuth refresh tokens, API keys, or raw secrets.
 For sandbox processes, pass the bundle through `buildIntegrationBridgeEnvironment()`;
 the payload contains short-lived capability tokens and tool names only.
+
+Generated app code should use the tiny client instead of raw provider tokens:
+
+```ts
+const integrations = createTangleIntegrationsClient({
+  endpoint: 'https://id.tangle.tools',
+  env: process.env,
+})
+
+await integrations.invoke({
+  tool: 'google-calendar.events.list',
+  input: { calendarId: 'primary', timeMin, timeMax },
+})
+```
 
 The same manifest/grant model works for non-agent workflows:
 
@@ -215,6 +238,8 @@ Runnable examples live in [`examples/`](./examples):
   first-party adapter provider wiring.
 - [`examples/declarative-rest.ts`](./examples/declarative-rest.ts) - compact
   REST connector spec.
+- [`examples/calendar-exercise-app.ts`](./examples/calendar-exercise-app.ts) -
+  generated-app golden path: manifest, consent copy, bridge env, and invoke.
 
 The README stays short; examples are separate so they can be copied and expanded
 without obscuring the package contract.
@@ -232,6 +257,8 @@ without obscuring the package contract.
 - Invocation envelopes validate action/tool consistency, idempotency keys,
   metadata shape, known tools, and input size.
 - Webhook ingestion supports signature verification and provider-event dedupe.
+- Provider-native passthrough is disabled by default and must be explicitly
+  policy-enabled with method/path/body limits.
 - Action invocation checks ownership, connection status, scopes, allowed actions,
   and expiration.
 - `IntegrationActionGuard` can enforce idempotency, approval, audit logging,
