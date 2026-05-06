@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   auditIntegrationCatalogFreshness,
+  auditTangleIntegrationCatalogFreshness,
   extractActivepiecesPublicPieceCount,
+  extractExternalCatalogPublicCount,
 } from '../src/index'
 
 describe('integration catalog freshness audit', () => {
@@ -24,6 +26,7 @@ describe('integration catalog freshness audit', () => {
 
   it('parses public Activepieces catalog counts from current page copy', () => {
     expect(extractActivepiecesPublicPieceCount('Showing 701 pieces')).toBe(701)
+    expect(extractExternalCatalogPublicCount('Showing 701 pieces')).toBe(701)
     expect(extractActivepiecesPublicPieceCount('701+ Integrations')).toBe(701)
   })
 
@@ -41,5 +44,14 @@ describe('integration catalog freshness audit', () => {
     expect(result.upstream?.activepiecesPieces).toBe(750)
     expect(result.upstream?.activepiecesDelta).toBeGreaterThan(25)
     expect(result.warnings[0]).toContain('Activepieces upstream appears')
+  })
+
+  it('exposes a Tangle-named freshness report for public release gates', async () => {
+    const result = await auditTangleIntegrationCatalogFreshness()
+
+    expect(result.ok).toBe(true)
+    expect(result.local.catalogEntries).toBeGreaterThanOrEqual(650)
+    expect(result.local.executableCatalogActions).toBeGreaterThan(3_000)
+    expect(JSON.stringify(result)).not.toContain('activepiecesEntries')
   })
 })

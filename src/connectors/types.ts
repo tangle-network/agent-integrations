@@ -10,7 +10,7 @@
  *
  *   IntegrationHub                                — vendor-neutral facade (../index.ts)
  *     ↓
- *   IntegrationProvider                           — one per vendor (Nango/Composio/first-party)
+ *   IntegrationProvider                           — one per gateway or first-party provider
  *     ↓
  *   ConnectorAdapter (this file)                  — one per integration (Google Calendar, ...)
  *     ↓

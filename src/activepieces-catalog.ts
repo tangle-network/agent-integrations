@@ -165,7 +165,7 @@ function defaultActions(
       dataClass,
       approvalRequired: true,
       inputSchema: { type: 'object', additionalProperties: true, properties: {} },
-      description: `Create or update a ${id} record through an Activepieces-backed connector.`,
+      description: `Create or update a ${id} record through a catalog-backed connector.`,
     },
   ]
 }

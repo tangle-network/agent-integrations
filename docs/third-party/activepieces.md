@@ -1,7 +1,7 @@
 # Activepieces Community Catalog Attribution
 
-`src/activepieces-catalog.generated.ts` is generated from the Activepieces
-Community pieces catalog:
+`data/activepieces-catalog.json` is generated from the Activepieces Community
+pieces catalog:
 
 - Source repository: https://github.com/activepieces/activepieces
 - Source path: `packages/pieces/community`
@@ -10,11 +10,11 @@ Community pieces catalog:
   versions, high-level action names, trigger names, auth shape hints, and
   category/domain metadata.
 
-The generated catalog is connector metadata for `agent-integrations`; it does
-not vendor the Activepieces runtime or execute Activepieces piece code directly.
-Consumers can run these connectors through an Activepieces-backed provider,
-promote selected entries to first-party adapters, or use the metadata for
-planning and connection setup.
+The generated file is ingestion/provenance data for the Tangle Integrations
+Catalog. It does not vendor the Activepieces runtime or execute Activepieces
+piece code directly. Consumers should use the Tangle-named catalog APIs and can
+promote selected entries to first-party adapters or route them through a signed
+Tangle catalog runtime.
 
 Regenerate after checking out Activepieces:
 

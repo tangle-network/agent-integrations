@@ -5,9 +5,9 @@ software that need user-authorized access to external systems.
 
 The package standardizes connector catalogs, user connections, scoped sandbox
 capabilities, action invocation, trigger events, provider adapters, and
-first-party connector adapters. Product code can route through Nango, Pipedream,
-Activepieces, a custom gateway, or first-party adapters without changing the
-agent-facing tool contract.
+first-party connector adapters. Product code can route through hosted gateways,
+custom runtimes, or first-party adapters without changing the agent-facing tool
+contract.
 
 ## Contents
 
@@ -32,8 +32,8 @@ agent-facing tool contract.
 - Policy checks for read/write/destructive actions.
 - Invocation-envelope validation before sandbox tool calls reach the hub.
 - A generic HTTP provider boundary for hosted integration gateways.
-- A gateway catalog provider for Nango, Pipedream, Activepieces, Zapier,
-  executor-style gateways, and internal connector registries.
+- A gateway catalog provider for hosted integration gateways, executor-style
+  runtimes, and internal connector registries.
 - A first-party `ConnectorAdapter` boundary for direct provider execution.
 - A declarative REST adapter factory for promoting REST APIs from reviewed specs.
 - A broad coverage catalog for planning hundreds of integrations without
@@ -108,6 +108,10 @@ pnpm add @tangle-network/agent-integrations
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
+| `buildTangleIntegrationCatalogConnectors` | Broad normalized Tangle Integrations Catalog inventory for long-tail connection discovery. |
+| `createTangleCatalogExecutorProvider` | Promotes catalog entries to gateway-executable only when a runtime executor is explicitly supplied. |
+| `createTangleCatalogHttpExecutor` | Signed HTTP executor client for Tangle-hosted catalog runtimes. |
+| `auditTangleIntegrationCatalogFreshness` | Release gate for catalog breadth, executable promotion, registry conflicts, and stale external ingestion. |
 | `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
 | `validateIntegrationInvocationEnvelope` | Runtime validation for tool/action consistency and input limits. |
@@ -120,9 +124,9 @@ pnpm add @tangle-network/agent-integrations
 
 ## Catalog Registry
 
-Catalog breadth and runtime execution are separate. Activepieces metadata gives
-the package broad connector inventory; first-party adapters and gateways decide
-which connectors can actually run.
+Catalog breadth and runtime execution are separate. The Tangle Integrations
+Catalog gives the package broad connector inventory; first-party adapters and
+explicitly configured runtimes decide which connectors can actually run.
 
 Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
 connection pickers. It produces one canonical connector per integration,

@@ -135,9 +135,9 @@ Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the prod
 - [ ] tier_1 / database / Qdrant (qdrant) - vector, database, ai
 - [ ] tier_1 / workflow / Zapier (zapier) - automation, workflow
 - [ ] tier_1 / workflow / Make (make) - automation, workflow
-- [ ] tier_1 / workflow / Nango (nango) - integration-platform, oauth
-- [ ] tier_1 / workflow / Pipedream (pipedream) - integration-platform, workflow
-- [ ] tier_1 / workflow / Activepieces (activepieces) - automation, workflow, open-source
+- [ ] tier_1 / workflow / Hosted Integration Gateway (hosted-integration-gateway) - integration-platform, oauth
+- [ ] tier_1 / workflow / Workflow Runtime Gateway (workflow-runtime-gateway) - integration-platform, workflow
+- [ ] tier_1 / workflow / Open Automation Catalog (open-automation-catalog) - automation, workflow, open-source
 - [ ] tier_0 / webhook / Generic Webhook (webhook) - webhook, http, events
 - [ ] tier_0 / workflow / HTTP Request (http) - http, api, webhook
 - [ ] tier_1 / webhook / RSS (rss) - feeds, content

@@ -2,11 +2,11 @@
 
 Status date: 2026-05-04
 
-`agent-integrations` should keep product code independent from Nango,
-Pipedream, Zapier, Activepieces, Composio, executor-style services, and our own
-first-party connectors. The strategic goal is not to outsource integrations
-forever. The goal is to get broad connector coverage quickly while preserving a
-clean path to bring important connectors in-house.
+`agent-integrations` should keep product code independent from any hosted
+integration gateway, imported catalog source, executor-style service, or
+first-party connector implementation. The strategic goal is not to outsource
+integrations forever. The goal is to get broad connector coverage quickly while
+preserving a clean path to bring important connectors in-house.
 
 ## Default Strategy
 
