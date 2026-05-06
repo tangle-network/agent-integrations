@@ -1,19 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildActivepiecesConnectors,
+  buildTangleIntegrationCatalogConnectors,
   buildIntegrationToolCatalog,
   composeIntegrationRegistry,
-  createActivepiecesHttpExecutor,
-  createActivepiecesExecutorProvider,
+  createTangleCatalogHttpExecutor,
+  createTangleCatalogExecutorProvider,
   InMemoryConnectionStore,
   IntegrationHub,
   listActivepiecesCatalogEntries,
+  listTangleIntegrationCatalogEntries,
   searchIntegrationTools,
-  verifyActivepiecesRuntimeSignature,
-  ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER,
+  verifyTangleCatalogRuntimeSignature,
+  TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
 } from '../src/index'
 
 describe('Activepieces community catalog import', () => {
+  it('exposes Tangle-named catalog APIs for product-facing consumers', () => {
+    expect(listTangleIntegrationCatalogEntries().length).toBe(listActivepiecesCatalogEntries().length)
+    expect(buildTangleIntegrationCatalogConnectors().length).toBe(buildActivepiecesConnectors().length)
+  })
+
   it('vendors the MIT community connector catalog as normalized metadata', () => {
     const entries = listActivepiecesCatalogEntries()
     const ids = entries.map((entry) => entry.id)
@@ -64,7 +71,7 @@ describe('Activepieces community catalog import', () => {
   })
 
   it('can promote the full catalog to gateway-executable when a runtime executor is supplied', async () => {
-    const provider = createActivepiecesExecutorProvider({
+    const provider = createTangleCatalogExecutorProvider({
       executeAction: (invocation) => ({
         ok: true,
         action: invocation.request.action,
@@ -121,7 +128,7 @@ describe('Activepieces community catalog import', () => {
   })
 
   it('feeds executable catalog entries into the deduped registry and tool search path', async () => {
-    const provider = createActivepiecesExecutorProvider({
+    const provider = createTangleCatalogExecutorProvider({
       executeAction: () => ({ ok: true, action: 'noop' }),
     })
     const registry = composeIntegrationRegistry([
@@ -141,7 +148,7 @@ describe('Activepieces community catalog import', () => {
 
   it('rejects unknown executable catalog actions before dispatching to the runtime', async () => {
     let called = false
-    const provider = createActivepiecesExecutorProvider({
+    const provider = createTangleCatalogExecutorProvider({
       executeAction: () => {
         called = true
         return { ok: true, action: 'should-not-run' }
@@ -167,17 +174,19 @@ describe('Activepieces community catalog import', () => {
   it('ships a signed HTTP runtime executor protocol for hardened workers', async () => {
     let received: unknown
     let signature: string | null = null
-    const executeAction = createActivepiecesHttpExecutor({
+    let url = ''
+    const executeAction = createTangleCatalogHttpExecutor({
       endpoint: 'https://runtime.example',
       secret: 'runtime-secret',
       requestId: () => 'req-1',
-      fetchImpl: async (_url, init) => {
-        signature = new Headers(init?.headers).get(ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER)
+      fetchImpl: async (requestUrl, init) => {
+        url = String(requestUrl)
+        signature = new Headers(init?.headers).get(TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER)
         received = JSON.parse(String(init?.body))
         return Response.json({ ok: true, action: 'slack.send.message', output: { sent: true } })
       },
     })
-    const provider = createActivepiecesExecutorProvider({ executeAction })
+    const provider = createTangleCatalogExecutorProvider({ executeAction })
     const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
     const action = slack.actions.find((candidate) => candidate.risk !== 'read')!
     const result = await provider.invokeAction({
@@ -197,8 +206,9 @@ describe('Activepieces community catalog import', () => {
     })
 
     const serialized = JSON.stringify(received)
+    expect(url).toBe('https://runtime.example/v1/integration-catalog/actions/invoke')
     expect(signature).toMatch(/^sha256=/)
-    expect(verifyActivepiecesRuntimeSignature(serialized, signature, 'runtime-secret')).toBe(true)
+    expect(verifyTangleCatalogRuntimeSignature(serialized, signature, 'runtime-secret')).toBe(true)
     expect(received).toMatchObject({
       version: 1,
       requestId: 'req-1',

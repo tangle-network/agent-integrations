@@ -226,8 +226,7 @@ export interface IssuedIntegrationCapability {
  * result directly) or pass through (call `proceed()` to invoke the provider).
  *
  * Why this hook exists: production deployments need conflict-resolution
- * guarantees that span every provider — first-party, Nango, Composio,
- * webhook receivers — and providers shouldn't re-implement them. The
+ * guarantees that span every provider, gateway, and webhook receiver. The
  * canonical implementation is a "MutationGuard" that:
  *   1. Short-circuits on a known idempotency key (returns recorded response).
  *   2. Refuses same-key-different-args (drift detection).
@@ -720,6 +719,7 @@ export * from './activepieces-catalog.js'
 export * from './activepieces-overrides.js'
 export * from './activepieces-provider.js'
 export * from './activepieces-runtime.js'
+export * from './tangle-catalog.js'
 export * from './catalog-freshness.js'
 export * from './registry.js'
 export * from './runtime.js'

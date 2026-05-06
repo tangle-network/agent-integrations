@@ -5,7 +5,7 @@
 - first-party adapters
 - generated setup specs
 - gateway catalogs
-- vendored Activepieces metadata
+- imported Tangle Integrations Catalog metadata
 - planning coverage stubs
 
 Those sources intentionally overlap. The public product surface should not.

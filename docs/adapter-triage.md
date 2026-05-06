@@ -48,28 +48,29 @@ Aliases matter when comparing coverage:
 - `stripe` maps to `stripe-pack` for outbound payment actions.
 - `twilio` maps to `twilio-sms`.
 
-## 600+ Catalog Execution Path
+## Tangle Catalog Execution Path
 
-The repo does not need 600 hand-written adapter files. Long-tail execution uses
-one strict catalog executor:
+The repo does not need hundreds of hand-written adapter files. Long-tail
+execution uses one strict catalog executor:
 
 ```ts
 import {
-  createActivepiecesExecutorProvider,
+  createTangleCatalogExecutorProvider,
+  createTangleCatalogHttpExecutor,
   IntegrationHub,
 } from '@tangle-network/agent-integrations'
 
-const provider = createActivepiecesExecutorProvider({
-  executeAction: createActivepiecesHttpExecutor({
+const provider = createTangleCatalogExecutorProvider({
+  executeAction: createTangleCatalogHttpExecutor({
     endpoint: 'https://id.tangle.tools/integration-runtime',
-    secret: process.env.ACTIVEPIECES_RUNTIME_SECRET,
+    secret: process.env.TANGLE_CATALOG_RUNTIME_SECRET,
   }),
 })
 
 const hub = new IntegrationHub({ providers: [provider], store, capabilitySecret })
 ```
 
-This promotes all vendored Activepieces community entries to
+This promotes normalized Tangle Integrations Catalog entries to
 `gatewayExecutable` only when a caller supplies an executor. The default catalog
 remains `catalogOnly`, so generated apps cannot accidentally call metadata.
 
@@ -195,6 +196,6 @@ Before any product says an integration is “supported” for real users:
 - Include first-party adapter catalogs in registry composition when a consumer
   provides adapter instances.
 - Add a generated triage command that compares coverage specs, setup specs,
-  active catalog entries, and adapter manifests.
+  imported catalog entries, and adapter manifests.
 - Promote Gmail, Drive, Outlook Mail, Linear, Jira, Zendesk, Intercom, Shopify,
   QuickBooks, S3, and Postgres first.

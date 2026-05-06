@@ -10,6 +10,7 @@ import type {
 } from './index.js'
 
 export const ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER = 'x-tangle-activepieces-signature'
+export const TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER = 'x-tangle-catalog-signature'
 
 export interface ActivepiecesRuntimeRequest {
   version: 1
@@ -29,6 +30,8 @@ export interface ActivepiecesRuntimeRequest {
 
 export interface ActivepiecesHttpExecutorOptions {
   endpoint: string
+  path?: string
+  signatureHeader?: string
   secret?: string
   fetchImpl?: typeof fetch
   headers?: Record<string, string>
@@ -40,18 +43,21 @@ export function createActivepiecesHttpExecutor(
   options: ActivepiecesHttpExecutorOptions,
 ): ActivepiecesExecutorProviderOptions['executeAction'] {
   const endpoint = options.endpoint.replace(/\/$/, '')
+  const path = options.path ?? '/v1/activepieces/actions/invoke'
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const signatureHeader = options.signatureHeader ?? ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER
   const fetchImpl = options.fetchImpl ?? fetch
   const requestId = options.requestId ?? (() => `apexec_${randomUUID()}`)
   return async (invocation) => {
     const body = buildActivepiecesRuntimeRequest(invocation, requestId())
     const serialized = JSON.stringify(body)
-    const response = await fetchImpl(`${endpoint}/v1/activepieces/actions/invoke`, {
+    const response = await fetchImpl(`${endpoint}${normalizedPath}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         ...options.headers,
         ...(options.secret
-          ? { [ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER]: signActivepiecesRuntimeRequest(serialized, options.secret) }
+          ? { [signatureHeader]: signActivepiecesRuntimeRequest(serialized, options.secret) }
           : {}),
       },
       body: serialized,
@@ -115,3 +121,20 @@ export function verifyActivepiecesRuntimeSignature(
   const right = Buffer.from(expected)
   return left.length === right.length && timingSafeEqual(left, right)
 }
+
+export type TangleCatalogRuntimeRequest = ActivepiecesRuntimeRequest
+export type TangleCatalogHttpExecutorOptions = ActivepiecesHttpExecutorOptions
+
+export function createTangleCatalogHttpExecutor(
+  options: TangleCatalogHttpExecutorOptions,
+): ActivepiecesExecutorProviderOptions['executeAction'] {
+  return createActivepiecesHttpExecutor({
+    ...options,
+    path: options.path ?? '/v1/integration-catalog/actions/invoke',
+    signatureHeader: options.signatureHeader ?? TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
+  })
+}
+
+export const buildTangleCatalogRuntimeRequest = buildActivepiecesRuntimeRequest
+export const signTangleCatalogRuntimeRequest = signActivepiecesRuntimeRequest
+export const verifyTangleCatalogRuntimeSignature = verifyActivepiecesRuntimeSignature

@@ -5,7 +5,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 ## Strategy
 
 - Use `buildIntegrationCoverageConnectors()` for broad planning/catalog coverage.
-- Use vendor gateways such as Nango, Pipedream, Activepieces, and custom HTTP providers for long-tail OAuth/API coverage.
+- Use hosted gateways, imported connector catalogs, and custom HTTP providers for long-tail OAuth/API coverage.
 - Promote high-volume, sensitive, or moat-critical connectors into first-party `ConnectorAdapter`s.
 - Do not claim a connector is executable until it has auth, scope, action, error, rate-limit, idempotency, and approval-path tests.
 - Keep every connector behind `IntegrationHub`, capability tokens, policy checks, and sandbox invocation envelopes.
@@ -17,16 +17,16 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] Coverage catalog for 100+ high-value integrations.
 - [x] Builder API consumes the coverage catalog for app planning.
 - [x] Declarative REST adapter factory for fast first-party promotion of REST-shaped APIs.
-- [x] Provider gateway catalog adapter can normalize 500+ Nango/Pipedream/Activepieces-style connectors.
+- [x] Provider gateway catalog adapter can normalize 500+ external catalog connectors.
 - [x] Canonical registry dedupes overlapping catalogs, aliases, support tiers, and conflict diagnostics.
 - [ ] Generated sandbox apps can request missing connections from the catalog.
 - [ ] Live smoke credentials exist for Tier 0 connectors.
 - [ ] Tier 0 connector failures are classified by auth, scope, rate-limit, provider outage, validation, approval, and conflict.
 - [ ] Tier 0 write actions have idempotency and approval tests.
-- [x] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
+- [x] Provider gateway adapters can import/sync catalog metadata from external registries.
 - [x] Adapter execution triage is documented in [`adapter-triage.md`](./adapter-triage.md).
-- [x] Activepieces community catalog can be promoted to executable actions through `createActivepiecesExecutorProvider`.
-- [x] Activepieces executable actions can dispatch through a signed HTTP runtime executor protocol.
+- [x] Tangle Integrations Catalog entries can be promoted to executable actions through `createTangleCatalogExecutorProvider`.
+- [x] Tangle Integrations Catalog executable actions can dispatch through a signed HTTP runtime executor protocol.
 
 ## Tier 0 First-Party Promotion Queue
 
@@ -80,7 +80,7 @@ The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown
 - Marketing and social: Mailchimp, Klaviyo, Marketo, Braze, Facebook Pages, Instagram Business, LinkedIn, X, YouTube.
 - Data and infra: Snowflake, BigQuery, Redshift, Postgres, MySQL, MongoDB, Supabase, Firebase, S3, Cloudflare.
 - HR/legal/signature: Workday, BambooHR, Greenhouse, Lever, Gusto, Rippling, DocuSign, Ironclad, Clio.
-- AI/vector/workflow: OpenAI, Anthropic, Gemini, Hugging Face, Pinecone, Weaviate, Qdrant, Zapier, Make, Nango, Pipedream, Activepieces.
+- AI/vector/workflow: OpenAI, Anthropic, Gemini, Hugging Face, Pinecone, Weaviate, Qdrant, Zapier, Make, hosted gateways, and imported automation catalogs.
 
 ## Remaining Work
 
@@ -92,4 +92,4 @@ The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown
 - [x] Add Airtable, GitLab, and Asana via declarative REST.
 - [x] Add generated integration setup specs, renderers, validation, and healthcheck plans.
 - [ ] Add live smoke-test harness that skips only when explicit credentials are absent.
-- [ ] Add gateway sync job for Nango/Pipedream/Activepieces metadata.
+- [ ] Add gateway sync job for external catalog metadata.

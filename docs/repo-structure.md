@@ -22,13 +22,13 @@ This repo intentionally separates catalog breadth from executable runtime code.
 - `src/connectors/` contains first-party adapter contracts and implementations.
 - `src/specs/` is the structured OAuth/setup/runbook source of truth.
 - `src/registry.ts`, `src/gateway-catalog.ts`, `src/coverage-catalog.ts`, and
-  `src/activepieces-catalog.ts` compose broad connector catalogs without
-  pretending catalog-only entries are executable.
+  `src/tangle-catalog.ts` compose broad connector catalogs without pretending
+  catalog-only entries are executable.
 
 ## Data
 
-- `data/activepieces-catalog.json` is large by design. It is lazy-loaded and
-  keeps long-tail discovery out of TypeScript source so `tsc --watch` does not
+- Imported catalog JSON is large by design. It is lazy-loaded and keeps
+  long-tail discovery out of TypeScript source so `tsc --watch` does not
   re-check a generated 40k-line module. It is catalog metadata, not executable
   support.
 
