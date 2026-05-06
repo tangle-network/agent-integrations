@@ -12,23 +12,23 @@ import type {
 export const ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER = 'x-tangle-activepieces-signature'
 export const TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER = 'x-tangle-catalog-signature'
 
-export interface ActivepiecesRuntimeRequest {
-  version: 1
-  requestId: string
-  providerId: string
-  connection: IntegrationConnection
-  connector: Pick<IntegrationConnector, 'id' | 'title' | 'auth' | 'scopes' | 'metadata'>
-  piece: ActivepiecesExecutorInvocation['piece']
-  action: {
-    id: string
-    input: unknown
-    idempotencyKey?: string
-    dryRun?: boolean
-    metadata?: Record<string, unknown>
-  }
+export interface TangleCatalogRuntimeActionRequest {
+  id: string
+  input: unknown
+  idempotencyKey?: string
+  dryRun?: boolean
+  metadata?: Record<string, unknown>
 }
 
-export interface ActivepiecesHttpExecutorOptions {
+export interface TangleCatalogRuntimePiece {
+  id: string
+  packageName?: string
+  version?: string
+  actionId: string
+  upstreamActionName?: string
+}
+
+export interface TangleCatalogHttpExecutorOptions {
   endpoint: string
   path?: string
   signatureHeader?: string
@@ -39,6 +39,33 @@ export interface ActivepiecesHttpExecutorOptions {
   requestId?: () => string
 }
 
+export interface TangleCatalogHttpExecutorInvocation extends Omit<ActivepiecesExecutorInvocation, 'catalogEntry' | 'piece'> {
+  catalogEntry: unknown
+  piece: TangleCatalogRuntimePiece
+}
+
+/**
+ * @deprecated Use the Tangle catalog runtime types. This name is kept only for
+ * compatibility with the upstream catalog ingestion backend.
+ */
+export interface ActivepiecesRuntimeRequest {
+  version: 1
+  requestId: string
+  providerId: string
+  connection: IntegrationConnection
+  connector: Pick<IntegrationConnector, 'id' | 'title' | 'auth' | 'scopes' | 'metadata'>
+  piece: ActivepiecesExecutorInvocation['piece']
+  action: TangleCatalogRuntimeActionRequest
+}
+
+/**
+ * @deprecated Use `TangleCatalogHttpExecutorOptions`.
+ */
+export type ActivepiecesHttpExecutorOptions = TangleCatalogHttpExecutorOptions
+
+/**
+ * @deprecated Use `createTangleCatalogHttpExecutor`.
+ */
 export function createActivepiecesHttpExecutor(
   options: ActivepiecesHttpExecutorOptions,
 ): ActivepiecesExecutorProviderOptions['executeAction'] {
@@ -79,6 +106,9 @@ export function createActivepiecesHttpExecutor(
   }
 }
 
+/**
+ * @deprecated Use `buildTangleCatalogRuntimeRequest`.
+ */
 export function buildActivepiecesRuntimeRequest(
   invocation: ActivepiecesExecutorInvocation,
   requestId = `apexec_${randomUUID()}`,
@@ -106,10 +136,16 @@ export function buildActivepiecesRuntimeRequest(
   }
 }
 
+/**
+ * @deprecated Use `signTangleCatalogRuntimeRequest`.
+ */
 export function signActivepiecesRuntimeRequest(serializedBody: string, secret: string): string {
   return `sha256=${createHmac('sha256', secret).update(serializedBody).digest('hex')}`
 }
 
+/**
+ * @deprecated Use `verifyTangleCatalogRuntimeSignature`.
+ */
 export function verifyActivepiecesRuntimeSignature(
   serializedBody: string,
   signature: string | null | undefined,
@@ -128,25 +164,13 @@ export interface TangleCatalogRuntimeRequest {
   providerId: string
   connection: IntegrationConnection
   connector: Pick<IntegrationConnector, 'id' | 'title' | 'auth' | 'scopes' | 'metadata'>
-  piece: TangleCatalogHttpExecutorInvocation['piece']
-  action: ActivepiecesRuntimeRequest['action']
-}
-
-export type TangleCatalogHttpExecutorOptions = ActivepiecesHttpExecutorOptions
-export interface TangleCatalogHttpExecutorInvocation extends Omit<ActivepiecesExecutorInvocation, 'catalogEntry' | 'piece'> {
-  catalogEntry: unknown
-  piece: {
-    id: string
-    packageName?: string
-    version?: string
-    actionId: string
-    upstreamActionName?: string
-  }
+  piece: TangleCatalogRuntimePiece
+  action: TangleCatalogRuntimeActionRequest
 }
 
 export function createTangleCatalogHttpExecutor(
   options: TangleCatalogHttpExecutorOptions,
-): (invocation: TangleCatalogHttpExecutorInvocation) => ReturnType<ActivepiecesExecutorProviderOptions['executeAction']> {
+): (invocation: TangleCatalogHttpExecutorInvocation) => Promise<IntegrationActionResult> {
   const endpoint = options.endpoint.replace(/\/$/, '')
   const path = options.path ?? '/v1/integration-catalog/actions/invoke'
   const normalizedPath = path.startsWith('/') ? path : `/${path}`

@@ -8,6 +8,7 @@ export type IntegrationErrorCode =
   | 'scope_missing'
   | 'action_denied'
   | 'action_not_found'
+  | 'trigger_not_found'
   | 'provider_rate_limited'
   | 'provider_auth_failed'
   | 'provider_unavailable'
@@ -83,7 +84,7 @@ export function statusForCode(code: IntegrationErrorCode): number {
   if (code === 'approval_denied') return 403
   if (code === 'connection_revoked' || code === 'connection_expired' || code === 'provider_auth_failed') return 401
   if (code === 'scope_missing' || code === 'action_denied' || code === 'passthrough_disabled') return 403
-  if (code === 'action_not_found' || code === 'manifest_invalid' || code === 'input_invalid') return 400
+  if (code === 'action_not_found' || code === 'trigger_not_found' || code === 'manifest_invalid' || code === 'input_invalid') return 400
   if (code === 'provider_rate_limited') return 429
   if (code === 'provider_unavailable') return 503
   if (code === 'capability_expired' || code === 'capability_invalid') return 401

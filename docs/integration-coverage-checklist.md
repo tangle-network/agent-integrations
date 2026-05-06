@@ -6,7 +6,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 
 - Use `buildIntegrationCoverageConnectors()` for broad planning/catalog coverage.
 - Use hosted gateways, imported connector catalogs, and custom HTTP providers for long-tail OAuth/API coverage.
-- Promote high-volume, sensitive, or moat-critical connectors into first-party `ConnectorAdapter`s.
+- Implement high-volume, sensitive, or moat-critical connectors as native `ConnectorAdapter`s.
 - Do not claim a connector is executable until it has auth, scope, action, error, rate-limit, idempotency, and approval-path tests.
 - Keep every connector behind `IntegrationHub`, capability tokens, policy checks, and sandbox invocation envelopes.
 
@@ -16,7 +16,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] Central sandbox invocation envelope validation.
 - [x] Coverage catalog for 100+ high-value integrations.
 - [x] Builder API consumes the coverage catalog for app planning.
-- [x] Declarative REST adapter factory for fast first-party promotion of REST-shaped APIs.
+- [x] Declarative REST adapter factory for fast native implementation of REST-shaped APIs.
 - [x] Provider gateway catalog adapter can normalize 500+ external catalog connectors.
 - [x] Canonical registry dedupes overlapping catalogs, aliases, support tiers, and conflict diagnostics.
 - [ ] Generated sandbox apps can request missing connections from the catalog.
@@ -25,7 +25,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [ ] Tier 0 write actions have idempotency and approval tests.
 - [x] Provider gateway adapters can import/sync catalog metadata from external registries.
 - [x] Adapter execution triage is documented in [`adapter-triage.md`](./adapter-triage.md).
-- [x] Tangle Integrations Catalog entries can be promoted to executable actions through `createTangleCatalogExecutorProvider`.
+- [x] Tangle Integrations Catalog contracts can execute through `createTangleCatalogExecutorProvider`.
 - [x] Tangle Integrations Catalog executable actions can dispatch through a signed HTTP runtime executor protocol.
 
 ## Tier 0 First-Party Promotion Queue

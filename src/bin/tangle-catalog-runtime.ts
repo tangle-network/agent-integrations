@@ -1,5 +1,34 @@
 #!/usr/bin/env node
+import {
+  buildTangleCatalogRuntimePackageManifest,
+  renderTangleCatalogRuntimePnpmAddCommand,
+} from '../tangle-catalog.js'
+import { auditTangleCatalogRuntimePackages } from '../tangle-catalog-runtime.js'
 import { startTangleCatalogRuntimeNodeServer } from '../tangle-catalog-runtime-server.js'
+
+const args = new Set(process.argv.slice(2))
+if (args.has('--print-package-json')) {
+  console.log(JSON.stringify(buildTangleCatalogRuntimePackageManifest({
+    agentIntegrationsVersion: process.env.TANGLE_AGENT_INTEGRATIONS_VERSION,
+  }), null, 2))
+  process.exit(0)
+}
+
+if (args.has('--print-pnpm-add')) {
+  console.log(renderTangleCatalogRuntimePnpmAddCommand({
+    agentIntegrationsVersion: process.env.TANGLE_AGENT_INTEGRATIONS_VERSION,
+  }))
+  process.exit(0)
+}
+
+if (args.has('--audit-packages')) {
+  const connectorIds = process.env.TANGLE_CATALOG_AUDIT_CONNECTORS
+    ?.split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  console.log(JSON.stringify(await auditTangleCatalogRuntimePackages({ connectorIds }), null, 2))
+  process.exit(0)
+}
 
 const secret = process.env.TANGLE_CATALOG_RUNTIME_SECRET
 if (!secret || secret.length < 32) {

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import {
   buildTangleIntegrationCatalogConnectors,
+  buildTangleCatalogRuntimePackageManifest,
   listTangleIntegrationContracts,
   listIntegrationSpecs,
 } from '../dist/index.js'
@@ -13,6 +14,9 @@ const connectors = buildTangleIntegrationCatalogConnectors({
   executable: true,
 })
 const contracts = listTangleIntegrationContracts()
+const runtimePackageManifest = buildTangleCatalogRuntimePackageManifest({
+  agentIntegrationsVersion: pkg.version,
+})
 
 const firstParty = [
   'google-calendar',
@@ -38,11 +42,11 @@ const summary = {
   catalogConnectorsWithRuntimePackage: catalog.filter((entry) => entry.npmPackage).length,
   catalogActions: catalog.reduce((sum, entry) => sum + entry.actions.length, 0),
   catalogTriggers: catalog.reduce((sum, entry) => sum + entry.triggers.length, 0),
-  catalogTriggersWithVerifiedUpstreamName: catalog.reduce(
+  catalogTriggersWithCatalogUpstreamName: catalog.reduce(
     (sum, entry) => sum + entry.triggers.filter((trigger) => trigger.upstreamName).length,
     0,
   ),
-  catalogActionsWithVerifiedUpstreamName: catalog.reduce(
+  catalogActionsWithCatalogUpstreamName: catalog.reduce(
     (sum, entry) => sum + entry.actions.filter((action) => action.upstreamName).length,
     0,
   ),
@@ -62,6 +66,7 @@ const summary = {
   contractsWithMappedAuth: contracts.filter((contract) => contract.quality.authFieldsMapped).length,
   nativeBackedContracts: contracts.filter((contract) => contract.implementation.kind === 'native_adapter').length,
   packageRuntimeBackedContracts: contracts.filter((contract) => contract.implementation.kind === 'package_runtime').length,
+  runtimeManifestDependencies: Object.keys(runtimePackageManifest.dependencies).length,
   executableCatalogConnectors: connectors.length,
   executableCatalogActions: connectors.reduce((sum, connector) => sum + connector.actions.length, 0),
 }
@@ -76,7 +81,7 @@ const matrix = [
   ...catalog.map((entry) => {
     const spec = specsByKind.get(entry.id)
     const contract = contractsById.get(entry.id)
-    const verifiedActionMappings = entry.actions.filter((action) => action.upstreamName).length
+    const catalogActionMappings = entry.actions.filter((action) => action.upstreamName).length
     const firstPartyExecutable = firstPartySet.has(entry.id)
     return {
       id: entry.id,
@@ -92,10 +97,10 @@ const matrix = [
       tangleContractStatus: contract?.status ?? 'contract_ready',
       implementationKind: contract?.implementation.kind ?? 'package_runtime',
       nativeAdapter: firstPartyExecutable,
-      verifiedActionMappings,
+      catalogActionMappings,
       quality: contract?.quality,
       missing: missingForCatalogEntry(entry, {
-        verifiedActionMappings,
+        catalogActionMappings,
         setupStatus: spec?.status ?? 'catalog-only',
       }),
     }
@@ -115,7 +120,7 @@ const matrix = [
       tangleContractStatus: 'native_backed',
       implementationKind: 'native_adapter',
       nativeAdapter: true,
-      verifiedActionMappings: null,
+      catalogActionMappings: null,
       quality: {
         tangleContract: true,
         authFieldsMapped: true,
@@ -129,7 +134,7 @@ const matrix = [
 ].sort((a, b) => a.id.localeCompare(b.id))
 const matrixPath = 'docs/integration-execution-matrix.json'
 const needsPackageRuntimeVerification = matrix.filter((row) => row.implementationKind === 'package_runtime')
-const needsActionMapping = matrix.filter((row) => row.missing?.includes('verified_action_mapping'))
+const needsActionMapping = matrix.filter((row) => row.missing?.includes('catalog_action_mapping'))
 const customAuthWithoutFields = catalog.filter((entry) => entry.auth === 'custom' && (entry.authFields ?? []).length === 0)
 const triggerOnlyGap = catalog.filter((entry) => entry.triggers.length > 0)
 
@@ -152,8 +157,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with runtime package names | ${summary.catalogConnectorsWithRuntimePackage} |
 | Catalog actions | ${summary.catalogActions} |
 | Catalog triggers | ${summary.catalogTriggers} |
-| Catalog triggers with verified upstream names in this repo | ${summary.catalogTriggersWithVerifiedUpstreamName} |
-| Catalog actions with verified upstream action names in this repo | ${summary.catalogActionsWithVerifiedUpstreamName} |
+| Catalog triggers with upstream names | ${summary.catalogTriggersWithCatalogUpstreamName} |
+| Catalog actions with upstream action names | ${summary.catalogActionsWithCatalogUpstreamName} |
 | Catalog connectors with auth field metadata | ${summary.catalogConnectorsWithAuthFields} |
 | Custom-auth connectors with auth field metadata | ${summary.customAuthConnectorsWithAuthFields} |
 | Runtime package dependencies declared by this package | ${summary.packageRuntimeDependenciesDeclaredHere} |
@@ -168,6 +173,7 @@ This audit separates product contracts from implementation backends:
 | Native adapter backends | ${summary.nativeBackedContracts} |
 | Native adapter surfaces shipped | ${summary.firstPartyAdapterSurfaces} |
 | Package-runtime backends | ${summary.packageRuntimeBackedContracts} |
+| Runtime manifest dependencies | ${summary.runtimeManifestDependencies} |
 | Tangle catalog connectors exposable behind runtime | ${summary.executableCatalogConnectors} |
 | Tangle catalog actions exposable behind runtime | ${summary.executableCatalogActions} |
 
@@ -199,9 +205,11 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | Connector discovery/catalog search | Done | ${summary.catalogConnectors} catalog connectors, ${summary.catalogActions} actions, ${summary.catalogTriggers} triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | ${summary.firstPartyAdapterSurfaces} reviewed native adapter surfaces ship from this package; ${summary.nativeBackedContracts} overlap the 669 catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | ${summary.packageRuntimeBackedContracts} contracts use package-runtime backends with package names and ${summary.catalogActionsWithVerifiedUpstreamName} mapped upstream action names. |
+| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | ${summary.packageRuntimeBackedContracts} contracts use package-runtime backends with package names and ${summary.catalogActionsWithCatalogUpstreamName} catalog upstream action names. |
+| Runtime dependency manifest | Done | \`buildTangleCatalogRuntimePackageManifest()\` emits ${summary.runtimeManifestDependencies} dependencies for a complete package-runtime worker install. |
+| Runtime package coverage audit | Done | \`auditTangleCatalogRuntimePackages()\` and \`tangle-catalog-runtime --audit-packages\` verify installed packages, piece exports, exact action mappings, and trigger surfaces in a deployed worker. |
 | Long-tail credential mapping | Mostly mapped | ${summary.catalogConnectorsWithAuthFields} connectors have auth field metadata. ${customAuthWithoutFields.length} custom-auth connectors still need exact manual auth fields. |
-| Trigger provider flow | Done structurally | ${summary.catalogTriggers} triggers are cataloged, ${summary.catalogTriggersWithVerifiedUpstreamName} have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
+| Trigger provider flow | Done structurally | ${summary.catalogTriggers} triggers are cataloged, ${summary.catalogTriggersWithCatalogUpstreamName} have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
 | Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, signed catalog runtime HTTP calls, and generated-app client helpers. |
 | Live provider smoke tests | Not globally done | First-party adapters can be tested by consumers with credentials; long-tail smoke matrix is not generated yet. |
 
@@ -210,7 +218,7 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | Bucket | Count | What it means |
 | --- | ---: | --- |
 | Package-runtime contracts needing deployed runtime smoke verification | ${needsPackageRuntimeVerification.length} | Connector has a Tangle contract and package backend; deployed runtime still needs package-load/live-smoke proof. |
-| Catalog connectors with zero verified action mappings | ${needsActionMapping.length} | We normalized action labels, but have not checked the exact runtime action export names into the catalog. |
+| Catalog connectors with zero upstream action names | ${needsActionMapping.length} | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | ${customAuthWithoutFields.length} | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | ${triggerOnlyGap.length} | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
@@ -218,23 +226,23 @@ Examples needing deployed runtime smoke verification:
 
 ${needsPackageRuntimeVerification.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.runtimePackage}\``).join('\n')}
 
-Examples needing manual custom auth mapping:
+${customAuthWithoutFields.length > 0
+  ? `Examples needing manual custom auth mapping:\n\n${customAuthWithoutFields.slice(0, 40).map((entry) => `- \`${entry.id}\` -> \`${entry.npmPackage}\``).join('\n')}`
+  : 'Manual custom auth mapping gap: none.'}
 
-${customAuthWithoutFields.slice(0, 40).map((entry) => `- \`${entry.id}\` -> \`${entry.npmPackage}\``).join('\n')}
-
-## What Is Not Done
+## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
    All ${summary.tangleContracts} catalog entries have Tangle-owned contracts. ${summary.nativeBackedContracts} use native adapter backends; ${summary.packageRuntimeBackedContracts} use package-runtime backends.
 
-2. **Action-name mapping is complete for cataloged actions.**
-   Done for cataloged actions: the catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithVerifiedUpstreamName} verified upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit \`actionAliases\` for overrides.
+2. **Action-name mapping exists for cataloged actions.**
+   Done for cataloged actions: the catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithCatalogUpstreamName} upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit \`actionAliases\` for overrides. Deployed smoke verification proves those names against the installed packages.
 
 3. **Credential field mapping is complete for catalog auth setup.**
    Auth shapes are ${Object.entries(byAuth).map(([auth, count]) => `${auth}: ${count}`).join(', ')}. The catalog now includes auth field metadata for all ${summary.catalogConnectorsWithAuthFields} connectors that require credentials. ${customAuthWithoutFields.length} custom-auth connectors need manual auth-field mapping.
 
 4. **Trigger contracts are complete; deployed hosting must smoke-test provider mechanics.**
-   There are ${summary.catalogTriggers} catalog triggers and ${summary.catalogTriggersWithVerifiedUpstreamName} upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
+   There are ${summary.catalogTriggers} catalog triggers and ${summary.catalogTriggersWithCatalogUpstreamName} upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
    This repo ships ${summary.firstPartyAdapterSurfaces} native adapter surfaces. ${summary.nativeBackedContracts} overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
@@ -245,17 +253,14 @@ ${customAuthWithoutFields.slice(0, 40).map((entry) => `- \`${entry.id}\` -> \`${
 - It is accurate to say: **all product code can use one IntegrationHub/tool contract across native and package-runtime backends.**
 - It is accurate to say: **deployed runtime smoke verification is the remaining proof step for package-runtime connectors.**
 
-## Next Gap To Close
+## Runtime Proof Gate
 
-Build a runtime coverage generator that installs/imports each package in isolation, extracts real action names, writes \`actionAliases\`, and emits a pass/fail matrix per connector:
-
-- package loads
-- package installed in the runtime service
-- package load verified
-- normalized action maps to real action
-- auth shape identified or marked as manual
-- dry-run invocation possible
-- live smoke credential available
+Run \`tangle-catalog-runtime --audit-packages\` inside the deployed runtime image
+after installing the manifest from \`--print-package-json\` or
+\`--print-pnpm-add\`. That produces the concrete package-load/action-map/trigger
+surface matrix for the exact runtime image products will call. Live provider
+smoke tests still require real OAuth/API-key credentials from the product
+environment.
 `
 
 mkdirSync('docs', { recursive: true })
@@ -281,8 +286,8 @@ function table(rows, headers) {
 
 function missingForCatalogEntry(entry, status) {
   const missing = []
-  if (entry.actions.length > 0 && status.verifiedActionMappings === 0) {
-    missing.push('verified_action_mapping')
+  if (entry.actions.length > 0 && status.catalogActionMappings === 0) {
+    missing.push('catalog_action_mapping')
   }
   if (entry.auth === 'custom' && (entry.authFields ?? []).length === 0) {
     missing.push('custom_auth_shape')

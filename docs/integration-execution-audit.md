@@ -17,8 +17,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with runtime package names | 669 |
 | Catalog actions | 3790 |
 | Catalog triggers | 998 |
-| Catalog triggers with verified upstream names in this repo | 998 |
-| Catalog actions with verified upstream action names in this repo | 3790 |
+| Catalog triggers with upstream names | 998 |
+| Catalog actions with upstream action names | 3790 |
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
@@ -33,6 +33,7 @@ This audit separates product contracts from implementation backends:
 | Native adapter backends | 10 |
 | Native adapter surfaces shipped | 16 |
 | Package-runtime backends | 659 |
+| Runtime manifest dependencies | 670 |
 | Tangle catalog connectors exposable behind runtime | 669 |
 | Tangle catalog actions exposable behind runtime | 3970 |
 
@@ -108,7 +109,9 @@ Executable setup specs:
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | 16 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 659 contracts use package-runtime backends with package names and 3790 mapped upstream action names. |
+| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 659 contracts use package-runtime backends with package names and 3790 catalog upstream action names. |
+| Runtime dependency manifest | Done | `buildTangleCatalogRuntimePackageManifest()` emits 670 dependencies for a complete package-runtime worker install. |
+| Runtime package coverage audit | Done | `auditTangleCatalogRuntimePackages()` and `tangle-catalog-runtime --audit-packages` verify installed packages, piece exports, exact action mappings, and trigger surfaces in a deployed worker. |
 | Long-tail credential mapping | Mostly mapped | 648 connectors have auth field metadata. 0 custom-auth connectors still need exact manual auth fields. |
 | Trigger provider flow | Done structurally | 998 triggers are cataloged, 998 have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
 | Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, signed catalog runtime HTTP calls, and generated-app client helpers. |
@@ -119,7 +122,7 @@ Executable setup specs:
 | Bucket | Count | What it means |
 | --- | ---: | --- |
 | Package-runtime contracts needing deployed runtime smoke verification | 659 | Connector has a Tangle contract and package backend; deployed runtime still needs package-load/live-smoke proof. |
-| Catalog connectors with zero verified action mappings | 0 | We normalized action labels, but have not checked the exact runtime action export names into the catalog. |
+| Catalog connectors with zero upstream action names | 0 | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | 288 | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
@@ -166,17 +169,15 @@ Examples needing deployed runtime smoke verification:
 - `assembled` -> `@activepieces/piece-assembled`
 - `assemblyai` -> `@activepieces/piece-assemblyai`
 
-Examples needing manual custom auth mapping:
+Manual custom auth mapping gap: none.
 
-
-
-## What Is Not Done
+## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
    All 669 catalog entries have Tangle-owned contracts. 10 use native adapter backends; 659 use package-runtime backends.
 
-2. **Action-name mapping is complete for cataloged actions.**
-   Done for cataloged actions: the catalog currently has 3790 actions and 3790 verified upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit `actionAliases` for overrides.
+2. **Action-name mapping exists for cataloged actions.**
+   Done for cataloged actions: the catalog currently has 3790 actions and 3790 upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit `actionAliases` for overrides. Deployed smoke verification proves those names against the installed packages.
 
 3. **Credential field mapping is complete for catalog auth setup.**
    Auth shapes are api_key: 519, oauth2: 118, none: 21, custom: 11. The catalog now includes auth field metadata for all 648 connectors that require credentials. 0 custom-auth connectors need manual auth-field mapping.
@@ -193,14 +194,11 @@ Examples needing manual custom auth mapping:
 - It is accurate to say: **all product code can use one IntegrationHub/tool contract across native and package-runtime backends.**
 - It is accurate to say: **deployed runtime smoke verification is the remaining proof step for package-runtime connectors.**
 
-## Next Gap To Close
+## Runtime Proof Gate
 
-Build a runtime coverage generator that installs/imports each package in isolation, extracts real action names, writes `actionAliases`, and emits a pass/fail matrix per connector:
-
-- package loads
-- package installed in the runtime service
-- package load verified
-- normalized action maps to real action
-- auth shape identified or marked as manual
-- dry-run invocation possible
-- live smoke credential available
+Run `tangle-catalog-runtime --audit-packages` inside the deployed runtime image
+after installing the manifest from `--print-package-json` or
+`--print-pnpm-add`. That produces the concrete package-load/action-map/trigger
+surface matrix for the exact runtime image products will call. Live provider
+smoke tests still require real OAuth/API-key credentials from the product
+environment.
