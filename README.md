@@ -111,6 +111,7 @@ pnpm add @tangle-network/agent-integrations
 | `buildTangleIntegrationCatalogConnectors` | Broad normalized Tangle Integrations Catalog inventory for long-tail connection discovery. |
 | `createTangleCatalogExecutorProvider` | Promotes catalog entries to gateway-executable only when a runtime executor is explicitly supplied. |
 | `createTangleCatalogHttpExecutor` | Signed HTTP executor client for Tangle-hosted catalog runtimes. |
+| `createTangleCatalogRuntimeHandler` | Server-side `/v1/integration-catalog/actions/invoke` handler with signature, connector, and action validation. |
 | `auditTangleIntegrationCatalogFreshness` | Release gate for catalog breadth, executable promotion, registry conflicts, and stale external ingestion. |
 | `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |

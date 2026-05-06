@@ -6,6 +6,7 @@ import {
   composeIntegrationRegistry,
   createTangleCatalogHttpExecutor,
   createTangleCatalogExecutorProvider,
+  createTangleCatalogRuntimeHandler,
   InMemoryConnectionStore,
   IntegrationHub,
   listActivepiecesCatalogEntries,
@@ -231,6 +232,101 @@ describe('Activepieces community catalog import', () => {
     })
     expect(serialized).not.toContain('activepieces')
     expect(result).toEqual({ ok: true, action: 'slack.send.message', output: { sent: true } })
+  })
+
+  it('hosts the signed Tangle catalog runtime endpoint with catalog/action validation', async () => {
+    const runtime = createTangleCatalogRuntimeHandler({
+      secret: 'runtime-secret',
+      executeAction: ({ request, connector, action }) => ({
+        ok: true,
+        action: action.id,
+        output: {
+          connectorId: connector.id,
+          input: request.action.input,
+        },
+      }),
+    })
+    const executeAction = createTangleCatalogHttpExecutor({
+      endpoint: 'https://runtime.example',
+      secret: 'runtime-secret',
+      requestId: () => 'req-runtime',
+      fetchImpl: async (_requestUrl, init) => {
+        const response = await runtime({
+          body: String(init?.body),
+          headers: new Headers(init?.headers),
+        })
+        return Response.json(response.body, { status: response.status, headers: response.headers })
+      },
+    })
+    const provider = createTangleCatalogExecutorProvider({ executeAction })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.risk !== 'read')!
+    const result = await provider.invokeAction({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'tangle-catalog',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: slack.scopes,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: { text: 'hello' },
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      action: action.id,
+      output: { connectorId: 'slack', input: { text: 'hello' } },
+    })
+  })
+
+  it('rejects unsigned or unknown Tangle catalog runtime requests before dispatch', async () => {
+    let called = false
+    const runtime = createTangleCatalogRuntimeHandler({
+      secret: 'runtime-secret',
+      executeAction: () => {
+        called = true
+        return { ok: true, action: 'should-not-run' }
+      },
+    })
+    const provider = createTangleCatalogExecutorProvider({
+      executeAction: () => ({ ok: true, action: 'noop' }),
+    })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const response = await runtime({
+      headers: {},
+      body: {
+        version: 1,
+        requestId: 'req-unsigned',
+        providerId: 'tangle-catalog',
+        connection: {
+          id: 'conn-slack',
+          owner: { type: 'user', id: 'u1' },
+          providerId: 'tangle-catalog',
+          connectorId: 'slack',
+          status: 'active',
+          grantedScopes: slack.scopes,
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+        connector: {
+          id: 'slack',
+          title: 'Slack',
+          auth: 'oauth2',
+          scopes: slack.scopes,
+          metadata: slack.metadata,
+        },
+        piece: { id: 'slack', actionId: 'not-real' },
+        action: { id: 'not-real', input: {} },
+      },
+    })
+
+    expect(response.status).toBe(401)
+    expect(response.body.output).toMatchObject({ code: 'signature_invalid' })
+    expect(called).toBe(false)
   })
 
   it('applies curated overrides for top connectors', () => {
