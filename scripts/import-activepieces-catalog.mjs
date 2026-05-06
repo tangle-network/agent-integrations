@@ -10,12 +10,39 @@ if (!root) {
 const communityDir = join(root, 'packages/pieces/community')
 const entries = []
 
+const UPSTREAM_CATEGORY_MAP = {
+  'communication': 'chat',
+  'team-collaboration': 'chat',
+  'forms-and-surveys': 'webhook',
+  'sales-and-crm': 'crm',
+  'marketing': 'crm',
+  'customer-support': 'crm',
+  'human-resources': 'crm',
+  'productivity': 'docs',
+  'content-and-files': 'storage',
+  'commerce': 'crm',
+  'payment-processing': 'crm',
+  'finance': 'crm',
+  'accounting': 'crm',
+  'flow-control': 'workflow',
+  'core': 'workflow',
+  'developer-tools': 'workflow',
+  'business-intelligence': 'database',
+  'artificial-intelligence': 'workflow',
+  'analytics': 'database',
+  'advertising': 'crm',
+  'video-and-audio': 'storage',
+  'ecommerce': 'crm',
+}
+
 for (const dirent of await readdir(communityDir, { withFileTypes: true })) {
   if (!dirent.isDirectory()) continue
   const id = dirent.name
   const pieceDir = join(communityDir, id)
   const pkg = JSON.parse(await readFile(join(pieceDir, 'package.json'), 'utf8'))
   const index = await readOptional(join(pieceDir, 'src/index.ts'))
+  const sourceFiles = await readSourceFiles(join(pieceDir, 'src'))
+  const authSource = [index, ...sourceFiles].join('\n')
   const readme = await readOptional(join(pieceDir, 'README.md'))
   const displayName = matchString(index, /displayName:\s*['"`]([^'"`]+)['"`]/)
     ?? titleFromId(id)
@@ -23,7 +50,7 @@ for (const dirent of await readdir(communityDir, { withFileTypes: true })) {
     ?? firstReadmeLine(readme)
     ?? `${displayName} integration.`
   const categories = [...index.matchAll(/PieceCategory\.([A-Z_]+)/g)].map((m) => m[1])
-  const auth = inferAuth(index)
+  const auth = inferAuth(authSource)
   const actionNames = importedNames(index, /from\s+['"]\.\/lib\/actions\//)
   const triggerNames = importedNames(index, /from\s+['"]\.\/lib\/triggers\//)
   entries.push({
@@ -34,6 +61,7 @@ for (const dirent of await readdir(communityDir, { withFileTypes: true })) {
     version: pkg.version,
     category: categoryFor(categories, id, description),
     auth,
+    authFields: authFieldsFor(authSource, auth),
     domains: domainsFor(id, categories, description),
     actions: actionNames.map((name) => actionFromName(name)),
     triggers: triggerNames.map((name) => triggerFromName(name)),
@@ -56,6 +84,28 @@ async function readOptional(path) {
   } catch {
     return ''
   }
+}
+
+async function readSourceFiles(dir) {
+  const out = []
+  async function walk(current) {
+    let dirents
+    try {
+      dirents = await readdir(current, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const dirent of dirents) {
+      const path = join(current, dirent.name)
+      if (dirent.isDirectory()) {
+        await walk(path)
+      } else if (dirent.isFile() && dirent.name.endsWith('.ts')) {
+        out.push(await readOptional(path))
+      }
+    }
+  }
+  await walk(dir)
+  return out
 }
 
 function matchString(text, regex) {
@@ -87,29 +137,97 @@ function inferAuth(index) {
   return 'custom'
 }
 
-const UPSTREAM_CATEGORY_MAP = {
-  'communication': 'chat',
-  'team-collaboration': 'chat',
-  'forms-and-surveys': 'webhook',
-  'sales-and-crm': 'crm',
-  'marketing': 'crm',
-  'customer-support': 'crm',
-  'human-resources': 'crm',
-  'productivity': 'docs',
-  'content-and-files': 'storage',
-  'commerce': 'crm',
-  'payment-processing': 'crm',
-  'finance': 'crm',
-  'accounting': 'crm',
-  'flow-control': 'workflow',
-  'core': 'workflow',
-  'developer-tools': 'workflow',
-  'business-intelligence': 'database',
-  'artificial-intelligence': 'workflow',
-  'analytics': 'database',
-  'advertising': 'crm',
-  'video-and-audio': 'storage',
-  'ecommerce': 'crm',
+function authFieldsFor(source, auth) {
+  if (auth === 'none') return []
+  if (auth === 'oauth2') {
+    return [
+      { key: 'access_token', label: 'Access token', required: true, secret: true, kind: 'text' },
+      { key: 'refresh_token', label: 'Refresh token', required: false, secret: true, kind: 'text' },
+    ]
+  }
+
+  const fields = []
+  for (const propsBlock of findObjectBlocks(source, 'props')) {
+    for (const match of propsBlock.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:Property|PieceAuth)\.([A-Za-z0-9_]+)\s*\(/g)) {
+      const key = match[1]
+      const propertyKind = match[2]
+      const start = propsBlock.indexOf(match[0]) + match[0].length - 1
+      const callBlock = readBalanced(propsBlock, start, '(', ')')
+      fields.push({
+        key,
+        label: matchString(callBlock, /displayName:\s*['"`]([^'"`]+)['"`]/) ?? titleFromId(key),
+        required: !/required:\s*false/.test(callBlock),
+        secret: propertyKind === 'SecretText' || /token|secret|password|api[_-]?key/i.test(key),
+        kind: authFieldKind(propertyKind),
+        description: matchString(callBlock, /description:\s*['"`]([^'"`]+)['"`]/),
+      })
+    }
+  }
+
+  const uniqueFields = []
+  const seen = new Set()
+  for (const field of fields) {
+    if (seen.has(field.key)) continue
+    seen.add(field.key)
+    uniqueFields.push(field)
+  }
+
+  if (uniqueFields.length > 0) return uniqueFields
+  if (auth === 'api_key') {
+    return [{ key: 'apiKey', label: 'API key', required: true, secret: true, kind: 'text' }]
+  }
+  return []
+}
+
+function findObjectBlocks(source, key) {
+  const blocks = []
+  const regex = new RegExp(`${key}\\s*:`, 'g')
+  for (const match of source.matchAll(regex)) {
+    const objectStart = source.indexOf('{', match.index + match[0].length)
+    if (objectStart === -1) continue
+    const block = readBalanced(source, objectStart, '{', '}')
+    if (block) blocks.push(block)
+  }
+  return blocks
+}
+
+function readBalanced(source, start, open, close) {
+  if (source[start] !== open) return ''
+  let depth = 0
+  let quote = ''
+  let escaped = false
+  for (let i = start; i < source.length; i += 1) {
+    const char = source[i]
+    if (quote) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === quote) {
+        quote = ''
+      }
+      continue
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char
+      continue
+    }
+    if (char === open) depth += 1
+    if (char === close) {
+      depth -= 1
+      if (depth === 0) return source.slice(start, i + 1)
+    }
+  }
+  return ''
+}
+
+function authFieldKind(propertyKind) {
+  if (/Number/i.test(propertyKind)) return 'number'
+  if (/Checkbox|Boolean/i.test(propertyKind)) return 'boolean'
+  if (/Dropdown|Select/i.test(propertyKind)) return 'select'
+  if (/Json|Object|Array/i.test(propertyKind)) return 'object'
+  if (/Text|Secret/i.test(propertyKind)) return 'text'
+  return 'unknown'
 }
 
 function categoryFor(categories, id, description) {
@@ -154,6 +272,7 @@ function triggerFromName(name) {
   return {
     id,
     title: titleFromId(id),
+    upstreamName: name,
   }
 }
 

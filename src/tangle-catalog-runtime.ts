@@ -1,15 +1,19 @@
 import {
   TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
+  signTangleCatalogRuntimeRequest,
   verifyTangleCatalogRuntimeSignature,
   type TangleCatalogRuntimeRequest,
 } from './activepieces-runtime.js'
+import { randomUUID } from 'node:crypto'
 import { listActivepiecesCatalogEntries } from './activepieces-catalog.js'
 import { buildTangleIntegrationCatalogConnectors } from './tangle-catalog.js'
 import type {
+  ConnectorCredentials,
   IntegrationActionResult,
   IntegrationConnection,
   IntegrationConnector,
   IntegrationConnectorAction,
+  IntegrationSecretStore,
 } from './index.js'
 
 export interface TangleCatalogRuntimeInvocation {
@@ -33,6 +37,34 @@ export interface TangleCatalogInstalledPackageExecutorOptions {
   actionAliases?: Record<string, Record<string, string>>
   resolveAuth?: (connection: IntegrationConnection) => Promise<unknown> | unknown
   beforeRun?: (invocation: TangleCatalogRuntimeInvocation) => Promise<void> | void
+}
+
+export interface TangleCatalogAuthResolverOptions {
+  secrets: IntegrationSecretStore
+  mapCredentials?: (input: {
+    connection: IntegrationConnection
+    credentials: ConnectorCredentials
+    connectorId: string
+  }) => unknown
+}
+
+export interface TangleCatalogHttpAuthResolverOptions {
+  endpoint: string
+  secret: string
+  path?: string
+  timeoutMs?: number
+  fetchImpl?: typeof fetch
+  headers?: Record<string, string>
+  requestId?: () => string
+}
+
+export interface TangleCatalogHttpAuthResolverRequest {
+  version: 1
+  requestId: string
+  providerId: string
+  connectorId: string
+  connectionId: string
+  secretRef?: IntegrationConnection['secretRef']
 }
 
 export interface TangleCatalogRuntimeModuleAction {
@@ -180,6 +212,73 @@ export function createTangleCatalogInstalledPackageExecutor(
     }
   }
 }
+
+export function createTangleCatalogCredentialAuthResolver(options: TangleCatalogAuthResolverOptions) {
+  return async function resolveTangleCatalogAuth(connection: IntegrationConnection): Promise<unknown> {
+    if (!connection.secretRef) return undefined
+    const credentials = await options.secrets.get(connection.secretRef)
+    if (!credentials) throw new Error(`Secret ${connection.secretRef.provider}/${connection.secretRef.id} not found.`)
+    return options.mapCredentials?.({
+      connection,
+      credentials,
+      connectorId: connection.connectorId,
+    }) ?? tangleCatalogAuthValue(credentials)
+  }
+}
+
+export function createTangleCatalogHttpAuthResolver(options: TangleCatalogHttpAuthResolverOptions) {
+  const endpoint = options.endpoint.replace(/\/$/, '')
+  const path = options.path ?? '/v1/integration-catalog/credentials/resolve'
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const fetchImpl = options.fetchImpl ?? fetch
+  const requestId = options.requestId ?? (() => `tcat_auth_${randomUUID()}`)
+
+  return async function resolveTangleCatalogHttpAuth(connection: IntegrationConnection): Promise<unknown> {
+    const body: TangleCatalogHttpAuthResolverRequest = {
+      version: 1,
+      requestId: requestId(),
+      providerId: connection.providerId,
+      connectorId: connection.connectorId,
+      connectionId: connection.id,
+      secretRef: connection.secretRef,
+    }
+    const serialized = JSON.stringify(body)
+    const response = await fetchImpl(`${endpoint}${normalizedPath}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...options.headers,
+        [TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER]: signTangleCatalogRuntimeRequest(serialized, options.secret),
+      },
+      body: serialized,
+      signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+    })
+    const parsed = await response.json().catch(() => undefined) as {
+      auth?: unknown
+      credentials?: ConnectorCredentials
+      error?: { message?: string }
+    } | undefined
+    if (!response.ok) {
+      throw new Error(parsed?.error?.message ?? `Credential resolver returned HTTP ${response.status}.`)
+    }
+    if (parsed && 'auth' in parsed) return parsed.auth
+    if (parsed?.credentials) return tangleCatalogAuthValue(parsed.credentials)
+    return undefined
+  }
+}
+
+export function tangleCatalogAuthValue(credentials: ConnectorCredentials): unknown {
+  if (credentials.kind === 'none') return undefined
+  if (credentials.kind === 'api-key') return credentials.apiKey
+  if (credentials.kind === 'hmac') return credentials.secret
+  if (credentials.kind === 'custom') return credentials.values
+  return {
+    access_token: credentials.accessToken,
+    refresh_token: credentials.refreshToken,
+    expires_at: credentials.expiresAt,
+  }
+}
+
 
 function serializeBody(body: TangleCatalogRuntimeHttpRequest['body']): string {
   if (typeof body === 'string') return body

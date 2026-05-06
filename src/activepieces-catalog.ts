@@ -19,6 +19,7 @@ export interface ActivepiecesCatalogEntry {
   version?: string
   category: IntegrationConnectorCategory
   auth: IntegrationConnector['auth']
+  authFields?: ActivepiecesCatalogAuthField[]
   domains: string[]
   actions: Array<{
     id: string
@@ -29,12 +30,22 @@ export interface ActivepiecesCatalogEntry {
   triggers: Array<{
     id: string
     title: string
+    upstreamName?: string
   }>
   source: {
     repository: string
     path: string
     license: 'MIT'
   }
+}
+
+export interface ActivepiecesCatalogAuthField {
+  key: string
+  label: string
+  required: boolean
+  secret: boolean
+  kind: 'text' | 'number' | 'boolean' | 'select' | 'object' | 'unknown'
+  description?: string
 }
 
 const CATALOG_RESOURCE_RELATIVE = '../data/activepieces-catalog.json'
@@ -98,6 +109,7 @@ export function buildActivepiecesConnectors(options: {
         license: entry.source.license,
         sourcePath: entry.source.path,
         domains: entry.domains,
+        authFields: entry.authFields,
         ...(override ? { overridden: true } : {}),
       },
     }

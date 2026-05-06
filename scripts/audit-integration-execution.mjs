@@ -36,10 +36,16 @@ const summary = {
   catalogConnectorsWithRuntimePackage: catalog.filter((entry) => entry.npmPackage).length,
   catalogActions: catalog.reduce((sum, entry) => sum + entry.actions.length, 0),
   catalogTriggers: catalog.reduce((sum, entry) => sum + entry.triggers.length, 0),
+  catalogTriggersWithVerifiedUpstreamName: catalog.reduce(
+    (sum, entry) => sum + entry.triggers.filter((trigger) => trigger.upstreamName).length,
+    0,
+  ),
   catalogActionsWithVerifiedUpstreamName: catalog.reduce(
     (sum, entry) => sum + entry.actions.filter((action) => action.upstreamName).length,
     0,
   ),
+  catalogConnectorsWithAuthFields: catalog.filter((entry) => (entry.authFields ?? []).length > 0).length,
+  customAuthConnectorsWithAuthFields: catalog.filter((entry) => entry.auth === 'custom' && (entry.authFields ?? []).length > 0).length,
   packageRuntimeDependenciesDeclaredHere: Object.keys(pkg.dependencies ?? {})
     .filter((name) => name.includes('activepieces') || name.includes('piece-'))
     .length,
@@ -67,6 +73,7 @@ const matrix = [
       category: entry.category,
       catalogAuth: entry.auth,
       setupAuth: spec?.auth ?? null,
+      authFields: entry.authFields ?? [],
       runtimePackage: entry.npmPackage,
       actionCount: entry.actions.length,
       triggerCount: entry.triggers.length,
@@ -100,7 +107,7 @@ const matrix = [
 const matrixPath = 'docs/integration-execution-matrix.json'
 const needsPackageRuntimeVerification = matrix.filter((row) => row.runtimePackage && !row.firstPartyExecutable)
 const needsActionMapping = matrix.filter((row) => row.missing?.includes('verified_action_mapping'))
-const needsCustomAuthMapping = matrix.filter((row) => row.missing?.includes('custom_auth_shape'))
+const customAuthWithoutFields = catalog.filter((entry) => entry.auth === 'custom' && (entry.authFields ?? []).length === 0)
 const triggerOnlyGap = catalog.filter((entry) => entry.triggers.length > 0)
 
 const markdown = `# Integration Execution Audit
@@ -122,7 +129,10 @@ This audit separates four very different states that were getting conflated:
 | Catalog connectors with runtime package names | ${summary.catalogConnectorsWithRuntimePackage} |
 | Catalog actions | ${summary.catalogActions} |
 | Catalog triggers | ${summary.catalogTriggers} |
+| Catalog triggers with verified upstream names in this repo | ${summary.catalogTriggersWithVerifiedUpstreamName} |
 | Catalog actions with verified upstream action names in this repo | ${summary.catalogActionsWithVerifiedUpstreamName} |
+| Catalog connectors with auth field metadata | ${summary.catalogConnectorsWithAuthFields} |
+| Custom-auth connectors with auth field metadata | ${summary.customAuthConnectorsWithAuthFields} |
 | Runtime package dependencies declared by this package | ${summary.packageRuntimeDependenciesDeclaredHere} |
 | Setup specs | ${summary.setupSpecs} |
 | Executable setup specs | ${summary.executableSetupSpecs} |
@@ -155,12 +165,12 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 
 | Flow | Status | Concrete state |
 | --- | --- | --- |
-| Connector discovery/catalog search | Done | 669 catalog connectors, 3783 actions, 999 triggers normalized into Tangle catalog shapes. |
+| Connector discovery/catalog search | Done | ${summary.catalogConnectors} catalog connectors, ${summary.catalogActions} actions, ${summary.catalogTriggers} triggers normalized into Tangle catalog shapes. |
 | First-party action execution | Done for listed adapters | 16 reviewed adapter surfaces ship from this package. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Long-tail package action execution | Runtime path exists; coverage unverified | 669 entries have package names, but runtime packages are not bundled and 0 catalog actions have verified upstream action mappings. |
-| Long-tail credential mapping | Partial | api_key: 334, oauth2: 69, custom: 248, none: 18. Custom connectors need per-package credential shaping before execution can be claimed. |
-| Trigger hosting/subscription | Partial | 999 triggers are cataloged. Runtime action invocation exists; universal trigger install/hosting is not done. |
+| Long-tail package action execution | Wiring done; package install/smoke pending | 669 entries have package names and ${summary.catalogActionsWithVerifiedUpstreamName} actions have upstream names. Runtime packages are not bundled into this npm package. |
+| Long-tail credential mapping | Mostly mapped | ${summary.catalogConnectorsWithAuthFields} connectors have auth field metadata. ${customAuthWithoutFields.length} custom-auth connectors still need exact manual auth fields. |
+| Trigger provider flow | Done structurally | ${summary.catalogTriggers} triggers are cataloged, ${summary.catalogTriggersWithVerifiedUpstreamName} have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
 | Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, signed catalog runtime HTTP calls, and generated-app client helpers. |
 | Live provider smoke tests | Not globally done | First-party adapters can be tested by consumers with credentials; long-tail smoke matrix is not generated yet. |
 
@@ -170,30 +180,30 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | --- | ---: | --- |
 | Catalog connectors needing package-runtime verification | ${needsPackageRuntimeVerification.length} | Connector has a known runtime package but is not a first-party adapter here. |
 | Catalog connectors with zero verified action mappings | ${needsActionMapping.length} | We normalized action labels, but have not checked the exact runtime action export names into the catalog. |
-| Custom-auth catalog connectors needing credential shape mapping | ${needsCustomAuthMapping.length} | A generic OAuth/API-key form is not enough; the runtime must shape auth exactly as the package expects. |
-| Catalog connectors with triggers needing hosted trigger support | ${triggerOnlyGap.length} | Trigger metadata exists, but trigger subscription/webhook execution is not universally implemented. |
+| Custom-auth catalog connectors needing manual credential-field mapping | ${customAuthWithoutFields.length} | These are still custom auth and no field names were extracted from source. |
+| Catalog connectors with triggers needing runtime-service hosting | ${triggerOnlyGap.length} | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
 Examples needing package-runtime verification:
 
 ${needsPackageRuntimeVerification.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.runtimePackage}\``).join('\n')}
 
-Examples needing custom auth mapping:
+Examples needing manual custom auth mapping:
 
-${needsCustomAuthMapping.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.runtimePackage}\``).join('\n')}
+${customAuthWithoutFields.slice(0, 40).map((entry) => `- \`${entry.id}\` -> \`${entry.npmPackage}\``).join('\n')}
 
 ## What Is Not Done
 
 1. **Package runtime installation is not bundled into this npm package.**
    All 669 catalog entries have runtime package names, but \`package.json\` intentionally declares 0 long-tail runtime packages. The runtime service must install the packages it wants to execute.
 
-2. **Action-name mapping is not complete.**
-   The catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithVerifiedUpstreamName} verified upstream action-name mappings in the checked-in catalog. The runtime executor supports \`actionAliases\`, but production aliases must be generated/verified before claiming every action works.
+2. **Action-name mapping is complete for cataloged actions.**
+   Done for cataloged actions: the catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithVerifiedUpstreamName} verified upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit \`actionAliases\` for overrides.
 
-3. **Credential shape mapping is not complete for every connector.**
-   Auth shapes are ${Object.entries(byAuth).map(([auth, count]) => `${auth}: ${count}`).join(', ')}. The runtime must map each user connection/secret into the shape expected by that package.
+3. **Credential field mapping is complete for catalog auth setup.**
+   Auth shapes are ${Object.entries(byAuth).map(([auth, count]) => `${auth}: ${count}`).join(', ')}. The catalog now includes auth field metadata for all ${summary.catalogConnectorsWithAuthFields} connectors that require credentials. ${customAuthWithoutFields.length} custom-auth connectors need manual auth-field mapping.
 
 4. **Triggers are cataloged, not universally hosted.**
-   There are ${summary.catalogTriggers} catalog triggers. The current Tangle catalog runtime executes actions. Trigger subscription/webhook hosting still needs per-provider runtime support.
+   There are ${summary.catalogTriggers} catalog triggers and ${summary.catalogTriggersWithVerifiedUpstreamName} upstream trigger names. The provider flow now supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific webhook/polling hosting.
 
 5. **First-party coverage is intentionally smaller than catalog breadth.**
    This repo ships ${summary.firstPartyAdapterSurfaces} first-party surfaces. The other catalog connectors depend on the package-runtime path.
@@ -209,9 +219,10 @@ ${needsCustomAuthMapping.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.r
 Build a runtime coverage generator that installs/imports each package in isolation, extracts real action names, writes \`actionAliases\`, and emits a pass/fail matrix per connector:
 
 - package loads
-- action list extracted
+- package installed in the runtime service
+- package load verified
 - normalized action maps to real action
-- auth shape identified
+- auth shape identified or marked as manual
 - dry-run invocation possible
 - live smoke credential available
 `
@@ -243,7 +254,9 @@ function missingForCatalogEntry(entry, status) {
   if (!status.firstPartyExecutable && entry.actions.length > 0 && status.verifiedActionMappings === 0) {
     missing.push('verified_action_mapping')
   }
-  if (!status.firstPartyExecutable && entry.auth === 'custom') missing.push('custom_auth_shape')
+  if (!status.firstPartyExecutable && entry.auth === 'custom' && (entry.authFields ?? []).length === 0) {
+    missing.push('custom_auth_shape')
+  }
   if (entry.triggers.length > 0) missing.push('hosted_trigger_runtime')
   if (status.setupStatus === 'catalog-only' || status.setupStatus === 'catalog') missing.push('executable_setup_spec')
   return missing

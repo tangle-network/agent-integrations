@@ -16,6 +16,8 @@ import {
   type IntegrationActionResult,
   type IntegrationConnection,
   type IntegrationConnector,
+  type IntegrationTriggerEvent,
+  type IntegrationTriggerSubscription,
   type StartAuthRequest,
   type StartAuthResult,
 } from './index.js'
@@ -39,6 +41,7 @@ export interface TangleIntegrationCatalogEntry {
   description: string
   category: IntegrationConnector['category']
   auth: IntegrationConnector['auth']
+  authFields?: ActivepiecesCatalogEntry['authFields']
   domains: string[]
   actions: Array<{
     id: string
@@ -48,6 +51,7 @@ export interface TangleIntegrationCatalogEntry {
   triggers: Array<{
     id: string
     title: string
+    upstreamName?: string
   }>
 }
 
@@ -65,12 +69,30 @@ export interface TangleCatalogExecutorInvocation {
   }
 }
 
+export interface TangleCatalogTriggerInvocation {
+  connection: IntegrationConnection
+  connector: IntegrationConnector
+  catalogEntry: TangleIntegrationCatalogEntry
+  trigger: NonNullable<IntegrationConnector['triggers']>[number]
+  targetUrl?: string
+  piece: {
+    id: string
+    packageName?: string
+    version?: string
+    triggerId: string
+    upstreamTriggerName?: string
+  }
+}
+
 export interface TangleCatalogExecutorProviderOptions {
   id?: string
   connectors?: IntegrationConnector[]
   startAuth?: (request: StartAuthRequest) => Promise<StartAuthResult> | StartAuthResult
   completeAuth?: (request: CompleteAuthRequest) => Promise<IntegrationConnection> | IntegrationConnection
   executeAction: (invocation: TangleCatalogExecutorInvocation) => Promise<IntegrationActionResult> | IntegrationActionResult
+  subscribeTrigger?: (invocation: TangleCatalogTriggerInvocation) => Promise<IntegrationTriggerSubscription> | IntegrationTriggerSubscription
+  unsubscribeTrigger?: (subscriptionId: string) => Promise<void> | void
+  normalizeTriggerEvent?: (raw: unknown) => Promise<IntegrationTriggerEvent> | IntegrationTriggerEvent
 }
 
 export type TangleIntegrationCatalogFreshnessOptions = IntegrationCatalogFreshnessOptions
@@ -103,6 +125,20 @@ export interface TangleIntegrationCatalogFreshnessResult {
 
 export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogEntry[] {
   return listActivepiecesCatalogEntries().map((entry) => sanitizeEntry(entry))
+}
+
+export function listTangleIntegrationCatalogRuntimePackages(): Array<{
+  connectorId: string
+  packageName: string
+  version?: string
+}> {
+  return listActivepiecesCatalogEntries()
+    .filter((entry): entry is ActivepiecesCatalogEntry & { npmPackage: string } => Boolean(entry.npmPackage))
+    .map((entry) => ({
+      connectorId: entry.id,
+      packageName: entry.npmPackage,
+      version: entry.version,
+    }))
 }
 
 export function buildTangleIntegrationCatalogConnectors(options: {
@@ -151,6 +187,31 @@ export function createTangleCatalogExecutorProvider(options: TangleCatalogExecut
         },
       })
     },
+    subscribeTrigger: options.subscribeTrigger
+      ? async (connection, trigger, targetUrl) => {
+          const connector = connectors.find((candidate) => candidate.id === connection.connectorId)
+          const importedEntry = byEntry.get(connection.connectorId)
+          if (!connector || !importedEntry) {
+            throw new IntegrationError(`Tangle catalog entry ${connection.connectorId} not found.`, 'connector_not_found')
+          }
+          const catalogTrigger = importedEntry.triggers.find((candidate) => candidate.id === trigger.id)
+          return options.subscribeTrigger!({
+            connection,
+            connector,
+            catalogEntry: sanitizeEntry(importedEntry),
+            trigger,
+            targetUrl,
+            piece: {
+              id: importedEntry.id,
+              version: importedEntry.version,
+              triggerId: trigger.id,
+              upstreamTriggerName: catalogTrigger?.upstreamName,
+            },
+          })
+        }
+      : undefined,
+    unsubscribeTrigger: options.unsubscribeTrigger,
+    normalizeTriggerEvent: options.normalizeTriggerEvent,
   })
 }
 
@@ -196,6 +257,7 @@ function sanitizeEntry(entry: ActivepiecesCatalogEntry): TangleIntegrationCatalo
     description: entry.description,
     category: entry.category,
     auth: entry.auth,
+    authFields: entry.authFields,
     domains: entry.domains.filter((domain) => !domain.toLowerCase().includes('activepieces')),
     actions: entry.actions.map((action) => ({
       id: action.id,
@@ -205,6 +267,7 @@ function sanitizeEntry(entry: ActivepiecesCatalogEntry): TangleIntegrationCatalo
     triggers: entry.triggers.map((trigger) => ({
       id: trigger.id,
       title: trigger.title,
+      upstreamName: trigger.upstreamName,
     })),
   }
 }
