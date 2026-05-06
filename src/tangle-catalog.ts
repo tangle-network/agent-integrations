@@ -35,6 +35,9 @@ export {
 export const TANGLE_INTEGRATIONS_CATALOG_PROVIDER_ID = 'tangle-catalog'
 export const TANGLE_INTEGRATIONS_CATALOG_SOURCE = 'tangle-integrations-catalog'
 
+export type TangleIntegrationImplementationKind = 'native_adapter' | 'package_runtime'
+export type TangleIntegrationContractStatus = 'contract_ready' | 'runtime_backed' | 'native_backed'
+
 export interface TangleIntegrationCatalogEntry {
   id: string
   title: string
@@ -47,12 +50,47 @@ export interface TangleIntegrationCatalogEntry {
     id: string
     title: string
     risk: IntegrationConnector['actions'][number]['risk']
+    upstreamName?: string
   }>
   triggers: Array<{
     id: string
     title: string
     upstreamName?: string
   }>
+}
+
+export interface TangleIntegrationContract {
+  id: string
+  title: string
+  description: string
+  category: IntegrationConnector['category']
+  auth: IntegrationConnector['auth']
+  authFields: NonNullable<ActivepiecesCatalogEntry['authFields']>
+  actions: Array<{
+    id: string
+    title: string
+    risk: IntegrationConnector['actions'][number]['risk']
+    upstreamName: string
+  }>
+  triggers: Array<{
+    id: string
+    title: string
+    upstreamName: string
+  }>
+  implementation: {
+    kind: TangleIntegrationImplementationKind
+    runtimePackage?: string
+    version?: string
+  }
+  status: TangleIntegrationContractStatus
+  quality: {
+    tangleContract: true
+    authFieldsMapped: boolean
+    actionNamesMapped: boolean
+    triggerNamesMapped: boolean
+    runtimePackageMapped: boolean
+    nativeAdapter: boolean
+  }
 }
 
 export interface TangleCatalogExecutorInvocation {
@@ -123,8 +161,66 @@ export interface TangleIntegrationCatalogFreshnessResult {
   warnings: string[]
 }
 
+const NATIVE_ADAPTER_IDS = new Set([
+  'google-calendar',
+  'google-sheets',
+  'microsoft-calendar',
+  'hubspot',
+  'slack',
+  'notion-database',
+  'twilio-sms',
+  'stripe-pack',
+  'webhook',
+  'stripe',
+  'slack-inbound',
+  'github',
+  'gitlab',
+  'airtable',
+  'asana',
+  'salesforce',
+])
+
 export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogEntry[] {
   return listActivepiecesCatalogEntries().map((entry) => sanitizeEntry(entry))
+}
+
+export function listTangleIntegrationContracts(): TangleIntegrationContract[] {
+  return listActivepiecesCatalogEntries().map((entry) => {
+    const nativeAdapter = NATIVE_ADAPTER_IDS.has(entry.id)
+    return {
+      id: entry.id,
+      title: entry.title,
+      description: entry.description,
+      category: entry.category,
+      auth: entry.auth,
+      authFields: entry.authFields ?? [],
+      actions: entry.actions.map((action) => ({
+        id: action.id,
+        title: action.title,
+        risk: action.risk,
+        upstreamName: action.upstreamName ?? action.id,
+      })),
+      triggers: entry.triggers.map((trigger) => ({
+        id: trigger.id,
+        title: trigger.title,
+        upstreamName: trigger.upstreamName ?? trigger.id,
+      })),
+      implementation: {
+        kind: nativeAdapter ? 'native_adapter' : 'package_runtime',
+        runtimePackage: entry.npmPackage,
+        version: entry.version,
+      },
+      status: nativeAdapter ? 'native_backed' : entry.npmPackage ? 'runtime_backed' : 'contract_ready',
+      quality: {
+        tangleContract: true,
+        authFieldsMapped: entry.auth === 'none' || Boolean(entry.authFields?.length),
+        actionNamesMapped: entry.actions.every((action) => Boolean(action.upstreamName)),
+        triggerNamesMapped: entry.triggers.every((trigger) => Boolean(trigger.upstreamName)),
+        runtimePackageMapped: Boolean(entry.npmPackage),
+        nativeAdapter,
+      },
+    }
+  })
 }
 
 export function listTangleIntegrationCatalogRuntimePackages(): Array<{
@@ -263,6 +359,7 @@ function sanitizeEntry(entry: ActivepiecesCatalogEntry): TangleIntegrationCatalo
       id: action.id,
       title: action.title,
       risk: action.risk,
+      upstreamName: action.upstreamName,
     })),
     triggers: entry.triggers.map((trigger) => ({
       id: trigger.id,

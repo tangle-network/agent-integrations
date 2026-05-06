@@ -1,4 +1,5 @@
 import { buildActivepiecesConnectors } from './activepieces-catalog.js'
+import { buildTangleIntegrationCatalogConnectors } from './tangle-catalog.js'
 import type {
   IntegrationConnector,
   IntegrationConnectorAction,
@@ -97,6 +98,7 @@ const SUPPORT_RANK: Record<IntegrationSupportTier, number> = {
 export function buildDefaultIntegrationRegistry(options: {
   includeSpecs?: boolean
   includeTangleCatalog?: boolean
+  tangleCatalogRuntimeExecutable?: boolean
   /** @deprecated Use includeTangleCatalog. */
   includeActivepieces?: boolean
 } = {}): IntegrationRegistry {
@@ -110,28 +112,35 @@ export function buildDefaultIntegrationRegistry(options: {
     })
   }
   if (includeTangleCatalog) {
+    const tangleConnectors = options.tangleCatalogRuntimeExecutable
+      ? buildTangleIntegrationCatalogConnectors({
+          providerId: 'tangle-catalog',
+          includeCatalogActions: true,
+          executable: true,
+        })
+      : buildActivepiecesConnectors({ providerId: 'tangle-catalog' }).map((connector) => ({
+          ...connector,
+          providerId: 'tangle-catalog',
+          metadata: {
+            source: 'tangle-integrations-catalog',
+            providerId: 'tangle-catalog',
+            executable: connector.metadata?.executable,
+            runtime: 'tangle-catalog-runtime',
+            catalogOnly: connector.metadata?.catalogOnly,
+            supportTier: connector.metadata?.supportTier,
+            catalogActionCount: connector.metadata?.catalogActionCount,
+            catalogTriggerCount: connector.metadata?.catalogTriggerCount,
+            license: connector.metadata?.license,
+            version: connector.metadata?.version,
+            domains: Array.isArray(connector.metadata?.domains)
+              ? connector.metadata.domains.filter((domain) => typeof domain === 'string' && !domain.toLowerCase().includes('activepieces'))
+              : undefined,
+            ...(connector.metadata?.overridden ? { overridden: true } : {}),
+          },
+        }))
     sources.push({
       id: 'tangle-catalog',
-      connectors: buildActivepiecesConnectors({ providerId: 'tangle-catalog' }).map((connector) => ({
-        ...connector,
-        providerId: 'tangle-catalog',
-        metadata: {
-          source: 'tangle-integrations-catalog',
-          providerId: 'tangle-catalog',
-          executable: connector.metadata?.executable,
-          runtime: 'tangle-catalog-runtime',
-          catalogOnly: connector.metadata?.catalogOnly,
-          supportTier: connector.metadata?.supportTier,
-          catalogActionCount: connector.metadata?.catalogActionCount,
-          catalogTriggerCount: connector.metadata?.catalogTriggerCount,
-          license: connector.metadata?.license,
-          version: connector.metadata?.version,
-          domains: Array.isArray(connector.metadata?.domains)
-            ? connector.metadata.domains.filter((domain) => typeof domain === 'string' && !domain.toLowerCase().includes('activepieces'))
-            : undefined,
-          ...(connector.metadata?.overridden ? { overridden: true } : {}),
-        },
-      })),
+      connectors: tangleConnectors,
     })
   }
   return composeIntegrationRegistry(sources)
