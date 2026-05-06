@@ -110,11 +110,12 @@ pnpm add @tangle-network/agent-integrations
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
 | `buildTangleIntegrationCatalogConnectors` | Broad normalized Tangle Integrations Catalog inventory for long-tail connection discovery. |
-| `listTangleIntegrationContracts` | First-class Tangle-owned action/trigger/auth/runtime contracts for every catalog connector. |
-| `createTangleCatalogExecutorProvider` | Promotes catalog entries to gateway-executable only when a runtime executor is explicitly supplied. |
+| `listTangleIntegrationContracts` | First-class Tangle-owned action/trigger/auth/runtime contracts for every catalog connector, including package-runtime-backed entries. |
+| `createTangleCatalogExecutorProvider` | Routes catalog contracts through an explicitly supplied Tangle runtime executor. |
 | `createTangleCatalogHttpExecutor` | Signed HTTP executor client for Tangle-hosted catalog runtimes. |
 | `createTangleCatalogRuntimeHandler` | Server-side `/v1/integration-catalog/actions/invoke` handler with signature, connector, and action validation. |
 | `createTangleCatalogInstalledPackageExecutor` | Runtime-side dispatcher for installed long-tail connector packages with explicit action aliasing and credential resolution hooks. |
+| `auditTangleCatalogRuntimePackages` | Runtime-image audit for installed package loads, piece exports, exact action mappings, and trigger surfaces. |
 | `auditTangleIntegrationCatalogFreshness` | Release gate for catalog breadth, executable promotion, registry conflicts, and stale external ingestion. |
 | `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
@@ -135,7 +136,7 @@ should route through `IntegrationHub` either way.
 Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
 connection pickers. It produces one canonical connector per integration,
 dedupes aliases such as `notion -> notion-database`, keeps source provenance in
-metadata, and marks each connector with a support tier:
+metadata, and marks the configured execution state for each connector:
 
 ```txt
 catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExecutable
@@ -143,7 +144,8 @@ catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExe
 
 Use `buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })`
 when the Tangle catalog runtime is deployed and should be exposed as executable
-tools.
+tools. These states describe the backend currently wired into a product, not
+whether the connector has a first-class Tangle contract.
 
 See [Catalog Registry](./docs/catalog-registry.md).
 

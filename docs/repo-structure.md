@@ -22,8 +22,8 @@ This repo intentionally separates catalog breadth from executable runtime code.
 - `src/connectors/` contains first-party adapter contracts and implementations.
 - `src/specs/` is the structured OAuth/setup/runbook source of truth.
 - `src/registry.ts`, `src/gateway-catalog.ts`, `src/coverage-catalog.ts`, and
-  `src/tangle-catalog.ts` compose broad connector catalogs without pretending
-  catalog-only entries are executable.
+  `src/tangle-catalog.ts` compose broad connector catalogs while keeping
+  execution behind configured native, gateway, or sandbox runtimes.
 
 ## Data
 

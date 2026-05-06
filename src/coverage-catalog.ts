@@ -231,7 +231,7 @@ export function integrationCoverageChecklistMarkdown(): string {
   const lines = [
     '# Agent Integrations Coverage Checklist',
     '',
-    'Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the product can plan/request/connect the integration; executable first-party adapters are promoted separately behind the same provider contract.',
+    'Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the product can plan/request/connect the integration; native adapters and runtime backends execute behind the same provider contract.',
     '',
     '## Summary',
     '',

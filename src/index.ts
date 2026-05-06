@@ -486,7 +486,7 @@ export class IntegrationHub {
     const provider = this.requireProvider(connection.providerId)
     const connector = await this.requireConnector(provider, connection.connectorId)
     const spec = connector.triggers?.find((candidate) => candidate.id === trigger)
-    if (!spec) throw new IntegrationError(`Trigger ${trigger} is not defined by connector ${connector.id}.`, 'action_not_found')
+    if (!spec) throw new IntegrationError(`Trigger ${trigger} is not defined by connector ${connector.id}.`, 'trigger_not_found')
     assertScopes(connection, spec.requiredScopes)
     if (!provider.subscribeTrigger) {
       throw new IntegrationError(`Provider ${provider.id} does not support triggers.`, 'auth_not_supported')

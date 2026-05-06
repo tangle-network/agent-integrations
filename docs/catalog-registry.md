@@ -18,13 +18,16 @@ The registry assigns one tier per canonical connector:
 
 | Tier | Meaning |
 | --- | --- |
-| `catalogOnly` | Known integration metadata. Useful for search/planning, not execution. |
-| `setupReady` | Has setup/auth/spec metadata, but still needs an execution provider. |
+| `catalogOnly` | Has a Tangle connector contract, but this registry was not built with an execution provider for it. |
+| `setupReady` | Has setup/auth/spec metadata, but this registry was not built with an execution provider for it. |
 | `gatewayExecutable` | Executable through a gateway provider. |
 | `firstPartyExecutable` | Executable through a first-party adapter. |
 | `sandboxExecutable` | Safe to invoke directly from generated sandbox apps. |
 
-Precedence is explicit:
+These tiers describe the provider wired into this registry, not connector
+importance or contract completeness.
+
+Provider selection order is explicit:
 
 ```txt
 sandboxExecutable

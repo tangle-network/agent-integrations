@@ -13,8 +13,9 @@ provider credentials.
 - [x] Generated setup specs and runbook/admin-UI renderers.
 - [x] Canonical registry that dedupes setup specs, first-party adapters,
       gateway catalogs, and long-tail catalog metadata.
-- [x] Catalog-only safety: long-tail metadata is discoverable but not callable
-      unless promoted to an executable support tier.
+- [x] Catalog runtime safety: long-tail contracts are discoverable, but only
+      registries configured with a native, gateway, or sandbox runtime expose
+      them as callable tools.
 - [x] App/agent `IntegrationManifest` resolution against user connections.
 - [x] Persistent grants from user-owned connections to apps, agents, sandboxes,
       and generated software.

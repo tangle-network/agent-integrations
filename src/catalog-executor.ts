@@ -57,7 +57,7 @@ export function createCatalogExecutorProvider(options: CatalogExecutorProviderOp
     },
     async subscribeTrigger(connection, triggerId, targetUrl) {
       if (!options.subscribeTrigger) {
-        throw new IntegrationError(`Provider ${options.id} does not support trigger subscriptions.`, 'action_not_found')
+        throw new IntegrationError(`Provider ${options.id} does not support trigger subscriptions.`, 'trigger_not_found')
       }
       const connector = byConnector.get(connection.connectorId)
       if (!connector) {
@@ -65,7 +65,7 @@ export function createCatalogExecutorProvider(options: CatalogExecutorProviderOp
       }
       const trigger = connector.triggers?.find((candidate) => candidate.id === triggerId)
       if (!trigger) {
-        throw new IntegrationError(`Trigger ${triggerId} is not defined by connector ${connector.id}.`, 'action_not_found')
+        throw new IntegrationError(`Trigger ${triggerId} is not defined by connector ${connector.id}.`, 'trigger_not_found')
       }
       return options.subscribeTrigger(connection, trigger, targetUrl)
     },

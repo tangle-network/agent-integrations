@@ -35,6 +35,7 @@ export interface TangleCatalogRuntimeHandlerOptions {
 export interface TangleCatalogInstalledPackageExecutorOptions {
   moduleLoader?: (packageName: string) => Promise<unknown> | unknown
   actionAliases?: Record<string, Record<string, string>>
+  allowFuzzyActionMatch?: boolean
   resolveAuth?: (connection: IntegrationConnection) => Promise<unknown> | unknown
   beforeRun?: (invocation: TangleCatalogRuntimeInvocation) => Promise<void> | void
 }
@@ -97,6 +98,25 @@ export interface TangleCatalogRuntimeHttpResponse {
   }
 }
 
+export interface TangleCatalogRuntimePackageCoverageRow {
+  connectorId: string
+  packageName: string
+  packageInstalled: boolean
+  packageLoads: boolean
+  pieceExportFound: boolean
+  actionMappingsVerified: number
+  actionMappingsTotal: number
+  triggerMappingsFound: number
+  triggerMappingsTotal: number
+  triggerHostingSupported: boolean
+  error?: string
+}
+
+export interface TangleCatalogRuntimePackageCoverageOptions {
+  connectorIds?: string[]
+  moduleLoader?: (packageName: string) => Promise<unknown> | unknown
+}
+
 export function createTangleCatalogRuntimeHandler(options: TangleCatalogRuntimeHandlerOptions) {
   const connectors = options.connectors ?? buildTangleIntegrationCatalogConnectors({
     includeCatalogActions: true,
@@ -129,6 +149,9 @@ export function createTangleCatalogRuntimeHandler(options: TangleCatalogRuntimeH
     if (!parsed.ok) return parsed.response
 
     const request = parsed.request
+    if (request.providerId !== request.connection.providerId) {
+      return errorResponse(400, request.action.id, 'provider_mismatch', 'Request providerId does not match connection providerId.')
+    }
     const connector = byConnector.get(request.connector.id)
     if (!connector) {
       return errorResponse(404, request.action.id, 'connector_not_found', `Connector ${request.connector.id} is not in the Tangle catalog runtime.`)
@@ -174,6 +197,13 @@ export function createTangleCatalogInstalledPackageExecutor(
     if (!packageName) {
       return runtimeFailure(invocation.action.id, 'runtime_not_available', `No installed runtime package is known for connector ${invocation.connector.id}.`)
     }
+    if (invocation.request.piece.packageName && invocation.request.piece.packageName !== packageName) {
+      return runtimeFailure(
+        invocation.action.id,
+        'runtime_package_mismatch',
+        `Runtime package ${invocation.request.piece.packageName} does not match catalog package ${packageName}.`,
+      )
+    }
 
     const loaded = await loadRuntimeModule(packageName, options.moduleLoader, moduleCache)
     if (!loaded.ok) {
@@ -185,7 +215,7 @@ export function createTangleCatalogInstalledPackageExecutor(
       return runtimeFailure(invocation.action.id, 'runtime_invalid', `Runtime package ${packageName} does not export a recognizable piece for ${invocation.connector.id}.`)
     }
 
-    const action = findRuntimeAction(piece, invocation, options.actionAliases)
+    const action = findRuntimeAction(piece, invocation, options.actionAliases, options.allowFuzzyActionMatch ?? false)
     if (!action?.run) {
       return runtimeFailure(invocation.action.id, 'action_not_implemented', `Runtime package ${packageName} does not expose executable action ${invocation.action.id}.`)
     }
@@ -211,6 +241,62 @@ export function createTangleCatalogInstalledPackageExecutor(
       )
     }
   }
+}
+
+export async function auditTangleCatalogRuntimePackages(
+  options: TangleCatalogRuntimePackageCoverageOptions = {},
+): Promise<TangleCatalogRuntimePackageCoverageRow[]> {
+  const only = options.connectorIds ? new Set(options.connectorIds) : undefined
+  const rows: TangleCatalogRuntimePackageCoverageRow[] = []
+  const moduleCache = new Map<string, Promise<unknown>>()
+  const entries = listActivepiecesCatalogEntries()
+    .filter((entry) => entry.npmPackage && (!only || only.has(entry.id)))
+
+  for (const entry of entries) {
+    const packageName = entry.npmPackage!
+    const base = {
+      connectorId: entry.id,
+      packageName,
+      actionMappingsTotal: entry.actions.length,
+      triggerMappingsTotal: entry.triggers.length,
+    }
+    const loaded = await loadRuntimeModule(packageName, options.moduleLoader, moduleCache)
+    if (!loaded.ok) {
+      rows.push({
+        ...base,
+        packageInstalled: false,
+        packageLoads: false,
+        pieceExportFound: false,
+        actionMappingsVerified: 0,
+        triggerMappingsFound: 0,
+        triggerHostingSupported: false,
+        error: loaded.message,
+      })
+      continue
+    }
+    const piece = findPieceExport(loaded.module, entry.id)
+    const actions = piece?.actions ?? []
+    const triggers = piece?.triggers ?? []
+    rows.push({
+      ...base,
+      packageInstalled: true,
+      packageLoads: true,
+      pieceExportFound: Boolean(piece),
+      actionMappingsVerified: entry.actions.filter((action) => hasRuntimeName(actions, [
+        action.id,
+        action.title,
+        action.upstreamName,
+      ])).length,
+      triggerMappingsFound: entry.triggers.filter((trigger) => hasRuntimeName(triggers, [
+        trigger.id,
+        trigger.title,
+        trigger.upstreamName,
+      ])).length,
+      triggerHostingSupported: entry.triggers.length === 0 || triggers.length > 0,
+    })
+  }
+
+  return rows
 }
 
 export function createTangleCatalogCredentialAuthResolver(options: TangleCatalogAuthResolverOptions) {
@@ -306,7 +392,7 @@ async function loadRuntimeModule(
   }
 }
 
-function findPieceExport(moduleValue: unknown, connectorId: string): { actions?: unknown[] } | undefined {
+function findPieceExport(moduleValue: unknown, connectorId: string): { actions?: unknown[]; triggers?: unknown[] } | undefined {
   const mod = moduleValue && typeof moduleValue === 'object' ? moduleValue as Record<string, unknown> : {}
   const values = [
     mod.default,
@@ -314,17 +400,25 @@ function findPieceExport(moduleValue: unknown, connectorId: string): { actions?:
     mod[connectorId],
     ...Object.values(mod),
   ]
-  return values.find((value): value is { actions?: unknown[] } => (
+  return values.find((value): value is { actions?: unknown[]; triggers?: unknown[] } => (
     Boolean(value)
     && typeof value === 'object'
     && Array.isArray((value as { actions?: unknown[] }).actions)
   ))
 }
 
+function hasRuntimeName(values: unknown[], candidates: Array<string | undefined>): boolean {
+  const expected = new Set(candidates.filter((value): value is string => Boolean(value)))
+  return values
+    .filter((value): value is { name?: string; displayName?: string } => Boolean(value) && typeof value === 'object')
+    .some((value) => [value.name, value.displayName].some((name) => typeof name === 'string' && expected.has(name)))
+}
+
 function findRuntimeAction(
   piece: { actions?: unknown[] },
   invocation: TangleCatalogRuntimeInvocation,
   aliases: TangleCatalogInstalledPackageExecutorOptions['actionAliases'] = {},
+  allowFuzzyActionMatch = false,
 ): TangleCatalogRuntimeModuleAction | undefined {
   const actions = (piece.actions ?? [])
     .filter((action): action is TangleCatalogRuntimeModuleAction => Boolean(action) && typeof action === 'object')
@@ -339,7 +433,7 @@ function findRuntimeAction(
   for (const action of actions) {
     const names = [action.name, action.displayName].filter((value): value is string => Boolean(value))
     if (names.some((name) => candidates.has(name))) return action
-    if (names.some((name) => [...candidates].some((candidate) => comparable(name) === comparable(candidate)))) return action
+    if (allowFuzzyActionMatch && names.some((name) => [...candidates].some((candidate) => comparable(name) === comparable(candidate)))) return action
   }
   return undefined
 }

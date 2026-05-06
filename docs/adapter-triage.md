@@ -4,8 +4,9 @@ This is the execution-readiness map for `agent-integrations`.
 
 The important distinction:
 
-- `catalogOnly`: known provider/action metadata. Good for search, planning,
-  and demand capture. Not safe to invoke.
+- `catalogOnly`: has a Tangle connector contract, but the current registry was
+  not built with an execution provider for it. Good for search, planning, and
+  demand capture.
 - `setupReady`: has connection/setup/spec metadata. Good for OAuth/admin UI and
   generated app requirements. Still needs an executable provider.
 - `gatewayExecutable`: callable through an explicitly configured gateway
@@ -14,8 +15,8 @@ The important distinction:
 - `sandboxExecutable`: callable directly from generated sandbox apps with a
   narrowed capability token.
 
-Do not treat catalog or setup entries as executable tools. Generated apps and
-agents must only receive executable capabilities.
+Generated apps and agents should only receive executable capabilities from a
+registry configured with a native adapter, gateway runtime, or sandbox runtime.
 
 ## Current First-Party Adapters
 
@@ -70,9 +71,10 @@ const provider = createTangleCatalogExecutorProvider({
 const hub = new IntegrationHub({ providers: [provider], store, capabilitySecret })
 ```
 
-This promotes normalized Tangle Integrations Catalog entries to
-`gatewayExecutable` only when a caller supplies an executor. The default catalog
-remains `catalogOnly`, so generated apps cannot accidentally call metadata.
+This routes normalized Tangle Integrations Catalog contracts through a signed
+runtime executor. Without that executor, the same contracts remain useful for
+connection discovery, planning, and setup UI, but they are not exposed as
+callable tools.
 
 The execution boundary remains the Tangle boundary:
 
@@ -81,7 +83,14 @@ The execution boundary remains the Tangle boundary:
 - The provider validates the connector and action before calling the executor.
 - The executor owns package loading, provider credentials, sandboxing, and
   upstream runtime quirks.
-- Trigger execution is separate; current long-tail promotion covers actions.
+- Trigger contracts and provider hooks are present; runtime services still need
+  package-specific webhook or polling hosting for live trigger execution.
+
+Runtime images can prove their installed package coverage with:
+
+```sh
+tangle-catalog-runtime --audit-packages
+```
 
 ## Current Setup/Catalog Coverage
 
@@ -123,8 +132,8 @@ Four Tier 0 entries are canonicalized aliases:
 
 ### Next First-Party Adapters
 
-These should be promoted before claiming broad production readiness for
-generated agent apps.
+These are the next native adapters to implement before claiming broad direct
+adapter coverage for generated agent apps.
 
 1. Gmail: read/search/send email, thread summaries, draft/send approval path.
 2. Google Drive: file search/list/download/upload, scoped file grants.

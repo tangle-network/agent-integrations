@@ -93,6 +93,25 @@ export interface TangleIntegrationContract {
   }
 }
 
+export interface TangleCatalogRuntimePackageManifestOptions {
+  name?: string
+  includeAgentIntegrationsPackage?: boolean
+  agentIntegrationsVersion?: string
+  additionalDependencies?: Record<string, string>
+}
+
+export interface TangleCatalogRuntimePackageManifest {
+  name: string
+  private: true
+  type: 'module'
+  dependencies: Record<string, string>
+  tangle: {
+    integrationContracts: number
+    packageRuntimeBackends: number
+    generatedFrom: typeof TANGLE_INTEGRATIONS_CATALOG_SOURCE
+  }
+}
+
 export interface TangleCatalogExecutorInvocation {
   connection: IntegrationConnection
   request: IntegrationActionRequest
@@ -237,6 +256,46 @@ export function listTangleIntegrationCatalogRuntimePackages(): Array<{
     }))
 }
 
+export function buildTangleCatalogRuntimePackageManifest(
+  options: TangleCatalogRuntimePackageManifestOptions = {},
+): TangleCatalogRuntimePackageManifest {
+  const dependencies: Record<string, string> = {}
+  if (options.includeAgentIntegrationsPackage ?? true) {
+    dependencies['@tangle-network/agent-integrations'] = options.agentIntegrationsVersion ?? 'latest'
+  }
+  for (const pkg of listTangleIntegrationCatalogRuntimePackages()) {
+    dependencies[pkg.packageName] = pkg.version ?? 'latest'
+  }
+  Object.assign(dependencies, options.additionalDependencies)
+  return {
+    name: options.name ?? '@tangle-network/agent-integrations-runtime-bundle',
+    private: true,
+    type: 'module',
+    dependencies: Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => a.localeCompare(b))),
+    tangle: {
+      integrationContracts: listTangleIntegrationContracts().length,
+      packageRuntimeBackends: listTangleIntegrationContracts()
+        .filter((contract) => contract.implementation.kind === 'package_runtime').length,
+      generatedFrom: TANGLE_INTEGRATIONS_CATALOG_SOURCE,
+    },
+  }
+}
+
+export function renderTangleCatalogRuntimePnpmAddCommand(options: {
+  includeAgentIntegrationsPackage?: boolean
+  agentIntegrationsVersion?: string
+} = {}): string {
+  const manifest = buildTangleCatalogRuntimePackageManifest({
+    includeAgentIntegrationsPackage: options.includeAgentIntegrationsPackage,
+    agentIntegrationsVersion: options.agentIntegrationsVersion,
+  })
+  return [
+    'pnpm',
+    'add',
+    ...Object.entries(manifest.dependencies).map(([name, version]) => `${name}@${version}`),
+  ].join(' ')
+}
+
 export function buildTangleIntegrationCatalogConnectors(options: {
   providerId?: string
   includeCatalogActions?: boolean
@@ -277,6 +336,7 @@ export function createTangleCatalogExecutorProvider(options: TangleCatalogExecut
         catalogEntry: sanitizeEntry(importedEntry),
         piece: {
           id: importedEntry.id,
+          packageName: importedEntry.npmPackage,
           version: importedEntry.version,
           actionId: action.id,
           upstreamActionName: catalogAction?.upstreamName,
@@ -299,6 +359,7 @@ export function createTangleCatalogExecutorProvider(options: TangleCatalogExecut
             targetUrl,
             piece: {
               id: importedEntry.id,
+              packageName: importedEntry.npmPackage,
               version: importedEntry.version,
               triggerId: trigger.id,
               upstreamTriggerName: catalogTrigger?.upstreamName,

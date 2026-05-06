@@ -13,8 +13,12 @@ pieces catalog:
 The generated file is ingestion/provenance data for the Tangle Integrations
 Catalog. It does not vendor the Activepieces runtime or execute Activepieces
 piece code directly. Consumers should use the Tangle-named catalog APIs and can
-promote selected entries to first-party adapters or route them through a signed
-Tangle catalog runtime.
+route entries through a signed Tangle catalog runtime or implement selected
+connectors as native adapters.
+
+Any Activepieces-named exports are compatibility/provenance helpers for the
+imported source data. Product-facing code should use the Tangle catalog
+contracts and runtime APIs.
 
 Regenerate after checking out Activepieces:
 

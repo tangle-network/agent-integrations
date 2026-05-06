@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildActivepiecesConnectors,
+  auditTangleCatalogRuntimePackages,
+  buildTangleCatalogRuntimePackageManifest,
   buildTangleIntegrationCatalogConnectors,
   buildIntegrationToolCatalog,
   composeIntegrationRegistry,
@@ -17,6 +19,7 @@ import {
   listActivepiecesCatalogEntries,
   listTangleIntegrationCatalogEntries,
   listTangleIntegrationContracts,
+  renderTangleCatalogRuntimePnpmAddCommand,
   searchIntegrationTools,
   verifyTangleCatalogRuntimeSignature,
   TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
@@ -114,6 +117,63 @@ describe('Activepieces community catalog import', () => {
     expect(gmail?.implementation.kind).toBe('package_runtime')
     expect(gmail?.actions.some((action) => action.id.includes('gmail.search.mail'))).toBe(true)
     expect(slack?.implementation.kind).toBe('native_adapter')
+  })
+
+  it('generates a complete runtime package manifest for package-backed connectors', () => {
+    const manifest = buildTangleCatalogRuntimePackageManifest({
+      agentIntegrationsVersion: '0.25.0',
+      additionalDependencies: { '@tangle-network/company-runtime': '^1.0.0' },
+    })
+    const packages = Object.keys(manifest.dependencies)
+    const command = renderTangleCatalogRuntimePnpmAddCommand({ agentIntegrationsVersion: '0.25.0' })
+
+    expect(manifest.private).toBe(true)
+    expect(manifest.type).toBe('module')
+    expect(manifest.tangle).toMatchObject({
+      integrationContracts: expect.any(Number),
+      packageRuntimeBackends: expect.any(Number),
+      generatedFrom: 'tangle-integrations-catalog',
+    })
+    expect(manifest.dependencies['@tangle-network/agent-integrations']).toBe('0.25.0')
+    expect(manifest.dependencies['@activepieces/piece-gmail']).toBeDefined()
+    expect(manifest.dependencies['@activepieces/piece-slack']).toBeDefined()
+    expect(manifest.dependencies['@tangle-network/company-runtime']).toBe('^1.0.0')
+    expect(packages.length).toBeGreaterThanOrEqual(670)
+    expect(command).toContain('@activepieces/piece-gmail@')
+  })
+
+  it('audits installed runtime package coverage against exact catalog mappings', async () => {
+    const rows = await auditTangleCatalogRuntimePackages({
+      connectorIds: ['slack'],
+      moduleLoader: async (packageName) => {
+        expect(packageName).toBe('@activepieces/piece-slack')
+        return {
+          slack: {
+            actions: [
+              { name: 'slackSendMessageAction' },
+              { name: 'requestActionDirectMessageAction' },
+            ],
+            triggers: [
+              { name: 'newMessageTrigger' },
+            ],
+          },
+        }
+      },
+    })
+    const slack = rows[0]
+
+    expect(rows).toHaveLength(1)
+    expect(slack).toMatchObject({
+      connectorId: 'slack',
+      packageName: '@activepieces/piece-slack',
+      packageInstalled: true,
+      packageLoads: true,
+      pieceExportFound: true,
+      triggerHostingSupported: true,
+    })
+    expect(slack.actionMappingsVerified).toBeGreaterThan(0)
+    expect(slack.actionMappingsVerified).toBeLessThan(slack.actionMappingsTotal)
+    expect(slack.triggerMappingsFound).toBeGreaterThan(0)
   })
 
   it('can promote the full catalog to gateway-executable when a runtime executor is supplied', async () => {
@@ -300,10 +360,10 @@ describe('Activepieces community catalog import', () => {
       version: 1,
       requestId: 'req-1',
       providerId: 'tangle-catalog',
-      piece: { id: 'slack', actionId: action.id },
+      piece: { id: 'slack', packageName: '@activepieces/piece-slack', actionId: action.id },
       action: { id: action.id, input: { text: 'hello' }, idempotencyKey: 'idem-1' },
     })
-    expect(serialized).not.toContain('activepieces')
+    expect((received as { connector?: { metadata?: { source?: string } } }).connector?.metadata?.source).toBe('tangle-integrations-catalog')
     expect(result).toEqual({ ok: true, action: 'slack.send.message', output: { sent: true } })
   })
 
@@ -399,6 +459,66 @@ describe('Activepieces community catalog import', () => {
 
     expect(response.status).toBe(401)
     expect(response.body.output).toMatchObject({ code: 'signature_invalid' })
+    expect(called).toBe(false)
+  })
+
+  it('rejects mismatched runtime provider and package identity before execution', async () => {
+    let called = false
+    const runtime = createTangleCatalogRuntimeHandler({
+      requireSignature: false,
+      executeAction: createTangleCatalogInstalledPackageExecutor({
+        moduleLoader: async () => {
+          called = true
+          return {}
+        },
+      }),
+    })
+    const provider = createTangleCatalogExecutorProvider({
+      executeAction: () => ({ ok: true, action: 'noop' }),
+    })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+    const base = {
+      version: 1 as const,
+      requestId: 'req-validation',
+      providerId: 'tangle-catalog',
+      connection: {
+        id: 'conn-slack',
+        owner: { type: 'user' as const, id: 'u1' },
+        providerId: 'tangle-catalog',
+        connectorId: 'slack',
+        status: 'active' as const,
+        grantedScopes: slack.scopes,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+      connector: {
+        id: 'slack',
+        title: 'Slack',
+        auth: 'oauth2' as const,
+        scopes: slack.scopes,
+        metadata: slack.metadata,
+      },
+      piece: {
+        id: 'slack',
+        packageName: '@activepieces/piece-slack',
+        actionId: action.id,
+        upstreamActionName: 'slackSendMessageAction',
+      },
+      action: { id: action.id, input: {} },
+    }
+
+    const providerMismatch = await runtime({
+      body: { ...base, providerId: 'wrong-provider' },
+    })
+    const packageMismatch = await runtime({
+      body: { ...base, piece: { ...base.piece, packageName: '@activepieces/piece-gmail' } },
+    })
+
+    expect(providerMismatch.status).toBe(400)
+    expect(providerMismatch.body.output).toMatchObject({ code: 'provider_mismatch' })
+    expect(packageMismatch.status).toBe(502)
+    expect(packageMismatch.body.output).toMatchObject({ code: 'runtime_package_mismatch' })
     expect(called).toBe(false)
   })
 
@@ -539,6 +659,84 @@ describe('Activepieces community catalog import', () => {
           expires_at: 123,
         },
       },
+    })
+  })
+
+  it('keeps fuzzy package-runtime action matching opt-in', async () => {
+    const makeRuntime = (allowFuzzyActionMatch: boolean) => createTangleCatalogRuntimeHandler({
+      secret: 'runtime-secret',
+      executeAction: createTangleCatalogInstalledPackageExecutor({
+        allowFuzzyActionMatch,
+        moduleLoader: async () => ({
+          slack: {
+            actions: [
+              {
+                name: 'Slack Send Message Action',
+                run: async () => ({ matched: true }),
+              },
+            ],
+          },
+        }),
+      }),
+    })
+    const provider = createTangleCatalogExecutorProvider({
+      executeAction: createTangleCatalogHttpExecutor({
+        endpoint: 'https://runtime.example',
+        secret: 'runtime-secret',
+        requestId: () => 'req-fuzzy-off',
+        fetchImpl: async (_requestUrl, init) => {
+          const response = await makeRuntime(false)({
+            body: String(init?.body),
+            headers: new Headers(init?.headers),
+          })
+          return Response.json(response.body, { status: response.status, headers: response.headers })
+        },
+      }),
+    })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+    const connection = {
+      id: 'conn-slack',
+      owner: { type: 'user' as const, id: 'u1' },
+      providerId: 'tangle-catalog',
+      connectorId: 'slack',
+      status: 'active' as const,
+      grantedScopes: slack.scopes,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }
+
+    const strict = await provider.invokeAction(connection, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: {},
+    })
+    const permissiveProvider = createTangleCatalogExecutorProvider({
+      executeAction: createTangleCatalogHttpExecutor({
+        endpoint: 'https://runtime.example',
+        secret: 'runtime-secret',
+        requestId: () => 'req-fuzzy-on',
+        fetchImpl: async (_requestUrl, init) => {
+          const response = await makeRuntime(true)({
+            body: String(init?.body),
+            headers: new Headers(init?.headers),
+          })
+          return Response.json(response.body, { status: response.status, headers: response.headers })
+        },
+      }),
+    })
+    const permissive = await permissiveProvider.invokeAction(connection, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: {},
+    })
+
+    expect(strict.ok).toBe(false)
+    expect(strict.output).toMatchObject({ code: 'action_not_implemented' })
+    expect(permissive).toEqual({
+      ok: true,
+      action: action.id,
+      output: { matched: true },
     })
   })
 
