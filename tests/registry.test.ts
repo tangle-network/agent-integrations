@@ -37,7 +37,7 @@ describe('integration registry', () => {
     const registry = buildDefaultIntegrationRegistry()
     const github = registry.byId.get('github')
 
-    expect(github?.conflicts.some((conflict) => conflict.field === 'category')).toBe(true)
+    expect(github?.conflicts.some((conflict) => conflict.field === 'auth')).toBe(true)
     expect(github?.connector.metadata?.registry).toMatchObject({
       canonicalId: 'github',
       supportTier: 'setupReady',

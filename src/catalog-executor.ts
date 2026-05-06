@@ -6,6 +6,8 @@ import type {
   IntegrationConnector,
   IntegrationProvider,
   IntegrationProviderKind,
+  IntegrationTriggerEvent,
+  IntegrationTriggerSubscription,
   StartAuthRequest,
   StartAuthResult,
 } from './index.js'
@@ -25,6 +27,13 @@ export interface CatalogExecutorProviderOptions {
   startAuth?: (request: StartAuthRequest) => Promise<StartAuthResult> | StartAuthResult
   completeAuth?: (request: CompleteAuthRequest) => Promise<IntegrationConnection> | IntegrationConnection
   executeAction: (invocation: CatalogExecutorInvocation) => Promise<IntegrationActionResult> | IntegrationActionResult
+  subscribeTrigger?: (
+    connection: IntegrationConnection,
+    trigger: NonNullable<IntegrationConnector['triggers']>[number],
+    targetUrl?: string,
+  ) => Promise<IntegrationTriggerSubscription> | IntegrationTriggerSubscription
+  unsubscribeTrigger?: (subscriptionId: string) => Promise<void> | void
+  normalizeTriggerEvent?: (raw: unknown) => Promise<IntegrationTriggerEvent> | IntegrationTriggerEvent
 }
 
 export function createCatalogExecutorProvider(options: CatalogExecutorProviderOptions): IntegrationProvider {
@@ -46,5 +55,21 @@ export function createCatalogExecutorProvider(options: CatalogExecutorProviderOp
       }
       return options.executeAction({ connection, request, connector, action })
     },
+    async subscribeTrigger(connection, triggerId, targetUrl) {
+      if (!options.subscribeTrigger) {
+        throw new IntegrationError(`Provider ${options.id} does not support trigger subscriptions.`, 'action_not_found')
+      }
+      const connector = byConnector.get(connection.connectorId)
+      if (!connector) {
+        throw new IntegrationError(`Connector ${connection.connectorId} not found.`, 'connector_not_found')
+      }
+      const trigger = connector.triggers?.find((candidate) => candidate.id === triggerId)
+      if (!trigger) {
+        throw new IntegrationError(`Trigger ${triggerId} is not defined by connector ${connector.id}.`, 'action_not_found')
+      }
+      return options.subscribeTrigger(connection, trigger, targetUrl)
+    },
+    unsubscribeTrigger: options.unsubscribeTrigger,
+    normalizeTriggerEvent: options.normalizeTriggerEvent,
   }
 }

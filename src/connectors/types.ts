@@ -133,6 +133,7 @@ export interface ResolvedDataSource {
 export type ConnectorCredentials =
   | { kind: 'oauth2'; accessToken: string; refreshToken?: string; expiresAt?: number }
   | { kind: 'api-key'; apiKey: string }
+  | { kind: 'custom'; values: Record<string, unknown> }
   | { kind: 'hmac'; secret: string }
   | { kind: 'none' }
 

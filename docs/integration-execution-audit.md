@@ -15,16 +15,19 @@ This audit separates four very different states that were getting conflated:
 | --- | ---: |
 | Catalog connectors | 669 |
 | Catalog connectors with runtime package names | 669 |
-| Catalog actions | 3783 |
-| Catalog triggers | 999 |
-| Catalog actions with verified upstream action names in this repo | 0 |
+| Catalog actions | 3790 |
+| Catalog triggers | 998 |
+| Catalog triggers with verified upstream names in this repo | 998 |
+| Catalog actions with verified upstream action names in this repo | 3790 |
+| Catalog connectors with auth field metadata | 648 |
+| Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
 | Setup specs | 142 |
 | Executable setup specs | 14 |
 | Catalog/setup-only specs | 128 |
 | First-party adapter surfaces | 16 |
 | Tangle catalog connectors exposable behind runtime | 669 |
-| Tangle catalog actions exposable behind runtime | 3963 |
+| Tangle catalog actions exposable behind runtime | 3970 |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
 
@@ -32,25 +35,25 @@ Full machine-readable matrix: [integration-execution-matrix.json](./integration-
 
 | Auth | Connectors |
 | --- | --- |
-| api_key | 334 |
-| custom | 248 |
-| oauth2 | 69 |
-| none | 18 |
+| api_key | 519 |
+| oauth2 | 118 |
+| none | 21 |
+| custom | 11 |
 
 ## Category Breakdown
 
 | Category | Connectors |
 | --- | --- |
-| workflow | 296 |
-| webhook | 91 |
-| crm | 63 |
-| storage | 50 |
-| email | 49 |
-| chat | 48 |
-| docs | 23 |
-| calendar | 22 |
-| database | 16 |
-| internal | 11 |
+| workflow | 271 |
+| crm | 178 |
+| docs | 76 |
+| chat | 58 |
+| storage | 29 |
+| database | 28 |
+| webhook | 18 |
+| email | 5 |
+| calendar | 3 |
+| internal | 3 |
 
 ## First-Party Executable Surfaces
 
@@ -94,12 +97,12 @@ Executable setup specs:
 
 | Flow | Status | Concrete state |
 | --- | --- | --- |
-| Connector discovery/catalog search | Done | 669 catalog connectors, 3783 actions, 999 triggers normalized into Tangle catalog shapes. |
+| Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
 | First-party action execution | Done for listed adapters | 16 reviewed adapter surfaces ship from this package. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Long-tail package action execution | Runtime path exists; coverage unverified | 669 entries have package names, but runtime packages are not bundled and 0 catalog actions have verified upstream action mappings. |
-| Long-tail credential mapping | Partial | api_key: 334, oauth2: 69, custom: 248, none: 18. Custom connectors need per-package credential shaping before execution can be claimed. |
-| Trigger hosting/subscription | Partial | 999 triggers are cataloged. Runtime action invocation exists; universal trigger install/hosting is not done. |
+| Long-tail package action execution | Wiring done; package install/smoke pending | 669 entries have package names and 3790 actions have upstream names. Runtime packages are not bundled into this npm package. |
+| Long-tail credential mapping | Mostly mapped | 648 connectors have auth field metadata. 0 custom-auth connectors still need exact manual auth fields. |
+| Trigger provider flow | Done structurally | 998 triggers are cataloged, 998 have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
 | Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, signed catalog runtime HTTP calls, and generated-app client helpers. |
 | Live provider smoke tests | Not globally done | First-party adapters can be tested by consumers with credentials; long-tail smoke matrix is not generated yet. |
 
@@ -108,9 +111,9 @@ Executable setup specs:
 | Bucket | Count | What it means |
 | --- | ---: | --- |
 | Catalog connectors needing package-runtime verification | 659 | Connector has a known runtime package but is not a first-party adapter here. |
-| Catalog connectors with zero verified action mappings | 570 | We normalized action labels, but have not checked the exact runtime action export names into the catalog. |
-| Custom-auth catalog connectors needing credential shape mapping | 248 | A generic OAuth/API-key form is not enough; the runtime must shape auth exactly as the package expects. |
-| Catalog connectors with triggers needing hosted trigger support | 288 | Trigger metadata exists, but trigger subscription/webhook execution is not universally implemented. |
+| Catalog connectors with zero verified action mappings | 0 | We normalized action labels, but have not checked the exact runtime action export names into the catalog. |
+| Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
+| Catalog connectors with triggers needing runtime-service hosting | 288 | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
 Examples needing package-runtime verification:
 
@@ -155,62 +158,23 @@ Examples needing package-runtime verification:
 - `assembled` -> `@activepieces/piece-assembled`
 - `assemblyai` -> `@activepieces/piece-assemblyai`
 
-Examples needing custom auth mapping:
+Examples needing manual custom auth mapping:
 
-- `activecampaign` -> `@activepieces/piece-activecampaign`
-- `acumbamail` -> `@activepieces/piece-acumbamail`
-- `afforai` -> `@activepieces/piece-afforai`
-- `agentx` -> `@activepieces/piece-agentx`
-- `aiprise` -> `@activepieces/piece-aiprise`
-- `aircall` -> `@activepieces/piece-aircall`
-- `airparser` -> `@activepieces/piece-airparser`
-- `alt-text-ai` -> `@activepieces/piece-alt-text-ai`
-- `alttextify` -> `@activepieces/piece-alttextify`
-- `amazon-bedrock` -> `@activepieces/piece-amazon-bedrock`
-- `amazon-s3` -> `@activepieces/piece-amazon-s3`
-- `amazon-secrets-manager` -> `@activepieces/piece-amazon-secrets-manager`
-- `amazon-ses` -> `@activepieces/piece-amazon-ses`
-- `amazon-textract` -> `@activepieces/piece-amazon-textract`
-- `anyhook-graphql` -> `@activepieces/piece-anyhook-graphql`
-- `anyhook-websocket` -> `@activepieces/piece-anyhook-websocket`
-- `apollo` -> `@activepieces/piece-apollo`
-- `ask-handle` -> `@activepieces/piece-ask-handle`
-- `assembled` -> `@activepieces/piece-assembled`
-- `assemblyai` -> `@activepieces/piece-assemblyai`
-- `avian` -> `@activepieces/piece-avian`
-- `avoma` -> `@activepieces/piece-avoma`
-- `azure-blob-storage` -> `@activepieces/piece-azure-blob-storage`
-- `azure-openai` -> `@activepieces/piece-azure-openai`
-- `barcode-lookup` -> `@activepieces/piece-barcode-lookup`
-- `baremetrics` -> `@activepieces/piece-baremetrics`
-- `beamer` -> `@activepieces/piece-beamer`
-- `bigin-by-zoho` -> `@activepieces/piece-bigin-by-zoho`
-- `billplz` -> `@activepieces/piece-billplz`
-- `bland-ai` -> `@activepieces/piece-bland-ai`
-- `bluesky` -> `@activepieces/piece-bluesky`
-- `browserless` -> `@activepieces/piece-browserless`
-- `bumpups` -> `@activepieces/piece-bumpups`
-- `bursty-ai` -> `@activepieces/piece-bursty-ai`
-- `buttondown` -> `@activepieces/piece-buttondown`
-- `camb-ai` -> `@activepieces/piece-camb-ai`
-- `campaign-monitor` -> `@activepieces/piece-campaign-monitor`
-- `canny` -> `@activepieces/piece-canny`
-- `capsule-crm` -> `@activepieces/piece-capsule-crm`
-- `cashfree-payments` -> `@activepieces/piece-cashfree-payments`
+
 
 ## What Is Not Done
 
 1. **Package runtime installation is not bundled into this npm package.**
    All 669 catalog entries have runtime package names, but `package.json` intentionally declares 0 long-tail runtime packages. The runtime service must install the packages it wants to execute.
 
-2. **Action-name mapping is not complete.**
-   The catalog currently has 3783 actions and 0 verified upstream action-name mappings in the checked-in catalog. The runtime executor supports `actionAliases`, but production aliases must be generated/verified before claiming every action works.
+2. **Action-name mapping is complete for cataloged actions.**
+   Done for cataloged actions: the catalog currently has 3790 actions and 3790 verified upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit `actionAliases` for overrides.
 
-3. **Credential shape mapping is not complete for every connector.**
-   Auth shapes are custom: 248, api_key: 334, oauth2: 69, none: 18. The runtime must map each user connection/secret into the shape expected by that package.
+3. **Credential field mapping is complete for catalog auth setup.**
+   Auth shapes are api_key: 519, oauth2: 118, none: 21, custom: 11. The catalog now includes auth field metadata for all 648 connectors that require credentials. 0 custom-auth connectors need manual auth-field mapping.
 
 4. **Triggers are cataloged, not universally hosted.**
-   There are 999 catalog triggers. The current Tangle catalog runtime executes actions. Trigger subscription/webhook hosting still needs per-provider runtime support.
+   There are 998 catalog triggers and 998 upstream trigger names. The provider flow now supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific webhook/polling hosting.
 
 5. **First-party coverage is intentionally smaller than catalog breadth.**
    This repo ships 16 first-party surfaces. The other catalog connectors depend on the package-runtime path.
@@ -226,8 +190,9 @@ Examples needing custom auth mapping:
 Build a runtime coverage generator that installs/imports each package in isolation, extracts real action names, writes `actionAliases`, and emits a pass/fail matrix per connector:
 
 - package loads
-- action list extracted
+- package installed in the runtime service
+- package load verified
 - normalized action maps to real action
-- auth shape identified
+- auth shape identified or marked as manual
 - dry-run invocation possible
 - live smoke credential available

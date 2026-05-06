@@ -326,6 +326,7 @@ export class IntegrationError extends Error {
       | 'scope_denied'
       | 'action_denied'
       | 'action_not_found'
+      | 'trigger_not_found'
       | 'approval_required'
       | 'policy_denied',
   ) {
@@ -722,6 +723,7 @@ export * from './activepieces-provider.js'
 export * from './activepieces-runtime.js'
 export * from './tangle-catalog.js'
 export * from './tangle-catalog-runtime.js'
+export * from './tangle-catalog-runtime-server.js'
 export * from './catalog-freshness.js'
 export * from './registry.js'
 export * from './runtime.js'
