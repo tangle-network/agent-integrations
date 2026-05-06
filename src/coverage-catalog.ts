@@ -51,7 +51,7 @@ type SpecTuple = [
   auth?: IntegrationConnector['auth'],
 ]
 
-const DEFAULT_PROVIDER_KINDS: IntegrationProviderKind[] = ['first_party', 'nango', 'pipedream', 'activepieces', 'custom']
+const DEFAULT_PROVIDER_KINDS: IntegrationProviderKind[] = ['first_party', 'nango', 'pipedream', 'tangle_catalog', 'custom']
 
 const COVERAGE_SPECS: SpecTuple[] = [
   ['gmail', 'Gmail', 'email', 'email', 'tier_0', 'email,google,workspace,inbox'],
@@ -179,7 +179,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['make', 'Make', 'workflow', 'workflow', 'tier_1', 'automation,workflow'],
   ['nango', 'Nango', 'workflow', 'workflow', 'tier_1', 'integration-platform,oauth'],
   ['pipedream', 'Pipedream', 'workflow', 'workflow', 'tier_1', 'integration-platform,workflow'],
-  ['activepieces', 'Activepieces', 'workflow', 'workflow', 'tier_1', 'automation,workflow,open-source'],
+  ['open-automation-catalog', 'Open Automation Catalog', 'workflow', 'workflow', 'tier_1', 'automation,workflow,open-source'],
   ['webhook', 'Generic Webhook', 'webhook', 'webhook', 'tier_0', 'webhook,http,events', 'none'],
   ['http', 'HTTP Request', 'workflow', 'webhook', 'tier_0', 'http,api,webhook', 'none'],
   ['rss', 'RSS', 'webhook', 'webhook', 'tier_1', 'feeds,content', 'none'],
@@ -347,7 +347,7 @@ function scopesFor(id: string, pack: IntegrationActionPack): string[] {
 }
 
 function providerKindsFor(auth: IntegrationConnector['auth']): IntegrationProviderKind[] {
-  if (auth === 'none') return ['first_party', 'pipedream', 'activepieces', 'custom']
+  if (auth === 'none') return ['first_party', 'pipedream', 'tangle_catalog', 'custom']
   return DEFAULT_PROVIDER_KINDS
 }
 

@@ -30,6 +30,7 @@ describe('integration registry', () => {
     expect(slack?.connector.metadata?.registry).toMatchObject({
       toolBindable: true,
     })
+    expect(JSON.stringify(slack?.connector)).not.toContain('activepieces')
   })
 
   it('surfaces catalog conflicts instead of hiding mismatched facts', () => {
