@@ -283,7 +283,9 @@ function mergeTriggers(candidates: Candidate[]): IntegrationConnectorTrigger[] |
 
 function toolBindableCandidates(candidates: Candidate[]): Candidate[] {
   const bindable = candidates.filter((candidate) => candidate.supportTier !== 'catalogOnly')
-  return bindable.length > 0 ? bindable : []
+  if (bindable.length === 0) return []
+  const maxRank = Math.max(...bindable.map((candidate) => SUPPORT_RANK[candidate.supportTier]))
+  return bindable.filter((candidate) => SUPPORT_RANK[candidate.supportTier] === maxRank)
 }
 
 function catalogActionCount(connector: IntegrationConnector): number {
