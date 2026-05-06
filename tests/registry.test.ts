@@ -24,7 +24,7 @@ describe('integration registry', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(slack?.canonicalId).toBe('slack')
     expect(slack?.supportTier).toBe('setupReady')
-    expect(slack?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['spec', 'activepieces']))
+    expect(slack?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['spec', 'tangle-catalog']))
     expect(slack?.connector.actions.some((action) => action.id === 'messages.post')).toBe(true)
     expect(slack?.connector.actions.some((action) => action.id.includes('send.message'))).toBe(false)
     expect(slack?.connector.metadata?.registry).toMatchObject({
@@ -89,7 +89,7 @@ describe('integration registry', () => {
     })
     const registry = composeIntegrationRegistry([
       adapterSource,
-      ...[buildDefaultIntegrationRegistry({ includeActivepieces: false })].map((base) => ({
+      ...[buildDefaultIntegrationRegistry({ includeTangleCatalog: false })].map((base) => ({
         id: 'spec',
         connectors: base.connectors,
       })),

@@ -87,7 +87,7 @@ describe('IntegrationRuntime app and agent grants', () => {
     )).toBe(true)
   })
 
-  it('works for vertical agents and Blueprint-style sandbox context injection', async () => {
+  it('works for domain agents and Blueprint-style sandbox context injection', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({
       providers: [createMockIntegrationProvider()],

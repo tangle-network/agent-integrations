@@ -124,14 +124,35 @@ export function verifyActivepiecesRuntimeSignature(
 
 export type TangleCatalogRuntimeRequest = ActivepiecesRuntimeRequest
 export type TangleCatalogHttpExecutorOptions = ActivepiecesHttpExecutorOptions
+export interface TangleCatalogHttpExecutorInvocation extends Omit<ActivepiecesExecutorInvocation, 'catalogEntry' | 'piece'> {
+  catalogEntry: unknown
+  piece: {
+    id: string
+    packageName?: string
+    version?: string
+    actionId: string
+    upstreamActionName?: string
+  }
+}
 
 export function createTangleCatalogHttpExecutor(
   options: TangleCatalogHttpExecutorOptions,
-): ActivepiecesExecutorProviderOptions['executeAction'] {
-  return createActivepiecesHttpExecutor({
+): (invocation: TangleCatalogHttpExecutorInvocation) => ReturnType<ActivepiecesExecutorProviderOptions['executeAction']> {
+  const execute = createActivepiecesHttpExecutor({
     ...options,
     path: options.path ?? '/v1/integration-catalog/actions/invoke',
     signatureHeader: options.signatureHeader ?? TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
+  })
+  return (invocation) => execute({
+    ...invocation,
+    catalogEntry: invocation.catalogEntry as ActivepiecesExecutorInvocation['catalogEntry'],
+    piece: {
+      id: invocation.piece.id,
+      npmPackage: invocation.piece.packageName,
+      version: invocation.piece.version,
+      actionId: invocation.piece.actionId,
+      upstreamActionName: invocation.piece.upstreamActionName,
+    },
   })
 }
 

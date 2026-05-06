@@ -26,6 +26,7 @@ export type IntegrationProviderKind =
   | 'pipedream'
   | 'zapier'
   | 'activepieces'
+  | 'tangle_catalog'
   | 'executor'
   | 'custom'
 
