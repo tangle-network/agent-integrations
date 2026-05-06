@@ -145,7 +145,6 @@ export function createTangleCatalogExecutorProvider(options: TangleCatalogExecut
         catalogEntry: sanitizeEntry(importedEntry),
         piece: {
           id: importedEntry.id,
-          packageName: importedEntry.npmPackage,
           version: importedEntry.version,
           actionId: action.id,
           upstreamActionName: catalogAction?.upstreamName,
