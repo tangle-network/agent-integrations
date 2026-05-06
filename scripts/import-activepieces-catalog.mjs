@@ -145,6 +145,7 @@ function actionFromName(name) {
     id,
     title: titleFromId(id),
     risk: riskForName(id),
+    upstreamName: name,
   }
 }
 

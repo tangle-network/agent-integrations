@@ -48,6 +48,46 @@ Aliases matter when comparing coverage:
 - `stripe` maps to `stripe-pack` for outbound payment actions.
 - `twilio` maps to `twilio-sms`.
 
+## 600+ Catalog Execution Path
+
+The repo does not need 600 hand-written adapter files. Long-tail execution uses
+one strict catalog executor:
+
+```ts
+import {
+  createActivepiecesExecutorProvider,
+  IntegrationHub,
+} from '@tangle-network/agent-integrations'
+
+const provider = createActivepiecesExecutorProvider({
+  async executeAction({ piece, request, connection }) {
+    return runInHardenedExecutor({
+      packageName: piece.npmPackage,
+      version: piece.version,
+      actionId: piece.actionId,
+      upstreamActionName: piece.upstreamActionName,
+      input: request.input,
+      connection,
+    })
+  },
+})
+
+const hub = new IntegrationHub({ providers: [provider], store, capabilitySecret })
+```
+
+This promotes all vendored Activepieces community entries to
+`gatewayExecutable` only when a caller supplies an executor. The default catalog
+remains `catalogOnly`, so generated apps cannot accidentally call metadata.
+
+The execution boundary remains the Tangle boundary:
+
+- `IntegrationHub` checks connection status, scopes, capability tokens, policy,
+  approvals, and guard hooks.
+- The provider validates the connector and action before calling the executor.
+- The executor owns package loading, provider credentials, sandboxing, and
+  upstream runtime quirks.
+- Trigger execution is separate; current long-tail promotion covers actions.
+
 ## Current Setup/Catalog Coverage
 
 `listIntegrationCoverageSpecs()` currently defines 142 setup specs. The default

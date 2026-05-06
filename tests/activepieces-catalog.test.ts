@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   buildActivepiecesConnectors,
   buildIntegrationToolCatalog,
+  composeIntegrationRegistry,
+  createActivepiecesExecutorProvider,
+  InMemoryConnectionStore,
+  IntegrationHub,
   listActivepiecesCatalogEntries,
   searchIntegrationTools,
 } from '../src/index'
@@ -54,6 +58,107 @@ describe('Activepieces community catalog import', () => {
 
     expect(slack?.actions.some((action) => action.id.includes('send.message'))).toBe(true)
     expect(slack?.triggers?.length).toBeGreaterThan(0)
+  })
+
+  it('can promote the full catalog to gateway-executable when a runtime executor is supplied', async () => {
+    const provider = createActivepiecesExecutorProvider({
+      executeAction: (invocation) => ({
+        ok: true,
+        action: invocation.request.action,
+        output: {
+          piece: invocation.piece.id,
+          package: invocation.piece.npmPackage,
+          actionId: invocation.piece.actionId,
+          input: invocation.request.input,
+        },
+      }),
+    })
+    const connectors = await provider.listConnectors()
+    const slack = connectors.find((connector) => connector.id === 'slack')
+    const send = slack?.actions.find((action) => action.risk !== 'read') ?? slack?.actions[0]
+
+    expect(connectors.length).toBeGreaterThanOrEqual(650)
+    expect(slack?.metadata).toMatchObject({
+      source: 'activepieces-community',
+      executable: true,
+      catalogOnly: false,
+      supportTier: 'gatewayExecutable',
+    })
+    expect(send).toBeDefined()
+
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+    })
+    await hub.upsertConnection({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'activepieces',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: [...(slack?.scopes ?? [])],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+    const capability = await hub.issueCapability({
+      subject: { type: 'sandbox', id: 's1' },
+      connectionId: 'conn-slack',
+      scopes: send!.requiredScopes,
+      allowedActions: [send!.id],
+      ttlMs: 60_000,
+    })
+    const result = await hub.invokeWithCapability(capability.token, {
+      action: send!.id,
+      input: { text: 'hello' },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.output).toMatchObject({ piece: 'slack', actionId: send!.id, input: { text: 'hello' } })
+  })
+
+  it('feeds executable catalog entries into the deduped registry and tool search path', async () => {
+    const provider = createActivepiecesExecutorProvider({
+      executeAction: () => ({ ok: true, action: 'noop' }),
+    })
+    const registry = composeIntegrationRegistry([
+      { id: 'activepieces', connectors: await provider.listConnectors() },
+    ])
+    const slack = registry.byId.get('slack')
+    const tools = buildIntegrationToolCatalog(registry.connectors)
+    const results = searchIntegrationTools(tools, 'send slack message', { maxRisk: 'write' })
+
+    expect(slack?.supportTier).toBe('gatewayExecutable')
+    expect(slack?.connector.metadata?.registry).toMatchObject({
+      supportTier: 'gatewayExecutable',
+      toolBindable: true,
+    })
+    expect(results.some((result) => result.tool.connectorId === 'slack')).toBe(true)
+  })
+
+  it('rejects unknown executable catalog actions before dispatching to the runtime', async () => {
+    let called = false
+    const provider = createActivepiecesExecutorProvider({
+      executeAction: () => {
+        called = true
+        return { ok: true, action: 'should-not-run' }
+      },
+    })
+
+    await expect(provider.invokeAction({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'activepieces',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: [],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }, {
+      connectionId: 'conn-slack',
+      action: 'not-a-real-action',
+    })).rejects.toMatchObject({ code: 'action_not_found' })
+    expect(called).toBe(false)
   })
 
   it('applies curated overrides for top connectors', () => {
