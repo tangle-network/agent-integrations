@@ -26,6 +26,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
 - [x] Adapter execution triage is documented in [`adapter-triage.md`](./adapter-triage.md).
 - [x] Activepieces community catalog can be promoted to executable actions through `createActivepiecesExecutorProvider`.
+- [x] Activepieces executable actions can dispatch through a signed HTTP runtime executor protocol.
 
 ## Tier 0 First-Party Promotion Queue
 

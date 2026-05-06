@@ -60,16 +60,10 @@ import {
 } from '@tangle-network/agent-integrations'
 
 const provider = createActivepiecesExecutorProvider({
-  async executeAction({ piece, request, connection }) {
-    return runInHardenedExecutor({
-      packageName: piece.npmPackage,
-      version: piece.version,
-      actionId: piece.actionId,
-      upstreamActionName: piece.upstreamActionName,
-      input: request.input,
-      connection,
-    })
-  },
+  executeAction: createActivepiecesHttpExecutor({
+    endpoint: 'https://id.tangle.tools/integration-runtime',
+    secret: process.env.ACTIVEPIECES_RUNTIME_SECRET,
+  }),
 })
 
 const hub = new IntegrationHub({ providers: [provider], store, capabilitySecret })

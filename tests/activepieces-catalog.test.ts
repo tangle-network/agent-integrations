@@ -3,11 +3,14 @@ import {
   buildActivepiecesConnectors,
   buildIntegrationToolCatalog,
   composeIntegrationRegistry,
+  createActivepiecesHttpExecutor,
   createActivepiecesExecutorProvider,
   InMemoryConnectionStore,
   IntegrationHub,
   listActivepiecesCatalogEntries,
   searchIntegrationTools,
+  verifyActivepiecesRuntimeSignature,
+  ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER,
 } from '../src/index'
 
 describe('Activepieces community catalog import', () => {
@@ -159,6 +162,51 @@ describe('Activepieces community catalog import', () => {
       action: 'not-a-real-action',
     })).rejects.toMatchObject({ code: 'action_not_found' })
     expect(called).toBe(false)
+  })
+
+  it('ships a signed HTTP runtime executor protocol for hardened workers', async () => {
+    let received: unknown
+    let signature: string | null = null
+    const executeAction = createActivepiecesHttpExecutor({
+      endpoint: 'https://runtime.example',
+      secret: 'runtime-secret',
+      requestId: () => 'req-1',
+      fetchImpl: async (_url, init) => {
+        signature = new Headers(init?.headers).get(ACTIVEPIECES_RUNTIME_SIGNATURE_HEADER)
+        received = JSON.parse(String(init?.body))
+        return Response.json({ ok: true, action: 'slack.send.message', output: { sent: true } })
+      },
+    })
+    const provider = createActivepiecesExecutorProvider({ executeAction })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.risk !== 'read')!
+    const result = await provider.invokeAction({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'activepieces',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: slack.scopes,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: { text: 'hello' },
+      idempotencyKey: 'idem-1',
+    })
+
+    const serialized = JSON.stringify(received)
+    expect(signature).toMatch(/^sha256=/)
+    expect(verifyActivepiecesRuntimeSignature(serialized, signature, 'runtime-secret')).toBe(true)
+    expect(received).toMatchObject({
+      version: 1,
+      requestId: 'req-1',
+      providerId: 'activepieces',
+      piece: { id: 'slack', actionId: action.id },
+      action: { id: action.id, input: { text: 'hello' }, idempotencyKey: 'idem-1' },
+    })
+    expect(result).toEqual({ ok: true, action: 'slack.send.message', output: { sent: true } })
   })
 
   it('applies curated overrides for top connectors', () => {
