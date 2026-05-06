@@ -25,6 +25,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [ ] Tier 0 write actions have idempotency and approval tests.
 - [x] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
 - [x] Adapter execution triage is documented in [`adapter-triage.md`](./adapter-triage.md).
+- [x] Activepieces community catalog can be promoted to executable actions through `createActivepiecesExecutorProvider`.
 
 ## Tier 0 First-Party Promotion Queue
 

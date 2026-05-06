@@ -24,6 +24,7 @@ export interface ActivepiecesCatalogEntry {
     id: string
     title: string
     risk: IntegrationActionRisk
+    upstreamName?: string
   }>
   triggers: Array<{
     id: string
@@ -60,8 +61,13 @@ export function listActivepiecesCatalogEntries(): ActivepiecesCatalogEntry[] {
   }))
 }
 
-export function buildActivepiecesConnectors(options: { providerId?: string; includeCatalogActions?: boolean } = {}): IntegrationConnector[] {
+export function buildActivepiecesConnectors(options: {
+  providerId?: string
+  includeCatalogActions?: boolean
+  executable?: boolean
+} = {}): IntegrationConnector[] {
   const providerId = options.providerId ?? 'activepieces'
+  const executable = options.executable === true
   return listActivepiecesCatalogEntries().map((entry) => {
     const override = getActivepiecesOverride(entry.id)
     const category = override?.category ?? entry.category
@@ -81,9 +87,10 @@ export function buildActivepiecesConnectors(options: { providerId?: string; incl
       triggers: options.includeCatalogActions ? catalogTriggers : undefined,
       metadata: {
         source: 'activepieces-community',
-        executable: false,
+        executable,
         runtime: 'activepieces-piece',
-        catalogOnly: true,
+        catalogOnly: !executable,
+        supportTier: executable ? 'gatewayExecutable' : 'catalogOnly',
         catalogActionCount: catalogActions.length,
         catalogTriggerCount: catalogTriggers.length,
         npmPackage: entry.npmPackage,
