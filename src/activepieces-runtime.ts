@@ -122,7 +122,16 @@ export function verifyActivepiecesRuntimeSignature(
   return left.length === right.length && timingSafeEqual(left, right)
 }
 
-export type TangleCatalogRuntimeRequest = ActivepiecesRuntimeRequest
+export interface TangleCatalogRuntimeRequest {
+  version: 1
+  requestId: string
+  providerId: string
+  connection: IntegrationConnection
+  connector: Pick<IntegrationConnector, 'id' | 'title' | 'auth' | 'scopes' | 'metadata'>
+  piece: TangleCatalogHttpExecutorInvocation['piece']
+  action: ActivepiecesRuntimeRequest['action']
+}
+
 export type TangleCatalogHttpExecutorOptions = ActivepiecesHttpExecutorOptions
 export interface TangleCatalogHttpExecutorInvocation extends Omit<ActivepiecesExecutorInvocation, 'catalogEntry' | 'piece'> {
   catalogEntry: unknown
@@ -138,24 +147,69 @@ export interface TangleCatalogHttpExecutorInvocation extends Omit<ActivepiecesEx
 export function createTangleCatalogHttpExecutor(
   options: TangleCatalogHttpExecutorOptions,
 ): (invocation: TangleCatalogHttpExecutorInvocation) => ReturnType<ActivepiecesExecutorProviderOptions['executeAction']> {
-  const execute = createActivepiecesHttpExecutor({
-    ...options,
-    path: options.path ?? '/v1/integration-catalog/actions/invoke',
-    signatureHeader: options.signatureHeader ?? TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
-  })
-  return (invocation) => execute({
-    ...invocation,
-    catalogEntry: invocation.catalogEntry as ActivepiecesExecutorInvocation['catalogEntry'],
-    piece: {
-      id: invocation.piece.id,
-      npmPackage: invocation.piece.packageName,
-      version: invocation.piece.version,
-      actionId: invocation.piece.actionId,
-      upstreamActionName: invocation.piece.upstreamActionName,
-    },
-  })
+  const endpoint = options.endpoint.replace(/\/$/, '')
+  const path = options.path ?? '/v1/integration-catalog/actions/invoke'
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const signatureHeader = options.signatureHeader ?? TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER
+  const fetchImpl = options.fetchImpl ?? fetch
+  const requestId = options.requestId ?? (() => `tcat_${randomUUID()}`)
+  return async (invocation) => {
+    const body = buildTangleCatalogRuntimeRequest(invocation, requestId())
+    const serialized = JSON.stringify(body)
+    const response = await fetchImpl(`${endpoint}${normalizedPath}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...options.headers,
+        ...(options.secret
+          ? { [signatureHeader]: signTangleCatalogRuntimeRequest(serialized, options.secret) }
+          : {}),
+      },
+      body: serialized,
+      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
+    })
+    const parsed = await response.json().catch(() => undefined) as IntegrationActionResult | undefined
+    if (!response.ok) {
+      return parsed ?? {
+        ok: false,
+        action: invocation.request.action,
+        output: { message: `Tangle catalog runtime returned HTTP ${response.status}.` },
+      }
+    }
+    return parsed ?? {
+      ok: false,
+      action: invocation.request.action,
+      output: { message: 'Tangle catalog runtime returned an empty response.' },
+    }
+  }
 }
 
-export const buildTangleCatalogRuntimeRequest = buildActivepiecesRuntimeRequest
+export function buildTangleCatalogRuntimeRequest(
+  invocation: TangleCatalogHttpExecutorInvocation,
+  requestId = `tcat_${randomUUID()}`,
+): TangleCatalogRuntimeRequest {
+  return {
+    version: 1,
+    requestId,
+    providerId: invocation.connection.providerId,
+    connection: invocation.connection,
+    connector: {
+      id: invocation.connector.id,
+      title: invocation.connector.title,
+      auth: invocation.connector.auth,
+      scopes: invocation.connector.scopes,
+      metadata: invocation.connector.metadata,
+    },
+    piece: invocation.piece,
+    action: {
+      id: invocation.request.action,
+      input: invocation.request.input,
+      idempotencyKey: invocation.request.idempotencyKey,
+      dryRun: invocation.request.dryRun,
+      metadata: invocation.request.metadata,
+    },
+  }
+}
+
 export const signTangleCatalogRuntimeRequest = signActivepiecesRuntimeRequest
 export const verifyTangleCatalogRuntimeSignature = verifyActivepiecesRuntimeSignature
