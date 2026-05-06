@@ -16,6 +16,7 @@ import {
   IntegrationHub,
   listActivepiecesCatalogEntries,
   listTangleIntegrationCatalogEntries,
+  listTangleIntegrationContracts,
   searchIntegrationTools,
   verifyTangleCatalogRuntimeSignature,
   TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
@@ -96,6 +97,23 @@ describe('Activepieces community catalog import', () => {
       expect.objectContaining({ key: 'apiKey', secret: true }),
     ]))
     expect(activeCampaign?.triggers.every((trigger) => typeof trigger.upstreamName === 'string')).toBe(true)
+  })
+
+  it('defines a first-class Tangle contract for every catalog connector', () => {
+    const contracts = listTangleIntegrationContracts()
+    const byId = new Map(contracts.map((contract) => [contract.id, contract]))
+    const gmail = byId.get('gmail')
+    const slack = byId.get('slack')
+
+    expect(contracts.length).toBeGreaterThanOrEqual(650)
+    expect(contracts.every((contract) => contract.quality.tangleContract)).toBe(true)
+    expect(contracts.every((contract) => contract.quality.actionNamesMapped)).toBe(true)
+    expect(contracts.every((contract) => contract.quality.triggerNamesMapped)).toBe(true)
+    expect(contracts.every((contract) => contract.quality.authFieldsMapped)).toBe(true)
+    expect(contracts.every((contract) => contract.quality.runtimePackageMapped)).toBe(true)
+    expect(gmail?.implementation.kind).toBe('package_runtime')
+    expect(gmail?.actions.some((action) => action.id.includes('gmail.search.mail'))).toBe(true)
+    expect(slack?.implementation.kind).toBe('native_adapter')
   })
 
   it('can promote the full catalog to gateway-executable when a runtime executor is supplied', async () => {

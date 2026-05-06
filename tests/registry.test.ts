@@ -33,6 +33,21 @@ describe('integration registry', () => {
     expect(JSON.stringify(slack?.connector)).not.toContain('activepieces')
   })
 
+  it('can treat the full Tangle catalog runtime as executable for product registries', () => {
+    const registry = buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })
+    const gmail = registry.byId.get('gmail')
+    const tools = buildIntegrationToolCatalog(registry.connectors)
+    const results = searchIntegrationTools(tools, 'search gmail mail', { maxRisk: 'read' })
+
+    expect(gmail?.supportTier).toBe('gatewayExecutable')
+    expect(gmail?.connector.metadata?.registry).toMatchObject({
+      supportTier: 'gatewayExecutable',
+      toolBindable: true,
+    })
+    expect(gmail?.connector.actions.some((action) => action.id === 'gmail.search.mail')).toBe(true)
+    expect(results.some((result) => result.tool.connectorId === 'gmail')).toBe(true)
+  })
+
   it('surfaces catalog conflicts instead of hiding mismatched facts', () => {
     const registry = buildDefaultIntegrationRegistry()
     const github = registry.byId.get('github')

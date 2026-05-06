@@ -25,6 +25,7 @@ contract.
 ## What It Provides
 
 - A normalized connector/action/trigger catalog.
+- First-class Tangle integration contracts for every catalog connector.
 - User-owned connection records that reference secrets without storing raw
   credentials in public shapes.
 - Short-lived capability tokens for sandbox-safe access to a subset of a user's
@@ -109,6 +110,7 @@ pnpm add @tangle-network/agent-integrations
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
 | `buildTangleIntegrationCatalogConnectors` | Broad normalized Tangle Integrations Catalog inventory for long-tail connection discovery. |
+| `listTangleIntegrationContracts` | First-class Tangle-owned action/trigger/auth/runtime contracts for every catalog connector. |
 | `createTangleCatalogExecutorProvider` | Promotes catalog entries to gateway-executable only when a runtime executor is explicitly supplied. |
 | `createTangleCatalogHttpExecutor` | Signed HTTP executor client for Tangle-hosted catalog runtimes. |
 | `createTangleCatalogRuntimeHandler` | Server-side `/v1/integration-catalog/actions/invoke` handler with signature, connector, and action validation. |
@@ -126,9 +128,9 @@ pnpm add @tangle-network/agent-integrations
 
 ## Catalog Registry
 
-Catalog breadth and runtime execution are separate. The Tangle Integrations
-Catalog gives the package broad connector inventory; first-party adapters and
-explicitly configured runtimes decide which connectors can actually run.
+Every catalog connector has a first-class Tangle contract. Native adapters and
+package runtimes are implementation backends behind that contract; product code
+should route through `IntegrationHub` either way.
 
 Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
 connection pickers. It produces one canonical connector per integration,
@@ -138,6 +140,10 @@ metadata, and marks each connector with a support tier:
 ```txt
 catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExecutable
 ```
+
+Use `buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })`
+when the Tangle catalog runtime is deployed and should be exposed as executable
+tools.
 
 See [Catalog Registry](./docs/catalog-registry.md).
 
