@@ -7,6 +7,7 @@ import {
   createTangleCatalogHttpExecutor,
   createTangleCatalogExecutorProvider,
   createTangleCatalogRuntimeHandler,
+  createTangleCatalogInstalledPackageExecutor,
   InMemoryConnectionStore,
   IntegrationHub,
   listActivepiecesCatalogEntries,
@@ -327,6 +328,116 @@ describe('Activepieces community catalog import', () => {
     expect(response.status).toBe(401)
     expect(response.body.output).toMatchObject({ code: 'signature_invalid' })
     expect(called).toBe(false)
+  })
+
+  it('can execute installed catalog runtime packages with explicit action aliases', async () => {
+    const runtime = createTangleCatalogRuntimeHandler({
+      secret: 'runtime-secret',
+      executeAction: createTangleCatalogInstalledPackageExecutor({
+        moduleLoader: async (packageName) => {
+          expect(packageName).toBe('@activepieces/piece-slack')
+          return {
+            slack: {
+              actions: [
+                {
+                  name: 'send_channel_message',
+                  displayName: 'Send Message To A Channel',
+                  run: async ({ propsValue, auth }: { propsValue: unknown; auth: unknown }) => ({ propsValue, auth }),
+                },
+              ],
+            },
+          }
+        },
+        actionAliases: {
+          slack: {
+            'slack.send.message': 'send_channel_message',
+          },
+        },
+        resolveAuth: (connection) => ({ secretRef: connection.secretRef?.id }),
+      }),
+    })
+    const executeAction = createTangleCatalogHttpExecutor({
+      endpoint: 'https://runtime.example',
+      secret: 'runtime-secret',
+      requestId: () => 'req-installed',
+      fetchImpl: async (_requestUrl, init) => {
+        const response = await runtime({
+          body: String(init?.body),
+          headers: new Headers(init?.headers),
+        })
+        return Response.json(response.body, { status: response.status, headers: response.headers })
+      },
+    })
+    const provider = createTangleCatalogExecutorProvider({ executeAction })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+    const result = await provider.invokeAction({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'tangle-catalog',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: slack.scopes,
+      secretRef: { provider: 'vault', id: 'secret-slack' },
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: { channel: 'C1', text: 'hello' },
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      action: 'slack.send.message',
+      output: {
+        propsValue: { channel: 'C1', text: 'hello' },
+        auth: { secretRef: 'secret-slack' },
+      },
+    })
+  })
+
+  it('returns explicit runtime errors when installed catalog packages are missing', async () => {
+    const runtime = createTangleCatalogRuntimeHandler({
+      secret: 'runtime-secret',
+      executeAction: createTangleCatalogInstalledPackageExecutor({
+        moduleLoader: async () => {
+          throw new Error('Cannot find package')
+        },
+      }),
+    })
+    const executeAction = createTangleCatalogHttpExecutor({
+      endpoint: 'https://runtime.example',
+      secret: 'runtime-secret',
+      requestId: () => 'req-missing-runtime',
+      fetchImpl: async (_requestUrl, init) => {
+        const response = await runtime({
+          body: String(init?.body),
+          headers: new Headers(init?.headers),
+        })
+        return Response.json(response.body, { status: response.status, headers: response.headers })
+      },
+    })
+    const provider = createTangleCatalogExecutorProvider({ executeAction })
+    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+    const result = await provider.invokeAction({
+      id: 'conn-slack',
+      owner: { type: 'user', id: 'u1' },
+      providerId: 'tangle-catalog',
+      connectorId: 'slack',
+      status: 'active',
+      grantedScopes: slack.scopes,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }, {
+      connectionId: 'conn-slack',
+      action: action.id,
+      input: { channel: 'C1', text: 'hello' },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.output).toMatchObject({ code: 'runtime_not_installed' })
   })
 
   it('applies curated overrides for top connectors', () => {

@@ -3,6 +3,7 @@ import {
   verifyTangleCatalogRuntimeSignature,
   type TangleCatalogRuntimeRequest,
 } from './activepieces-runtime.js'
+import { listActivepiecesCatalogEntries } from './activepieces-catalog.js'
 import { buildTangleIntegrationCatalogConnectors } from './tangle-catalog.js'
 import type {
   IntegrationActionResult,
@@ -25,6 +26,25 @@ export interface TangleCatalogRuntimeHandlerOptions {
   connectors?: IntegrationConnector[]
   maxBodyBytes?: number
   executeAction: (invocation: TangleCatalogRuntimeInvocation) => Promise<IntegrationActionResult> | IntegrationActionResult
+}
+
+export interface TangleCatalogInstalledPackageExecutorOptions {
+  moduleLoader?: (packageName: string) => Promise<unknown> | unknown
+  actionAliases?: Record<string, Record<string, string>>
+  resolveAuth?: (connection: IntegrationConnection) => Promise<unknown> | unknown
+  beforeRun?: (invocation: TangleCatalogRuntimeInvocation) => Promise<void> | void
+}
+
+export interface TangleCatalogRuntimeModuleAction {
+  name?: string
+  displayName?: string
+  run?: (context: {
+    auth: unknown
+    propsValue: unknown
+    input: unknown
+    connection: IntegrationConnection
+    request: TangleCatalogRuntimeRequest
+  }) => Promise<unknown> | unknown
 }
 
 export interface TangleCatalogRuntimeHttpRequest {
@@ -106,10 +126,139 @@ export function createTangleCatalogRuntimeHandler(options: TangleCatalogRuntimeH
   }
 }
 
+export function createTangleCatalogInstalledPackageExecutor(
+  options: TangleCatalogInstalledPackageExecutorOptions = {},
+): TangleCatalogRuntimeHandlerOptions['executeAction'] {
+  const packageByConnector = new Map(
+    listActivepiecesCatalogEntries()
+      .filter((entry) => entry.npmPackage)
+      .map((entry) => [entry.id, entry.npmPackage!]),
+  )
+  const moduleCache = new Map<string, Promise<unknown>>()
+
+  return async (invocation) => {
+    await options.beforeRun?.(invocation)
+    const packageName = packageByConnector.get(invocation.connector.id)
+    if (!packageName) {
+      return runtimeFailure(invocation.action.id, 'runtime_not_available', `No installed runtime package is known for connector ${invocation.connector.id}.`)
+    }
+
+    const loaded = await loadRuntimeModule(packageName, options.moduleLoader, moduleCache)
+    if (!loaded.ok) {
+      return runtimeFailure(invocation.action.id, 'runtime_not_installed', loaded.message)
+    }
+
+    const piece = findPieceExport(loaded.module, invocation.connector.id)
+    if (!piece) {
+      return runtimeFailure(invocation.action.id, 'runtime_invalid', `Runtime package ${packageName} does not export a recognizable piece for ${invocation.connector.id}.`)
+    }
+
+    const action = findRuntimeAction(piece, invocation, options.actionAliases)
+    if (!action?.run) {
+      return runtimeFailure(invocation.action.id, 'action_not_implemented', `Runtime package ${packageName} does not expose executable action ${invocation.action.id}.`)
+    }
+
+    try {
+      const output = await action.run({
+        auth: await options.resolveAuth?.(invocation.connection),
+        propsValue: invocation.request.action.input,
+        input: invocation.request.action.input,
+        connection: invocation.connection,
+        request: invocation.request,
+      })
+      return {
+        ok: true,
+        action: invocation.action.id,
+        output,
+      }
+    } catch (error) {
+      return runtimeFailure(
+        invocation.action.id,
+        'runtime_action_failed',
+        error instanceof Error ? error.message : 'Runtime action failed.',
+      )
+    }
+  }
+}
+
 function serializeBody(body: TangleCatalogRuntimeHttpRequest['body']): string {
   if (typeof body === 'string') return body
   if (body instanceof Uint8Array) return new TextDecoder().decode(body)
   return JSON.stringify(body)
+}
+
+async function loadRuntimeModule(
+  packageName: string,
+  moduleLoader: TangleCatalogInstalledPackageExecutorOptions['moduleLoader'],
+  moduleCache: Map<string, Promise<unknown>>,
+): Promise<{ ok: true; module: unknown } | { ok: false; message: string }> {
+  try {
+    const load = moduleLoader ?? ((name: string) => import(name))
+    const promise = moduleCache.get(packageName) ?? Promise.resolve(load(packageName))
+    moduleCache.set(packageName, promise)
+    return { ok: true, module: await promise }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error
+        ? `Runtime package ${packageName} could not be loaded: ${error.message}`
+        : `Runtime package ${packageName} could not be loaded.`,
+    }
+  }
+}
+
+function findPieceExport(moduleValue: unknown, connectorId: string): { actions?: unknown[] } | undefined {
+  const mod = moduleValue && typeof moduleValue === 'object' ? moduleValue as Record<string, unknown> : {}
+  const values = [
+    mod.default,
+    mod[camel(connectorId)],
+    mod[connectorId],
+    ...Object.values(mod),
+  ]
+  return values.find((value): value is { actions?: unknown[] } => (
+    Boolean(value)
+    && typeof value === 'object'
+    && Array.isArray((value as { actions?: unknown[] }).actions)
+  ))
+}
+
+function findRuntimeAction(
+  piece: { actions?: unknown[] },
+  invocation: TangleCatalogRuntimeInvocation,
+  aliases: TangleCatalogInstalledPackageExecutorOptions['actionAliases'] = {},
+): TangleCatalogRuntimeModuleAction | undefined {
+  const actions = (piece.actions ?? [])
+    .filter((action): action is TangleCatalogRuntimeModuleAction => Boolean(action) && typeof action === 'object')
+  const explicit = aliases[invocation.connector.id]?.[invocation.action.id]
+  const candidates = new Set([
+    invocation.action.id,
+    invocation.action.title,
+    invocation.request.piece.upstreamActionName,
+    explicit,
+  ].filter((value): value is string => Boolean(value)))
+
+  for (const action of actions) {
+    const names = [action.name, action.displayName].filter((value): value is string => Boolean(value))
+    if (names.some((name) => candidates.has(name))) return action
+    if (names.some((name) => [...candidates].some((candidate) => comparable(name) === comparable(candidate)))) return action
+  }
+  return undefined
+}
+
+function runtimeFailure(action: string, code: string, message: string): IntegrationActionResult {
+  return {
+    ok: false,
+    action,
+    output: { code, message },
+  }
+}
+
+function comparable(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function camel(value: string): string {
+  return value.replace(/[-_.]+([a-z0-9])/g, (_, char: string) => char.toUpperCase())
 }
 
 function parseRuntimeRequest(serialized: string):
