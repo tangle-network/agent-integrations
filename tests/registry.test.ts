@@ -4,7 +4,9 @@ import {
   buildIntegrationToolCatalog,
   canonicalConnectorId,
   composeIntegrationRegistry,
+  createConnectorAdapterCatalogSource,
   createMockIntegrationProvider,
+  googleCalendar,
   InMemoryConnectionStore,
   IntegrationHub,
   searchIntegrationTools,
@@ -79,6 +81,25 @@ describe('integration registry', () => {
       catalogOnlyActionCount: 1,
       toolBindable: true,
     })
+  })
+
+  it('composes real adapter manifests into registry sources without runtime credentials in the default registry', () => {
+    const adapterSource = createConnectorAdapterCatalogSource({
+      adapters: [googleCalendar({ clientId: 'test-client', clientSecret: 'test-secret' })],
+    })
+    const registry = composeIntegrationRegistry([
+      adapterSource,
+      ...[buildDefaultIntegrationRegistry({ includeActivepieces: false })].map((base) => ({
+        id: 'spec',
+        connectors: base.connectors,
+      })),
+    ])
+    const calendar = registry.byId.get('google-calendar')
+
+    expect(calendar?.supportTier).toBe('firstPartyExecutable')
+    expect(calendar?.connector.providerId).toBe('first-party')
+    expect(calendar?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['first-party', 'spec']))
+    expect(calendar?.connector.actions.map((action) => action.id).sort()).toEqual(['book_slot', 'list_availability'])
   })
 
   it('keeps pure catalog-only connectors discoverable but not tool-bindable', () => {

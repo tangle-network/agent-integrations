@@ -14,6 +14,7 @@ import type {
   IntegrationProviderKind,
 } from './index.js'
 import { IntegrationError } from './index.js'
+import type { IntegrationCatalogSource } from './registry.js'
 
 export interface ConnectorAdapterProviderOptions {
   id?: string
@@ -68,6 +69,27 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       }
       throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')
     },
+  }
+}
+
+export function adapterManifestsToConnectors(
+  adapters: ConnectorAdapter[],
+  providerId = 'first-party',
+): IntegrationConnector[] {
+  return adapters.map((adapter) => manifestToConnector(providerId, adapter))
+}
+
+export function createConnectorAdapterCatalogSource(options: {
+  id?: string
+  providerId?: string
+  adapters: ConnectorAdapter[]
+  precedence?: number
+}): IntegrationCatalogSource {
+  const sourceId = options.id ?? 'first-party'
+  return {
+    id: sourceId,
+    precedence: options.precedence,
+    connectors: adapterManifestsToConnectors(options.adapters, options.providerId ?? sourceId),
   }
 }
 

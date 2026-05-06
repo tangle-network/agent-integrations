@@ -24,6 +24,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [ ] Tier 0 connector failures are classified by auth, scope, rate-limit, provider outage, validation, approval, and conflict.
 - [ ] Tier 0 write actions have idempotency and approval tests.
 - [x] Provider gateway adapters can import/sync catalog metadata from Nango/Pipedream/Activepieces registries.
+- [x] Adapter execution triage is documented in [`adapter-triage.md`](./adapter-triage.md).
 
 ## Tier 0 First-Party Promotion Queue
 
@@ -37,7 +38,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [x] Generic webhook
 - [ ] Gmail
 - [ ] Outlook Mail
-- [ ] Outlook Calendar
+- [x] Outlook Calendar via `microsoft-calendar`
 - [ ] Google Drive
 - [ ] Google Docs
 - [ ] Microsoft Teams
@@ -60,7 +61,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 - [ ] Amazon S3
 - [ ] Calendly
 - [ ] Zoom
-- [ ] Microsoft Graph
+- [ ] Microsoft Graph broader graph pack
 - [ ] OpenAI
 - [ ] Figma
 
