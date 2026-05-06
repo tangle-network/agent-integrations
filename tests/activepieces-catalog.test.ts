@@ -17,8 +17,20 @@ import {
 
 describe('Activepieces community catalog import', () => {
   it('exposes Tangle-named catalog APIs for product-facing consumers', () => {
-    expect(listTangleIntegrationCatalogEntries().length).toBe(listActivepiecesCatalogEntries().length)
-    expect(buildTangleIntegrationCatalogConnectors().length).toBe(buildActivepiecesConnectors().length)
+    const entries = listTangleIntegrationCatalogEntries()
+    const connectors = buildTangleIntegrationCatalogConnectors()
+    const slack = connectors.find((connector) => connector.id === 'slack')
+
+    expect(entries.length).toBe(listActivepiecesCatalogEntries().length)
+    expect(connectors.length).toBe(buildActivepiecesConnectors().length)
+    expect(JSON.stringify(entries[0])).not.toContain('activepieces')
+    expect(slack?.providerId).toBe('tangle-catalog')
+    expect(slack?.metadata).toMatchObject({
+      source: 'tangle-integrations-catalog',
+      runtime: 'tangle-catalog-runtime',
+      providerId: 'tangle-catalog',
+    })
+    expect(JSON.stringify(slack)).not.toContain('activepieces')
   })
 
   it('vendors the MIT community connector catalog as normalized metadata', () => {
@@ -77,7 +89,7 @@ describe('Activepieces community catalog import', () => {
         action: invocation.request.action,
         output: {
           piece: invocation.piece.id,
-          package: invocation.piece.npmPackage,
+          package: invocation.piece.packageName,
           actionId: invocation.piece.actionId,
           input: invocation.request.input,
         },
@@ -89,10 +101,11 @@ describe('Activepieces community catalog import', () => {
 
     expect(connectors.length).toBeGreaterThanOrEqual(650)
     expect(slack?.metadata).toMatchObject({
-      source: 'activepieces-community',
+      source: 'tangle-integrations-catalog',
       executable: true,
       catalogOnly: false,
       supportTier: 'gatewayExecutable',
+      runtime: 'tangle-catalog-runtime',
     })
     expect(send).toBeDefined()
 
@@ -104,7 +117,7 @@ describe('Activepieces community catalog import', () => {
     await hub.upsertConnection({
       id: 'conn-slack',
       owner: { type: 'user', id: 'u1' },
-      providerId: 'activepieces',
+      providerId: 'tangle-catalog',
       connectorId: 'slack',
       status: 'active',
       grantedScopes: [...(slack?.scopes ?? [])],
@@ -132,7 +145,7 @@ describe('Activepieces community catalog import', () => {
       executeAction: () => ({ ok: true, action: 'noop' }),
     })
     const registry = composeIntegrationRegistry([
-      { id: 'activepieces', connectors: await provider.listConnectors() },
+      { id: 'tangle-catalog', connectors: await provider.listConnectors() },
     ])
     const slack = registry.byId.get('slack')
     const tools = buildIntegrationToolCatalog(registry.connectors)
@@ -158,7 +171,7 @@ describe('Activepieces community catalog import', () => {
     await expect(provider.invokeAction({
       id: 'conn-slack',
       owner: { type: 'user', id: 'u1' },
-      providerId: 'activepieces',
+      providerId: 'tangle-catalog',
       connectorId: 'slack',
       status: 'active',
       grantedScopes: [],
@@ -192,7 +205,7 @@ describe('Activepieces community catalog import', () => {
     const result = await provider.invokeAction({
       id: 'conn-slack',
       owner: { type: 'user', id: 'u1' },
-      providerId: 'activepieces',
+      providerId: 'tangle-catalog',
       connectorId: 'slack',
       status: 'active',
       grantedScopes: slack.scopes,
@@ -212,10 +225,11 @@ describe('Activepieces community catalog import', () => {
     expect(received).toMatchObject({
       version: 1,
       requestId: 'req-1',
-      providerId: 'activepieces',
+      providerId: 'tangle-catalog',
       piece: { id: 'slack', actionId: action.id },
       action: { id: action.id, input: { text: 'hello' }, idempotencyKey: 'idem-1' },
     })
+    expect(serialized).not.toContain('activepieces')
     expect(result).toEqual({ ok: true, action: 'slack.send.message', output: { sent: true } })
   })
 

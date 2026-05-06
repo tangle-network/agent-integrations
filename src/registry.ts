@@ -81,6 +81,7 @@ const DEFAULT_SOURCE_PRECEDENCE: Record<string, number> = {
   'first-party': 500,
   spec: 400,
   gateway: 300,
+  'tangle-catalog': 100,
   activepieces: 100,
   coverage: 50,
 }
@@ -95,10 +96,12 @@ const SUPPORT_RANK: Record<IntegrationSupportTier, number> = {
 
 export function buildDefaultIntegrationRegistry(options: {
   includeSpecs?: boolean
+  includeTangleCatalog?: boolean
+  /** @deprecated Use includeTangleCatalog. */
   includeActivepieces?: boolean
 } = {}): IntegrationRegistry {
   const includeSpecs = options.includeSpecs ?? true
-  const includeActivepieces = options.includeActivepieces ?? true
+  const includeTangleCatalog = options.includeTangleCatalog ?? options.includeActivepieces ?? true
   const sources: IntegrationCatalogSource[] = []
   if (includeSpecs) {
     sources.push({
@@ -106,10 +109,29 @@ export function buildDefaultIntegrationRegistry(options: {
       connectors: listIntegrationSpecs().map((spec) => integrationSpecToConnector(spec, 'spec')),
     })
   }
-  if (includeActivepieces) {
+  if (includeTangleCatalog) {
     sources.push({
-      id: 'activepieces',
-      connectors: buildActivepiecesConnectors(),
+      id: 'tangle-catalog',
+      connectors: buildActivepiecesConnectors({ providerId: 'tangle-catalog' }).map((connector) => ({
+        ...connector,
+        providerId: 'tangle-catalog',
+        metadata: {
+          source: 'tangle-integrations-catalog',
+          providerId: 'tangle-catalog',
+          executable: connector.metadata?.executable,
+          runtime: 'tangle-catalog-runtime',
+          catalogOnly: connector.metadata?.catalogOnly,
+          supportTier: connector.metadata?.supportTier,
+          catalogActionCount: connector.metadata?.catalogActionCount,
+          catalogTriggerCount: connector.metadata?.catalogTriggerCount,
+          license: connector.metadata?.license,
+          version: connector.metadata?.version,
+          domains: Array.isArray(connector.metadata?.domains)
+            ? connector.metadata.domains.filter((domain) => typeof domain === 'string' && !domain.toLowerCase().includes('activepieces'))
+            : undefined,
+          ...(connector.metadata?.overridden ? { overridden: true } : {}),
+        },
+      })),
     })
   }
   return composeIntegrationRegistry(sources)
@@ -188,7 +210,12 @@ export function inferIntegrationSupportTier(connector: IntegrationConnector): In
   if (metadata.source === 'first-party-adapter' || connector.providerId === 'first-party') return 'firstPartyExecutable'
   if (metadata.source === 'gateway-catalog' && metadata.executable === true) return 'gatewayExecutable'
   if (metadata.source === 'integration-spec') return 'setupReady'
-  if (metadata.source === 'coverage-catalog' || metadata.source === 'activepieces-community' || metadata.catalogOnly === true) return 'catalogOnly'
+  if (
+    metadata.source === 'coverage-catalog'
+    || metadata.source === 'activepieces-community'
+    || metadata.source === 'tangle-integrations-catalog'
+    || metadata.catalogOnly === true
+  ) return 'catalogOnly'
   if (connector.actions.length > 0) return 'gatewayExecutable'
   return 'catalogOnly'
 }

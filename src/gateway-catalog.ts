@@ -17,7 +17,7 @@ import { IntegrationError } from './index.js'
 
 export interface GatewayCatalogProviderOptions {
   id: string
-  kind: Extract<IntegrationProviderKind, 'nango' | 'pipedream' | 'activepieces' | 'zapier' | 'executor' | 'custom'>
+  kind: Extract<IntegrationProviderKind, 'nango' | 'pipedream' | 'activepieces' | 'tangle_catalog' | 'zapier' | 'executor' | 'custom'>
   fetchCatalog: () => Promise<GatewayCatalogEntry[]> | GatewayCatalogEntry[]
   startAuth?: (request: StartAuthRequest) => Promise<StartAuthResult> | StartAuthResult
   completeAuth?: (request: CompleteAuthRequest) => Promise<IntegrationConnection> | IntegrationConnection

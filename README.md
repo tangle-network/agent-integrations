@@ -41,7 +41,7 @@ contract.
 - A canonical registry that deduplicates overlapping catalogs, keeps support
   tiers explicit, and reports auth/category conflicts.
 - App/agent manifests, grants, and sandbox bundles so Builder, generated apps,
-  vertical agents, Blueprint Agent, and executor-backed runtimes can reuse the
+  domain agents, Blueprint Agent, and executor-backed runtimes can reuse the
   same user-owned connections safely.
 - Workflow trigger installation and normalized event dispatch for non-agent UI
   automation, sync jobs, webhooks, and product workflows.

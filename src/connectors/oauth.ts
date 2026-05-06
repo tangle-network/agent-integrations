@@ -150,6 +150,8 @@ export interface ExchangeCodeInput {
   code: string
   codeVerifier: string
   redirectUri: string
+  fetchImpl?: typeof fetch
+  signal?: AbortSignal
 }
 
 export interface OAuthTokens {
@@ -172,10 +174,11 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
     redirect_uri: input.redirectUri,
     code_verifier: input.codeVerifier,
   })
-  const res = await fetch(input.tokenUrl, {
+  const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
     body,
+    signal: input.signal,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -202,6 +205,8 @@ export interface RefreshInput {
   clientId: string
   clientSecret: string
   refreshToken: string
+  fetchImpl?: typeof fetch
+  signal?: AbortSignal
 }
 
 /** Refresh an access token. Returns the new tokens — the connector layer
@@ -213,10 +218,11 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     client_secret: input.clientSecret,
     refresh_token: input.refreshToken,
   })
-  const res = await fetch(input.tokenUrl, {
+  const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
     body,
+    signal: input.signal,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')

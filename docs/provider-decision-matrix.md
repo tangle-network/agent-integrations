@@ -29,7 +29,7 @@ priority.
 
 | Criterion | 1 | 3 | 5 |
 | --- | --- | --- | --- |
-| User demand | Rarely requested | Common in one vertical | Needed across many products/agents |
+| User demand | Rarely requested | Common in one domain | Needed across many products/agents |
 | Workflow criticality | Nice-to-have read path | Useful but recoverable | Blocks core product value |
 | Data sensitivity | Public/low-risk | Private business data | Regulated, financial, legal, health, secrets |
 | Write risk | Read-only | Reversible writes | Money movement, external comms, destructive writes |
