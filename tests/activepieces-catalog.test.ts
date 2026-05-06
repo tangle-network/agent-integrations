@@ -229,6 +229,7 @@ describe('Activepieces community catalog import', () => {
       piece: { id: 'slack', actionId: action.id },
       action: { id: action.id, input: { text: 'hello' }, idempotencyKey: 'idem-1' },
     })
+    expect(serialized).not.toContain('activepieces')
     expect(result).toEqual({ ok: true, action: 'slack.send.message', output: { sent: true } })
   })
 
