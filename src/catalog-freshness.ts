@@ -2,8 +2,11 @@ import {
   buildActivepiecesConnectors,
   listActivepiecesCatalogEntries,
 } from './activepieces-catalog.js'
+import { createActivepiecesExecutorProvider } from './activepieces-provider.js'
+import { buildIntegrationToolCatalog } from './catalog.js'
 import {
   buildDefaultIntegrationRegistry,
+  composeIntegrationRegistry,
   type IntegrationRegistryConflict,
   type IntegrationRegistrySummary,
   summarizeIntegrationRegistry,
@@ -24,6 +27,11 @@ export interface IntegrationCatalogFreshnessResult {
     activepiecesConnectors: number
     activepiecesActions: number
     activepiecesTriggers: number
+    executableActivepiecesConnectors: number
+    executableActivepiecesActions: number
+    executableActivepiecesTriggers: number
+    executableToolDefinitions: number
+    unsupportedExecutableConnectorIds: string[]
     registryEntries: number
     registrySummary: IntegrationRegistrySummary
     conflictSamples: IntegrationRegistryConflict[]
@@ -60,6 +68,20 @@ export async function auditIntegrationCatalogFreshness(
   const activepiecesConnectors = buildActivepiecesConnectors({
     includeCatalogActions: true,
   })
+  const executableActivepiecesProvider = createActivepiecesExecutorProvider({
+    executeAction: () => ({ ok: true, action: 'audit.noop' }),
+  })
+  const executableActivepiecesConnectors = await executableActivepiecesProvider.listConnectors()
+  const executableRegistry = composeIntegrationRegistry([
+    {
+      id: executableActivepiecesProvider.id,
+      connectors: executableActivepiecesConnectors,
+    },
+  ])
+  const executableTools = buildIntegrationToolCatalog(executableRegistry.connectors)
+  const unsupportedExecutableConnectorIds = executableActivepiecesConnectors
+    .filter((connector) => connector.actions.length === 0)
+    .map((connector) => connector.id)
   const registry = buildDefaultIntegrationRegistry({
     includeSpecs: true,
     includeActivepieces: true,
@@ -69,6 +91,16 @@ export async function auditIntegrationCatalogFreshness(
   if (activepiecesConnectors.length < minActivepiecesConnectors) {
     warnings.push(
       `Activepieces catalog has ${activepiecesConnectors.length} connectors, below floor ${minActivepiecesConnectors}.`,
+    )
+  }
+  if (unsupportedExecutableConnectorIds.length > 0) {
+    warnings.push(
+      `Activepieces executable provider has ${unsupportedExecutableConnectorIds.length} connectors without actions.`,
+    )
+  }
+  if (executableTools.length < activepiecesEntries.length) {
+    warnings.push(
+      `Activepieces executable provider produced only ${executableTools.length} tool definitions for ${activepiecesEntries.length} entries.`,
     )
   }
 
@@ -96,6 +128,17 @@ export async function auditIntegrationCatalogFreshness(
         (sum, connector) => sum + (connector.triggers?.length ?? 0),
         0,
       ),
+      executableActivepiecesConnectors: executableActivepiecesConnectors.length,
+      executableActivepiecesActions: executableActivepiecesConnectors.reduce(
+        (sum, connector) => sum + connector.actions.length,
+        0,
+      ),
+      executableActivepiecesTriggers: executableActivepiecesConnectors.reduce(
+        (sum, connector) => sum + (connector.triggers?.length ?? 0),
+        0,
+      ),
+      executableToolDefinitions: executableTools.length,
+      unsupportedExecutableConnectorIds,
       registryEntries: registry.entries.length,
       registrySummary: summarizeIntegrationRegistry(registry),
       conflictSamples: registry.entries
