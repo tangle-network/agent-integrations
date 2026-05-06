@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -38,6 +38,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "audit:execution": "pnpm build >/dev/null && node scripts/audit-integration-execution.mjs",
     "prepare": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
