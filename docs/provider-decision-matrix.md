@@ -74,9 +74,9 @@ Use gateway-backed coverage for the next large tranche:
 - long-tail CRM/support/helpdesk systems
 - vendor-specific workflow triggers
 
-This gives Agent Builder useful breadth immediately without forcing us to own
-hundreds of OAuth apps, refresh-token edge cases, webhook subscription models,
-rate-limit policies, and provider-specific APIs on day one.
+This gives products useful breadth immediately without forcing every team to
+own hundreds of OAuth apps, refresh-token edge cases, webhook subscription
+models, rate-limit policies, and provider-specific APIs on day one.
 
 ## When To Roll Our Own
 

@@ -63,7 +63,7 @@ import {
 
 const provider = createTangleCatalogExecutorProvider({
   executeAction: createTangleCatalogHttpExecutor({
-    endpoint: 'https://id.tangle.tools/integration-runtime',
+    endpoint: 'https://integrations.example.com/integration-runtime',
     secret: process.env.TANGLE_CATALOG_RUNTIME_SECRET,
   }),
 })
