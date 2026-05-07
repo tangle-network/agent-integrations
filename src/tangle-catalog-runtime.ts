@@ -16,6 +16,12 @@ import type {
   IntegrationSecretStore,
 } from './index.js'
 
+export {
+  TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
+  signTangleCatalogRuntimeRequest,
+  verifyTangleCatalogRuntimeSignature,
+}
+
 export interface TangleCatalogRuntimeInvocation {
   request: TangleCatalogRuntimeRequest
   connection: IntegrationConnection
