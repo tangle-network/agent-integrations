@@ -1,21 +1,28 @@
 # @tangle-network/agent-integrations
 
-Vendor-neutral integration contracts for agent apps, sandboxes, and generated
-software that need user-authorized access to external systems.
+Integration infrastructure for agent products, sandbox apps, and generated
+software.
 
-The package standardizes connector catalogs, user connections, scoped sandbox
-capabilities, action invocation, trigger events, provider adapters, and
-first-party connector adapters. Product code can route through hosted gateways,
-custom runtimes, or first-party adapters without changing the agent-facing tool
-contract.
+Use this package when users connect external accounts and agents or apps need
+controlled read/write access to those accounts. It gives products one stable
+contract for connector discovery, OAuth/API-key connections, scoped sandbox
+capabilities, action invocation, workflow triggers, approval, audit,
+healthchecks, and provider/runtime adapters.
+
+The product keeps ownership of UI, tenant policy, persistence, and secret
+storage. `agent-integrations` keeps the runtime contract stable so generated
+apps and agents do not depend on a specific OAuth broker, workflow vendor, or
+provider SDK.
 
 ## Contents
 
 - [What It Provides](#what-it-provides)
 - [Architecture](#architecture)
 - [Install](#install)
+- [Quick Start](#quick-start)
 - [Core Primitives](#core-primitives)
 - [Catalog Registry](#catalog-registry)
+- [Product Adoption](#product-adoption)
 - [Provider Strategy](#provider-strategy)
 - [Executable Coverage](#executable-coverage)
 - [Examples](#examples)
@@ -25,7 +32,7 @@ contract.
 ## What It Provides
 
 - A normalized connector/action/trigger catalog.
-- First-class Tangle integration contracts for every catalog connector.
+- Tangle integration contracts for every catalog connector.
 - User-owned connection records that reference secrets without storing raw
   credentials in public shapes.
 - Short-lived capability tokens for sandbox-safe access to a subset of a user's
@@ -37,8 +44,8 @@ contract.
   runtimes, and internal connector registries.
 - A first-party `ConnectorAdapter` boundary for direct provider execution.
 - A declarative REST adapter factory for promoting REST APIs from reviewed specs.
-- A broad coverage catalog for planning hundreds of integrations without
-  pretending every catalog item is executable.
+- A broad catalog for discovering hundreds of integrations while keeping
+  executable backend state explicit.
 - A canonical registry that deduplicates overlapping catalogs, keeps support
   tiers explicit, and reports auth/category conflicts.
 - App/agent manifests, grants, and sandbox bundles so Builder, generated apps,
@@ -57,8 +64,10 @@ contract.
 ## Architecture
 
 ```txt
-connector catalog
+connector contract
   -> user connection
+  -> app/agent manifest
+  -> grant
   -> scoped capability
   -> policy decision
   -> provider/action invocation
@@ -79,6 +88,63 @@ Main boundaries:
 ```sh
 pnpm add @tangle-network/agent-integrations
 ```
+
+## Quick Start
+
+```ts
+import {
+  buildDefaultIntegrationRegistry,
+  buildIntegrationToolCatalog,
+  createIntegrationRuntime,
+  createPlatformIntegrationPolicyPreset,
+  InMemoryConnectionStore,
+  IntegrationHub,
+} from '@tangle-network/agent-integrations'
+
+const registry = buildDefaultIntegrationRegistry({
+  tangleCatalogRuntimeExecutable: false,
+})
+
+const hub = new IntegrationHub({
+  providers: [/* native, gateway, or catalog-runtime providers */],
+  store: productConnectionStore ?? new InMemoryConnectionStore(),
+  capabilitySecret: process.env.INTEGRATION_CAPABILITY_SECRET!,
+  policy: createPlatformIntegrationPolicyPreset(),
+})
+
+const runtime = createIntegrationRuntime({
+  hub,
+  grants: productGrantStore,
+})
+
+const tools = buildIntegrationToolCatalog(registry.connectors)
+```
+
+For a generated app or sandbox:
+
+```ts
+const resolution = await runtime.resolveManifest(manifest, user)
+
+if (resolution.missing.length > 0) {
+  // Show connect UI using IntegrationSpec renderers.
+}
+
+await runtime.createGrants({
+  manifest,
+  owner: user,
+  grantee: { type: 'app', id: manifest.id },
+})
+
+const bundle = await runtime.buildSandboxBundle({
+  manifestId: manifest.id,
+  subject: { type: 'sandbox', id: sandboxId },
+  ttlMs: 15 * 60_000,
+})
+```
+
+Generated code calls your product integration endpoint with the scoped
+capability bundle. It never receives provider refresh tokens, API keys, or raw
+OAuth credentials.
 
 ## Core Primitives
 
@@ -129,9 +195,9 @@ pnpm add @tangle-network/agent-integrations
 
 ## Catalog Registry
 
-Every catalog connector has a first-class Tangle contract. Native adapters and
-package runtimes are implementation backends behind that contract; product code
-should route through `IntegrationHub` either way.
+Every catalog connector has a Tangle contract. Native adapters, hosted gateways,
+and package runtimes are implementation backends behind that contract; product
+code should route through `IntegrationHub` either way.
 
 Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
 connection pickers. It produces one canonical connector per integration,
@@ -144,16 +210,16 @@ catalogOnly < setupReady < gatewayExecutable < firstPartyExecutable < sandboxExe
 
 Use `buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })`
 when the Tangle catalog runtime is deployed and should be exposed as executable
-tools. These states describe the backend currently wired into a product, not
-whether the connector has a first-class Tangle contract.
+tools. These states describe the backend currently wired into a product. They
+do not change the connector contract.
 
 See [Catalog Registry](./docs/catalog-registry.md).
 
-## App And Agent Grants
+## Product Adoption
 
 Use `IntegrationManifest` for any app or agent that needs integrations:
-Agent Builder-generated apps, tax/legal/GTM/creative agents, Blueprint Agent
-sandboxes, and executor-backed workflows all use the same shape.
+generated apps, domain agents, sandbox agents, workflow apps, and
+executor-backed runtimes all use the same shape.
 
 ```ts
 const runtime = createIntegrationRuntime({ hub, grants })
@@ -203,6 +269,9 @@ await workflows.install({
 That installs provider trigger subscriptions against the user's connection and
 lets the product dispatch normalized events to UI workflows, sync jobs, or
 agent runs.
+
+For a full product checklist, see
+[External Product Integration](./docs/external-product-integration.md).
 
 ## Provider Strategy
 
