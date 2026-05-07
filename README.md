@@ -25,6 +25,7 @@ provider SDK.
 - [Product Adoption](#product-adoption)
 - [Provider Strategy](#provider-strategy)
 - [Executable Coverage](#executable-coverage)
+- [Product Hub Ownership](#product-hub-ownership)
 - [Examples](#examples)
 - [Security Model](#security-model)
 - [Development](#development)
@@ -48,9 +49,9 @@ provider SDK.
   executable backend state explicit.
 - A canonical registry that deduplicates overlapping catalogs, keeps support
   tiers explicit, and reports auth/category conflicts.
-- App/agent manifests, grants, and sandbox bundles so Builder, generated apps,
-  domain agents, Blueprint Agent, and executor-backed runtimes can reuse the
-  same user-owned connections safely.
+- App/agent manifests, grants, and sandbox bundles so generated apps, domain
+  agents, and executor-backed runtimes can reuse the same user-owned
+  connections safely.
 - Workflow trigger installation and normalized event dispatch for non-agent UI
   automation, sync jobs, webhooks, and product workflows.
 - Approval persistence, audit events, healthchecks, credential resolution,
@@ -246,7 +247,7 @@ Generated app code should use the tiny client instead of raw provider tokens:
 
 ```ts
 const integrations = createTangleIntegrationsClient({
-  endpoint: 'https://id.tangle.tools',
+  endpoint: 'https://integrations.example.com',
   env: process.env,
 })
 
@@ -272,6 +273,16 @@ agent runs.
 
 For a full product checklist, see
 [External Product Integration](./docs/external-product-integration.md).
+
+## Product Hub Ownership
+
+Use a hosted hub when multiple apps intentionally share identity, billing,
+consent, and connection custody. Use a product-owned hub when a standalone
+deployment needs its own customer boundary, OAuth branding, vault, policy, or
+data residency. Both modes use the same package contracts.
+
+See [Product Hub Ownership](./docs/product-hub-ownership.md) for the
+deployment model and launch gates.
 
 ## Provider Strategy
 
