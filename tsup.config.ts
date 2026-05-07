@@ -3,7 +3,13 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    catalog: 'src/catalog.ts',
+    registry: 'src/registry.ts',
+    runtime: 'src/runtime.ts',
     specs: 'src/specs/index.ts',
+    'connectors/index': 'src/connectors/index.ts',
+    'connectors/adapters/index': 'src/connectors/adapters/index.ts',
+    'tangle-catalog-runtime': 'src/tangle-catalog-runtime.ts',
     'bin/tangle-catalog-runtime': 'src/bin/tangle-catalog-runtime.ts',
   },
   format: ['esm'],

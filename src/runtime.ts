@@ -77,6 +77,7 @@ export interface IntegrationGrantStore {
   put(grant: IntegrationGrant): Promise<void> | void
   listByManifest(manifestId: string, grantee?: IntegrationActor): Promise<IntegrationGrant[]> | IntegrationGrant[]
   listByGrantee(grantee: IntegrationActor): Promise<IntegrationGrant[]> | IntegrationGrant[]
+  listByIds?(grantIds: string[]): Promise<IntegrationGrant[]> | IntegrationGrant[]
   delete?(grantId: string): Promise<void> | void
 }
 
@@ -138,6 +139,11 @@ export class InMemoryIntegrationGrantStore implements IntegrationGrantStore {
 
   listByGrantee(grantee: IntegrationActor): IntegrationGrant[] {
     return [...this.grants.values()].filter((grant) => sameActor(grant.grantee, grantee))
+  }
+
+  listByIds(grantIds: string[]): IntegrationGrant[] {
+    const wanted = new Set(grantIds)
+    return [...this.grants.values()].filter((grant) => wanted.has(grant.id))
   }
 
   delete(grantId: string): void {
@@ -207,13 +213,13 @@ export class IntegrationRuntime {
   }
 
   async buildSandboxBundle(input: {
-    manifestId: string
+    manifestId?: string
+    grantIds?: string[]
     subject: IntegrationActor
     ttlMs: number
     grantee?: IntegrationActor
   }): Promise<IntegrationSandboxBundle> {
-    const grants = (await this.grants.listByManifest(input.manifestId, input.grantee))
-      .filter((grant) => grant.status === 'active')
+    const grants = await this.resolveBundleGrants(input)
     const registry = await this.registry()
     const bindings: IntegrationCapabilityBinding[] = []
     const connectors: IntegrationConnector[] = []
@@ -255,13 +261,50 @@ export class IntegrationRuntime {
     }
 
     return {
-      manifestId: input.manifestId,
+      manifestId: input.manifestId ?? grants[0]?.manifestId ?? 'explicit-grants',
       subject: input.subject,
       capabilities: bindings,
       connectors,
       tools: buildIntegrationToolCatalog(connectors),
       expiresAt,
     }
+  }
+
+  private async resolveBundleGrants(input: {
+    manifestId?: string
+    grantIds?: string[]
+    grantee?: IntegrationActor
+  }): Promise<IntegrationGrant[]> {
+    if (input.grantIds?.length) {
+      const uniqueGrantIds = unique(input.grantIds)
+      const grants = this.grants.listByIds
+        ? await this.grants.listByIds(uniqueGrantIds)
+        : await Promise.all(uniqueGrantIds.map((grantId) => this.grants.get(grantId)))
+      const found = grants.filter((grant): grant is IntegrationGrant => Boolean(grant))
+      const foundIds = new Set(found.map((grant) => grant.id))
+      const missing = uniqueGrantIds.filter((grantId) => !foundIds.has(grantId))
+      if (missing.length > 0) {
+        throw new Error(`Cannot build integration bundle; unknown grant id(s): ${missing.join(', ')}`)
+      }
+      const badGrantee = input.grantee
+        ? found.find((grant) => !sameActor(grant.grantee, input.grantee!))
+        : undefined
+      if (badGrantee) {
+        throw new Error(`Cannot build integration bundle; grant ${badGrantee.id} belongs to a different grantee.`)
+      }
+      const badManifest = input.manifestId
+        ? found.find((grant) => grant.manifestId !== input.manifestId)
+        : undefined
+      if (badManifest) {
+        throw new Error(`Cannot build integration bundle; grant ${badManifest.id} is not for manifest ${input.manifestId}.`)
+      }
+      return found.filter((grant) => grant.status === 'active')
+    }
+    if (!input.manifestId) {
+      throw new Error('Cannot build integration bundle; manifestId or grantIds is required.')
+    }
+    return (await this.grants.listByManifest(input.manifestId, input.grantee))
+      .filter((grant) => grant.status === 'active')
   }
 }
 

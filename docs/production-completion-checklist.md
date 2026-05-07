@@ -20,6 +20,8 @@ provider credentials.
 - [x] Persistent grants from user-owned connections to apps, agents, sandboxes,
       and generated software.
 - [x] Sandbox bundles with short-lived capability tokens and tool definitions.
+- [x] Explicit grant-id bundle issuance for installed apps, published templates,
+      and durable app instances.
 - [x] Bridge payload/env helpers for sandbox processes and executor-style CLIs.
 - [x] Sandbox invocation host that validates envelopes before hub invocation and
       normalizes success, failure, and approval-required results.
