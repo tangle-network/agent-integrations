@@ -12,8 +12,8 @@ const consent = renderConsentSummary(manifest, { appName: 'Exercise Planner' })
 
 console.log(consent.body)
 
-// In production this bundle comes from id.tangle.tools after the user grants
-// the generated app access to their Google Calendar connection.
+// In production this bundle comes from the product integration hub after the
+// user grants the generated app access to their Google Calendar connection.
 const bundle: IntegrationSandboxBundle = {
   manifestId: manifest.id,
   subject: { type: 'sandbox', id: 'sandbox_preview_1' },
@@ -64,7 +64,7 @@ const bundle: IntegrationSandboxBundle = {
 
 const env = buildIntegrationBridgeEnvironment(bundle)
 const client = createTangleIntegrationsClient({
-  endpoint: 'https://id.tangle.tools',
+  endpoint: 'https://integrations.example.com',
   env,
 })
 
