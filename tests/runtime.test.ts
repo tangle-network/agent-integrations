@@ -41,6 +41,60 @@ describe('IntegrationRuntime app and agent grants', () => {
     expect(resolution.missing.map((r) => r.requirement.id)).toEqual(['gmail-write'])
   })
 
+  it('does not include destructive actions for implicit write requirements', async () => {
+    const store = new InMemoryConnectionStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider({
+        connectors: [{
+          id: 'files',
+          providerId: 'mock',
+          title: 'Files',
+          category: 'storage',
+          auth: 'oauth2',
+          scopes: ['files.read', 'files.write'],
+          actions: [
+            { id: 'files.search', title: 'Search files', risk: 'read', requiredScopes: ['files.read'], dataClass: 'private' },
+            { id: 'files.update', title: 'Update file', risk: 'write', requiredScopes: ['files.write'], dataClass: 'private' },
+            { id: 'files.delete', title: 'Delete file', risk: 'destructive', requiredScopes: ['files.write'], dataClass: 'private' },
+          ],
+        }],
+      })],
+      store,
+      capabilitySecret: 'secret',
+    })
+    const runtime = createIntegrationRuntime({
+      hub,
+      grants: new InMemoryIntegrationGrantStore(),
+    })
+    await hub.upsertConnection({
+      id: 'conn_files',
+      owner,
+      providerId: 'mock',
+      connectorId: 'files',
+      status: 'active',
+      grantedScopes: ['files.read', 'files.write'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+
+    const resolution = await runtime.resolveManifest({
+      id: 'files-workflow',
+      requirements: [{ id: 'files-write', connectorId: 'files', mode: 'write', reason: 'Update file metadata.' }],
+    }, owner)
+    const grants = await runtime.createGrants({
+      manifest: {
+        id: 'files-workflow',
+        requirements: [{ id: 'files-write', connectorId: 'files', mode: 'write', reason: 'Update file metadata.' }],
+      },
+      owner,
+      grantee: app,
+    })
+
+    expect(resolution.ready.map((item) => item.requirement.id)).toEqual(['files-write'])
+    expect(grants[0]?.allowedActions).toEqual(['files.update'])
+    expect(grants[0]?.allowedActions).not.toContain('files.delete')
+  })
+
   it('creates grants and injects scoped sandbox capabilities for generated apps', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({

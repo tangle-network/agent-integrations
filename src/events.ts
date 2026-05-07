@@ -59,10 +59,14 @@ export async function receiveIntegrationWebhook(input: {
   headers: Record<string, string | string[] | undefined>
   store: IntegrationEventStore
   workflowRuntime?: IntegrationWorkflowRuntime
+  allowUnsignedWebhook?: boolean
   now?: () => Date
 }): Promise<IntegrationWebhookReceiverResult> {
   if (!input.adapter.handleInboundEvent) {
     return { status: 405, body: { ok: false, error: 'Connector does not support inbound webhooks.' }, received: [], duplicates: [] }
+  }
+  if (!input.adapter.verifySignature && !input.allowUnsignedWebhook) {
+    return { status: 401, body: { ok: false, error: 'Webhook signature verification is required.' }, received: [], duplicates: [] }
   }
   const signature = input.adapter.verifySignature?.({
     rawBody: input.rawBody,

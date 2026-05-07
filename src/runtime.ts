@@ -406,7 +406,7 @@ function requiredActions(requirement: IntegrationRequirement, connector: Integra
   if (requirement.requiredActions?.length) return unique(requirement.requiredActions)
   const actions = connector.actions.filter((action) => {
     if (requirement.mode === 'read') return action.risk === 'read'
-    if (requirement.mode === 'write') return action.risk !== 'read'
+    if (requirement.mode === 'write') return action.risk === 'write'
     return false
   })
   return unique(actions.map((action) => action.id))

@@ -277,6 +277,43 @@ describe('production integration primitives', () => {
     expect(store.list()).toHaveLength(1)
   })
 
+  it('fails closed for unsigned webhook adapters unless explicitly allowed', async () => {
+    const store = new InMemoryIntegrationEventStore()
+    const source = sourceFor('conn_notes')
+    const unsignedAdapter: ConnectorAdapter = {
+      ...notesAdapter,
+      async handleInboundEvent(input) {
+        const body = JSON.parse(input.rawBody) as { id: string }
+        return {
+          events: [{
+            eventType: 'note.created',
+            providerEventId: body.id,
+            payload: { id: body.id },
+          }],
+        }
+      },
+    }
+
+    const rejected = await receiveIntegrationWebhook({
+      adapter: unsignedAdapter,
+      source,
+      rawBody: '{"id":"evt_unsigned"}',
+      headers: {},
+      store,
+    })
+    const allowed = await receiveIntegrationWebhook({
+      adapter: unsignedAdapter,
+      source,
+      rawBody: '{"id":"evt_unsigned"}',
+      headers: {},
+      store,
+      allowUnsignedWebhook: true,
+    })
+
+    expect(rejected.status).toBe(401)
+    expect(allowed.received).toHaveLength(1)
+  })
+
   it('dispatches sandbox invocation envelopes through the hub and normalizes failures', async () => {
     const store = new InMemoryConnectionStore()
     const provider = createConnectorAdapterProvider({
