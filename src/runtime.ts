@@ -222,6 +222,9 @@ export class IntegrationRuntime {
     grantee?: IntegrationActor
   }): Promise<IntegrationSandboxBundle> {
     const grants = await this.resolveBundleGrants(input)
+    if (grants.length === 0) {
+      throw new Error('Cannot build integration bundle; no active integration grants matched the request.')
+    }
     const registry = await this.registry()
     const bindings: IntegrationCapabilityBinding[] = []
     const connectors: IntegrationConnector[] = []

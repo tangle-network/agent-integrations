@@ -237,6 +237,24 @@ describe('IntegrationRuntime app and agent grants', () => {
     })).rejects.toThrow(/different owner/)
   })
 
+  it('fails closed when no active grants match a bundle request', async () => {
+    const store = new InMemoryConnectionStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store,
+      capabilitySecret: 'secret',
+    })
+    const runtime = createIntegrationRuntime({ hub })
+
+    await expect(runtime.buildSandboxBundle({
+      owner,
+      manifestId: 'missing-manifest',
+      grantee: app,
+      subject: sandbox,
+      ttlMs: 60_000,
+    })).rejects.toThrow(/no active integration grants/)
+  })
+
   it('fails closed when a grant points at another owner connection', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({
