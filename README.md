@@ -238,6 +238,17 @@ const bundle = await runtime.buildSandboxBundle({
 })
 ```
 
+Installed apps and published templates can bind to explicit pre-created grants:
+
+```ts
+const bundle = await runtime.buildSandboxBundle({
+  grantIds: ['grant_calendar_read'],
+  grantee: { type: 'app', id: installedAppId },
+  subject: { type: 'sandbox', id: sandboxId },
+  ttlMs: 15 * 60_000,
+})
+```
+
 Generated apps and sandboxes receive scoped capability tokens and tool
 definitions. They never receive OAuth refresh tokens, API keys, or raw secrets.
 For sandbox processes, pass the bundle through `buildIntegrationBridgeEnvironment()`;
@@ -272,7 +283,8 @@ lets the product dispatch normalized events to UI workflows, sync jobs, or
 agent runs.
 
 For a full product checklist, see
-[External Product Integration](./docs/external-product-integration.md).
+[External Product Integration](./docs/external-product-integration.md) and
+[Platform Control Plane Adoption](./docs/platform-control-plane.md).
 
 ## Product Hub Ownership
 

@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.25.2",
+  "version": "0.25.3",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -19,10 +19,40 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./catalog": {
+      "types": "./dist/catalog.d.ts",
+      "import": "./dist/catalog.js",
+      "default": "./dist/catalog.js"
+    },
+    "./connectors": {
+      "types": "./dist/connectors/index.d.ts",
+      "import": "./dist/connectors/index.js",
+      "default": "./dist/connectors/index.js"
+    },
+    "./connectors/adapters": {
+      "types": "./dist/connectors/adapters/index.d.ts",
+      "import": "./dist/connectors/adapters/index.js",
+      "default": "./dist/connectors/adapters/index.js"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.js",
+      "default": "./dist/registry.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
     "./specs": {
       "types": "./dist/specs.d.ts",
       "import": "./dist/specs.js",
       "default": "./dist/specs.js"
+    },
+    "./tangle-catalog-runtime": {
+      "types": "./dist/tangle-catalog-runtime.d.ts",
+      "import": "./dist/tangle-catalog-runtime.js",
+      "default": "./dist/tangle-catalog-runtime.js"
     }
   },
   "bin": {

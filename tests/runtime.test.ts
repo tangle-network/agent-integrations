@@ -87,6 +87,91 @@ describe('IntegrationRuntime app and agent grants', () => {
     )).toBe(true)
   })
 
+  it('builds bundles from explicit grant ids for installed templates and durable app instances', async () => {
+    const store = new InMemoryConnectionStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store,
+      capabilitySecret: 'secret',
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    })
+    const grantStore = new InMemoryIntegrationGrantStore()
+    const runtime = createIntegrationRuntime({
+      hub,
+      grants: grantStore,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    })
+    await hub.upsertConnection({
+      id: 'conn_gmail',
+      owner,
+      providerId: 'mock',
+      connectorId: 'gmail',
+      status: 'active',
+      grantedScopes: ['email.read', 'email.write'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+
+    const grants = await runtime.createGrants({
+      manifest: dailyOpsManifest,
+      owner,
+      grantee: app,
+      metadata: { installId: 'install_1' },
+    })
+    const readOnlyBundle = await runtime.buildSandboxBundle({
+      grantIds: [grants[0]!.id],
+      grantee: app,
+      subject: sandbox,
+      ttlMs: 60_000,
+    })
+
+    expect(readOnlyBundle.manifestId).toBe(dailyOpsManifest.id)
+    expect(readOnlyBundle.capabilities).toHaveLength(1)
+    expect(readOnlyBundle.tools.map((tool) => tool.action.id)).toEqual(['messages.search'])
+    expect(readOnlyBundle.tools.map((tool) => tool.action.id)).not.toContain('drafts.create')
+  })
+
+  it('fails closed when explicit bundle grant ids are missing or owned by another grantee', async () => {
+    const store = new InMemoryConnectionStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store,
+      capabilitySecret: 'secret',
+    })
+    const runtime = createIntegrationRuntime({
+      hub,
+      grants: new InMemoryIntegrationGrantStore(),
+    })
+    await hub.upsertConnection({
+      id: 'conn_gmail',
+      owner,
+      providerId: 'mock',
+      connectorId: 'gmail',
+      status: 'active',
+      grantedScopes: ['email.read', 'email.write'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+
+    const grants = await runtime.createGrants({
+      manifest: dailyOpsManifest,
+      owner,
+      grantee: app,
+    })
+
+    await expect(runtime.buildSandboxBundle({
+      grantIds: ['grant_missing'],
+      subject: sandbox,
+      ttlMs: 60_000,
+    })).rejects.toThrow(/unknown grant id/)
+    await expect(runtime.buildSandboxBundle({
+      grantIds: [grants[0]!.id],
+      grantee: { type: 'app', id: 'other-app' },
+      subject: sandbox,
+      ttlMs: 60_000,
+    })).rejects.toThrow(/different grantee/)
+  })
+
   it('works for domain agents and Blueprint-style sandbox context injection', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({
