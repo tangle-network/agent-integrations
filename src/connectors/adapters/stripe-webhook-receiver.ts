@@ -7,11 +7,9 @@
  * verify the signature, persist one `InboundEvent` per Stripe event so the
  * agent's runtime can react (e.g. payment_failed → outbound dunning call).
  *
- * Why a dedicated `kind: 'stripe'` rather than reusing the billing webhook
- * at /api/billing/stripe-webhook: that route is hard-coded for OUR Stripe
- * account (Builder subscription state). This connector is for the customer's
- * OWN Stripe account — they paste their `whsec_*` and we listen on a
- * per-DataSource URL, /api/webhooks/inbound/stripe/:dataSourceId.
+ * This connector is for the connected account owner: they paste their
+ * `whsec_*` and the consuming product listens on a per-data-source URL such
+ * as /api/webhooks/inbound/stripe/:dataSourceId.
  *
  * Signature scheme: Stripe's `t=<unix>,v1=<hmac>` header. HMAC is
  * sha256(`${t}.${rawBody}`) keyed by the customer's webhook secret. We use

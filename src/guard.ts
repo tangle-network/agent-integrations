@@ -45,23 +45,36 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
   private readonly idempotency: IntegrationIdempotencyStore | undefined
   private readonly audit: IntegrationAuditSink | undefined
   private readonly rateLimiter: IntegrationRateLimiter | undefined
+  private readonly requireIdempotencyForMutations: boolean
   private readonly now: () => Date
 
   constructor(options: {
     idempotency?: IntegrationIdempotencyStore
     audit?: IntegrationAuditSink
     rateLimiter?: IntegrationRateLimiter
+    requireIdempotencyForMutations?: boolean
     now?: () => Date
   } = {}) {
     this.idempotency = options.idempotency
     this.audit = options.audit
     this.rateLimiter = options.rateLimiter
+    this.requireIdempotencyForMutations = options.requireIdempotencyForMutations ?? false
     this.now = options.now ?? (() => new Date())
   }
 
   async invokeAction(ctx: IntegrationGuardContext, proceed: () => Promise<IntegrationActionResult>): Promise<IntegrationActionResult> {
     const idempotencyKey = ctx.request.idempotencyKey
     const requestHash = hashRequest(ctx)
+    if (this.requireIdempotencyForMutations && ctx.action?.risk !== 'read' && !idempotencyKey) {
+      return {
+        ok: false,
+        action: ctx.request.action,
+        output: {
+          idempotencyRequired: true,
+          message: 'State-changing integration actions require an idempotency key.',
+        },
+      }
+    }
     if (idempotencyKey && this.idempotency) {
       const existing = await this.idempotency.get(idempotencyKey)
       if (existing) {

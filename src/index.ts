@@ -414,6 +414,10 @@ export class IntegrationHub {
     return this.store.listByOwner(owner)
   }
 
+  async getConnection(connectionId: string): Promise<IntegrationConnection | undefined> {
+    return this.store.get(connectionId)
+  }
+
   async issueCapability(request: IssueCapabilityRequest): Promise<IssuedIntegrationCapability> {
     const connection = await this.requireConnection(request.connectionId)
     this.assertConnectionActive(connection)
