@@ -142,6 +142,30 @@ describe('production integration primitives', () => {
     expect(audit.list({ type: 'action.invoked' })).toHaveLength(1)
   })
 
+  it('can require idempotency keys for state-changing actions', async () => {
+    const guard = new DefaultIntegrationActionGuard({
+      idempotency: new InMemoryIntegrationIdempotencyStore(),
+      requireIdempotencyForMutations: true,
+    })
+    const ctx = {
+      connection: activeConnection('conn_notes'),
+      request: { connectionId: 'conn_notes', action: 'notes.create', input: { title: 'A' } },
+      action: { id: 'notes.create', title: 'Create', risk: 'write' as const, requiredScopes: [], dataClass: 'private' as const },
+    }
+
+    const missingKey = await guard.invokeAction(ctx, async () => ({ ok: true, action: 'notes.create' }))
+    const withKey = await guard.invokeAction({
+      ...ctx,
+      request: { ...ctx.request, idempotencyKey: 'idem-required' },
+    }, async () => ({ ok: true, action: 'notes.create' }))
+
+    expect(missingKey).toMatchObject({
+      ok: false,
+      output: { idempotencyRequired: true },
+    })
+    expect(withKey.ok).toBe(true)
+  })
+
   it('refreshes expired oauth credentials without exposing raw secrets in connection records', async () => {
     const secrets = new InMemoryIntegrationSecretStore()
     const connections = new InMemoryConnectionStore()
@@ -183,6 +207,7 @@ describe('production integration primitives', () => {
     await store.put(activeConnection('conn_notes'))
     await runtime.createGrants({ manifest: notesManifest, owner, grantee: { type: 'app', id: 'notes-app' } })
     const bundle = await runtime.buildSandboxBundle({
+      owner,
       manifestId: notesManifest.id,
       grantee: { type: 'app', id: 'notes-app' },
       subject: sandbox,

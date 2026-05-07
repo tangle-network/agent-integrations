@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildDefaultIntegrationRegistry,
+  buildIntegrationCatalogView,
   buildIntegrationToolCatalog,
   canonicalConnectorId,
   composeIntegrationRegistry,
@@ -46,6 +47,48 @@ describe('integration registry', () => {
     })
     expect(gmail?.connector.actions.some((action) => action.id === 'gmail.search.mail')).toBe(true)
     expect(results.some((result) => result.tool.connectorId === 'gmail')).toBe(true)
+  })
+
+  it('builds a catalog view that separates discovery tools from runtime tools', () => {
+    const discoveryRegistry = composeIntegrationRegistry([
+      {
+        id: 'setup',
+        connectors: [connector({
+          id: 'setup-only',
+          providerId: 'setup',
+          actions: [{ id: 'messages.post', title: 'Post message', risk: 'write' }],
+          metadata: { source: 'spec', supportTier: 'setupReady' },
+        })],
+      },
+      {
+        id: 'first-party',
+        connectors: [connector({
+          id: 'runtime',
+          providerId: 'first-party',
+          actions: [{ id: 'messages.send', title: 'Send message', risk: 'write' }],
+          metadata: { source: 'first-party-adapter', executable: true },
+        })],
+      },
+    ])
+    const executableRegistry = composeIntegrationRegistry([
+      {
+        id: 'first-party',
+        connectors: [connector({
+          id: 'runtime',
+          providerId: 'first-party',
+          actions: [{ id: 'messages.send', title: 'Send message', risk: 'write' }],
+          metadata: { source: 'first-party-adapter', executable: true },
+        })],
+      },
+    ])
+    const view = buildIntegrationCatalogView({ discoveryRegistry, executableRegistry })
+
+    expect(view.discoveryTools.length).toBeGreaterThan(view.runtimeTools.length)
+    expect(view.tools).toBe(view.runtimeTools)
+    expect(view.discoveryTools.some((tool) => tool.connectorId === 'setup-only')).toBe(true)
+    expect(view.runtimeTools.some((tool) => tool.connectorId === 'setup-only')).toBe(false)
+    expect(view.runtimeTools.every((tool) => tool.runnable !== false)).toBe(true)
+    expect(view.summary.bySupportTier.setupReady).toBe(1)
   })
 
   it('surfaces catalog conflicts instead of hiding mismatched facts', () => {

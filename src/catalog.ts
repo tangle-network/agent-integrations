@@ -5,6 +5,12 @@ import type {
   IntegrationActionRisk,
   IntegrationDataClass,
 } from './index.js'
+import {
+  summarizeIntegrationRegistry,
+  type IntegrationRegistry,
+  type IntegrationRegistrySummary,
+  type IntegrationSupportTier,
+} from './registry.js'
 
 export interface IntegrationToolDefinition {
   name: string
@@ -21,6 +27,17 @@ export interface IntegrationToolDefinition {
   inputSchema?: unknown
   outputSchema?: unknown
   tags: string[]
+  supportTier?: IntegrationSupportTier
+  runnable?: boolean
+}
+
+export interface IntegrationCatalogView {
+  connectors: IntegrationConnector[]
+  conflicts: IntegrationRegistry['entries'][number]['conflicts']
+  summary: IntegrationRegistrySummary
+  tools: IntegrationToolDefinition[]
+  runtimeTools: IntegrationToolDefinition[]
+  discoveryTools: IntegrationToolDefinition[]
 }
 
 export interface IntegrationToolSearchFilters {
@@ -97,10 +114,31 @@ export function buildIntegrationToolCatalog(connectors: IntegrationConnector[]):
         inputSchema: action.inputSchema,
         outputSchema: action.outputSchema,
         tags,
+        supportTier: toolSupportTier(connector),
+        runnable: toolRunnable(connector),
       })
     }
   }
   return tools
+}
+
+export function buildIntegrationCatalogView(input: {
+  discoveryRegistry: IntegrationRegistry
+  executableRegistry?: IntegrationRegistry
+}): IntegrationCatalogView {
+  const runtimeConnectors =
+    input.executableRegistry?.connectors ??
+    input.discoveryRegistry.connectors.filter((connector) => toolRunnable(connector))
+  const runtimeTools = buildIntegrationToolCatalog(runtimeConnectors)
+  const discoveryTools = buildIntegrationToolCatalog(input.discoveryRegistry.connectors)
+  return {
+    connectors: input.discoveryRegistry.connectors,
+    conflicts: input.discoveryRegistry.entries.flatMap((entry) => entry.conflicts),
+    summary: summarizeIntegrationRegistry(input.discoveryRegistry),
+    tools: runtimeTools,
+    runtimeTools,
+    discoveryTools,
+  }
 }
 
 export function searchIntegrationTools(
@@ -174,4 +212,34 @@ function decodeToolPart(value: string): string {
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)]
+}
+
+function toolSupportTier(connector: IntegrationConnector): IntegrationSupportTier | undefined {
+  const registry = connector.metadata?.registry
+  if (registry && typeof registry === 'object' && !Array.isArray(registry)) {
+    const supportTier = (registry as { supportTier?: unknown }).supportTier
+    return isIntegrationSupportTier(supportTier) ? supportTier : undefined
+  }
+  const supportTier = connector.metadata?.supportTier
+  return isIntegrationSupportTier(supportTier) ? supportTier : undefined
+}
+
+function toolRunnable(connector: IntegrationConnector): boolean {
+  const registry = connector.metadata?.registry
+  if (registry && typeof registry === 'object' && !Array.isArray(registry)) {
+    const toolBindable = (registry as { toolBindable?: unknown }).toolBindable
+    if (typeof toolBindable === 'boolean') return toolBindable
+  }
+  const tier = toolSupportTier(connector)
+  return tier === 'gatewayExecutable' || tier === 'firstPartyExecutable' || tier === 'sandboxExecutable'
+}
+
+function isIntegrationSupportTier(value: unknown): value is IntegrationSupportTier {
+  return (
+    value === 'catalogOnly' ||
+    value === 'setupReady' ||
+    value === 'gatewayExecutable' ||
+    value === 'firstPartyExecutable' ||
+    value === 'sandboxExecutable'
+  )
 }

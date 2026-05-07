@@ -104,6 +104,7 @@ export interface IntegrationSandboxBundle {
 export interface IntegrationRuntimeHub {
   listRegistry(): Promise<IntegrationRegistry> | IntegrationRegistry
   listConnections(owner: IntegrationActor): Promise<IntegrationConnection[]> | IntegrationConnection[]
+  getConnection(connectionId: string): Promise<IntegrationConnection | undefined> | IntegrationConnection | undefined
   issueCapability(input: {
     subject: IntegrationActor
     connectionId: string
@@ -215,6 +216,7 @@ export class IntegrationRuntime {
   async buildSandboxBundle(input: {
     manifestId?: string
     grantIds?: string[]
+    owner: IntegrationActor
     subject: IntegrationActor
     ttlMs: number
     grantee?: IntegrationActor
@@ -226,6 +228,16 @@ export class IntegrationRuntime {
     let expiresAt = ''
 
     for (const grant of grants) {
+      const connection = await this.hub.getConnection(grant.connectionId)
+      if (!connection) {
+        throw new Error(`Cannot build integration bundle; connection ${grant.connectionId} not found.`)
+      }
+      if (!sameActor(connection.owner, input.owner)) {
+        throw new Error(`Cannot build integration bundle; connection ${connection.id} belongs to a different owner.`)
+      }
+      if (connection.status !== 'active') {
+        throw new Error(`Cannot build integration bundle; connection ${connection.id} is ${connection.status}.`)
+      }
       const entry = registry.byId.get(grant.connectorId)
       if (!entry) continue
       const connector = {
@@ -273,6 +285,7 @@ export class IntegrationRuntime {
   private async resolveBundleGrants(input: {
     manifestId?: string
     grantIds?: string[]
+    owner: IntegrationActor
     grantee?: IntegrationActor
   }): Promise<IntegrationGrant[]> {
     if (input.grantIds?.length) {
@@ -286,6 +299,10 @@ export class IntegrationRuntime {
       if (missing.length > 0) {
         throw new Error(`Cannot build integration bundle; unknown grant id(s): ${missing.join(', ')}`)
       }
+      const badOwner = found.find((grant) => !sameActor(grant.owner, input.owner))
+      if (badOwner) {
+        throw new Error(`Cannot build integration bundle; grant ${badOwner.id} belongs to a different owner.`)
+      }
       const badGrantee = input.grantee
         ? found.find((grant) => !sameActor(grant.grantee, input.grantee!))
         : undefined
@@ -298,12 +315,17 @@ export class IntegrationRuntime {
       if (badManifest) {
         throw new Error(`Cannot build integration bundle; grant ${badManifest.id} is not for manifest ${input.manifestId}.`)
       }
-      return found.filter((grant) => grant.status === 'active')
+      const inactive = found.find((grant) => grant.status !== 'active')
+      if (inactive) {
+        throw new Error(`Cannot build integration bundle; grant ${inactive.id} is ${inactive.status}.`)
+      }
+      return found
     }
     if (!input.manifestId) {
       throw new Error('Cannot build integration bundle; manifestId or grantIds is required.')
     }
     return (await this.grants.listByManifest(input.manifestId, input.grantee))
+      .filter((grant) => sameActor(grant.owner, input.owner))
       .filter((grant) => grant.status === 'active')
   }
 }

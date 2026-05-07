@@ -71,6 +71,7 @@ describe('IntegrationRuntime app and agent grants', () => {
       grantee: app,
     })
     const bundle = await runtime.buildSandboxBundle({
+      owner,
       manifestId: dailyOpsManifest.id,
       grantee: app,
       subject: sandbox,
@@ -119,6 +120,7 @@ describe('IntegrationRuntime app and agent grants', () => {
       metadata: { installId: 'install_1' },
     })
     const readOnlyBundle = await runtime.buildSandboxBundle({
+      owner,
       grantIds: [grants[0]!.id],
       grantee: app,
       subject: sandbox,
@@ -160,16 +162,72 @@ describe('IntegrationRuntime app and agent grants', () => {
     })
 
     await expect(runtime.buildSandboxBundle({
+      owner,
       grantIds: ['grant_missing'],
       subject: sandbox,
       ttlMs: 60_000,
     })).rejects.toThrow(/unknown grant id/)
     await expect(runtime.buildSandboxBundle({
+      owner,
       grantIds: [grants[0]!.id],
       grantee: { type: 'app', id: 'other-app' },
       subject: sandbox,
       ttlMs: 60_000,
     })).rejects.toThrow(/different grantee/)
+    await expect(runtime.buildSandboxBundle({
+      owner: { type: 'user', id: 'user_2' },
+      grantIds: [grants[0]!.id],
+      grantee: app,
+      subject: sandbox,
+      ttlMs: 60_000,
+    })).rejects.toThrow(/different owner/)
+  })
+
+  it('fails closed when a grant points at another owner connection', async () => {
+    const store = new InMemoryConnectionStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store,
+      capabilitySecret: 'secret',
+    })
+    const grantStore = new InMemoryIntegrationGrantStore()
+    const runtime = createIntegrationRuntime({
+      hub,
+      grants: grantStore,
+    })
+    await hub.upsertConnection({
+      id: 'conn_gmail_other_owner',
+      owner: { type: 'user', id: 'user_2' },
+      providerId: 'mock',
+      connectorId: 'gmail',
+      status: 'active',
+      grantedScopes: ['email.read'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+    await grantStore.put({
+      id: 'grant_cross_owner',
+      manifestId: dailyOpsManifest.id,
+      requirementId: 'gmail-read',
+      owner,
+      grantee: app,
+      connectionId: 'conn_gmail_other_owner',
+      connectorId: 'gmail',
+      scopes: ['email.read'],
+      allowedActions: ['messages.search'],
+      allowedTriggers: [],
+      status: 'active',
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    })
+
+    await expect(runtime.buildSandboxBundle({
+      owner,
+      grantIds: ['grant_cross_owner'],
+      grantee: app,
+      subject: sandbox,
+      ttlMs: 60_000,
+    })).rejects.toThrow(/different owner/)
   })
 
   it('works for domain agents and Blueprint-style sandbox context injection', async () => {
@@ -197,6 +255,7 @@ describe('IntegrationRuntime app and agent grants', () => {
       grantee: { type: 'agent', id: 'tax-agent' },
     })
     const bundle = await runtime.buildSandboxBundle({
+      owner,
       manifestId: taxResearchManifest.id,
       grantee: { type: 'agent', id: 'tax-agent' },
       subject: { type: 'sandbox', id: 'blueprint-sandbox' },
