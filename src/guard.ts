@@ -114,7 +114,9 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
 
     try {
       const result = await proceed()
-      await this.writeIdempotency(idempotencyKey, requestHash, result)
+      if (result.ok) {
+        await this.writeIdempotency(idempotencyKey, requestHash, result)
+      }
       await this.audit?.record(createIntegrationAuditEvent({
         type: result.ok ? 'action.invoked' : 'action.failed',
         actor: ctx.connection.owner,

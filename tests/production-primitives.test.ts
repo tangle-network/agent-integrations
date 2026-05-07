@@ -97,6 +97,103 @@ describe('production integration primitives', () => {
     expect(audit.list({ type: 'approval.resolved' })).toHaveLength(1)
   })
 
+  it('checks idempotency before approval policy for write retries', async () => {
+    let mutations = 0
+    const approvals = new InMemoryIntegrationApprovalStore()
+    const audit = new InMemoryIntegrationAuditStore()
+    const idempotency = new InMemoryIntegrationIdempotencyStore()
+    const store = new InMemoryConnectionStore()
+    const provider = createConnectorAdapterProvider({
+      adapters: [{
+        ...notesAdapter,
+        async executeMutation(invocation) {
+          mutations += 1
+          return { status: 'committed', data: invocation.args, committedAt: 1, idempotentReplay: false }
+        },
+      }],
+      resolveDataSource: (connection) => sourceFor(connection.id),
+    })
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store,
+      capabilitySecret: 'secret',
+      guard: new DefaultIntegrationActionGuard({
+        idempotency,
+        requireIdempotencyForMutations: true,
+      }),
+      policy: new ApprovalBackedPolicyEngine({
+        base: createDefaultIntegrationPolicyEngine({ now: () => new Date('2026-05-05T00:00:00.000Z') }),
+        store: approvals,
+        audit,
+        now: () => new Date('2026-05-05T00:00:00.000Z'),
+      }),
+    })
+    await store.put(activeConnection('conn_notes'))
+    const capability = await hub.issueCapability({
+      subject: sandbox,
+      connectionId: 'conn_notes',
+      scopes: [],
+      allowedActions: ['notes.create'],
+      ttlMs: 60_000,
+    })
+
+    const missingKey = await hub.invokeWithCapability(capability.token, {
+      action: 'notes.create',
+      input: { title: 'Launch' },
+    })
+    expect(missingKey).toMatchObject({
+      ok: false,
+      output: { idempotencyRequired: true },
+    })
+    expect(approvals.list()).toHaveLength(0)
+
+    const blocked = await hub.invokeWithCapability(capability.token, {
+      action: 'notes.create',
+      input: { title: 'Launch' },
+      idempotencyKey: 'write-idem',
+    })
+    expect(blocked).toMatchObject({
+      ok: false,
+      output: { approvalRequired: true },
+    })
+    expect(await idempotency.get('write-idem')).toBeUndefined()
+
+    const approval = approvals.list({ status: 'pending' })[0]
+    await resolveIntegrationApproval({
+      store: approvals,
+      approvalId: approval.id,
+      approved: true,
+      resolvedBy: owner,
+      audit,
+    })
+    const committed = await hub.invokeWithCapability(capability.token, {
+      action: 'notes.create',
+      input: { title: 'Launch' },
+      idempotencyKey: 'write-idem',
+      metadata: { approvalId: approval.id },
+    })
+    const replay = await hub.invokeWithCapability(capability.token, {
+      action: 'notes.create',
+      input: { title: 'Launch' },
+      idempotencyKey: 'write-idem',
+      metadata: { approvalId: approval.id },
+    })
+    const conflict = await hub.invokeWithCapability(capability.token, {
+      action: 'notes.create',
+      input: { title: 'Different' },
+      idempotencyKey: 'write-idem',
+      metadata: { approvalId: approval.id },
+    })
+
+    expect(committed.ok).toBe(true)
+    expect(replay.metadata?.idempotentReplay).toBe(true)
+    expect(conflict).toMatchObject({
+      ok: false,
+      output: { idempotencyConflict: true },
+    })
+    expect(mutations).toBe(1)
+  })
+
   it('guards idempotency, dry-run mutations, and audit records', async () => {
     let calls = 0
     const audit = new InMemoryIntegrationAuditStore()

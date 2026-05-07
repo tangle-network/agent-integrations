@@ -458,7 +458,8 @@ export class IntegrationHub {
     assertScopes(connection, action.requiredScopes)
     assertScopes({ ...connection, grantedScopes: capability.scopes }, action.requiredScopes)
     const fullRequest: IntegrationActionRequest = { ...request, connectionId: connection.id }
-    if (this.policy) {
+    const proceed = async () => {
+      if (!this.policy) return provider.invokeAction(connection, fullRequest)
       const decision = await this.policy.decide({
         connection,
         request: fullRequest,
@@ -476,8 +477,8 @@ export class IntegrationHub {
           metadata: { policyDecision: decision.decision, reason: decision.reason, ...decision.metadata },
         }
       }
+      return provider.invokeAction(connection, fullRequest)
     }
-    const proceed = () => Promise.resolve(provider.invokeAction(connection, fullRequest))
     if (this.guard) {
       return this.guard.invokeAction({ connection, request: fullRequest, action }, proceed)
     }
