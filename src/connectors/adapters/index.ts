@@ -44,3 +44,18 @@ export { gitlabConnector } from './gitlab.js'
 export { airtableConnector } from './airtable.js'
 export { asanaConnector } from './asana.js'
 export { salesforceConnector } from './salesforce.js'
+
+export {
+  tangleIdentity,
+  createTangleIdentityClient,
+  DEFAULT_TANGLE_PLATFORM_URL,
+  TANGLE_API_KEY_PREFIX,
+  TANGLE_SERVICE_TOKEN_PREFIX,
+  TangleIdentityUnreachableError,
+  type TangleIdentityClient,
+  type TangleIdentityOptions,
+  type TangleTokenVerifyFailure,
+  type TangleTokenVerifyResult,
+  type TangleUserSummary,
+  type TangleWorkspaceSummary,
+} from './tangle-id.js'

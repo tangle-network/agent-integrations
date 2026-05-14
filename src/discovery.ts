@@ -260,3 +260,60 @@ function toTrigger(
     connectionId: connection?.id,
   }
 }
+
+/**
+ * Filter a {@link WorkspaceCapabilityDiscovery} result by the calling
+ * user's effective id.tangle.tools workspace scopes. Pair with the
+ * `tangleIdentity()` adapter's `list_workspaces` / `switch_workspace`
+ * output to keep what the agent runtime sees aligned with what the
+ * workspace's plan actually permits.
+ *
+ * Semantics:
+ *   - Every workspace scope is matched against every capability's
+ *     `scopes` list. Wildcard scopes (`tangle:*`, `<connectorId>:*`) are
+ *     respected — a workspace with `tangle:*` sees everything; a
+ *     workspace with `gmail:*` sees every gmail capability regardless of
+ *     the upstream OAuth scope.
+ *   - When `workspaceScopes` is empty, returns the discovery as-is (no
+ *     workspace gate). Pass an explicit `denyByDefault: true` to flip
+ *     that to "empty workspace sees nothing" — matches the platform's
+ *     fail-closed posture for production tenants.
+ *
+ * Pure with respect to the inputs — no side effects.
+ */
+export function filterDiscoveryByWorkspaceScopes(
+  discovery: WorkspaceCapabilityDiscovery,
+  workspaceScopes: string[],
+  opts: { denyByDefault?: boolean } = {},
+): WorkspaceCapabilityDiscovery {
+  if (workspaceScopes.length === 0 && !opts.denyByDefault) return discovery
+  const granted = new Set(workspaceScopes)
+  const hasWildcard = granted.has('tangle:*')
+
+  function allowed(connectorId: string, scopes: string[]): boolean {
+    if (hasWildcard) return true
+    if (granted.has(`${connectorId}:*`)) return true
+    // A workspace scope satisfies the capability iff every required
+    // upstream scope is also present, OR the workspace explicitly
+    // grants the connector. We deliberately do NOT loosen this to
+    // "any granted scope intersects" — that would let a tenant with
+    // a read-only Gmail grant invoke send_reply by accident.
+    for (const scope of scopes) {
+      if (!granted.has(scope)) return false
+    }
+    return true
+  }
+
+  const capabilities = discovery.capabilities.filter((cap) => allowed(cap.connectorId, cap.scopes))
+  const triggers = discovery.triggers.filter((t) => allowed(t.connectorId, t.scopes))
+  const countsByConnector: Record<string, number> = {}
+  for (const cap of capabilities) {
+    countsByConnector[cap.connectorId] = (countsByConnector[cap.connectorId] ?? 0) + 1
+  }
+  return {
+    capabilities,
+    triggers,
+    countsByConnector,
+    unreachableConnectors: discovery.unreachableConnectors,
+  }
+}
