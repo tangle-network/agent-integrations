@@ -1,12 +1,16 @@
 /**
- * Stripe pack connector — single connector kind packing 3 capabilities,
- * validating the "connector pack" concept (one auth handshake, multiple
- * related capabilities) without exploding the registry into
- * `stripe-customers`, `stripe-checkout`, `stripe-invoices` triplets.
+ * Stripe pack connector — single connector kind packing customer +
+ * invoice + checkout + subscription management capabilities, validating
+ * the "connector pack" concept (one auth handshake, multiple related
+ * capabilities) without exploding the registry into `stripe-customers`,
+ * `stripe-checkout`, `stripe-invoices`, `stripe-subscriptions` n-tuples.
  *
- *   find_customer(email)               → read; CAS n/a
- *   create_invoice(customerId, items)  → mutation; cas: 'native-idempotency'
- *   create_checkout_session(...)       → mutation; cas: 'native-idempotency'
+ *   find_customer(email)                       → read; CAS n/a
+ *   list_subscriptions(customerId, status?)    → read; CAS n/a
+ *   create_invoice(customerId, items)          → mutation; cas: 'native-idempotency'
+ *   create_checkout_session(...)               → mutation; cas: 'native-idempotency'
+ *   cancel_subscription(subscriptionId, atPeriodEnd?) → mutation; cas: 'native-idempotency'
+ *   create_billing_portal_session(customerId, returnUrl) → mutation; cas: 'native-idempotency'
  *
  * Auth: API key (Stripe restricted key). Operator pastes the key into
  * the Connections UI. We never see their account password / OAuth flow;
@@ -40,12 +44,12 @@ const API = 'https://api.stripe.com/v1'
 export const stripePackConnector: ConnectorAdapter = {
   manifest: {
     kind: 'stripe-pack',
-    displayName: 'Stripe (customers, invoices, checkout)',
+    displayName: 'Stripe (customers, invoices, checkout, subscriptions)',
     description:
-      "Look up Stripe customers, draft invoices, and spin up hosted Checkout sessions from a single Stripe restricted key. Idempotency-Key forwarded on every mutation.",
+      "Look up Stripe customers, draft invoices, spin up hosted Checkout sessions, manage subscriptions, and hand off to the customer billing portal — all from one Stripe restricted key. Idempotency-Key forwarded on every mutation.",
     auth: {
       kind: 'api-key',
-      hint: 'Paste a Stripe restricted key (rk_live_…) with read access on customers and write access on invoices + checkout sessions.',
+      hint: 'Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions and write on invoices + checkout + subscriptions + billing portal.',
     },
     category: 'commerce',
     defaultConsistencyModel: 'authoritative',
@@ -58,6 +62,20 @@ export const stripePackConnector: ConnectorAdapter = {
           type: 'object',
           properties: { email: { type: 'string' } },
           required: ['email'],
+        },
+      },
+      {
+        name: 'list_subscriptions',
+        class: 'read',
+        description: "List a customer's subscriptions. Optionally filter by status ('active', 'past_due', 'canceled', 'all').",
+        parameters: {
+          type: 'object',
+          properties: {
+            customerId: { type: 'string' },
+            status: { type: 'string', enum: ['active', 'past_due', 'unpaid', 'canceled', 'incomplete', 'trialing', 'all'], default: 'all' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+          },
+          required: ['customerId'],
         },
       },
       {
@@ -118,14 +136,47 @@ export const stripePackConnector: ConnectorAdapter = {
           required: ['successUrl', 'cancelUrl', 'lineItems'],
         },
       },
+      {
+        name: 'cancel_subscription',
+        class: 'mutation',
+        description:
+          'Cancel a subscription. Default cancels immediately; pass atPeriodEnd=true to schedule cancellation for the end of the current billing period.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            subscriptionId: { type: 'string' },
+            atPeriodEnd: { type: 'boolean', default: false },
+          },
+          required: ['subscriptionId'],
+        },
+      },
+      {
+        name: 'create_billing_portal_session',
+        class: 'mutation',
+        description:
+          'Create a Stripe billing portal session and return its URL. Hand-off for the customer to self-serve cancel/upgrade/update-card.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            customerId: { type: 'string' },
+            returnUrl: { type: 'string' },
+          },
+          required: ['customerId', 'returnUrl'],
+        },
+      },
     ],
   },
 
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
+    const apiKey = readApiKey(inv.source.credentials)
+    if (inv.capabilityName === 'list_subscriptions') return listSubscriptions(inv, apiKey)
     if (inv.capabilityName !== 'find_customer') {
       throw new Error(`stripe-pack: unknown read capability ${inv.capabilityName}`)
     }
-    const apiKey = readApiKey(inv.source.credentials)
     const { email } = inv.args as { email: string }
     // Stripe's /customers/search is the canonical email lookup. Falls
     // back to /customers?email= for accounts on legacy Search-disabled
@@ -158,6 +209,8 @@ export const stripePackConnector: ConnectorAdapter = {
     const apiKey = readApiKey(inv.source.credentials)
     if (inv.capabilityName === 'create_invoice') return createInvoice(inv, apiKey)
     if (inv.capabilityName === 'create_checkout_session') return createCheckoutSession(inv, apiKey)
+    if (inv.capabilityName === 'cancel_subscription') return cancelSubscription(inv, apiKey)
+    if (inv.capabilityName === 'create_billing_portal_session') return createBillingPortalSession(inv, apiKey)
     throw new Error(`stripe-pack: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -295,6 +348,132 @@ async function createCheckoutSession(
   return {
     status: 'committed',
     data: { sessionId: created.id, url: created.url, paymentStatus: created.payment_status },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function listSubscriptions(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityReadResult> {
+  const { customerId, status, limit } = inv.args as { customerId: string; status?: string; limit?: number }
+  const params = new URLSearchParams({ customer: customerId, limit: String(limit ?? 10) })
+  if (status && status !== 'all') params.set('status', status)
+  else params.set('status', 'all')
+  const res = await fetch(`${API}/subscriptions?${params.toString()}`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Stripe rejected API key (401)', inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack list_subscriptions ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    data?: Array<{
+      id: string
+      status: string
+      current_period_end?: number
+      cancel_at_period_end?: boolean
+      items?: { data?: Array<{ price?: { id: string; product?: string; unit_amount?: number; currency?: string; recurring?: { interval?: string } } }> }
+    }>
+  }
+  const subscriptions = (json.data ?? []).map((sub) => ({
+    id: sub.id,
+    status: sub.status,
+    currentPeriodEnd: sub.current_period_end,
+    cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    items: (sub.items?.data ?? []).map((it) => ({
+      priceId: it.price?.id,
+      productId: it.price?.product,
+      unitAmount: it.price?.unit_amount,
+      currency: it.price?.currency,
+      interval: it.price?.recurring?.interval,
+    })),
+  }))
+  return {
+    data: { subscriptions },
+    fetchedAt: Date.now(),
+  }
+}
+
+async function cancelSubscription(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityMutationResult> {
+  const { subscriptionId, atPeriodEnd } = inv.args as { subscriptionId: string; atPeriodEnd?: boolean }
+  let res: Response
+  if (atPeriodEnd) {
+    // Update the subscription to mark cancel_at_period_end=true. The
+    // subscription stays active until the end of the current billing
+    // period and Stripe automatically cancels at that time.
+    const body = new URLSearchParams({ cancel_at_period_end: 'true' })
+    res = await fetch(`${API}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        'content-type': 'application/x-www-form-urlencoded',
+        'idempotency-key': inv.idempotencyKey,
+      },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    })
+  } else {
+    res = await fetch(`${API}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        'idempotency-key': inv.idempotencyKey,
+      },
+      signal: AbortSignal.timeout(15_000),
+    })
+  }
+  if (res.status === 401) throw new CredentialsExpired('Stripe rejected API key (401)', inv.source.id)
+  if (res.status === 404) throw new Error(`stripe-pack cancel_subscription: subscription ${subscriptionId} not found`)
+  if (res.status === 409) {
+    throw new ResourceContention('Stripe subscription conflict — retry rejected by idempotency check')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack cancel_subscription ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const updated = (await res.json()) as { id: string; status: string; cancel_at_period_end?: boolean; canceled_at?: number; current_period_end?: number }
+  return {
+    status: 'committed',
+    data: {
+      id: updated.id,
+      status: updated.status,
+      cancelAtPeriodEnd: updated.cancel_at_period_end ?? false,
+      canceledAt: updated.canceled_at,
+      currentPeriodEnd: updated.current_period_end,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createBillingPortalSession(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityMutationResult> {
+  const { customerId, returnUrl } = inv.args as { customerId: string; returnUrl: string }
+  const body = new URLSearchParams({ customer: customerId, return_url: returnUrl })
+  const res = await fetch(`${API}/billing_portal/sessions`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': inv.idempotencyKey,
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) throw new CredentialsExpired('Stripe rejected API key (401)', inv.source.id)
+  if (res.status === 409) {
+    throw new ResourceContention('Stripe billing portal session conflict — retry rejected by idempotency check')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack create_billing_portal_session ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as { id: string; url: string; return_url?: string }
+  return {
+    status: 'committed',
+    data: { sessionId: created.id, url: created.url, returnUrl: created.return_url },
     committedAt: Date.now(),
     idempotentReplay: false,
   }

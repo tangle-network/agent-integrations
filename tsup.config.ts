@@ -9,6 +9,7 @@ export default defineConfig({
     specs: 'src/specs/index.ts',
     'connectors/index': 'src/connectors/index.ts',
     'connectors/adapters/index': 'src/connectors/adapters/index.ts',
+    'webhooks/index': 'src/webhooks/index.ts',
     'tangle-catalog-runtime': 'src/tangle-catalog-runtime.ts',
     'bin/tangle-catalog-runtime': 'src/bin/tangle-catalog-runtime.ts',
   },

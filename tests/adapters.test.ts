@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  docuseal,
+  gmail,
   googleCalendar,
+  googleDrive,
   googleSheets,
   hubspot,
   microsoftCalendar,
@@ -19,11 +22,14 @@ function adapters(): ConnectorAdapter[] {
   const oauth = { clientId: 'client_id', clientSecret: 'client_secret' }
   return [
     googleCalendar(oauth),
+    googleDrive(oauth),
     googleSheets(oauth),
+    gmail(oauth),
     microsoftCalendar(oauth),
     hubspot(oauth),
     notionDatabase(oauth),
     slack(oauth),
+    docuseal(),
     twilioSmsConnector,
     stripePackConnector,
     webhookConnector,
