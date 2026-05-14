@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.25.7",
+  "version": "0.26.0",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -33,6 +33,11 @@
       "types": "./dist/connectors/adapters/index.d.ts",
       "import": "./dist/connectors/adapters/index.js",
       "default": "./dist/connectors/adapters/index.js"
+    },
+    "./webhooks": {
+      "types": "./dist/webhooks/index.d.ts",
+      "import": "./dist/webhooks/index.js",
+      "default": "./dist/webhooks/index.js"
     },
     "./registry": {
       "types": "./dist/registry.d.ts",

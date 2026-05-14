@@ -172,6 +172,8 @@ OAuth credentials.
 | `buildCanonicalLaunchConnectors` | Product-ready launch action schemas for Calendar, Gmail, Drive, GitHub, and Slack. |
 | `validateProviderPassthroughRequest` | Policy-gated provider-native HTTP escape hatch validation. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
+| `discoverWorkspaceCapabilities` | Per-workspace capability discovery: scope-gated, MCP-shape tool descriptors for agent runtime binding. |
+| `WebhookRouter` (+ `stripeWebhookProvider`, `docusealWebhookProvider`, `slackWebhookProvider`, `gmailWebhookProvider`, `gdriveWebhookProvider`, `genericHmacWebhookProvider`) | Inbound webhook router: verify signature, parse, idempotency dedup, async deliver. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
@@ -317,13 +319,16 @@ package-runtime execution.
 Current first-party adapters:
 
 - Google Calendar
-- Microsoft Calendar
+- Google Drive
 - Google Sheets
+- Gmail
+- Microsoft Calendar
 - Slack
 - Slack Events
 - HubSpot
 - Notion database
-- Stripe payments pack
+- DocuSeal
+- Stripe payments pack (customers, invoices, checkout, subscriptions, billing portal)
 - Stripe webhook receiver
 - Twilio SMS
 - Generic webhook
@@ -349,6 +354,10 @@ Runnable examples live in [`examples/`](./examples):
   REST connector spec.
 - [`examples/calendar-exercise-app.ts`](./examples/calendar-exercise-app.ts) -
   generated-app golden path: manifest, consent copy, bridge env, and invoke.
+- [`examples/discover-capabilities.ts`](./examples/discover-capabilities.ts) -
+  per-workspace capability discovery for agent tool-registry binding.
+- [`examples/webhook-router.ts`](./examples/webhook-router.ts) - inbound
+  webhook router with Stripe, DocuSeal, and Slack providers wired in.
 
 The README stays short; examples are separate so they can be copied and expanded
 without obscuring the package contract.

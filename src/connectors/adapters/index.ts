@@ -18,11 +18,14 @@
  */
 
 export { googleCalendar, type GoogleCalendarOptions } from './google-calendar.js'
+export { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 export { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
+export { gmail, type GmailOptions } from './gmail.js'
 export { microsoftCalendar, type MicrosoftCalendarOptions } from './microsoft-calendar.js'
 export { hubspot, type HubSpotOptions } from './hubspot.js'
 export { slack, type SlackOptions } from './slack.js'
 export { notionDatabase, type NotionDatabaseOptions } from './notion-database.js'
+export { docuseal, type DocuSealOptions } from './docuseal.js'
 export {
   declarativeRestConnector,
   type RestConnectorSpec,
