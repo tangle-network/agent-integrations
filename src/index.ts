@@ -20,6 +20,8 @@ export * from './healthcheck.js'
 export * from './manifest.js'
 export * from './passthrough.js'
 export * from './presets.js'
+export * from './connect/index.js'
+export * from './middleware/index.js'
 
 export type IntegrationProviderKind =
   | 'first_party'
