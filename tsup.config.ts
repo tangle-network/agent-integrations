@@ -12,6 +12,7 @@ export default defineConfig({
     'connect/index': 'src/connect/index.ts',
     'middleware/index': 'src/middleware/index.ts',
     'webhooks/index': 'src/webhooks/index.ts',
+    'stripe/index': 'src/stripe/index.ts',
     'tangle-catalog-runtime': 'src/tangle-catalog-runtime.ts',
     'bin/tangle-catalog-runtime': 'src/bin/tangle-catalog-runtime.ts',
   },
