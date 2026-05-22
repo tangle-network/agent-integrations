@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    consumer: 'src/consumer.ts',
     catalog: 'src/catalog.ts',
     registry: 'src/registry.ts',
     runtime: 'src/runtime.ts',

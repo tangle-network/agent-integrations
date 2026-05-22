@@ -288,6 +288,46 @@ For a full product checklist, see
 [External Product Integration](./docs/external-product-integration.md) and
 [Platform Control Plane Adoption](./docs/platform-control-plane.md).
 
+## Consuming a Hosted Hub
+
+`createIntegrationRuntime` is for a product that *hosts* a hub — it owns the
+stores, the vault, and OAuth. A product that instead *consumes* a hosted hub
+(`id.tangle.tools`) from its backend talks to it over HTTP with
+`createIntegrationHubClient`:
+
+```ts
+import { createIntegrationHubClient } from '@tangle-network/agent-integrations/consumer'
+
+const hub = createIntegrationHubClient({
+  product: 'blueprint-agent',
+  auth: {
+    mode: 'service',
+    serviceToken: process.env.SERVICE_TOKEN!,
+    serviceName: 'blueprint-agent',
+  },
+})
+
+// Is the user's GitHub connected? (resolve-manifest under the hood — the
+// raw connection list is intentionally not service-token-reachable.)
+const github = await hub.checkConnector({ userId, connectorId: 'github' })
+
+// Mint a scoped, short-lived capability bundle for a sandbox process.
+const { env } = await hub.mintCapabilityBundle({
+  userId,
+  subject: { type: 'sandbox', id: sandboxId },
+  manifestId: manifest.id,
+})
+```
+
+The client speaks the platform's `/v1/integrations/*` surface and supports
+both auth modes the route layer accepts — a `svc_*` service token
+(`mode: 'service'`, acting user in `X-Platform-User-Id`) or a per-user
+`sk-tan-*` key (`mode: 'user-key'`). It exposes the four service-token-reachable
+operations — `resolveManifest`, `createGrants` / `listGrants`,
+`mintCapabilityBundle`, `runHealthchecks` — plus the `checkConnector`
+convenience. Provider credentials never cross this client; bundles carry only
+short-lived capability tokens.
+
 ## Product Hub Ownership
 
 Use a hosted hub when multiple apps intentionally share identity, billing,

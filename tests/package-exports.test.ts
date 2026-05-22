@@ -24,6 +24,10 @@ describe('package exports', () => {
         types: './dist/connectors/adapters/index.d.ts',
         import: './dist/connectors/adapters/index.js',
       },
+      './consumer': {
+        types: './dist/consumer.d.ts',
+        import: './dist/consumer.js',
+      },
       './webhooks': {
         types: './dist/webhooks/index.d.ts',
         import: './dist/webhooks/index.js',
