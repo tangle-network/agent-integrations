@@ -15,10 +15,17 @@ describe('integration catalog freshness audit', () => {
     expect(result.local.activepiecesConnectors).toBe(result.local.activepiecesEntries)
     expect(result.local.activepiecesActions).toBeGreaterThan(3_000)
     expect(result.local.activepiecesTriggers).toBeGreaterThan(500)
+    // The provider lists every catalog connector, but tools and actions are
+    // built only from entries with real catalog actions. The trigger-only /
+    // framework-internal entries surface as unsupportedExecutableConnectorIds
+    // rather than being fabricated into executable records.
     expect(result.local.executableActivepiecesConnectors).toBe(result.local.activepiecesEntries)
     expect(result.local.executableActivepiecesActions).toBeGreaterThan(3_000)
-    expect(result.local.executableToolDefinitions).toBeGreaterThan(3_000)
-    expect(result.local.unsupportedExecutableConnectorIds).toEqual([])
+    expect(result.local.executableToolDefinitions).toBe(result.local.executableActivepiecesActions)
+    expect(result.local.unsupportedExecutableConnectorIds.length).toBeGreaterThan(0)
+    expect(result.local.unsupportedExecutableConnectorIds.length).toBeLessThan(
+      result.local.activepiecesEntries,
+    )
     expect(result.local.registrySummary.totalEntries).toBeGreaterThanOrEqual(650)
     expect(result.local.registrySummary.bySupportTier.catalogOnly).toBeGreaterThan(500)
     expect(result.local.conflictSamples.length).toBeGreaterThan(0)

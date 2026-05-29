@@ -103,6 +103,12 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@activepieces/piece-gmail": "0.12.3",
+    "@activepieces/piece-hackernews": "0.4.3",
+    "@activepieces/piece-json": "0.1.6",
+    "@activepieces/piece-notion": "0.6.1",
+    "@activepieces/piece-slack": "0.17.0",
+    "@activepieces/piece-stripe": "0.6.7",
     "@types/node": "^25.6.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0",

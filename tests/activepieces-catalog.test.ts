@@ -3,8 +3,10 @@ import {
   buildActivepiecesConnectors,
   auditTangleCatalogRuntimePackages,
   buildTangleCatalogRuntimePackageManifest,
+  buildDefaultIntegrationRegistry,
   buildTangleIntegrationCatalogConnectors,
   buildIntegrationToolCatalog,
+  classifyIntegrationCatalogExecutability,
   composeIntegrationRegistry,
   createTangleCatalogHttpExecutor,
   createTangleCatalogExecutorProvider,
@@ -662,82 +664,72 @@ describe('Activepieces community catalog import', () => {
     })
   })
 
-  it('keeps fuzzy package-runtime action matching opt-in', async () => {
-    const makeRuntime = (allowFuzzyActionMatch: boolean) => createTangleCatalogRuntimeHandler({
-      secret: 'runtime-secret',
-      executeAction: createTangleCatalogInstalledPackageExecutor({
-        allowFuzzyActionMatch,
-        moduleLoader: async () => ({
-          slack: {
-            actions: [
-              {
-                name: 'Slack Send Message Action',
-                run: async () => ({ matched: true }),
-              },
-            ],
+  it('reconciles connector-name-prefixed catalog titles to package actions and rejects unrelated ones', async () => {
+    const makeProvider = (packageActions: Array<{ name?: string; displayName?: string }>) => {
+      const runtime = createTangleCatalogRuntimeHandler({
+        secret: 'runtime-secret',
+        executeAction: createTangleCatalogInstalledPackageExecutor({
+          moduleLoader: async () => ({
+            slack: {
+              actions: packageActions.map((action) => ({
+                ...action,
+                run: async () => ({ matched: action.name ?? action.displayName }),
+              })),
+            },
+          }),
+        }),
+      })
+      return createTangleCatalogExecutorProvider({
+        executeAction: createTangleCatalogHttpExecutor({
+          endpoint: 'https://runtime.example',
+          secret: 'runtime-secret',
+          requestId: () => 'req-reconcile',
+          fetchImpl: async (_requestUrl, init) => {
+            const response = await runtime({
+              body: String(init?.body),
+              headers: new Headers(init?.headers),
+            })
+            return Response.json(response.body, { status: response.status, headers: response.headers })
           },
         }),
-      }),
-    })
-    const provider = createTangleCatalogExecutorProvider({
-      executeAction: createTangleCatalogHttpExecutor({
-        endpoint: 'https://runtime.example',
-        secret: 'runtime-secret',
-        requestId: () => 'req-fuzzy-off',
-        fetchImpl: async (_requestUrl, init) => {
-          const response = await makeRuntime(false)({
-            body: String(init?.body),
-            headers: new Headers(init?.headers),
-          })
-          return Response.json(response.body, { status: response.status, headers: response.headers })
-        },
-      }),
-    })
-    const slack = (await provider.listConnectors()).find((connector) => connector.id === 'slack')!
-    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+      })
+    }
     const connection = {
       id: 'conn-slack',
       owner: { type: 'user' as const, id: 'u1' },
       providerId: 'tangle-catalog',
       connectorId: 'slack',
       status: 'active' as const,
-      grantedScopes: slack.scopes,
+      grantedScopes: [] as string[],
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
     }
 
-    const strict = await provider.invokeAction(connection, {
-      connectionId: 'conn-slack',
-      action: action.id,
-      input: {},
-    })
-    const permissiveProvider = createTangleCatalogExecutorProvider({
-      executeAction: createTangleCatalogHttpExecutor({
-        endpoint: 'https://runtime.example',
-        secret: 'runtime-secret',
-        requestId: () => 'req-fuzzy-on',
-        fetchImpl: async (_requestUrl, init) => {
-          const response = await makeRuntime(true)({
-            body: String(init?.body),
-            headers: new Headers(init?.headers),
-          })
-          return Response.json(response.body, { status: response.status, headers: response.headers })
-        },
-      }),
-    })
-    const permissive = await permissiveProvider.invokeAction(connection, {
-      connectionId: 'conn-slack',
-      action: action.id,
-      input: {},
-    })
-
-    expect(strict.ok).toBe(false)
-    expect(strict.output).toMatchObject({ code: 'action_not_implemented' })
-    expect(permissive).toEqual({
+    // The catalog title `Slack Send Message` prepends the connector name; a
+    // package action whose displayName carries the same prefix plus an `Action`
+    // suffix must still reconcile without any per-connector alias.
+    const matchedProvider = makeProvider([{ name: 'send_message', displayName: 'Slack Send Message Action' }])
+    const slack = (await matchedProvider.listConnectors()).find((connector) => connector.id === 'slack')!
+    const action = slack.actions.find((candidate) => candidate.id === 'slack.send.message')!
+    const matched = await matchedProvider.invokeAction(
+      { ...connection, grantedScopes: slack.scopes },
+      { connectionId: 'conn-slack', action: action.id, input: {} },
+    )
+    expect(matched).toEqual({
       ok: true,
       action: action.id,
-      output: { matched: true },
+      output: { matched: 'send_message' },
     })
+
+    // A genuinely unrelated package action stays unmatched — normalization
+    // reconciles, it does not fabricate matches.
+    const unrelatedProvider = makeProvider([{ name: 'archive_channel', displayName: 'Archive A Channel' }])
+    const unrelated = await unrelatedProvider.invokeAction(
+      { ...connection, grantedScopes: slack.scopes },
+      { connectionId: 'conn-slack', action: action.id, input: {} },
+    )
+    expect(unrelated.ok).toBe(false)
+    expect(unrelated.output).toMatchObject({ code: 'action_not_implemented' })
   })
 
   it('resolves runtime credentials through a signed platform HTTP resolver', async () => {
@@ -906,5 +898,204 @@ describe('Activepieces community catalog import', () => {
     const slack = connectors.find((c) => c.id === 'slack')
     expect(slack?.category).toBe('chat')
     expect(stripe?.category).toBe('crm')
+  })
+
+  it('classifies zero-action catalog entries as non-executable without fabricating actions', () => {
+    const connectors = buildActivepiecesConnectors({ includeCatalogActions: true, executable: true })
+    const zeroAction = connectors.filter((connector) => connector.actions.length === 0)
+
+    expect(zeroAction.length).toBeGreaterThan(0)
+    for (const connector of zeroAction) {
+      expect(connector.metadata?.executable).toBe(false)
+      expect(connector.metadata?.catalogOnly).toBe(true)
+      expect(connector.metadata?.supportTier).toBe('catalogOnly')
+    }
+    // No connector — zero-action or otherwise — carries a fabricated catalog
+    // record. The synthetic records.search / records.upsert inflation is gone.
+    const synthetic = connectors.filter((connector) =>
+      connector.actions.some((action) => action.id === 'records.search' || action.id === 'records.upsert'))
+    expect(synthetic).toEqual([])
+  })
+})
+
+const INSTALLED_PIECES = [
+  { connectorId: 'gmail', npmPackage: '@activepieces/piece-gmail' },
+  { connectorId: 'stripe', npmPackage: '@activepieces/piece-stripe' },
+  { connectorId: 'notion', npmPackage: '@activepieces/piece-notion' },
+  { connectorId: 'slack', npmPackage: '@activepieces/piece-slack' },
+  { connectorId: 'json', npmPackage: '@activepieces/piece-json' },
+  { connectorId: 'hackernews', npmPackage: '@activepieces/piece-hackernews' },
+] as const
+const INSTALLED_CONNECTOR_IDS = INSTALLED_PIECES.map((piece) => piece.connectorId)
+
+/** Drive the in-process runtime handler over the same signed HTTP loop the
+ *  gateway uses in production, but with the DEFAULT module loader so each piece
+ *  is loaded from its real installed @activepieces/piece-* package. */
+function createRealPieceProvider() {
+  const runtime = createTangleCatalogRuntimeHandler({
+    secret: 'runtime-secret',
+    executeAction: createTangleCatalogInstalledPackageExecutor({
+      resolveAuth: async () => undefined,
+    }),
+  })
+  return createTangleCatalogExecutorProvider({
+    executeAction: createTangleCatalogHttpExecutor({
+      endpoint: 'https://runtime.example',
+      secret: 'runtime-secret',
+      requestId: () => 'req-real-piece',
+      fetchImpl: async (_requestUrl, init) => {
+        const response = await runtime({
+          body: String(init?.body),
+          headers: new Headers(init?.headers),
+        })
+        return Response.json(response.body, { status: response.status, headers: response.headers })
+      },
+    }),
+  })
+}
+
+describe('installed Activepieces pieces bind and execute through the fixed runtime', () => {
+  it('detects the framework Piece export shape (private _actions / actions getter) for every installed package', async () => {
+    const rows = await auditTangleCatalogRuntimePackages({ connectorIds: [...INSTALLED_CONNECTOR_IDS] })
+
+    expect(rows.map((row) => row.connectorId).sort()).toEqual([...INSTALLED_CONNECTOR_IDS].sort())
+    for (const row of rows) {
+      expect(row.packageInstalled, `${row.connectorId} installed`).toBe(true)
+      expect(row.packageLoads, `${row.connectorId} loads`).toBe(true)
+      expect(row.pieceExportFound, `${row.connectorId} piece found`).toBe(true)
+      expect(row.actionMappingsVerified, `${row.connectorId} verified actions`).toBeGreaterThan(0)
+    }
+    // Exhaustive packages reconcile every catalog action against the real
+    // package; the audit's verified count equals the catalog total.
+    const exhaustive = ['gmail', 'stripe', 'notion', 'json', 'hackernews']
+    for (const id of exhaustive) {
+      const row = rows.find((candidate) => candidate.connectorId === id)!
+      expect(row.actionMappingsVerified, `${id} all actions verified`).toBe(row.actionMappingsTotal)
+    }
+  })
+
+  it('binds a catalog action to a real package action for each installed connector', async () => {
+    const provider = createRealPieceProvider()
+    const connectors = await provider.listConnectors()
+    const expectedBindings: Record<string, string> = {
+      gmail: 'gmail.send.email',
+      stripe: 'stripe.create.customer',
+      notion: 'create.database.item',
+      slack: 'slack.send.direct.message',
+      json: 'convert.text.to.json',
+      hackernews: 'fetch.top.stories',
+    }
+    for (const [connectorId, actionId] of Object.entries(expectedBindings)) {
+      const connector = connectors.find((candidate) => candidate.id === connectorId)
+      expect(connector, `${connectorId} connector present`).toBeDefined()
+      const action = connector!.actions.find((candidate) => candidate.id === actionId)
+      expect(action, `${connectorId} action ${actionId} present`).toBeDefined()
+      // The runtime resolves each catalog action to a real package action. The
+      // slack id (connector-name-prefixed title) and stripe/json/notion ids
+      // (dot/space/snake variants) all reconcile through normalization.
+      const rows = await auditTangleCatalogRuntimePackages({ connectorIds: [connectorId] })
+      expect(rows[0]?.actionMappingsVerified, `${connectorId} binds a package action`).toBeGreaterThan(0)
+    }
+  })
+
+  it('invokes a none-auth pure action live (json convert) and asserts real output', async () => {
+    const provider = createRealPieceProvider()
+    const result = await provider.invokeAction(
+      {
+        id: 'conn-json',
+        owner: { type: 'user', id: 'u1' },
+        providerId: 'tangle-catalog',
+        connectorId: 'json',
+        status: 'active',
+        grantedScopes: [],
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+      {
+        connectionId: 'conn-json',
+        action: 'convert.text.to.json',
+        input: { text: '{"city":"Lisbon","visits":3,"tags":["a","b"]}' },
+      },
+    )
+
+    expect(result.ok, JSON.stringify(result.output)).toBe(true)
+    expect(result.output).toEqual({ city: 'Lisbon', visits: 3, tags: ['a', 'b'] })
+  })
+
+  it('invokes a none-auth network action live (hackernews fetch) and asserts real upstream data', async () => {
+    const provider = createRealPieceProvider()
+    const result = await provider.invokeAction(
+      {
+        id: 'conn-hn',
+        owner: { type: 'user', id: 'u1' },
+        providerId: 'tangle-catalog',
+        connectorId: 'hackernews',
+        status: 'active',
+        grantedScopes: [],
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+      {
+        connectionId: 'conn-hn',
+        action: 'fetch.top.stories',
+        input: { number_of_stories: 3 },
+      },
+    )
+
+    expect(result.ok, JSON.stringify(result.output)).toBe(true)
+    expect(Array.isArray(result.output)).toBe(true)
+    const stories = result.output as Array<{ id: number; title: string; type: string }>
+    expect(stories).toHaveLength(3)
+    for (const story of stories) {
+      expect(typeof story.id).toBe('number')
+      expect(typeof story.title).toBe('string')
+      expect(story.title.length).toBeGreaterThan(0)
+    }
+  }, 20_000)
+
+  it('fails loud when a catalog action has no reconcilable package action', async () => {
+    const provider = createRealPieceProvider()
+    // slack.send.message is a stale catalog id with no corresponding real
+    // package action (the package exposes send_channel_message / send_direct_message).
+    const result = await provider.invokeAction(
+      {
+        id: 'conn-slack',
+        owner: { type: 'user', id: 'u1' },
+        providerId: 'tangle-catalog',
+        connectorId: 'slack',
+        status: 'active',
+        grantedScopes: [],
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+      {
+        connectionId: 'conn-slack',
+        action: 'slack.send.message',
+        input: {},
+      },
+    )
+
+    expect(result.ok).toBe(false)
+    expect(result.output).toMatchObject({ code: 'action_not_implemented' })
+  })
+
+  it('reports a true post-fix executable count from the installed sample plus catalog classification', async () => {
+    const rows = await auditTangleCatalogRuntimePackages({ connectorIds: [...INSTALLED_CONNECTOR_IDS] })
+    const boundConnectors = rows.filter((row) => row.actionMappingsVerified > 0)
+    // Every installed connector binds >=1 real action — the runtime is no
+    // longer a zero-binding shell.
+    expect(boundConnectors).toHaveLength(INSTALLED_PIECES.length)
+
+    const registry = buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })
+    const classified = classifyIntegrationCatalogExecutability(registry)
+    const executable = classified.filter((entry) => entry.executable)
+    const nonExecutable = classified.filter((entry) => !entry.executable)
+
+    // The honest catalog: 669 vendored entries minus the 90 action-less ones =
+    // 579 connectors that classify executable, each with >=1 real action.
+    expect(executable.length).toBe(579)
+    expect(executable.every((entry) => entry.actionCount > 0)).toBe(true)
+    expect(nonExecutable.every((entry) => entry.executable === false)).toBe(true)
+    expect(executable.reduce((sum, entry) => sum + entry.actionCount, 0)).toBeGreaterThan(3_000)
   })
 })

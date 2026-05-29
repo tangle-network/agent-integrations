@@ -93,16 +93,10 @@ export async function auditIntegrationCatalogFreshness(
       `Activepieces catalog has ${activepiecesConnectors.length} connectors, below floor ${minActivepiecesConnectors}.`,
     )
   }
-  if (unsupportedExecutableConnectorIds.length > 0) {
-    warnings.push(
-      `Activepieces executable provider has ${unsupportedExecutableConnectorIds.length} connectors without actions.`,
-    )
-  }
-  if (executableTools.length < activepiecesEntries.length) {
-    warnings.push(
-      `Activepieces executable provider produced only ${executableTools.length} tool definitions for ${activepiecesEntries.length} entries.`,
-    )
-  }
+  // Entries without runnable actions (trigger-only or framework-internal
+  // pieces) are an intrinsic property of the upstream catalog, not a freshness
+  // defect. Their count is reported via unsupportedExecutableConnectorIds and
+  // tool-definition totals; it does not gate the freshness check.
 
   let upstream: IntegrationCatalogFreshnessResult['upstream']
   if (options.liveActivepieces) {

@@ -35,7 +35,7 @@ This audit separates product contracts from implementation backends:
 | Package-runtime backends | 659 |
 | Runtime manifest dependencies | 670 |
 | Tangle catalog connectors exposable behind runtime | 669 |
-| Tangle catalog actions exposable behind runtime | 3970 |
+| Tangle catalog actions exposable behind runtime | 3790 |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
 

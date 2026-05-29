@@ -292,12 +292,12 @@ export async function auditTangleCatalogRuntimePackages(
         action.id,
         action.title,
         action.upstreamName,
-      ])).length,
+      ], entry.id)).length,
       triggerMappingsFound: entry.triggers.filter((trigger) => hasRuntimeName(triggers, [
         trigger.id,
         trigger.title,
         trigger.upstreamName,
-      ])).length,
+      ], entry.id)).length,
       triggerHostingSupported: entry.triggers.length === 0 || triggers.length > 0,
     })
   }
@@ -398,7 +398,17 @@ async function loadRuntimeModule(
   }
 }
 
-function findPieceExport(moduleValue: unknown, connectorId: string): { actions?: unknown[]; triggers?: unknown[] } | undefined {
+/** A resolved Activepieces Piece export with its runnable actions/triggers
+ *  normalized to arrays. @activepieces/pieces-framework >=0.25 stores actions
+ *  in a private `_actions` record and exposes `actions`/`triggers` as instance
+ *  methods (not arrays), so a piece is recognized by its export shape rather
+ *  than by `Array.isArray(piece.actions)`. */
+interface ResolvedPiece {
+  actions: TangleCatalogRuntimeModuleAction[]
+  triggers: TangleCatalogRuntimeModuleAction[]
+}
+
+function findPieceExport(moduleValue: unknown, connectorId: string): ResolvedPiece | undefined {
   const mod = moduleValue && typeof moduleValue === 'object' ? moduleValue as Record<string, unknown> : {}
   const values = [
     mod.default,
@@ -406,42 +416,137 @@ function findPieceExport(moduleValue: unknown, connectorId: string): { actions?:
     mod[connectorId],
     ...Object.values(mod),
   ]
-  return values.find((value): value is { actions?: unknown[]; triggers?: unknown[] } => (
-    Boolean(value)
-    && typeof value === 'object'
-    && Array.isArray((value as { actions?: unknown[] }).actions)
-  ))
+  for (const value of values) {
+    const resolved = resolvePiece(value)
+    if (resolved) return resolved
+  }
+  return undefined
 }
 
-function hasRuntimeName(values: unknown[], candidates: Array<string | undefined>): boolean {
-  const expected = new Set(candidates.filter((value): value is string => Boolean(value)))
-  return values
-    .filter((value): value is { name?: string; displayName?: string } => Boolean(value) && typeof value === 'object')
-    .some((value) => [value.name, value.displayName].some((name) => typeof name === 'string' && expected.has(name)))
+/** Recognize an Activepieces Piece and read its runnable records. Accepts the
+ *  framework's private `_actions`/`_triggers` records, the `actions`/`triggers`
+ *  getter or method, and a legacy plain array — in that precedence. */
+function resolvePiece(value: unknown): ResolvedPiece | undefined {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return undefined
+  const candidate = value as Record<string, unknown>
+  const ctorName = (candidate.constructor as { name?: string } | undefined)?.name
+  const looksLikePiece =
+    ctorName === 'Piece' ||
+    '_actions' in candidate ||
+    '_triggers' in candidate ||
+    'actions' in candidate ||
+    'triggers' in candidate
+  if (!looksLikePiece) return undefined
+
+  const actions = readPieceMembers(candidate, '_actions', 'actions')
+  const triggers = readPieceMembers(candidate, '_triggers', 'triggers')
+  if (!actions && !triggers) return undefined
+  return { actions: actions ?? [], triggers: triggers ?? [] }
+}
+
+/** Read a piece member collection from the private record, the public
+ *  getter/method, or a plain array. Returns undefined when no recognizable
+ *  collection exists (so the caller can reject non-piece values). */
+function readPieceMembers(
+  piece: Record<string, unknown>,
+  privateKey: string,
+  publicKey: string,
+): TangleCatalogRuntimeModuleAction[] | undefined {
+  const raw =
+    coerceMemberCollection(piece[privateKey]) ??
+    coerceMemberCollection(readPublicMember(piece, publicKey))
+  if (!raw) return undefined
+  return raw.filter((member): member is TangleCatalogRuntimeModuleAction =>
+    Boolean(member) && typeof member === 'object')
+}
+
+function readPublicMember(piece: Record<string, unknown>, key: string): unknown {
+  const value = piece[key]
+  if (typeof value !== 'function') return value
+  try {
+    return (value as () => unknown).call(piece)
+  } catch {
+    return undefined
+  }
+}
+
+function coerceMemberCollection(value: unknown): unknown[] | undefined {
+  if (Array.isArray(value)) return value
+  if (value && typeof value === 'object') return Object.values(value)
+  return undefined
+}
+
+function hasRuntimeName(
+  members: TangleCatalogRuntimeModuleAction[],
+  candidates: Array<string | undefined>,
+  connectorId: string,
+): boolean {
+  const expected = normalizeNameSet(candidates, connectorId)
+  return members.some((member) => {
+    const names = normalizeNameSet([member.name, member.displayName], connectorId)
+    for (const name of names) if (expected.has(name)) return true
+    return false
+  })
 }
 
 function findRuntimeAction(
-  piece: { actions?: unknown[] },
+  piece: ResolvedPiece,
   invocation: TangleCatalogRuntimeInvocation,
   aliases: TangleCatalogInstalledPackageExecutorOptions['actionAliases'] = {},
   allowFuzzyActionMatch = false,
 ): TangleCatalogRuntimeModuleAction | undefined {
-  const actions = (piece.actions ?? [])
-    .filter((action): action is TangleCatalogRuntimeModuleAction => Boolean(action) && typeof action === 'object')
+  const actions = piece.actions
   const explicit = aliases[invocation.connector.id]?.[invocation.action.id]
-  const candidates = new Set([
+  if (explicit) {
+    const exact = actions.find((action) => action.name === explicit || action.displayName === explicit)
+    if (exact) return exact
+  }
+  const connectorId = invocation.connector.id
+  const candidates = normalizeNameSet([
     invocation.action.id,
     invocation.action.title,
     invocation.request.piece.upstreamActionName,
     explicit,
-  ].filter((value): value is string => Boolean(value)))
+  ], connectorId)
 
   for (const action of actions) {
-    const names = [action.name, action.displayName].filter((value): value is string => Boolean(value))
-    if (names.some((name) => candidates.has(name))) return action
-    if (allowFuzzyActionMatch && names.some((name) => [...candidates].some((candidate) => comparable(name) === comparable(candidate)))) return action
+    const names = normalizeNameSet([action.name, action.displayName], connectorId)
+    for (const name of names) if (candidates.has(name)) return action
   }
+  // allowFuzzyActionMatch is retained for API compatibility; the normalized
+  // comparison above is already insensitive to snake/camel/dot/space casing
+  // and connector-name prefixes, so it subsumes the prior fuzzy pass.
+  void allowFuzzyActionMatch
   return undefined
+}
+
+/** Build the comparison key set for a set of catalog/package identifiers.
+ *  Both sides are reduced to alphanumeric-lowercase, then expanded with
+ *  connector-name-prefix-stripped and action/trigger-suffix-stripped variants
+ *  so `gmail.send.email` / `gmailSendEmailAction` / `Send Email` / `send_email`
+ *  all collapse to a shared `sendemail` key. */
+function normalizeNameSet(values: Array<string | undefined>, connectorId: string): Set<string> {
+  const out = new Set<string>()
+  const conn = comparable(connectorId)
+  for (const value of values) {
+    if (!value) continue
+    for (const variant of nameVariants(comparable(value), conn)) {
+      if (variant) out.add(variant)
+    }
+  }
+  return out
+}
+
+function nameVariants(cmp: string, conn: string): string[] {
+  const base = [cmp, cmp.replace(/(action|trigger)$/, '')]
+  const variants: string[] = []
+  for (const value of base) {
+    variants.push(value)
+    if (conn && value.startsWith(conn) && value.length > conn.length) {
+      variants.push(value.slice(conn.length))
+    }
+  }
+  return variants
 }
 
 function runtimeFailure(action: string, code: string, message: string): IntegrationActionResult {

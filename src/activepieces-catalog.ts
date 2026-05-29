@@ -83,10 +83,13 @@ export function buildActivepiecesConnectors(options: {
     const override = getActivepiecesOverride(entry.id)
     const category = override?.category ?? entry.category
     const scopes = [`${entry.id}.read`, `${entry.id}.write`]
-    const catalogActions = entry.actions.length > 0
-      ? entry.actions.map((action) => toAction(applyActionOverride(action, override), scopes, dataClassFor(category)))
-      : defaultActions(entry.id, scopes, dataClassFor(category))
+    const catalogActions = entry.actions.map((action) =>
+      toAction(applyActionOverride(action, override), scopes, dataClassFor(category)))
     const catalogTriggers = entry.triggers.map((trigger) => toTrigger(trigger, scopes, dataClassFor(category)))
+    // An entry with no runnable catalog actions cannot be executed regardless
+    // of the requested executable flag — there is nothing to bind to a runtime
+    // action. Such entries are catalog-only (discoverable, not invokable).
+    const entryExecutable = executable && catalogActions.length > 0
     return {
       id: entry.id,
       providerId,
@@ -98,10 +101,10 @@ export function buildActivepiecesConnectors(options: {
       triggers: options.includeCatalogActions ? catalogTriggers : undefined,
       metadata: {
         source: 'activepieces-community',
-        executable,
+        executable: entryExecutable,
         runtime: 'activepieces-piece',
-        catalogOnly: !executable,
-        supportTier: executable ? 'gatewayExecutable' : 'catalogOnly',
+        catalogOnly: !entryExecutable,
+        supportTier: entryExecutable ? 'gatewayExecutable' : 'catalogOnly',
         catalogActionCount: catalogActions.length,
         catalogTriggerCount: catalogTriggers.length,
         npmPackage: entry.npmPackage,
@@ -153,33 +156,6 @@ function toTrigger(
     dataClass,
     payloadSchema: { type: 'object', additionalProperties: true, properties: {} },
   }
-}
-
-function defaultActions(
-  id: string,
-  scopes: string[],
-  dataClass: IntegrationDataClass,
-): IntegrationConnectorAction[] {
-  return [
-    {
-      id: 'records.search',
-      title: 'Search records',
-      risk: 'read',
-      requiredScopes: [scopes[0]!],
-      dataClass,
-      inputSchema: { type: 'object', additionalProperties: true, properties: {} },
-    },
-    {
-      id: 'records.upsert',
-      title: 'Upsert record',
-      risk: 'write',
-      requiredScopes: [scopes[1]!],
-      dataClass,
-      approvalRequired: true,
-      inputSchema: { type: 'object', additionalProperties: true, properties: {} },
-      description: `Create or update a ${id} record through a catalog-backed connector.`,
-    },
-  ]
 }
 
 function dataClassFor(category: IntegrationConnectorCategory): IntegrationDataClass {
