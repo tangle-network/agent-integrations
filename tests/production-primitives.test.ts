@@ -9,15 +9,19 @@ import {
   InMemoryIntegrationGrantStore,
   InMemoryIntegrationHealthcheckStore,
   InMemoryIntegrationIdempotencyStore,
+  InMemoryIntegrationOAuthStateStore,
   InMemoryIntegrationSecretStore,
+  IntegrationError,
   IntegrationHub,
   buildIntegrationBridgeEnvironment,
   buildIntegrationInvocationEnvelope,
   buildIntegrationToolCatalog,
   createConnectionCredentialResolver,
   createConnectorAdapterProvider,
+  createCredentialBackedAdapterProvider,
   createDefaultIntegrationPolicyEngine,
   createIntegrationRuntime,
+  createMockIntegrationProvider,
   decodeIntegrationBridgePayload,
   dispatchIntegrationInvocation,
   parseIntegrationBridgeEnvironment,
@@ -25,8 +29,11 @@ import {
   resolveIntegrationApproval,
   runIntegrationHealthchecks,
   type ConnectorAdapter,
+  type ConnectorCredentials,
   type IntegrationConnection,
+  type IntegrationCredentialsRotatedEvent,
   type IntegrationManifest,
+  type IntegrationOAuthState,
   type ResolvedDataSource,
 } from '../src/index'
 
@@ -292,6 +299,158 @@ describe('production integration primitives', () => {
     expect(JSON.stringify(updated)).not.toContain('new')
   })
 
+  it('InMemoryIntegrationOAuthStateStore enforces single-use + expiry and returns typed outcomes', async () => {
+    const store = new InMemoryIntegrationOAuthStateStore()
+    const record: IntegrationOAuthState = {
+      state: 'state_abc',
+      providerId: 'first-party',
+      connectorId: 'gmail',
+      owner,
+      requestedScopes: ['email.read'],
+      redirectUri: 'https://app.example/callback',
+      expiresAt: Date.now() + 60_000,
+    }
+    await store.put(record)
+
+    const first = await store.consume('state_abc')
+    expect(first).toEqual({ ok: true, state: record })
+    // Single-use: a second consume of the same state is a miss, not a throw.
+    expect(await store.consume('state_abc')).toEqual({ ok: false, reason: 'unknown' })
+    // Unknown state.
+    expect(await store.consume('never-issued')).toEqual({ ok: false, reason: 'unknown' })
+
+    // Expired record reads as a miss with reason 'expired'.
+    await store.put({ ...record, state: 'state_old', expiresAt: Date.now() - 1 })
+    expect(await store.consume('state_old')).toEqual({ ok: false, reason: 'expired' })
+  })
+
+  it('IntegrationHub stashes single-use OAuth state at startAuth and guards completeAuth against CSRF/replay', async () => {
+    const oauthStateStore = new InMemoryIntegrationOAuthStateStore()
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+      oauthStateStore,
+    })
+
+    const start = await hub.startAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      requestedScopes: ['email.read'],
+      redirectUri: 'https://app.example/callback',
+      state: 'state_csrf',
+    })
+
+    // A completeAuth carrying a state never issued is rejected (CSRF guard).
+    await expect(hub.completeAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      code: 'code',
+      state: 'forged-state',
+      redirectUri: 'https://app.example/callback',
+    })).rejects.toBeInstanceOf(IntegrationError)
+
+    // The legitimate callback succeeds and consumes the state.
+    const connection = await hub.completeAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      code: 'code',
+      state: start.state,
+      redirectUri: 'https://app.example/callback',
+    })
+    expect(connection.status).toBe('active')
+
+    // Replaying the same state (single-use) is rejected.
+    await expect(hub.completeAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      code: 'code',
+      state: start.state,
+      redirectUri: 'https://app.example/callback',
+    })).rejects.toMatchObject({ code: 'capability_invalid' })
+  })
+
+  it('completeAuth rejects a redirect-uri mismatch between start and callback', async () => {
+    const hub = new IntegrationHub({
+      providers: [createMockIntegrationProvider()],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+    })
+    const start = await hub.startAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      requestedScopes: ['email.read'],
+      redirectUri: 'https://app.example/callback',
+      state: 'state_redir',
+    })
+
+    await expect(hub.completeAuth('mock', {
+      connectorId: 'gmail',
+      owner,
+      code: 'code',
+      state: start.state,
+      redirectUri: 'https://evil.example/callback',
+    })).rejects.toMatchObject({ code: 'capability_invalid' })
+  })
+
+  it('surfaces rotated credentials through the invoke path so the host re-persists them', async () => {
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: 'secret_rot' }
+    const connection = activeConnection('conn_rot', {
+      connectorId: 'rotating',
+      secretRef,
+    })
+    await connections.put(connection)
+    // Persisted envelope: an already-expired access token with a refresh token.
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'stale',
+      refreshToken: 'refresh-1',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+
+    const hostEvents: IntegrationCredentialsRotatedEvent[] = []
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [rotatingAdapter],
+      secrets,
+      connections,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+      onCredentialsRotated: (event) => { hostEvents.push(event) },
+    })
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store: connections,
+      capabilitySecret: 'secret',
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    })
+    const capability = await hub.issueCapability({
+      subject: sandbox,
+      connectionId: 'conn_rot',
+      scopes: [],
+      allowedActions: ['rotating.read'],
+      ttlMs: 60_000,
+    })
+
+    const result = await hub.invokeWithCapability(capability.token, {
+      action: 'rotating.read',
+      input: {},
+    })
+
+    expect(result.ok).toBe(true)
+    // The adapter rotated the token; the credential-backed provider re-persisted
+    // the rotated envelope to the secret store, and the host callback fired.
+    expect(hostEvents).toHaveLength(1)
+    expect(hostEvents[0].secretRef).toEqual(secretRef)
+    expect(hostEvents[0].credentials).toMatchObject({ kind: 'oauth2', accessToken: 'rotated', refreshToken: 'refresh-2' })
+    const persisted = await secrets.get(secretRef)
+    expect(persisted).toMatchObject({ kind: 'oauth2', accessToken: 'rotated', refreshToken: 'refresh-2' })
+    // The connection record was refreshed but never carries the raw token.
+    const updated = await connections.get('conn_rot')
+    expect(updated?.status).toBe('active')
+    expect(JSON.stringify(updated)).not.toContain('rotated')
+  })
+
   it('builds bridge env payloads that sandboxes and executor-style CLIs can consume', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({
@@ -490,6 +649,41 @@ const refreshingAdapter: ConnectorAdapter = {
       refreshToken: 'refresh',
       expiresAt: Date.parse('2026-05-06T00:00:00.000Z'),
     }
+  },
+}
+
+// Mirrors the gmail/google in-call refresh shape: an oauth2 connector that
+// rotates its access token mid-read (inside executeRead) and reports the new
+// envelope via inv.onCredentialsRotated. No `refreshToken` method, so the
+// credential resolver hands the stale envelope straight through — the rotation
+// happens at the connector boundary, not in the resolver.
+const rotatingAdapter: ConnectorAdapter = {
+  manifest: {
+    kind: 'rotating',
+    displayName: 'Rotating',
+    description: 'Connector that refreshes its token mid-call.',
+    auth: { kind: 'oauth2', authorizationUrl: 'https://x/auth', tokenUrl: 'https://x/token', scopes: [], clientIdEnv: 'X_ID', clientSecretEnv: 'X_SECRET' },
+    category: 'other',
+    defaultConsistencyModel: 'authoritative',
+    capabilities: [
+      { name: 'rotating.read', class: 'read', description: 'Read.', parameters: {} },
+    ],
+  },
+  async executeRead(invocation) {
+    const creds = invocation.source.credentials
+    if (creds.kind === 'oauth2' && (!creds.expiresAt || creds.expiresAt <= Date.now())) {
+      const next: ConnectorCredentials = {
+        kind: 'oauth2',
+        accessToken: 'rotated',
+        refreshToken: 'refresh-2',
+        expiresAt: Date.now() + 3_600_000,
+      }
+      invocation.onCredentialsRotated?.(next)
+    }
+    return { data: { ok: true }, fetchedAt: 1 }
+  },
+  async test() {
+    return { ok: true }
   },
 }
 

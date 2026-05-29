@@ -2,6 +2,7 @@ import type {
   CapabilityMutationResult,
   CapabilityReadResult,
   ConnectorAdapter,
+  ConnectorCredentials,
   ConnectorInvocation,
   ResolvedDataSource,
 } from './connectors/types.js'
@@ -21,6 +22,15 @@ export interface ConnectorAdapterProviderOptions {
   kind?: IntegrationProviderKind
   adapters: ConnectorAdapter[]
   resolveDataSource: (connection: IntegrationConnection) => Promise<ResolvedDataSource> | ResolvedDataSource
+  /** Invoked when an adapter rotates credentials during executeRead /
+   *  executeMutation (e.g. an OAuth access token refreshed on expiry). The
+   *  host re-encrypts + persists the rotated envelope so the next expiry
+   *  does not force a reconnect. Carries the connection so the host can
+   *  resolve the secretRef. */
+  onCredentialsRotated?: (event: {
+    connection: IntegrationConnection
+    credentials: ConnectorCredentials
+  }) => Promise<void> | void
   now?: () => Date
 }
 
@@ -45,6 +55,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         throw new IntegrationError(`Capability ${request.action} is not defined by ${connection.connectorId}.`, 'action_not_found')
       }
       const source = await options.resolveDataSource(connection)
+      let rotated: ConnectorCredentials | undefined
       const invocation: ConnectorInvocation = {
         source,
         capabilityName: request.action,
@@ -52,12 +63,21 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         idempotencyKey: request.idempotencyKey ?? `idem_${connection.id}_${request.action}_${now().getTime()}`,
         expectedEtag: typeof request.metadata?.expectedEtag === 'string' ? request.metadata.expectedEtag : undefined,
         callSessionId: typeof request.metadata?.callSessionId === 'string' ? request.metadata.callSessionId : undefined,
+        onCredentialsRotated: options.onCredentialsRotated
+          ? (credentials) => { rotated = credentials }
+          : undefined,
+      }
+      const persistRotation = async () => {
+        if (rotated && options.onCredentialsRotated) {
+          await options.onCredentialsRotated({ connection, credentials: rotated })
+        }
       }
       if (capability.class === 'read') {
         if (!adapter.executeRead) {
           throw new IntegrationError(`Connector ${connection.connectorId} does not implement reads.`, 'action_not_found')
         }
         const result = await adapter.executeRead(invocation)
+        await persistRotation()
         return readResultToAction(request, result)
       }
       if (capability.class === 'mutation') {
@@ -65,6 +85,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           throw new IntegrationError(`Connector ${connection.connectorId} does not implement mutations.`, 'action_not_found')
         }
         const result = await adapter.executeMutation(invocation)
+        await persistRotation()
         return mutationResultToAction(request, result)
       }
       throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')

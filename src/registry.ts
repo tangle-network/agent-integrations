@@ -1,4 +1,4 @@
-import { buildActivepiecesConnectors } from './activepieces-catalog.js'
+import { buildActivepiecesConnectors, listActivepiecesCatalogEntries } from './activepieces-catalog.js'
 import { buildTangleIntegrationCatalogConnectors } from './tangle-catalog.js'
 import type {
   IntegrationConnector,
@@ -144,6 +144,53 @@ export function buildDefaultIntegrationRegistry(options: {
     })
   }
   return composeIntegrationRegistry(sources)
+}
+
+/** Per-entry executability classification. Pure metadata — never loads or
+ *  runs a runtime module. The coverage report consumes this to separate
+ *  "we can execute this today" from "catalog-only / setup-only". */
+export interface IntegrationCatalogExecutability {
+  canonicalId: string
+  /** True when the entry resolves to a runnable action: a first-party /
+   *  sandbox / gateway-executable support tier, or a tangle-catalog entry
+   *  with a resolvable npm runtime package. */
+  executable: boolean
+  supportTier: IntegrationSupportTier
+  authKind: IntegrationConnector['auth']
+  /** Resolvable npm runtime package name when one is registered for this
+   *  connector in the vendored catalog; undefined for first-party adapters
+   *  (which execute in-process) and catalog-only entries. */
+  runtimePackage?: string
+  actionCount: number
+  triggerCount: number
+}
+
+/** Classify every entry in a composed registry by executability + auth kind
+ *  WITHOUT executing anything. Defaults to {@link buildDefaultIntegrationRegistry}. */
+export function classifyIntegrationCatalogExecutability(
+  registry: IntegrationRegistry = buildDefaultIntegrationRegistry(),
+): IntegrationCatalogExecutability[] {
+  const packageByConnector = new Map(
+    listActivepiecesCatalogEntries()
+      .filter((entry) => entry.npmPackage)
+      .map((entry) => [entry.id, entry.npmPackage!]),
+  )
+  return registry.entries.map((entry) => {
+    const runtimePackage = packageByConnector.get(entry.connector.id)
+    const tierExecutable =
+      entry.supportTier === 'firstPartyExecutable' ||
+      entry.supportTier === 'sandboxExecutable' ||
+      entry.supportTier === 'gatewayExecutable'
+    return {
+      canonicalId: entry.canonicalId,
+      executable: tierExecutable && entry.connector.actions.length > 0,
+      supportTier: entry.supportTier,
+      authKind: entry.connector.auth,
+      runtimePackage,
+      actionCount: entry.connector.actions.length,
+      triggerCount: entry.connector.triggers?.length ?? 0,
+    }
+  })
 }
 
 export function composeIntegrationRegistry(

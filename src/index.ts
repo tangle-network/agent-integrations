@@ -4,6 +4,14 @@ import {
   type ComposeIntegrationRegistryOptions,
   type IntegrationRegistry,
 } from './registry.js'
+import {
+  InMemoryIntegrationOAuthStateStore,
+  InMemoryIntegrationSecretStore,
+  type IntegrationOAuthState,
+  type IntegrationOAuthStateStore,
+  type IntegrationSecretStore,
+} from './credentials.js'
+import type { ConnectorCredentials } from './connectors/types.js'
 
 export * from './audit.js'
 export * from './approval.js'
@@ -300,7 +308,34 @@ export interface IntegrationHubOptions {
    *  provider invocation. Use it to pause writes, deny destructive actions,
    *  or apply tenant-specific allow rules. */
   policy?: IntegrationPolicyEngine
+  /** Host-injectable secret store. Multi-tenant hubs inject a durable
+   *  encrypted store; defaults to {@link InMemoryIntegrationSecretStore} for
+   *  local/dev and tests. The interface is the contract — the lib never
+   *  ships a D1/KV/encryption impl. */
+  secretStore?: IntegrationSecretStore
+  /** Host-injectable single-use OAuth-state store guarding the start →
+   *  callback CSRF boundary. Defaults to
+   *  {@link InMemoryIntegrationOAuthStateStore}. */
+  oauthStateStore?: IntegrationOAuthStateStore
+  /** TTL applied to OAuth-state records the hub stashes at startAuth.
+   *  Defaults to 10 minutes. */
+  oauthStateTtlMs?: number
+  /** Fired whenever a provider surfaces rotated credentials during an
+   *  invoke (e.g. an OAuth access token refreshed on expiry). The host
+   *  re-encrypts + persists the rotated envelope so the next expiry does
+   *  not force a reconnect. The hub also writes the rotated credentials to
+   *  {@link secretStore} when the connection carries a secretRef. */
+  credentialsRotated?: (event: IntegrationCredentialsRotatedEvent) => Promise<void> | void
   now?: () => Date
+}
+
+/** Emitted when a provider rotates credentials mid-invoke. The host
+ *  re-persists `credentials` against `secretRef` (when present) so the
+ *  refreshed token survives the call. */
+export interface IntegrationCredentialsRotatedEvent {
+  connection: IntegrationConnection
+  secretRef?: SecretRef
+  credentials: ConnectorCredentials
 }
 
 export interface HttpIntegrationProviderOptions {
@@ -367,6 +402,12 @@ export class IntegrationHub {
   private readonly capabilitySecret: string
   private readonly guard: IntegrationActionGuard | undefined
   private readonly policy: IntegrationPolicyEngine | undefined
+  /** Host-injected (or in-memory default) secret store. The hub re-persists
+   *  rotated credentials here when a connection carries a secretRef. */
+  readonly secretStore: IntegrationSecretStore
+  private readonly oauthStateStore: IntegrationOAuthStateStore
+  private readonly oauthStateTtlMs: number
+  private readonly credentialsRotated: IntegrationHubOptions['credentialsRotated']
   private readonly now: () => Date
 
   constructor(options: IntegrationHubOptions) {
@@ -378,6 +419,10 @@ export class IntegrationHub {
     this.capabilitySecret = options.capabilitySecret
     this.guard = options.guard
     this.policy = options.policy
+    this.secretStore = options.secretStore ?? new InMemoryIntegrationSecretStore()
+    this.oauthStateStore = options.oauthStateStore ?? new InMemoryIntegrationOAuthStateStore()
+    this.oauthStateTtlMs = options.oauthStateTtlMs ?? 10 * 60 * 1000
+    this.credentialsRotated = options.credentialsRotated
     this.now = options.now ?? (() => new Date())
   }
 
@@ -398,12 +443,34 @@ export class IntegrationHub {
     const provider = this.requireProvider(providerId)
     if (!provider.startAuth) throw new IntegrationError(`Provider ${providerId} does not support auth start.`, 'auth_not_supported')
     await this.requireConnector(provider, request.connectorId)
-    return provider.startAuth(request)
+    const result = await provider.startAuth(request)
+    const record: IntegrationOAuthState = {
+      state: result.state,
+      providerId,
+      connectorId: request.connectorId,
+      owner: request.owner,
+      requestedScopes: request.requestedScopes,
+      redirectUri: request.redirectUri,
+      expiresAt: this.now().getTime() + this.oauthStateTtlMs,
+      metadata: request.metadata,
+    }
+    await this.oauthStateStore.put(record)
+    return result
   }
 
   async completeAuth(providerId: string, request: CompleteAuthRequest): Promise<IntegrationConnection> {
     const provider = this.requireProvider(providerId)
     if (!provider.completeAuth) throw new IntegrationError(`Provider ${providerId} does not support auth completion.`, 'auth_not_supported')
+    const outcome = await this.oauthStateStore.consume(request.state)
+    if (!outcome.ok) {
+      throw new IntegrationError(`Integration OAuth state ${outcome.reason}: possible CSRF, replay, or stale flow.`, 'capability_invalid')
+    }
+    if (outcome.state.providerId !== providerId || outcome.state.connectorId !== request.connectorId) {
+      throw new IntegrationError('Integration OAuth state does not match completion request.', 'capability_invalid')
+    }
+    if (outcome.state.redirectUri !== request.redirectUri) {
+      throw new IntegrationError('Integration OAuth redirect URI does not match the start request.', 'capability_invalid')
+    }
     const connection = await provider.completeAuth(request)
     await this.store.put(connection)
     return connection

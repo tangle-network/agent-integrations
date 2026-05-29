@@ -4,9 +4,11 @@ import {
   buildIntegrationCatalogView,
   buildIntegrationToolCatalog,
   canonicalConnectorId,
+  classifyIntegrationCatalogExecutability,
   composeIntegrationRegistry,
   createConnectorAdapterCatalogSource,
   createMockIntegrationProvider,
+  describeIntegrationTool,
   googleCalendar,
   InMemoryConnectionStore,
   IntegrationHub,
@@ -223,6 +225,58 @@ describe('integration registry', () => {
     expect(flat).toHaveLength(2)
     expect(registry.connectors).toHaveLength(1)
     expect(registry.byId.get('gmail')?.supportTier).toBe('firstPartyExecutable')
+  })
+
+  it('describes a single tool by its opaque name, round-tripping a real catalog tool', () => {
+    const registry = buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })
+    const tools = buildIntegrationToolCatalog(registry.connectors)
+    const gmailTool = tools.find((tool) => tool.connectorId === 'gmail' && tool.action.id === 'gmail.search.mail')
+    expect(gmailTool).toBeDefined()
+
+    const described = describeIntegrationTool(registry, gmailTool!.name)
+
+    // The descriptor resolved from the opaque name is identical to the one
+    // the catalog builder emits for the same (connector, action) pair.
+    expect(described).toEqual(gmailTool)
+    expect(described?.name).toBe(gmailTool!.name)
+    expect(described?.connectorId).toBe('gmail')
+    expect(described?.action.id).toBe('gmail.search.mail')
+  })
+
+  it('returns undefined for malformed, unknown-connector, and unknown-action tool names', () => {
+    const registry = buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })
+    const gmail = registry.byId.get('gmail')!
+    const realAction = gmail.connector.actions[0]!.id
+
+    const validName = `int_${Buffer.from('tangle-catalog').toString('base64url').replace(/_/g, '.')}_${Buffer.from('gmail').toString('base64url').replace(/_/g, '.')}_${Buffer.from(realAction).toString('base64url').replace(/_/g, '.')}`
+    const unknownAction = `int_${Buffer.from('tangle-catalog').toString('base64url').replace(/_/g, '.')}_${Buffer.from('gmail').toString('base64url').replace(/_/g, '.')}_${Buffer.from('not.a.real.action').toString('base64url').replace(/_/g, '.')}`
+    const unknownConnector = `int_${Buffer.from('tangle-catalog').toString('base64url').replace(/_/g, '.')}_${Buffer.from('definitely-not-a-connector').toString('base64url').replace(/_/g, '.')}_${Buffer.from(realAction).toString('base64url').replace(/_/g, '.')}`
+
+    expect(describeIntegrationTool(registry, validName)).toBeDefined()
+    expect(describeIntegrationTool(registry, 'totally-bogus')).toBeUndefined()
+    expect(describeIntegrationTool(registry, unknownConnector)).toBeUndefined()
+    expect(describeIntegrationTool(registry, unknownAction)).toBeUndefined()
+  })
+
+  it('classifies catalog entries by executability + auth kind without executing', () => {
+    const executableRegistry = buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })
+    const rows = classifyIntegrationCatalogExecutability(executableRegistry)
+    const byId = new Map(rows.map((row) => [row.canonicalId, row]))
+
+    expect(rows.length).toBe(executableRegistry.entries.length)
+
+    const gmail = byId.get('gmail')
+    expect(gmail).toMatchObject({ executable: true, authKind: 'oauth2' })
+    expect(gmail!.actionCount).toBeGreaterThan(0)
+    // gmail resolves to a vendored runtime package in the activepieces catalog.
+    expect(typeof gmail!.runtimePackage).toBe('string')
+
+    // The default (non-runtime-executable) registry is mostly catalog/setup
+    // tiers, so far fewer entries classify as executable.
+    const defaultRows = classifyIntegrationCatalogExecutability()
+    const executableCount = defaultRows.filter((row) => row.executable).length
+    expect(executableCount).toBeLessThan(defaultRows.length)
+    expect(defaultRows.every((row) => ['oauth2', 'api_key', 'none', 'custom'].includes(row.authKind))).toBe(true)
   })
 
   it('normalizes common provider aliases deterministically', () => {

@@ -9,6 +9,7 @@ import {
   renderAgentToolDescription,
   renderConsoleSteps,
   renderRunbookMarkdown,
+  resolveConnectorAuthSpec,
   validateCredentialFormat,
   validateIntegrationSpec,
 } from '../src/index'
@@ -63,6 +64,38 @@ describe('integration specs', () => {
     const field = spec!.setup.credentialFields.find((f) => !f.secret)
     expect(field).toBeDefined()
     expect(validateCredentialFormat(field!, 'abc').ok).toBe(true)
+  })
+
+  it('resolves a connect-driving auth spec per provider from the spec catalog', () => {
+    const google = resolveConnectorAuthSpec('google-calendar')
+    expect(google).toMatchObject({
+      kind: 'google-calendar',
+      authKind: 'oauth2',
+      authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenUrl: 'https://oauth2.googleapis.com/token',
+      pkce: 'supported',
+    })
+    expect(google!.requestedScopes).toContain('https://www.googleapis.com/auth/calendar')
+    expect(google!.requestedScopes.every((scope) => scope.length > 0)).toBe(true)
+
+    const github = resolveConnectorAuthSpec('github')
+    expect(github).toEqual({ kind: 'github', authKind: 'api_key', requestedScopes: [] })
+
+    const http = resolveConnectorAuthSpec('http')
+    expect(http).toEqual({ kind: 'http', authKind: 'none', requestedScopes: [] })
+
+    // hmac-family providers surface as 'custom' (not in the four hub-driveable
+    // kinds the OAuth start path handles directly).
+    const webhook = resolveConnectorAuthSpec('webhook')
+    expect(webhook).toEqual({ kind: 'webhook', authKind: 'custom', requestedScopes: [] })
+
+    expect(resolveConnectorAuthSpec('definitely-not-a-real-kind')).toBeUndefined()
+  })
+
+  it('resolves auth specs through kind aliases', () => {
+    // 'notion' aliases to 'notion-database'; 'stripe' to 'stripe-pack'.
+    expect(resolveConnectorAuthSpec('notion')?.kind).toBe('notion-database')
+    expect(resolveConnectorAuthSpec('stripe')?.authKind).toBe('api_key')
   })
 
   it('keeps executable coverage explicit and bounded', () => {

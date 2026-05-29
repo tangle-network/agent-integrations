@@ -87,39 +87,72 @@ export function buildIntegrationToolCatalog(connectors: IntegrationConnector[]):
   const tools: IntegrationToolDefinition[] = []
   for (const connector of connectors) {
     for (const action of connector.actions) {
-      const tags = unique([
-        connector.id,
-        connector.providerId,
-        connector.title,
-        connector.category,
-        action.id,
-        action.title,
-        action.risk,
-        action.dataClass,
-        ...(connector.scopes ?? []),
-        ...(action.requiredScopes ?? []),
-      ].flatMap(tokenize))
-      tools.push({
-        name: integrationToolName(connector.providerId, connector.id, action.id),
-        title: `${connector.title}: ${action.title}`,
-        description: action.description ?? `${action.risk} action ${action.id} on ${connector.title}`,
-        providerId: connector.providerId,
-        connectorId: connector.id,
-        connectorTitle: connector.title,
-        category: connector.category,
-        action,
-        risk: action.risk,
-        dataClass: action.dataClass,
-        requiredScopes: action.requiredScopes,
-        inputSchema: action.inputSchema,
-        outputSchema: action.outputSchema,
-        tags,
-        supportTier: toolSupportTier(connector),
-        runnable: toolRunnable(connector),
-      })
+      tools.push(flattenIntegrationToolDefinition(connector, action))
     }
   }
   return tools
+}
+
+/** Flatten a single (connector, action) pair into the tool descriptor the
+ *  catalog exposes. The inverse of {@link parseIntegrationToolName} +
+ *  {@link integrationToolName}: every tool name round-trips back to exactly
+ *  this shape via {@link describeIntegrationTool}. */
+export function flattenIntegrationToolDefinition(
+  connector: IntegrationConnector,
+  action: IntegrationConnectorAction,
+): IntegrationToolDefinition {
+  const tags = unique([
+    connector.id,
+    connector.providerId,
+    connector.title,
+    connector.category,
+    action.id,
+    action.title,
+    action.risk,
+    action.dataClass,
+    ...(connector.scopes ?? []),
+    ...(action.requiredScopes ?? []),
+  ].flatMap(tokenize))
+  return {
+    name: integrationToolName(connector.providerId, connector.id, action.id),
+    title: `${connector.title}: ${action.title}`,
+    description: action.description ?? `${action.risk} action ${action.id} on ${connector.title}`,
+    providerId: connector.providerId,
+    connectorId: connector.id,
+    connectorTitle: connector.title,
+    category: connector.category,
+    action,
+    risk: action.risk,
+    dataClass: action.dataClass,
+    requiredScopes: action.requiredScopes,
+    inputSchema: action.inputSchema,
+    outputSchema: action.outputSchema,
+    tags,
+    supportTier: toolSupportTier(connector),
+    runnable: toolRunnable(connector),
+  }
+}
+
+/** Resolve a single tool's full descriptor from an opaque
+ *  `int_<provider>_<connector>_<action>` name against a composed registry.
+ *  Returns undefined when the name is malformed, the connector is unknown,
+ *  or the action is not defined by that connector. Powers `/tools/describe`
+ *  without callers re-implementing parse → byId → action → flatten. */
+export function describeIntegrationTool(
+  registry: IntegrationRegistry,
+  toolName: string,
+): IntegrationToolDefinition | undefined {
+  let parsed: ReturnType<typeof parseIntegrationToolName>
+  try {
+    parsed = parseIntegrationToolName(toolName)
+  } catch {
+    return undefined
+  }
+  const entry = registry.byId.get(parsed.connectorId)
+  if (!entry) return undefined
+  const action = entry.connector.actions.find((candidate) => candidate.id === parsed.actionId)
+  if (!action) return undefined
+  return flattenIntegrationToolDefinition(entry.connector, action)
 }
 
 export function buildIntegrationCatalogView(input: {

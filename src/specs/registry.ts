@@ -69,6 +69,54 @@ export function getIntegrationSpec(kind: string): IntegrationSpec | undefined {
   return listIntegrationSpecs().find((spec) => spec.kind === canonical || KIND_ALIASES[spec.kind] === canonical)
 }
 
+/** Auth-driving descriptor the hub uses to start a connect flow per provider
+ *  instead of hard-coding scopes/auth kind. Derived from the spec catalog
+ *  ({@link getIntegrationSpec}); undefined when the kind is not in the
+ *  catalog. */
+export interface ConnectorAuthSpec {
+  kind: string
+  authKind: 'oauth2' | 'api_key' | 'none' | 'custom'
+  /** Provider scopes to request in the authorization grant. Empty for
+   *  api_key / none / custom. */
+  requestedScopes: string[]
+  /** OAuth-only: authorization + token endpoints and PKCE posture. Present
+   *  only when authKind === 'oauth2'. */
+  authorizationUrl?: string
+  tokenUrl?: string
+  pkce?: 'required' | 'supported' | 'unsupported'
+  redirectUriTemplate?: string
+  clientIdEnv?: string
+  clientSecretEnv?: string
+  extraAuthParams?: Record<string, string>
+}
+
+export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | undefined {
+  const spec = getIntegrationSpec(kind)
+  if (!spec) return undefined
+  const auth = spec.auth
+  if (auth.mode === 'oauth2') {
+    return {
+      kind: spec.kind,
+      authKind: 'oauth2',
+      requestedScopes: auth.scopes.map((scope) => scope.providerScope).filter(Boolean),
+      authorizationUrl: auth.authorizationUrl,
+      tokenUrl: auth.tokenUrl,
+      pkce: auth.pkce,
+      redirectUriTemplate: auth.redirectUriTemplate,
+      clientIdEnv: auth.clientIdEnv,
+      clientSecretEnv: auth.clientSecretEnv,
+      extraAuthParams: auth.extraAuthParams,
+    }
+  }
+  if (auth.mode === 'api_key') {
+    return { kind: spec.kind, authKind: 'api_key', requestedScopes: [] }
+  }
+  if (auth.mode === 'none') {
+    return { kind: spec.kind, authKind: 'none', requestedScopes: [] }
+  }
+  return { kind: spec.kind, authKind: 'custom', requestedScopes: [] }
+}
+
 export function listExecutableIntegrationSpecs(): IntegrationSpec[] {
   return listIntegrationSpecs().filter((spec) => spec.status === 'executable')
 }

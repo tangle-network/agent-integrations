@@ -165,14 +165,14 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
     },
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
-      const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
+      const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
       if (inv.capabilityName === 'list_messages') return listMessages(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'read_message') return readMessage(inv, accessToken, timeoutMs)
       throw new Error(`gmail: unknown read capability ${inv.capabilityName}`)
     },
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-      const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
+      const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
       if (inv.capabilityName === 'send_reply') return sendReply(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'watch_label') return watchLabel(inv, accessToken, timeoutMs)
       throw new Error(`gmail: unknown mutation capability ${inv.capabilityName}`)
@@ -524,6 +524,7 @@ async function ensureFreshAccessToken(
   creds: ConnectorCredentials,
   clientId: string,
   clientSecret: string,
+  onCredentialsRotated?: (credentials: ConnectorCredentials) => void,
 ): Promise<string> {
   if (creds.kind !== 'oauth2') {
     throw new Error('gmail: expected oauth2 credentials')
@@ -543,5 +544,11 @@ async function ensureFreshAccessToken(
   creds.accessToken = refreshed.accessToken
   creds.expiresAt = refreshed.expiresIn ? Date.now() + refreshed.expiresIn * 1000 : undefined
   if (refreshed.refreshToken) creds.refreshToken = refreshed.refreshToken
+  onCredentialsRotated?.({
+    kind: 'oauth2',
+    accessToken: creds.accessToken,
+    refreshToken: creds.refreshToken,
+    expiresAt: creds.expiresAt,
+  })
   return creds.accessToken
 }

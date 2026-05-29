@@ -197,6 +197,13 @@ export interface ConnectorInvocation {
   expectedEtag?: string
   /** Product/session id (if any) for forensic logging. */
   callSessionId?: string
+  /** Fired by the adapter when it rotates the credentials mid-call (e.g. an
+   *  OAuth access token refreshed on expiry). The host re-encrypts +
+   *  persists the rotated envelope so the next expiry does not force a
+   *  reconnect. Adapters MUST invoke this with the FULL rotated envelope,
+   *  not a partial — the previous refresh token is preserved by the caller's
+   *  refresh logic, not inferred here. */
+  onCredentialsRotated?: (credentials: ConnectorCredentials) => void
 }
 
 /** A single inbound event extracted from a push payload. The webhook
