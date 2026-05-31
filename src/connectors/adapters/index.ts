@@ -66,6 +66,8 @@ export { gustoConnector } from './gusto.js'
 // Commerce
 export { bigcommerceConnector } from './bigcommerce.js'
 export { shopifyConnector } from './shopify.js'
+export { ebayConnector } from './ebay.js'
+export { etsyConnector, type EtsyOptions } from './etsy.js'
 // Support desks
 export { zendeskConnector } from './zendesk.js'
 export { intercomConnector } from './intercom.js'
@@ -76,6 +78,7 @@ export { gorgiasConnector } from './gorgias.js'
 export { mailchimpConnector } from './mailchimp.js'
 export { klaviyoConnector } from './klaviyo.js'
 export { sendgridConnector } from './sendgrid.js'
+export { postmarkConnector } from './postmark.js'
 export { marketoConnector } from './marketo.js'
 export { brazeConnector } from './braze.js'
 export { customerIoConnector } from './customer-io.js'
@@ -86,26 +89,35 @@ export { calendlyConnector } from './calendly.js'
 export { contentfulConnector } from './contentful.js'
 export { sanityConnector } from './sanity.js'
 export { codaConnector } from './coda.js'
+export { webflowConnector } from './webflow.js'
+export { wordpressConnector } from './wordpress.js'
 // Atlassian
 export { confluenceConnector } from './confluence.js'
 // E-signature
 export { docusignConnector } from './docusign.js'
 // Design
 export { figmaConnector } from './figma.js'
+export { figjamConnector } from './figjam.js'
+export { miroConnector } from './miro.js'
+export { canvaConnector } from './canva.js'
 // Storage
 export { boxConnector } from './box.js'
 export { dropboxConnector } from './dropbox.js'
+export { adobeCreativeCloudConnector } from './adobe-creative-cloud.js'
 // Project management
 export { linearConnector } from './linear.js'
 export { trelloConnector } from './trello.js'
 export { mondayConnector } from './monday.js'
 export { clickupConnector } from './clickup.js'
 export { basecampConnector } from './basecamp.js'
+// Legal practice management
+export { clioConnector } from './clio.js'
 // Observability / errors
 export { sentryConnector } from './sentry.js'
 export { datadogConnector } from './datadog.js'
 // Incident response / on-call
 export { pagerdutyConnector } from './pagerduty.js'
+export { opsgenieConnector } from './opsgenie.js'
 // Identity / auth
 export { auth0Connector } from './auth0.js'
 // AI / LLM providers
@@ -120,14 +132,21 @@ export { qdrantConnector } from './qdrant.js'
 // HRIS
 export { bamboohrConnector } from './bamboohr.js'
 export { ripplingConnector } from './rippling.js'
+export { workdayConnector } from './workday.js'
 // ATS / recruiting
 export { leverConnector } from './lever.js'
 export { greenhouseConnector } from './greenhouse.js'
+// Deployment platforms
+export { vercelConnector } from './vercel.js'
+export { netlifyConnector } from './netlify.js'
+// Forms
+export { typeformConnector } from './typeform.js'
 
 // 8 factory-style adapters (need client credentials at construction)
 export { hellosign, type HelloSignOptions } from './hellosign.js'
 export { pandadoc, type PandaDocOptions } from './pandadoc.js'
 export { googleDocs, type GoogleDocsOptions } from './google-docs.js'
+export { googleForms, type GoogleFormsOptions } from './google-forms.js'
 export { microsoftGraph, type MicrosoftGraphOptions } from './microsoft-graph.js'
 export { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 export { microsoftTeams, type MicrosoftTeamsOptions } from './microsoft-teams.js'
