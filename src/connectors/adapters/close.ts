@@ -1,0 +1,143 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const closeConnector = declarativeRestConnector({
+  kind: 'close',
+  displayName: 'Close',
+  description: 'Search and mutate Close CRM leads, contacts, and opportunities.',
+  auth: {
+    kind: 'oauth2',
+    authorizationUrl: 'https://app.close.com/oauth2/authorize/',
+    tokenUrl: 'https://api.close.com/oauth2/token/',
+    scopes: ['offline_access'],
+    clientIdEnv: 'CLOSE_OAUTH_CLIENT_ID',
+    clientSecretEnv: 'CLOSE_OAUTH_CLIENT_SECRET',
+  },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.close.com',
+  test: { method: 'GET', path: '/api/v1/me/' },
+  capabilities: [
+    {
+      name: 'leads.search',
+      class: 'read',
+      description: 'List or search Close leads using the leads endpoint query string.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          _limit: { type: 'integer', minimum: 1, maximum: 200 },
+          _skip: { type: 'integer', minimum: 0 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/lead/',
+        query: { query: '{query}', _limit: '{_limit}', _skip: '{_skip}' },
+      },
+    },
+    {
+      name: 'leads.get',
+      class: 'read',
+      description: 'Read a single Close lead by id.',
+      parameters: {
+        type: 'object',
+        properties: { leadId: { type: 'string' } },
+        required: ['leadId'],
+      },
+      request: { method: 'GET', path: '/api/v1/lead/{leadId}/' },
+    },
+    {
+      name: 'leads.create',
+      class: 'mutation',
+      description: 'Create a Close lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          url: { type: 'string' },
+          description: { type: 'string' },
+          status_id: { type: 'string' },
+          contacts: { type: 'array', items: { type: 'object' } },
+          custom: { type: 'object' },
+        },
+      },
+      request: { method: 'POST', path: '/api/v1/lead/', body: 'args' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'leads.update',
+      class: 'mutation',
+      description: 'Update a Close lead by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string' },
+          name: { type: 'string' },
+          url: { type: 'string' },
+          description: { type: 'string' },
+          status_id: { type: 'string' },
+          custom: { type: 'object' },
+        },
+        required: ['leadId'],
+      },
+      request: { method: 'PUT', path: '/api/v1/lead/{leadId}/', body: 'args' },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'contacts.create',
+      class: 'mutation',
+      description: 'Create a Close contact attached to a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string' },
+          name: { type: 'string' },
+          title: { type: 'string' },
+          emails: { type: 'array', items: { type: 'object' } },
+          phones: { type: 'array', items: { type: 'object' } },
+        },
+        required: ['lead_id'],
+      },
+      request: { method: 'POST', path: '/api/v1/contact/', body: 'args' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'opportunities.create',
+      class: 'mutation',
+      description: 'Create a Close opportunity on a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string' },
+          note: { type: 'string' },
+          confidence: { type: 'integer', minimum: 0, maximum: 100 },
+          value: { type: 'integer', minimum: 0 },
+          value_period: { type: 'string', enum: ['one_time', 'monthly', 'annual'] },
+          status_id: { type: 'string' },
+        },
+        required: ['lead_id'],
+      },
+      request: { method: 'POST', path: '/api/v1/opportunity/', body: 'args' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'opportunities.update',
+      class: 'mutation',
+      description: 'Update a Close opportunity by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          opportunityId: { type: 'string' },
+          note: { type: 'string' },
+          confidence: { type: 'integer', minimum: 0, maximum: 100 },
+          value: { type: 'integer', minimum: 0 },
+          value_period: { type: 'string', enum: ['one_time', 'monthly', 'annual'] },
+          status_id: { type: 'string' },
+        },
+        required: ['opportunityId'],
+      },
+      request: { method: 'PUT', path: '/api/v1/opportunity/{opportunityId}/', body: 'args' },
+      cas: 'optimistic-read-verify',
+    },
+  ],
+})
