@@ -1,0 +1,116 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const insightoAiConnector = declarativeRestConnector({
+  kind: 'insighto-ai',
+  displayName: 'Insighto AI',
+  description: 'Build, deploy, and manage AI-powered voice campaigns via Insighto AI.',
+  auth: { kind: 'api-key', hint: 'Insighto AI API key. Create one in the Insighto AI dashboard under Settings → API Keys.' },
+  category: 'comms',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.insighto.ai/v1',
+  test: { method: 'GET', path: '/status' },
+  capabilities: [
+    {
+      name: 'textblobs.add',
+      class: 'mutation',
+      description: 'Add a text blob (text content) to a data source for use in AI models.',
+      parameters: {
+        type: 'object',
+        properties: {
+          datasource_id: { type: 'string', description: 'The UUID of the data source.' },
+          text_content: { type: 'string', description: 'The text content to add to the data source.' },
+          name: { type: 'string', description: 'Optional name for this text blob entry.' },
+          description: { type: 'string', description: 'Optional description of what this text blob contains.' },
+          org_id: { type: 'string', description: 'The UUID of the organization.' },
+        },
+        required: ['datasource_id', 'text_content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/textblobs',
+        body: { datasource_id: '{datasource_id}', text_content: '{text_content}', name: '{name}', description: '{description}', org_id: '{org_id}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'contacts.upsert',
+      class: 'mutation',
+      description: 'Create or update a contact in Insighto AI.',
+      parameters: {
+        type: 'object',
+        properties: {
+          first_name: { type: 'string', description: 'First name of the contact.' },
+          last_name: { type: 'string', description: 'Last name of the contact.' },
+          email: { type: 'string', description: 'Email address of the contact.' },
+          phone_number: { type: 'string', description: 'Phone number including country code (e.g., 16501111234).' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts',
+        body: { first_name: '{first_name}', last_name: '{last_name}', email: '{email}', phone_number: '{phone_number}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'calls.create',
+      class: 'mutation',
+      description: 'Make an outbound call using Insighto AI voice capabilities.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Phone number in E.164 format (e.g., 16501234567).' },
+          prompt_dynamic_variables: { type: 'object', description: 'Variables for call prompts (e.g., name, account_id).' },
+        },
+        required: ['to'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls',
+        body: { to: '{to}', prompt_dynamic_variables: '{prompt_dynamic_variables}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a new campaign for automated outreach via Insighto AI.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', description: 'Campaign type (e.g., voice, sms).' },
+          start_time: { type: 'string', description: 'ISO 8601 timestamp for when the campaign should start.' },
+          interval: { type: 'integer', description: 'Time between executions in minutes (e.g., 60 for hourly, 1440 for daily).' },
+          widget_id: { type: 'string', description: 'Widget to associate with this campaign.' },
+          status: { type: 'string', enum: ['active', 'paused', 'stopped'], description: 'Initial campaign status.' },
+          attributes: { type: 'object', description: 'Additional campaign attributes as key-value pairs.' },
+          execution_weekdays: { type: 'array', items: { type: 'number' }, description: 'Weekdays as numbers (e.g., [1, 2, 3] for Mon, Tue, Wed).' },
+          time_window_start: { type: 'string', description: 'Start time in HH:MM format.' },
+          time_window_end: { type: 'string', description: 'End time in HH:MM format.' },
+          time_zone: { type: 'string', description: 'Time zone (defaults to UTC).' },
+          enabled: { type: 'boolean', description: 'Whether the campaign is enabled.' },
+        },
+        required: ['type', 'start_time', 'interval'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns',
+        body: {
+          type: '{type}',
+          start_time: '{start_time}',
+          interval: '{interval}',
+          widget_id: '{widget_id}',
+          status: '{status}',
+          attributes: '{attributes}',
+          execution_weekdays: '{execution_weekdays}',
+          time_window_start: '{time_window_start}',
+          time_window_end: '{time_window_end}',
+          time_zone: '{time_zone}',
+          enabled: '{enabled}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+  ],
+})

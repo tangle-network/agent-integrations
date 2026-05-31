@@ -1,0 +1,81 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const senjaConnector = declarativeRestConnector({
+  kind: 'senja',
+  displayName: 'Senja',
+  description: 'Manage testimonials, list and retrieve testimonial data from Senja.',
+  auth: { kind: 'api-key', hint: 'Senja REST API key from Automate > REST API.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.senja.io/api/v1',
+  test: { method: 'GET', path: '/testimonials', query: { limit: '1' } },
+  capabilities: [
+    {
+      name: 'testimonials.list',
+      class: 'read',
+      description: 'List testimonials with optional filtering and pagination.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Maximum number of testimonials to return (1–1000).' },
+          page: { type: 'integer', description: 'Page number for pagination. Start at 1.' },
+          sort: { type: 'string', description: 'Field used to sort the results.' },
+          order: { type: 'string', description: 'Sort direction (asc or desc).' },
+          lang: { type: 'string', description: 'Filter by language using an ISO 639 code.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/testimonials',
+        query: { limit: '{limit}', page: '{page}', sort: '{sort}', order: '{order}', lang: '{lang}' },
+      },
+    },
+    {
+      name: 'testimonials.get',
+      class: 'read',
+      description: 'Get a specific testimonial by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'The unique ID of the testimonial.' },
+        },
+        required: ['id'],
+      },
+      request: { method: 'GET', path: '/testimonials/{id}' },
+    },
+    {
+      name: 'testimonials.create',
+      class: 'mutation',
+      description: 'Create a new testimonial.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', description: 'Testimonial type (text, video, etc).' },
+          customer_name: { type: 'string', description: 'Full name of the person giving the testimonial.' },
+          title: { type: 'string', description: 'A short headline for the testimonial.' },
+          text: { type: 'string', description: 'The body of the testimonial.' },
+          rating: { type: 'integer', description: 'Star rating from 1 to 5.' },
+          approved: { type: 'boolean', description: 'Mark as approved immediately.' },
+          date: { type: 'string', description: 'Date the testimonial was given.' },
+          url: { type: 'string', description: 'Link to the original testimonial.' },
+          video_url: { type: 'string', description: 'URL of the video testimonial.' },
+          customer_email: { type: 'string', description: 'Email address of the customer.' },
+          customer_company: { type: 'string', description: 'Company or organisation the customer belongs to.' },
+          customer_tagline: { type: 'string', description: 'Short role or tagline for the customer.' },
+          customer_username: { type: 'string', description: 'Social media handle or username.' },
+          customer_url: { type: 'string', description: 'Link to the customer profile.' },
+          customer_avatar: { type: 'string', description: 'Direct URL to the customer avatar.' },
+          customer_company_logo: { type: 'string', description: 'Direct URL to the company logo.' },
+          integration: { type: 'string', description: 'The platform where the testimonial originally came from.' },
+          tags: { type: 'object', description: 'Tags to attach to this testimonial.' },
+          thumbnail_url: { type: 'string', description: 'URL of the thumbnail image.' },
+          form_id: { type: 'string', description: 'ID of the Senja form to associate with.' },
+        },
+        required: ['type', 'customer_name'],
+      },
+      request: { method: 'POST', path: '/testimonials', body: '{.}' },
+      cas: 'native-idempotency',
+    },
+  ],
+})

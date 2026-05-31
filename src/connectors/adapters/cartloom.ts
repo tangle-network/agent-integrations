@@ -1,0 +1,110 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const cartloomConnector = declarativeRestConnector({
+  kind: 'cartloom',
+  displayName: 'Cartloom',
+  description: 'Manage discounts, products, and orders on your Cartloom store.',
+  auth: { kind: 'api-key', hint: 'Cartloom API key.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'baseUrl' },
+  test: { method: 'GET', path: '/products' },
+  capabilities: [
+    {
+      name: 'discounts.create',
+      class: 'mutation',
+      description: 'Create a new discount code.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          enabled: { type: 'boolean' },
+          auto: { type: 'boolean' },
+          unlimited: { type: 'boolean' },
+          selfDestruct: { type: 'boolean' },
+          applyOnce: { type: 'boolean' },
+          type: { type: 'string' },
+          amount: { type: 'number' },
+          target: { type: 'string' },
+          startDate: { type: 'string' },
+          stopDate: { type: 'string' },
+          code: { type: 'string' },
+          targetPids: { type: 'array', items: { type: 'string' } },
+          targetAmount: { type: 'number' },
+          targetQuantity: { type: 'number' },
+          allowance: { type: 'number' },
+        },
+        required: ['title', 'enabled', 'auto', 'unlimited', 'selfDestruct', 'applyOnce', 'type', 'amount', 'target', 'startDate', 'stopDate'],
+      },
+      request: { method: 'POST', path: '/discounts', body: '{*}' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'discounts.get',
+      class: 'read',
+      description: 'Retrieve a specific discount by ID.',
+      parameters: {
+        type: 'object',
+        properties: { discountId: { type: 'string' } },
+        required: ['discountId'],
+      },
+      request: { method: 'GET', path: '/discounts/{discountId}' },
+    },
+    {
+      name: 'discounts.list',
+      class: 'read',
+      description: 'List all discounts.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      request: { method: 'GET', path: '/discounts' },
+    },
+    {
+      name: 'orders.get',
+      class: 'read',
+      description: 'Retrieve a specific order by invoice ID.',
+      parameters: {
+        type: 'object',
+        properties: { invoice: { type: 'string' } },
+        required: ['invoice'],
+      },
+      request: { method: 'GET', path: '/orders/{invoice}' },
+    },
+    {
+      name: 'orders.listByDate',
+      class: 'read',
+      description: 'List orders within a date range.',
+      parameters: {
+        type: 'object',
+        properties: {
+          start: { type: 'string' },
+          end: { type: 'string' },
+        },
+        required: ['start'],
+      },
+      request: { method: 'GET', path: '/orders', query: { start: '{start}', end: '{end}' } },
+    },
+    {
+      name: 'orders.searchByEmail',
+      class: 'read',
+      description: 'Search for orders by email address.',
+      parameters: {
+        type: 'object',
+        properties: { email: { type: 'string' } },
+        required: ['email'],
+      },
+      request: { method: 'GET', path: '/orders', query: { email: '{email}' } },
+    },
+    {
+      name: 'products.list',
+      class: 'read',
+      description: 'List all products in your Cartloom store.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      request: { method: 'GET', path: '/products' },
+    },
+  ],
+})

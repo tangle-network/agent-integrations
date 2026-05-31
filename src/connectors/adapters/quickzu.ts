@@ -1,0 +1,346 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const quickzuConnector = declarativeRestConnector({
+  kind: 'quickzu',
+  displayName: 'Quickzu',
+  description: 'Streamline WhatsApp ordering with Quickzu — manage products, categories, orders, discounts, and business hours.',
+  auth: {
+    kind: 'api-key',
+    hint: 'Quickzu API key.',
+  },
+  category: 'commerce',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.quickzu.com/api/v1',
+  test: { method: 'GET', path: '/business/info' },
+  capabilities: [
+    {
+      name: 'business.hours.update',
+      class: 'mutation',
+      description: 'Update business hours for a specific day.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weekday: { type: 'string', enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+          start: { type: 'string', description: 'Start time in 24-hour format (HH:MM).' },
+          end: { type: 'string', description: 'End time in 24-hour format (HH:MM).' },
+          status: { type: 'boolean', description: 'Enable or disable the business day.' },
+        },
+        required: ['weekday', 'start', 'end', 'status'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/business/hours/{weekday}',
+        body: { start: '{start}', end: '{end}', status: '{status}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'categories.list',
+      class: 'read',
+      description: 'List all product categories.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Search term to filter categories.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/categories',
+        query: { search: '{search}' },
+      },
+    },
+    {
+      name: 'categories.create',
+      class: 'mutation',
+      description: 'Create a new product category.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Category name.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/categories',
+        body: { name: '{name}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'categories.update',
+      class: 'mutation',
+      description: 'Update an existing category.',
+      parameters: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string' },
+          name: { type: 'string', description: 'Updated category name.' },
+        },
+        required: ['categoryId', 'name'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/categories/{categoryId}',
+        body: { name: '{name}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'categories.delete',
+      class: 'mutation',
+      description: 'Delete a product category.',
+      parameters: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string' },
+        },
+        required: ['categoryId'],
+      },
+      request: { method: 'DELETE', path: '/categories/{categoryId}' },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'products.list',
+      class: 'read',
+      description: 'List all products with optional pagination and filtering.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of live orders to fetch per status.' },
+          page: { type: 'integer', description: 'Current page number.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/products',
+        query: { limit: '{limit}', page: '{page}' },
+      },
+    },
+    {
+      name: 'products.add',
+      class: 'mutation',
+      description: 'Add a new product to the catalog.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Product name.' },
+          desc: { type: 'string', description: 'Product description.' },
+          mrp: { type: 'number', description: 'Maximum Retail Price.' },
+          price: { type: 'number', description: 'Selling price (must be <= MRP).' },
+          unit: { type: 'string', enum: ['kg', 'ltr', 'pcs', 'dozen', 'box'], description: 'Unit of measure.' },
+          value_per_unit: { type: 'number', description: 'Unit value.' },
+          availability: { type: 'boolean', description: 'Product availability status.' },
+          exclude_tax: { type: 'boolean', description: 'Exclude tax from price.' },
+          enable_variants: { type: 'boolean', description: 'Enable product variants.' },
+        },
+        required: ['name', 'mrp', 'unit', 'value_per_unit', 'availability'],
+      },
+      request: {
+        method: 'POST',
+        path: '/products',
+        body: {
+          name: '{name}',
+          desc: '{desc}',
+          mrp: '{mrp}',
+          price: '{price}',
+          unit: '{unit}',
+          value_per_unit: '{value_per_unit}',
+          availability: '{availability}',
+          exclude_tax: '{exclude_tax}',
+          enable_variants: '{enable_variants}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'products.update',
+      class: 'mutation',
+      description: 'Update an existing product.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string' },
+          name: { type: 'string' },
+          desc: { type: 'string' },
+          mrp: { type: 'number' },
+          price: { type: 'number' },
+          unit: { type: 'string' },
+          value_per_unit: { type: 'number' },
+          availability: { type: 'boolean' },
+          exclude_tax: { type: 'boolean' },
+          enable_variants: { type: 'boolean' },
+        },
+        required: ['productId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/products/{productId}',
+        body: {
+          name: '{name}',
+          desc: '{desc}',
+          mrp: '{mrp}',
+          price: '{price}',
+          unit: '{unit}',
+          value_per_unit: '{value_per_unit}',
+          availability: '{availability}',
+          exclude_tax: '{exclude_tax}',
+          enable_variants: '{enable_variants}',
+        },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'products.delete',
+      class: 'mutation',
+      description: 'Delete a product from the catalog.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string' },
+        },
+        required: ['productId'],
+      },
+      request: { method: 'DELETE', path: '/products/{productId}' },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'orders.list',
+      class: 'read',
+      description: 'List all orders with pagination.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of orders per page.' },
+          page: { type: 'integer', description: 'Page number.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/orders',
+        query: { limit: '{limit}', page: '{page}' },
+      },
+    },
+    {
+      name: 'orders.live',
+      class: 'read',
+      description: 'List live orders with optional pagination.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of live orders per status.' },
+          page: { type: 'integer', description: 'Page number.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/orders/live',
+        query: { limit: '{limit}', page: '{page}' },
+      },
+    },
+    {
+      name: 'orders.get',
+      class: 'read',
+      description: 'Get details of a specific order.',
+      parameters: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string' },
+        },
+        required: ['orderId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/orders/{orderId}',
+      },
+    },
+    {
+      name: 'orders.update-status',
+      class: 'mutation',
+      description: 'Update the status of an order.',
+      parameters: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string' },
+          status: { type: 'string', description: 'New order status.' },
+        },
+        required: ['orderId', 'status'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/orders/{orderId}/status',
+        body: { status: '{status}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'discounts.create',
+      class: 'mutation',
+      description: 'Create a product discount.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Discount title.' },
+          type: { type: 'string', enum: ['products', 'categories'], description: 'What gets discounted.' },
+          selectedFilterValues: { type: 'array', items: { type: 'string' }, description: 'Product or category IDs eligible for discount.' },
+          value: { type: 'number', description: 'Discount value (percentage or amount).' },
+          is_enabled: { type: 'boolean', description: 'Enable or disable the discount.' },
+          is_visible: { type: 'boolean', description: 'Visibility to customers.' },
+        },
+        required: ['title', 'type', 'value', 'is_enabled'],
+      },
+      request: {
+        method: 'POST',
+        path: '/discounts/product',
+        body: {
+          title: '{title}',
+          type: '{type}',
+          selectedFilterValues: '{selectedFilterValues}',
+          value: '{value}',
+          is_enabled: '{is_enabled}',
+          is_visible: '{is_visible}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'promo-codes.create',
+      class: 'mutation',
+      description: 'Create a promotional code.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Promotion title.' },
+          promo_code: { type: 'string', description: 'Promo code string.' },
+          value: { type: 'number', description: 'Discount value.' },
+          filter_type: { type: 'string', enum: ['products', 'categories'], description: 'What gets discounted.' },
+          selectedFilterValues: { type: 'array', items: { type: 'string' }, description: 'Eligible product or category IDs.' },
+          start_date: { type: 'string', description: 'Valid from date (YYYY-MM-DD format).' },
+          end_date: { type: 'string', description: 'Valid to date (YYYY-MM-DD format).' },
+          minimum_cart_value: { type: 'number', description: 'Minimum order amount.' },
+          max_users_limit: { type: 'number', description: 'Maximum number of uses.' },
+          is_enabled: { type: 'boolean', description: 'Enable or disable the code.' },
+        },
+        required: ['title', 'promo_code', 'value', 'start_date', 'end_date'],
+      },
+      request: {
+        method: 'POST',
+        path: '/promo-codes',
+        body: {
+          title: '{title}',
+          promo_code: '{promo_code}',
+          value: '{value}',
+          filter_type: '{filter_type}',
+          selectedFilterValues: '{selectedFilterValues}',
+          start_date: '{start_date}',
+          end_date: '{end_date}',
+          minimum_cart_value: '{minimum_cart_value}',
+          max_users_limit: '{max_users_limit}',
+          is_enabled: '{is_enabled}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+  ],
+})

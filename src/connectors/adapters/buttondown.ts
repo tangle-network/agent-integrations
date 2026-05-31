@@ -1,0 +1,73 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const buttondownConnector = declarativeRestConnector({
+  kind: 'buttondown',
+  displayName: 'Buttondown',
+  description: 'Automate your Buttondown newsletter workflows.',
+  auth: { kind: 'api-key', hint: 'Buttondown API key.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.buttondown.email/v1',
+  test: { method: 'GET', path: '/subscribers' },
+  capabilities: [
+    {
+      name: 'subscribers.create',
+      class: 'mutation',
+      description: 'Create a subscriber in Buttondown.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'The email address of the subscriber.' },
+          type: { type: 'string', description: 'The subscriber status (e.g., "regular", "unverified").' },
+          notes: { type: 'string', description: 'Internal notes about the subscriber.' },
+          tags: { type: 'array', items: { type: 'string' }, description: 'Tags to assign to the subscriber.' },
+          metadata: { type: 'object', description: 'Custom metadata to store on the subscriber.' },
+          referrerUrl: { type: 'string', description: 'Referrer URL for the subscriber.' },
+          utmSource: { type: 'string', description: 'UTM source parameter.' },
+          utmMedium: { type: 'string', description: 'UTM medium parameter.' },
+          utmCampaign: { type: 'string', description: 'UTM campaign parameter.' },
+          referringSubscriberId: { type: 'string', description: 'ID of the subscriber who referred this contact.' },
+          ipAddress: { type: 'string', description: 'The original IP address of the subscriber.' },
+          collisionBehavior: { type: 'string', description: 'How to handle duplicate email addresses.' },
+          bypassFirewall: { type: 'boolean', description: 'Set to true when the request originates from a trusted internal system.' },
+        },
+        required: ['email'],
+      },
+      request: { method: 'POST', path: '/subscribers', body: { email: '{email}', type: '{type}', notes: '{notes}', tags: '{tags}', metadata: '{metadata}', referrer_url: '{referrerUrl}', utm_source: '{utmSource}', utm_medium: '{utmMedium}', utm_campaign: '{utmCampaign}', referring_subscriber_id: '{referringSubscriberId}', ip_address: '{ipAddress}', collision_behavior: '{collisionBehavior}', bypass_firewall: '{bypassFirewall}' } },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'subscribers.list',
+      class: 'read',
+      description: 'List subscribers in Buttondown.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Maximum number of subscribers to return (1-1000).' },
+          cursor: { type: 'string', description: 'Cursor value from a previous response for pagination.' },
+          source: { type: 'string', description: 'Filter by subscriber source.' },
+          emailAddress: { type: 'string', description: 'Filter subscribers whose email address contains this value.' },
+          ordering: { type: 'string', description: 'Field to order results by.' },
+        },
+        required: [],
+      },
+      request: { method: 'GET', path: '/subscribers', query: { limit: '{limit}', cursor: '{cursor}', source: '{source}', email: '{emailAddress}', ordering: '{ordering}' } },
+    },
+    {
+      name: 'subscribers.send_email',
+      class: 'mutation',
+      description: 'Send an email to a subscriber or to all subscribers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string', description: 'Subject line of the email.' },
+          body: { type: 'string', description: 'HTML body of the email.' },
+          subscriberId: { type: 'string', description: 'Send to a specific subscriber ID (leave empty to send to all).' },
+        },
+        required: ['subject', 'body'],
+      },
+      request: { method: 'POST', path: '/emails', body: { subject: '{subject}', body: '{body}', subscriber_id: '{subscriberId}' } },
+      cas: 'native-idempotency',
+    },
+  ],
+})

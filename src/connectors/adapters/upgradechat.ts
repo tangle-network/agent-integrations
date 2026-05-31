@@ -1,0 +1,103 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const upgradechatConnector = declarativeRestConnector({
+  kind: 'upgradechat',
+  displayName: 'Upgrade.chat',
+  description: 'Manage contacts, subscriptions, invoices, and products in Upgrade.chat.',
+  auth: { kind: 'api-key', hint: 'Upgrade.chat API key.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'base_url' },
+  test: { method: 'GET', path: '/api/ping' },
+  capabilities: [
+    {
+      name: 'contacts.add_or_update',
+      class: 'mutation',
+      description: 'Add or update a contact.',
+      parameters: {
+        type: 'object',
+        properties: {
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          email1: { type: 'string' },
+          companyName: { type: 'string' },
+          mobilePhone: { type: 'string' },
+        },
+        required: ['firstName', 'lastName'],
+      },
+      request: { method: 'POST', path: '/api/contacts', body: 'auto' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'contacts.get',
+      class: 'read',
+      description: 'Get contact details by ID.',
+      parameters: {
+        type: 'object',
+        properties: { contactId: { type: 'string' } },
+        required: ['contactId'],
+      },
+      request: { method: 'GET', path: '/api/contacts/{contactId}' },
+    },
+    {
+      name: 'subscriptions.add_or_update',
+      class: 'mutation',
+      description: 'Add or update a subscription.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productCode: { type: 'string' },
+          paymentPeriodType: { type: 'string' },
+          status: { type: 'string' },
+          contactId: { type: 'string' },
+        },
+        required: ['productCode', 'paymentPeriodType', 'status'],
+      },
+      request: { method: 'POST', path: '/api/subscriptions', body: 'auto' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'invoices.create',
+      class: 'mutation',
+      description: 'Create an invoice.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productCode: { type: 'string' },
+          paymentPeriodType: { type: 'string' },
+          status: { type: 'string' },
+          invoiceNo: { type: 'integer' },
+          date: { type: 'string' },
+          dueDate: { type: 'string' },
+          currencyId: { type: 'string' },
+          grandTotal: { type: 'number' },
+          invoiceDescription: { type: 'string' },
+          quantity: { type: 'integer' },
+        },
+        required: ['productCode', 'paymentPeriodType', 'status', 'invoiceNo', 'date', 'dueDate', 'currencyId', 'invoiceDescription', 'quantity'],
+      },
+      request: { method: 'POST', path: '/api/invoices', body: 'auto' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'products.create',
+      class: 'mutation',
+      description: 'Create a product.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          code: { type: 'string' },
+          productType: { type: 'string' },
+          description: { type: 'string' },
+          price: { type: 'number' },
+          unit: { type: 'string' },
+          frequency: { type: 'string' },
+        },
+        required: ['name', 'code', 'productType'],
+      },
+      request: { method: 'POST', path: '/api/products', body: 'auto' },
+      cas: 'native-idempotency',
+    },
+  ],
+})

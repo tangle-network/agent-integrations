@@ -1,0 +1,168 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const predictLeadsConnector = declarativeRestConnector({
+  kind: 'predict-leads',
+  displayName: 'PredictLeads',
+  description: 'Query company intelligence data including companies, job openings, technologies, news events, and connections.',
+  auth: { kind: 'api-key', hint: 'PredictLeads API key and token.' },
+  category: 'database',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.predictleads.com',
+  test: { method: 'GET', path: '/companies' },
+  capabilities: [
+    {
+      name: 'companies.find',
+      class: 'read',
+      description: 'Find companies by location, size range, and filters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          location: { type: 'string' },
+          minMaxSizes: { type: 'string' },
+          activeOnly: { type: 'boolean' },
+          notClosed: { type: 'boolean' },
+        },
+        required: ['location', 'minMaxSizes'],
+      },
+      request: {
+        method: 'GET',
+        path: '/companies',
+        query: { location: '{location}', minMaxSizes: '{minMaxSizes}', activeOnly: '{activeOnly}', notClosed: '{notClosed}' },
+      },
+    },
+    {
+      name: 'companies.findByDomain',
+      class: 'read',
+      description: 'Find a company by domain.',
+      parameters: {
+        type: 'object',
+        properties: { domain: { type: 'string' } },
+        required: ['domain'],
+      },
+      request: { method: 'GET', path: '/companies', query: { domain: '{domain}' } },
+    },
+    {
+      name: 'jobOpenings.find',
+      class: 'read',
+      description: 'Find job openings with optional filters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          location: { type: 'string' },
+          minMaxSizes: { type: 'string' },
+          activeOnly: { type: 'boolean' },
+          withDescriptionOnly: { type: 'boolean' },
+          withLocationOnly: { type: 'boolean' },
+          categories: { type: 'string' },
+          onetCodes: { type: 'object' },
+          foundAtFrom: { type: 'string' },
+          foundAtUntil: { type: 'string' },
+        },
+        required: ['location', 'minMaxSizes'],
+      },
+      request: {
+        method: 'GET',
+        path: '/job-openings',
+        query: {
+          location: '{location}',
+          minMaxSizes: '{minMaxSizes}',
+          activeOnly: '{activeOnly}',
+          withDescriptionOnly: '{withDescriptionOnly}',
+          withLocationOnly: '{withLocationOnly}',
+          categories: '{categories}',
+          onetCodes: '{onetCodes}',
+          foundAtFrom: '{foundAtFrom}',
+          foundAtUntil: '{foundAtUntil}',
+        },
+      },
+    },
+    {
+      name: 'jobOpenings.getById',
+      class: 'read',
+      description: 'Get a job opening by ID.',
+      parameters: {
+        type: 'object',
+        properties: { jobOpeningId: { type: 'string' } },
+        required: ['jobOpeningId'],
+      },
+      request: { method: 'GET', path: '/job-openings/{jobOpeningId}' },
+    },
+    {
+      name: 'jobOpenings.getCompanyActions',
+      class: 'read',
+      description: 'Get job opening actions for a company.',
+      parameters: {
+        type: 'object',
+        properties: { domain: { type: 'string' } },
+        required: ['domain'],
+      },
+      request: { method: 'GET', path: '/companies/{domain}/job-openings' },
+    },
+    {
+      name: 'technologies.findByCompany',
+      class: 'read',
+      description: 'Find technologies used by a company.',
+      parameters: {
+        type: 'object',
+        properties: { domain: { type: 'string' } },
+        required: ['domain'],
+      },
+      request: { method: 'GET', path: '/companies/{domain}/technologies' },
+    },
+    {
+      name: 'companies.findByTechnologyId',
+      class: 'read',
+      description: 'Find companies that use a specific technology.',
+      parameters: {
+        type: 'object',
+        properties: { technologyId: { type: 'string' } },
+        required: ['technologyId'],
+      },
+      request: { method: 'GET', path: '/technologies/{technologyId}/companies' },
+    },
+    {
+      name: 'newsEvents.findById',
+      class: 'read',
+      description: 'Find a news event by ID.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      request: { method: 'GET', path: '/news-events/{id}' },
+    },
+    {
+      name: 'newsEvents.findByDomain',
+      class: 'read',
+      description: 'Find news events for a company by domain.',
+      parameters: {
+        type: 'object',
+        properties: { domain: { type: 'string' } },
+        required: ['domain'],
+      },
+      request: { method: 'GET', path: '/companies/{domain}/news' },
+    },
+    {
+      name: 'connections.find',
+      class: 'read',
+      description: 'Find connections.',
+      parameters: {
+        type: 'object',
+        properties: { location: { type: 'string' }, minMaxSizes: { type: 'string' } },
+        required: ['location', 'minMaxSizes'],
+      },
+      request: { method: 'GET', path: '/connections', query: { location: '{location}', minMaxSizes: '{minMaxSizes}' } },
+    },
+    {
+      name: 'connections.findByDomain',
+      class: 'read',
+      description: 'Find connections for a company by domain.',
+      parameters: {
+        type: 'object',
+        properties: { domain: { type: 'string' } },
+        required: ['domain'],
+      },
+      request: { method: 'GET', path: '/companies/{domain}/connections' },
+    },
+  ],
+})

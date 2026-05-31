@@ -1,0 +1,128 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const smartleadConnector = declarativeRestConnector({
+  kind: 'smartlead',
+  displayName: 'SmartLead',
+  description: 'Manage cold email campaigns with multi-account rotation, email warmup, and advanced analytics.',
+  auth: { kind: 'api-key', hint: 'SmartLead API key.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.smartlead.io',
+  test: { method: 'GET', path: '/v1/campaigns' },
+  capabilities: [
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a new cold email campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Campaign name' },
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+          client_id: { type: 'number', description: 'Client ID for agency accounts (optional)' },
+          track_open: { type: 'boolean', description: 'Enable email open tracking' },
+          track_click: { type: 'boolean', description: 'Enable link click tracking' },
+          send_as_plain_text: { type: 'boolean', description: 'Send as plain text for better deliverability' },
+          enable_ai_esp_matching: { type: 'boolean', description: 'Use AI to match leads with email accounts' },
+          follow_up_percentage: { type: 'number', description: 'Percentage of leads to follow up (0-100)' },
+          unsubscribe_text: { type: 'string', description: 'Custom unsubscribe text' },
+        },
+        required: ['name', 'campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/campaigns',
+        body: {
+          name: '{name}',
+          campaign_id: '{campaign_id}',
+          client_id: '{client_id}',
+          track_open: '{track_open}',
+          track_click: '{track_click}',
+          send_as_plain_text: '{send_as_plain_text}',
+          enable_ai_esp_matching: '{enable_ai_esp_matching}',
+          follow_up_percentage: '{follow_up_percentage}',
+          unsubscribe_text: '{unsubscribe_text}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'leads.add',
+      class: 'mutation',
+      description: 'Add leads to a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID to add leads to' },
+          lead_list: { type: 'array', description: 'Array of lead objects with email and other fields' },
+          ignore_global_block_list: { type: 'boolean', description: 'Skip global block list validation' },
+          ignore_unsubscribe_list: { type: 'boolean', description: 'Include previously unsubscribed leads' },
+          ignore_duplicate_leads_in_other_campaign: { type: 'boolean', description: 'Allow same lead in multiple campaigns' },
+          ignore_community_bounce_list: { type: 'boolean', description: 'Skip community bounce list check' },
+        },
+        required: ['campaign_id', 'lead_list'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/campaigns/{campaign_id}/leads',
+        body: {
+          lead_list: '{lead_list}',
+          ignore_global_block_list: '{ignore_global_block_list}',
+          ignore_unsubscribe_list: '{ignore_unsubscribe_list}',
+          ignore_duplicate_leads_in_other_campaign: '{ignore_duplicate_leads_in_other_campaign}',
+          ignore_community_bounce_list: '{ignore_community_bounce_list}',
+        },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'campaigns.statistics',
+      class: 'read',
+      description: 'Get campaign statistics and performance metrics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/campaigns/{campaign_id}/statistics',
+      },
+    },
+    {
+      name: 'campaigns.update',
+      class: 'mutation',
+      description: 'Update campaign settings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+          track_open: { type: 'boolean', description: 'Enable email open tracking' },
+          track_click: { type: 'boolean', description: 'Enable link click tracking' },
+          stop_lead_settings: { type: 'string', description: 'When to stop emailing a lead' },
+          unsubscribe_text: { type: 'string', description: 'Custom unsubscribe text' },
+          enable_ai_esp_matching: { type: 'boolean', description: 'Use AI to match leads with email accounts' },
+          send_as_plain_text: { type: 'boolean', description: 'Send as plain text' },
+          follow_up_percentage: { type: 'number', description: 'Follow up percentage (0-100)' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/v1/campaigns/{campaign_id}',
+        body: {
+          track_open: '{track_open}',
+          track_click: '{track_click}',
+          stop_lead_settings: '{stop_lead_settings}',
+          unsubscribe_text: '{unsubscribe_text}',
+          enable_ai_esp_matching: '{enable_ai_esp_matching}',
+          send_as_plain_text: '{send_as_plain_text}',
+          follow_up_percentage: '{follow_up_percentage}',
+        },
+      },
+      cas: 'etag-if-match',
+    },
+  ],
+})
