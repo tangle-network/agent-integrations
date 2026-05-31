@@ -45,6 +45,47 @@ export { airtableConnector } from './airtable.js'
 export { asanaConnector } from './asana.js'
 export { salesforceConnector } from './salesforce.js'
 
+// === Mega fan-out (2026-05-31): native adapter expansion ===
+// 24 declarative-REST OAuth2 connectors (use declarativeRestConnector internally)
+// CRM family
+export { pipedriveConnector } from './pipedrive.js'
+export { closeConnector } from './close.js'
+export { zohoCrmConnector } from './zoho-crm.js'
+// Finance / accounting
+export { quickbooksConnector } from './quickbooks.js'
+export { xeroConnector } from './xero.js'
+// Commerce
+export { bigcommerceConnector } from './bigcommerce.js'
+// Support desks
+export { zendeskConnector } from './zendesk.js'
+export { intercomConnector } from './intercom.js'
+export { helpscoutConnector } from './helpscout.js'
+export { frontConnector } from './front.js'
+export { gorgiasConnector } from './gorgias.js'
+// Email / marketing
+export { mailchimpConnector } from './mailchimp.js'
+export { klaviyoConnector } from './klaviyo.js'
+export { sendgridConnector } from './sendgrid.js'
+export { marketoConnector } from './marketo.js'
+export { brazeConnector } from './braze.js'
+export { customerIoConnector } from './customer-io.js'
+// Scheduling
+export { calComConnector } from './cal-com.js'
+export { calendlyConnector } from './calendly.js'
+// Content
+export { contentfulConnector } from './contentful.js'
+export { sanityConnector } from './sanity.js'
+
+// 8 factory-style adapters (need client credentials at construction)
+export { hellosign, type HelloSignOptions } from './hellosign.js'
+export { pandadoc, type PandaDocOptions } from './pandadoc.js'
+export { googleDocs, type GoogleDocsOptions } from './google-docs.js'
+export { microsoftGraph, type MicrosoftGraphOptions } from './microsoft-graph.js'
+export { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
+export { microsoftTeams, type MicrosoftTeamsOptions } from './microsoft-teams.js'
+export { oneDrive, type OneDriveOptions } from './onedrive.js'
+export { sharepoint, type SharePointOptions } from './sharepoint.js'
+
 export {
   tangleIdentity,
   createTangleIdentityClient,
