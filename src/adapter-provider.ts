@@ -7,15 +7,25 @@ import type {
   ResolvedDataSource,
 } from './connectors/types.js'
 import type {
+  CompleteAuthRequest,
   IntegrationActionRequest,
   IntegrationActionResult,
   IntegrationConnection,
   IntegrationConnector,
   IntegrationProvider,
   IntegrationProviderKind,
+  StartAuthRequest,
+  StartAuthResult,
 } from './index.js'
 import { IntegrationError } from './index.js'
 import type { IntegrationCatalogSource } from './registry.js'
+
+/** OAuth client credentials the host resolves at start/exchange time.
+ *  The lib never reads env or any vault — kept edge-runtime-safe. */
+export interface OAuthClientCredentials {
+  clientId: string
+  clientSecret: string
+}
 
 export interface ConnectorAdapterProviderOptions {
   id?: string
@@ -31,12 +41,25 @@ export interface ConnectorAdapterProviderOptions {
     connection: IntegrationConnection
     credentials: ConnectorCredentials
   }) => Promise<void> | void
+  /** Resolve OAuth client_id / client_secret for an oauth2 adapter at
+   *  start- and exchange-time. Host owns env, vault, and per-tenant
+   *  overrides. Return null to refuse the flow (lib will throw
+   *  `config_missing`). The lib never logs the secret nor includes it
+   *  in thrown error messages. */
+  resolveOAuthClient?: (input: { connectorId: string }) =>
+    | Promise<OAuthClientCredentials | null>
+    | OAuthClientCredentials
+    | null
+  /** Fetch implementation forwarded to the OAuth token exchange. Default
+   *  is `globalThis.fetch`. Tests inject a mock. */
+  fetchImpl?: typeof fetch
   now?: () => Date
 }
 
 export function createConnectorAdapterProvider(options: ConnectorAdapterProviderOptions): IntegrationProvider {
   const providerId = options.id ?? 'first-party'
   const now = options.now ?? (() => new Date())
+  const fetchImpl = options.fetchImpl ?? (globalThis.fetch?.bind(globalThis) as typeof fetch | undefined)
   const adapters = new Map<string, ConnectorAdapter>()
   for (const adapter of options.adapters) {
     adapters.set(adapter.manifest.kind, adapter)
@@ -45,6 +68,172 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
     id: providerId,
     kind: options.kind ?? 'first_party',
     listConnectors: () => [...adapters.values()].map((adapter) => manifestToConnector(providerId, adapter)),
+    async startAuth(request: StartAuthRequest): Promise<StartAuthResult> {
+      const adapter = adapters.get(request.connectorId)
+      if (!adapter) {
+        throw new IntegrationError(
+          `Connector adapter ${request.connectorId} not found.`,
+          'connector_not_found',
+        )
+      }
+      const auth = adapter.manifest.auth
+      if (auth.kind !== 'oauth2') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${auth.kind}).`,
+          'auth_not_supported',
+        )
+      }
+      if (!options.resolveOAuthClient) {
+        throw new IntegrationError(
+          `OAuth client resolver missing on adapter provider; cannot start auth for ${request.connectorId}.`,
+          'config_missing',
+        )
+      }
+      const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
+      if (!client || !client.clientId || !client.clientSecret) {
+        throw new IntegrationError(
+          `OAuth client credentials unavailable for ${request.connectorId}.`,
+          'config_missing',
+        )
+      }
+      const scopes =
+        request.requestedScopes && request.requestedScopes.length > 0
+          ? request.requestedScopes
+          : auth.scopes
+      const url = new URL(auth.authorizationUrl)
+      url.searchParams.set('response_type', 'code')
+      url.searchParams.set('client_id', client.clientId)
+      url.searchParams.set('redirect_uri', request.redirectUri)
+      if (scopes.length > 0) {
+        url.searchParams.set('scope', scopes.join(' '))
+      }
+      const state = request.state ?? randomState()
+      url.searchParams.set('state', state)
+      if (auth.extraAuthParams) {
+        for (const [key, value] of Object.entries(auth.extraAuthParams)) {
+          url.searchParams.set(key, value)
+        }
+      }
+      return {
+        providerId,
+        connectorId: request.connectorId,
+        authUrl: url.toString(),
+        state,
+        metadata: request.metadata,
+      }
+    },
+    async completeAuth(request: CompleteAuthRequest): Promise<IntegrationConnection> {
+      const adapter = adapters.get(request.connectorId)
+      if (!adapter) {
+        throw new IntegrationError(
+          `Connector adapter ${request.connectorId} not found.`,
+          'connector_not_found',
+        )
+      }
+      const auth = adapter.manifest.auth
+      if (auth.kind !== 'oauth2') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${auth.kind}).`,
+          'auth_not_supported',
+        )
+      }
+      if (!request.code) {
+        throw new IntegrationError(
+          `Authorization code missing on completeAuth for ${request.connectorId}.`,
+          'config_missing',
+        )
+      }
+      if (!options.resolveOAuthClient) {
+        throw new IntegrationError(
+          `OAuth client resolver missing on adapter provider; cannot complete auth for ${request.connectorId}.`,
+          'config_missing',
+        )
+      }
+      const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
+      if (!client || !client.clientId || !client.clientSecret) {
+        throw new IntegrationError(
+          `OAuth client credentials unavailable for ${request.connectorId}.`,
+          'config_missing',
+        )
+      }
+      if (!fetchImpl) {
+        throw new IntegrationError(
+          'No fetch implementation available; inject fetchImpl into createConnectorAdapterProvider.',
+          'config_missing',
+        )
+      }
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: request.code,
+        client_id: client.clientId,
+        client_secret: client.clientSecret,
+        redirect_uri: request.redirectUri,
+      })
+      let res: Response
+      try {
+        res = await fetchImpl(auth.tokenUrl, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            accept: 'application/json',
+          },
+          body,
+        })
+      } catch (cause) {
+        throw new IntegrationError(
+          `OAuth token exchange transport error for ${request.connectorId}: ${(cause as Error)?.message ?? 'unknown'}`,
+          'provider_failure',
+        )
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new IntegrationError(
+          `OAuth token exchange failed for ${request.connectorId}: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
+          'provider_failure',
+        )
+      }
+      let json: {
+        access_token?: string
+        refresh_token?: string
+        expires_in?: number
+        scope?: string
+        token_type?: string
+      }
+      try {
+        json = await res.json()
+      } catch {
+        throw new IntegrationError(
+          `OAuth token exchange returned non-JSON body for ${request.connectorId}.`,
+          'provider_failure',
+        )
+      }
+      if (!json.access_token) {
+        throw new IntegrationError(
+          `OAuth token exchange returned no access_token for ${request.connectorId}.`,
+          'provider_failure',
+        )
+      }
+      const grantedScopes = typeof json.scope === 'string' && json.scope.length > 0
+        ? json.scope.split(/[\s,]+/).filter(Boolean)
+        : []
+      const issued = now()
+      const issuedIso = issued.toISOString()
+      const expiresAt = typeof json.expires_in === 'number' && json.expires_in > 0
+        ? new Date(issued.getTime() + json.expires_in * 1000).toISOString()
+        : undefined
+      return {
+        id: randomConnectionId(),
+        owner: request.owner,
+        providerId,
+        connectorId: request.connectorId,
+        status: 'active',
+        grantedScopes,
+        createdAt: issuedIso,
+        updatedAt: issuedIso,
+        expiresAt,
+        metadata: request.metadata,
+      }
+    },
     async invokeAction(connection, request) {
       const adapter = adapters.get(connection.connectorId)
       if (!adapter) {
@@ -223,4 +412,28 @@ function titleFromName(name: string): string {
 function toRecord(input: unknown): Record<string, unknown> {
   if (input && typeof input === 'object' && !Array.isArray(input)) return input as Record<string, unknown>
   return {}
+}
+
+function randomState(): string {
+  // 192 bits of entropy — comfortable CSRF margin and stays URL-safe.
+  const bytes = new Uint8Array(24)
+  globalThis.crypto.getRandomValues(bytes)
+  return base64UrlEncode(bytes)
+}
+
+function randomConnectionId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return `conn_${globalThis.crypto.randomUUID().replace(/-/g, '')}`
+  }
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  return `conn_${base64UrlEncode(bytes)}`
+}
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  // btoa is defined in browsers, workers, and Node ≥ 16.
+  const b64 = typeof btoa === 'function' ? btoa(bin) : Buffer.from(bin, 'binary').toString('base64')
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }

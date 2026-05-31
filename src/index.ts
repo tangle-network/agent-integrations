@@ -367,7 +367,9 @@ export class IntegrationError extends Error {
       | 'action_not_found'
       | 'trigger_not_found'
       | 'approval_required'
-      | 'policy_denied',
+      | 'policy_denied'
+      | 'config_missing'
+      | 'provider_failure',
   ) {
     super(message)
     this.name = 'IntegrationError'
