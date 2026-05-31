@@ -306,7 +306,17 @@ export interface ConnectorManifest {
    *  `cache` because they refresh it nightly). */
   defaultConsistencyModel: ConsistencyModel
   /** Connector category for UI grouping. */
-  category: 'calendar' | 'spreadsheet' | 'crm' | 'doc' | 'webhook' | 'storage' | 'comms' | 'commerce' | 'other'
+  category:
+    | 'calendar'
+    | 'spreadsheet'
+    | 'crm'
+    | 'doc'
+    | 'webhook'
+    | 'storage'
+    | 'comms'
+    | 'commerce'
+    | 'database'
+    | 'other'
   /** Optional icon URL or named icon. */
   icon?: string
   /** Optional per-kind rate-limit budget. The SDK enforces it inside
