@@ -1,0 +1,147 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const dumplingAiConnector = declarativeRestConnector({
+  kind: 'dumpling-ai',
+  displayName: 'Dumpling AI',
+  description: 'Transform unstructured website content into clean, AI-ready data via Dumpling AI.',
+  auth: { kind: 'api-key', hint: 'Dumpling AI API key. Create one in app.dumplingai.com under Settings → API Keys.' },
+  category: 'other',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://app.dumplingai.com/api/v1',
+  test: { method: 'POST', path: '/scrape', body: { url: 'https://example.com', format: 'markdown' } },
+  capabilities: [
+    {
+      name: 'web.crawl',
+      class: 'mutation',
+      description: 'Crawl a website starting from the given URL, returning cleaned content for each page visited.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Base URL to crawl.' },
+          limit: { type: 'integer', description: 'Maximum number of pages to crawl.' },
+          depth: { type: 'integer', description: 'Distance from the base URL to follow links.' },
+          format: { type: 'string', enum: ['markdown', 'html', 'text'], description: 'Output content format.' },
+        },
+        required: ['url'],
+      },
+      request: {
+        method: 'POST',
+        path: '/crawl',
+        body: { url: '{url}', limit: '{limit}', depth: '{depth}', format: '{format}' },
+      },
+      externalEffect: false,
+    },
+    {
+      name: 'web.scrape',
+      class: 'mutation',
+      description: 'Scrape a single web page and return its cleaned content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string' },
+          format: { type: 'string', enum: ['markdown', 'html', 'text'] },
+          cleaned: { type: 'boolean', description: 'Whether the output should be cleaned of boilerplate.' },
+          renderJs: { type: 'boolean', description: 'Render JavaScript before extracting content.' },
+        },
+        required: ['url'],
+      },
+      request: {
+        method: 'POST',
+        path: '/scrape',
+        body: { url: '{url}', format: '{format}', cleaned: '{cleaned}', renderJs: '{renderJs}' },
+      },
+      externalEffect: false,
+    },
+    {
+      name: 'document.extract',
+      class: 'mutation',
+      description: 'Extract structured data from a document file (URL or base64) given a natural-language prompt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', description: 'File URL or base64-encoded file contents.' },
+          prompt: { type: 'string', description: 'Prompt describing what to extract from the document.' },
+          jsonMode: { type: 'boolean', description: 'Whether to return the result as JSON.' },
+        },
+        required: ['file', 'prompt'],
+      },
+      request: {
+        method: 'POST',
+        path: '/extract-document',
+        body: { file: '{file}', prompt: '{prompt}', jsonMode: '{jsonMode}' },
+      },
+      externalEffect: false,
+    },
+    {
+      name: 'image.generate',
+      class: 'mutation',
+      description: 'Generate one or more images from a prompt using the specified model.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string' },
+          model: { type: 'string', description: 'The image-generation model identifier.' },
+          aspect_ratio: { type: 'string', description: 'Aspect ratio for the generated image.' },
+          num_outputs: { type: 'integer', description: 'Number of images to generate (1–4).' },
+          seed: { type: 'integer', description: 'Seed for reproducible generation.' },
+          output_format: { type: 'string', enum: ['png', 'jpg', 'webp'] },
+        },
+        required: ['prompt', 'model'],
+      },
+      request: {
+        method: 'POST',
+        path: '/generate-image',
+        body: {
+          prompt: '{prompt}',
+          model: '{model}',
+          aspect_ratio: '{aspect_ratio}',
+          num_outputs: '{num_outputs}',
+          seed: '{seed}',
+          output_format: '{output_format}',
+        },
+      },
+    },
+    {
+      name: 'search.news',
+      class: 'mutation',
+      description: 'Search Google News and optionally scrape the top results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          country: { type: 'string', description: 'Country code for location bias (e.g. US).' },
+          location: { type: 'string', description: 'Specific location to focus the search.' },
+          language: { type: 'string', description: 'Language code for the results (e.g. en).' },
+          dateRange: {
+            type: 'string',
+            enum: ['anyTime', 'pastHour', 'pastDay', 'pastWeek', 'pastMonth', 'pastYear'],
+            description: 'Filter results by recency.',
+          },
+          page: { type: 'integer' },
+          scrapeResults: { type: 'boolean' },
+          numResultsToScrape: { type: 'integer', description: 'Number of top results to scrape (max 10).' },
+          scrapeFormat: { type: 'string', enum: ['markdown', 'html', 'text'] },
+          cleanedOutput: { type: 'boolean' },
+        },
+        required: ['query'],
+      },
+      request: {
+        method: 'POST',
+        path: '/search-news',
+        body: {
+          query: '{query}',
+          country: '{country}',
+          location: '{location}',
+          language: '{language}',
+          dateRange: '{dateRange}',
+          page: '{page}',
+          scrapeResults: '{scrapeResults}',
+          numResultsToScrape: '{numResultsToScrape}',
+          scrapeFormat: '{scrapeFormat}',
+          cleanedOutput: '{cleanedOutput}',
+        },
+      },
+      externalEffect: false,
+    },
+  ],
+})

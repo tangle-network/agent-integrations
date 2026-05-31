@@ -1,0 +1,132 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const circleConnector = declarativeRestConnector({
+  kind: 'circle',
+  displayName: 'Circle',
+  description: 'Create posts and comments, manage members, and look up community details on Circle.so.',
+  auth: { kind: 'api-key', hint: 'Circle.so admin V1 API token (sent as Authorization: Token <token>).' },
+  category: 'comms',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://app.circle.so/api/v1',
+  test: { method: 'GET', path: '/community_members/search' },
+  capabilities: [
+    {
+      name: 'posts.create',
+      class: 'mutation',
+      description: 'Create a new post in a Circle space.',
+      parameters: {
+        type: 'object',
+        properties: {
+          space_id: { type: 'integer' },
+          name: { type: 'string' },
+          text_body: { type: 'string' },
+          tiptap_body_json: { type: 'object' },
+          status: { type: 'string' },
+          published_at: { type: 'string' },
+          is_comments_enabled: { type: 'boolean' },
+          user_email: { type: 'string' },
+        },
+        required: ['space_id', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/posts',
+        body: {
+          space_id: '{space_id}',
+          name: '{name}',
+          text_body: '{text_body}',
+          tiptap_body_json: '{tiptap_body_json}',
+          status: '{status}',
+          published_at: '{published_at}',
+          is_comments_enabled: '{is_comments_enabled}',
+          user_email: '{user_email}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description: 'Create a comment on a Circle post, optionally as a reply to another comment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          post_id: { type: 'integer' },
+          body: { type: 'string' },
+          parent_comment_id: { type: 'integer' },
+          skip_notifications: { type: 'boolean' },
+          user_email: { type: 'string' },
+        },
+        required: ['post_id', 'body'],
+      },
+      request: {
+        method: 'POST',
+        path: '/comments',
+        body: {
+          post_id: '{post_id}',
+          body: '{body}',
+          parent_comment_id: '{parent_comment_id}',
+          skip_notifications: '{skip_notifications}',
+          user_email: '{user_email}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'spaces.add_member',
+      class: 'mutation',
+      description: 'Add an existing community member to a Circle space by email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          space_id: { type: 'integer' },
+          email: { type: 'string' },
+        },
+        required: ['space_id', 'email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/space_members',
+        body: { space_id: '{space_id}', email: '{email}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'members.find_by_email',
+      class: 'read',
+      description: 'Look up a community member by their email address.',
+      parameters: {
+        type: 'object',
+        properties: { email: { type: 'string' } },
+        required: ['email'],
+      },
+      request: {
+        method: 'GET',
+        path: '/community_members/search',
+        query: { email: '{email}' },
+      },
+    },
+    {
+      name: 'posts.get',
+      class: 'read',
+      description: 'Get details for a Circle post by id.',
+      parameters: {
+        type: 'object',
+        properties: { post_id: { type: 'integer' } },
+        required: ['post_id'],
+      },
+      request: { method: 'GET', path: '/posts/{post_id}' },
+    },
+    {
+      name: 'members.get',
+      class: 'read',
+      description: 'Get details for a community member by id.',
+      parameters: {
+        type: 'object',
+        properties: { community_member_id: { type: 'integer' } },
+        required: ['community_member_id'],
+      },
+      request: { method: 'GET', path: '/community_members/{community_member_id}' },
+    },
+  ],
+})
