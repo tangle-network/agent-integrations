@@ -44,6 +44,8 @@ export { gitlabConnector } from './gitlab.js'
 export { airtableConnector } from './airtable.js'
 export { asanaConnector } from './asana.js'
 export { salesforceConnector } from './salesforce.js'
+export { firebaseConnector } from './firebase.js'
+export { supabaseConnector } from './supabase.js'
 
 export {
   tangleIdentity,
