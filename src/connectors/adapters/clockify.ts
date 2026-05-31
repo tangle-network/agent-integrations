@@ -1,0 +1,174 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const clockifyConnector = declarativeRestConnector({
+  kind: 'clockify',
+  displayName: 'Clockify',
+  description: 'Create tasks and time entries, start/stop timers, and look up running timers in Clockify.',
+  auth: { kind: 'api-key', hint: 'Clockify API key (Profile Settings → API).' },
+  category: 'other',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.clockify.me/api/v1',
+  test: { method: 'GET', path: '/user' },
+  capabilities: [
+    {
+      name: 'task.create',
+      class: 'mutation',
+      description: 'Create a task on a project within a workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          projectId: { type: 'string' },
+          name: { type: 'string' },
+          status: { type: 'string' },
+        },
+        required: ['workspaceId', 'projectId', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workspaces/{workspaceId}/projects/{projectId}/tasks',
+        body: { name: '{name}', status: '{status}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'time.entry.create',
+      class: 'mutation',
+      description: 'Create a time entry in a workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          start: { type: 'string' },
+          end: { type: 'string' },
+          description: { type: 'string' },
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+          billable: { type: 'boolean' },
+        },
+        required: ['workspaceId', 'start', 'end'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workspaces/{workspaceId}/time-entries',
+        body: {
+          start: '{start}',
+          end: '{end}',
+          description: '{description}',
+          projectId: '{projectId}',
+          taskId: '{taskId}',
+          billable: '{billable}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'timer.running.find',
+      class: 'read',
+      description: 'Find the currently running timer for a user in a workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          userId: { type: 'string' },
+        },
+        required: ['workspaceId', 'userId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/workspaces/{workspaceId}/user/{userId}/time-entries',
+        query: { 'in-progress': 'true' },
+      },
+    },
+    {
+      name: 'task.find',
+      class: 'read',
+      description: 'Search tasks on a project by name.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          projectId: { type: 'string' },
+          name: { type: 'string' },
+          exactMatch: { type: 'boolean' },
+        },
+        required: ['workspaceId', 'projectId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/workspaces/{workspaceId}/projects/{projectId}/tasks',
+        query: { name: '{name}', 'strict-name-search': '{exactMatch}' },
+      },
+    },
+    {
+      name: 'time.entry.find',
+      class: 'read',
+      description: 'List a user’s time entries in a workspace, optionally filtered by description.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          userId: { type: 'string' },
+          description: { type: 'string' },
+          start: { type: 'string' },
+          end: { type: 'string' },
+        },
+        required: ['workspaceId', 'userId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/workspaces/{workspaceId}/user/{userId}/time-entries',
+        query: { description: '{description}', start: '{start}', end: '{end}' },
+      },
+    },
+    {
+      name: 'timer.start',
+      class: 'mutation',
+      description: 'Start a timer (open-ended time entry) for the authenticated user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          start: { type: 'string' },
+          description: { type: 'string' },
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+          billable: { type: 'boolean' },
+        },
+        required: ['workspaceId', 'start'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workspaces/{workspaceId}/time-entries',
+        body: {
+          start: '{start}',
+          description: '{description}',
+          projectId: '{projectId}',
+          taskId: '{taskId}',
+          billable: '{billable}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'timer.stop',
+      class: 'mutation',
+      description: 'Stop the currently running timer for a user by setting its end time.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          userId: { type: 'string' },
+          end: { type: 'string' },
+        },
+        required: ['workspaceId', 'userId', 'end'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/workspaces/{workspaceId}/user/{userId}/time-entries',
+        body: { end: '{end}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+  ],
+})

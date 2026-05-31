@@ -1,0 +1,225 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+// Chargebee exposes a per-site REST host of the form
+// https://{site}.chargebee.com/api/v2 — the connection-time `site` metadata
+// field holds the subdomain (e.g. "acme" for acme.chargebee.com). The connector
+// reads it via metadataKey + a host-substitution placeholder in baseUrl.
+//
+// Auth: Chargebee uses HTTP Basic with the full-access API key as the username
+// and an empty password. The stored api-key credential must be the base64
+// encoding of `${apiKey}:` so the connector can attach it directly as
+// `Authorization: Basic <token>`. Consumers that store the raw API key should
+// base64-encode on the way in.
+export const chargebeeConnector = declarativeRestConnector({
+  kind: 'chargebee',
+  displayName: 'Chargebee',
+  description:
+    'Manage Chargebee customers and subscriptions on the subscription billing and revenue operations platform.',
+  auth: {
+    kind: 'api-key',
+    hint:
+      'Chargebee full-access API key (Settings → Configure Chargebee → API Keys → Full-Access Key). Stored as base64("apiKey:") so it can be attached as HTTP Basic. The connection must also store the per-site `site` metadata (e.g. "acme" for acme.chargebee.com).',
+  },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'siteBaseUrl' },
+  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Basic ' },
+  test: { method: 'GET', path: '/api/v2/subscriptions', query: { limit: '1' } },
+  capabilities: [
+    {
+      name: 'subscription.cancel',
+      class: 'mutation',
+      description:
+        'Cancel a Chargebee subscription. Supports immediate cancel, end-of-term, and contract-term flows with optional credit / unbilled-charge / receivables handling.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscription_id: { type: 'string' },
+          cancel_option: {
+            type: 'string',
+            enum: ['immediately', 'end_of_term', 'specific_date'],
+          },
+          cancel_at: { type: 'integer' },
+          cancel_reason_code: { type: 'string' },
+          credit_option_for_current_term_charges: {
+            type: 'string',
+            enum: ['none', 'prorate', 'full'],
+          },
+          unbilled_charges_option: {
+            type: 'string',
+            enum: ['invoice', 'delete'],
+          },
+          contract_term_cancel_option: {
+            type: 'string',
+            enum: ['terminate_now', 'end_of_contract_term'],
+          },
+          account_receivables_handling: {
+            type: 'string',
+            enum: ['no_action', 'schedule_payment_collection', 'write_off'],
+          },
+          refundable_credits_handling: {
+            type: 'string',
+            enum: ['no_action', 'schedule_refund'],
+          },
+          invoice_date: { type: 'integer' },
+          subscription_items_to_remove: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          termination_fee_item_price_id: { type: 'string' },
+          termination_fee_quantity: { type: 'integer' },
+          termination_fee_unit_price: { type: 'integer' },
+          termination_fee_service_period_days: { type: 'integer' },
+        },
+        required: ['subscription_id', 'cancel_option'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v2/subscriptions/{subscription_id}/cancel_for_items',
+        body: {
+          cancel_option: '{cancel_option}',
+          cancel_at: '{cancel_at}',
+          cancel_reason_code: '{cancel_reason_code}',
+          credit_option_for_current_term_charges: '{credit_option_for_current_term_charges}',
+          unbilled_charges_option: '{unbilled_charges_option}',
+          contract_term_cancel_option: '{contract_term_cancel_option}',
+          account_receivables_handling: '{account_receivables_handling}',
+          refundable_credits_handling: '{refundable_credits_handling}',
+          invoice_date: '{invoice_date}',
+          subscription_items_to_remove: '{subscription_items_to_remove}',
+          termination_fee_item_price_id: '{termination_fee_item_price_id}',
+          termination_fee_quantity: '{termination_fee_quantity}',
+          termination_fee_unit_price: '{termination_fee_unit_price}',
+          termination_fee_service_period_days: '{termination_fee_service_period_days}',
+        },
+      },
+      // Destructive: rely on Chargebee returning the canonical subscription
+      // state; idempotent retries against an already-cancelled subscription
+      // return the same terminal state.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'customer.create',
+      class: 'mutation',
+      description: 'Create a Chargebee customer, optionally with billing address and tax fields.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          first_name: { type: 'string' },
+          last_name: { type: 'string' },
+          email: { type: 'string' },
+          company: { type: 'string' },
+          phone: { type: 'string' },
+          locale: { type: 'string' },
+          preferred_currency_code: { type: 'string' },
+          auto_collection: { type: 'string', enum: ['on', 'off'] },
+          net_term_days: { type: 'integer' },
+          allow_direct_debit: { type: 'boolean' },
+          vat_number: { type: 'string' },
+          taxability: { type: 'string', enum: ['taxable', 'exempt'] },
+          invoice_notes: { type: 'string' },
+          meta_data: { type: 'object' },
+          billing_address_first_name: { type: 'string' },
+          billing_address_last_name: { type: 'string' },
+          billing_address_line1: { type: 'string' },
+          billing_address_line2: { type: 'string' },
+          billing_address_city: { type: 'string' },
+          billing_address_state: { type: 'string' },
+          billing_address_zip: { type: 'string' },
+          billing_address_country: { type: 'string' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v2/customers',
+        body: {
+          id: '{id}',
+          first_name: '{first_name}',
+          last_name: '{last_name}',
+          email: '{email}',
+          company: '{company}',
+          phone: '{phone}',
+          locale: '{locale}',
+          preferred_currency_code: '{preferred_currency_code}',
+          auto_collection: '{auto_collection}',
+          net_term_days: '{net_term_days}',
+          allow_direct_debit: '{allow_direct_debit}',
+          vat_number: '{vat_number}',
+          taxability: '{taxability}',
+          invoice_notes: '{invoice_notes}',
+          meta_data: '{meta_data}',
+          'billing_address[first_name]': '{billing_address_first_name}',
+          'billing_address[last_name]': '{billing_address_last_name}',
+          'billing_address[line1]': '{billing_address_line1}',
+          'billing_address[line2]': '{billing_address_line2}',
+          'billing_address[city]': '{billing_address_city}',
+          'billing_address[state]': '{billing_address_state}',
+          'billing_address[zip]': '{billing_address_zip}',
+          'billing_address[country]': '{billing_address_country}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscription.create',
+      class: 'mutation',
+      description:
+        'Subscribe an existing customer to a Chargebee item price. Supports trials, coupons, PO numbers, and immediate-invoice mode.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customer_id: { type: 'string' },
+          item_price_id: { type: 'string' },
+          quantity: { type: 'integer' },
+          billing_cycles: { type: 'integer' },
+          trial_end: { type: 'integer' },
+          start_date: { type: 'integer' },
+          coupon_ids: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          po_number: { type: 'string' },
+          payment_source_id: { type: 'string' },
+          invoice_immediately: { type: 'boolean' },
+          invoice_notes: { type: 'string' },
+          meta_data: { type: 'object' },
+        },
+        required: ['customer_id', 'item_price_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v2/customers/{customer_id}/subscription_for_items',
+        body: {
+          'subscription_items[item_price_id][0]': '{item_price_id}',
+          'subscription_items[quantity][0]': '{quantity}',
+          'subscription_items[billing_cycles][0]': '{billing_cycles}',
+          trial_end: '{trial_end}',
+          start_date: '{start_date}',
+          coupon_ids: '{coupon_ids}',
+          po_number: '{po_number}',
+          payment_source_id: '{payment_source_id}',
+          invoice_immediately: '{invoice_immediately}',
+          invoice_notes: '{invoice_notes}',
+          meta_data: '{meta_data}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'customer.get',
+      class: 'read',
+      description: 'Read a Chargebee customer by id.',
+      parameters: {
+        type: 'object',
+        properties: { customer_id: { type: 'string' } },
+        required: ['customer_id'],
+      },
+      request: { method: 'GET', path: '/api/v2/customers/{customer_id}' },
+    },
+  ],
+})
