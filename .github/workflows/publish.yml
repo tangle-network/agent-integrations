@@ -66,7 +66,12 @@ jobs:
       - run: pnpm run build
 
       # Idempotent: re-running a tag whose npm version is already published
-      # must not fail the workflow.
+      # must not fail the workflow. Auth is npm OIDC trusted publishing —
+      # configured at npmjs.com/package/@tangle-network/agent-integrations/access
+      # → Trusted Publishers → GitHub Actions (org=tangle-network,
+      # repo=agent-integrations, workflow=publish.yml). The id-token: write
+      # permission on this job exchanges a GitHub OIDC token for an
+      # npm-side publish credential at request time. No NPM_TOKEN secret.
       - name: Publish to npm (skip if already published)
         run: |
           NAME=$(node -p "require('./package.json').name")
@@ -74,7 +79,5 @@ jobs:
           if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
             echo "$NAME@$VERSION already on registry; skipping publish"
           else
-            pnpm publish --no-git-checks --access public
+            pnpm publish --no-git-checks --access public --provenance
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
