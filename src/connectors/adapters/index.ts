@@ -553,3 +553,10 @@ export { youcanbookmeConnector } from './youcanbookme.js'
 export { zerobounceConnector } from './zerobounce.js'
 export { zeplinConnector } from './zeplin.js'
 export { zuoraConnector } from './zuora.js'
+
+// Workflow-orchestrator meta-tools — first-class REST/webhook surfaces, not
+// proxies for the platforms' long-tail integration catalogs.
+export { zapierConnector } from './zapier.js'
+export { n8nConnector } from './n8n.js'
+export { makeConnector } from './make.js'
+export { pipedreamConnector } from './pipedream.js'
