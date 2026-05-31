@@ -47,6 +47,9 @@ export { asanaConnector } from './asana.js'
 export { salesforceConnector } from './salesforce.js'
 export { firebaseConnector } from './firebase.js'
 export { supabaseConnector } from './supabase.js'
+export { discordConnector } from './discord.js'
+export { facebookPagesConnector } from './facebook-pages.js'
+export { telegramConnector, TELEGRAM_FILE_DOWNLOAD_ROOT } from './telegram.js'
 
 // === Mega fan-out (2026-05-31): native adapter expansion ===
 // 24 declarative-REST OAuth2 connectors (use declarativeRestConnector internally)
@@ -54,11 +57,15 @@ export { supabaseConnector } from './supabase.js'
 export { pipedriveConnector } from './pipedrive.js'
 export { closeConnector } from './close.js'
 export { zohoCrmConnector } from './zoho-crm.js'
+export { attioConnector } from './attio.js'
 // Finance / accounting
 export { quickbooksConnector } from './quickbooks.js'
 export { xeroConnector } from './xero.js'
+// HR / payroll
+export { gustoConnector } from './gusto.js'
 // Commerce
 export { bigcommerceConnector } from './bigcommerce.js'
+export { shopifyConnector } from './shopify.js'
 // Support desks
 export { zendeskConnector } from './zendesk.js'
 export { intercomConnector } from './intercom.js'
@@ -78,6 +85,44 @@ export { calendlyConnector } from './calendly.js'
 // Content
 export { contentfulConnector } from './contentful.js'
 export { sanityConnector } from './sanity.js'
+export { codaConnector } from './coda.js'
+// Atlassian
+export { confluenceConnector } from './confluence.js'
+// E-signature
+export { docusignConnector } from './docusign.js'
+// Design
+export { figmaConnector } from './figma.js'
+// Storage
+export { boxConnector } from './box.js'
+export { dropboxConnector } from './dropbox.js'
+// Project management
+export { linearConnector } from './linear.js'
+export { trelloConnector } from './trello.js'
+export { mondayConnector } from './monday.js'
+export { clickupConnector } from './clickup.js'
+export { basecampConnector } from './basecamp.js'
+// Observability / errors
+export { sentryConnector } from './sentry.js'
+export { datadogConnector } from './datadog.js'
+// Incident response / on-call
+export { pagerdutyConnector } from './pagerduty.js'
+// Identity / auth
+export { auth0Connector } from './auth0.js'
+// AI / LLM providers
+export { openaiConnector } from './openai.js'
+export { anthropicConnector } from './anthropic.js'
+export { geminiConnector } from './gemini.js'
+export { huggingfaceConnector } from './huggingface.js'
+// Vector databases
+export { weaviateConnector } from './weaviate.js'
+export { pineconeConnector } from './pinecone.js'
+export { qdrantConnector } from './qdrant.js'
+// HRIS
+export { bamboohrConnector } from './bamboohr.js'
+export { ripplingConnector } from './rippling.js'
+// ATS / recruiting
+export { leverConnector } from './lever.js'
+export { greenhouseConnector } from './greenhouse.js'
 
 // 8 factory-style adapters (need client credentials at construction)
 export { hellosign, type HelloSignOptions } from './hellosign.js'
