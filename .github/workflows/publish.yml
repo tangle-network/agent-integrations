@@ -66,12 +66,10 @@ jobs:
       - run: pnpm run build
 
       # Idempotent: re-running a tag whose npm version is already published
-      # must not fail the workflow. Auth is npm OIDC trusted publishing —
-      # configured at npmjs.com/package/@tangle-network/agent-integrations/access
-      # → Trusted Publishers → GitHub Actions (org=tangle-network,
-      # repo=agent-integrations, workflow=publish.yml). The id-token: write
-      # permission on this job exchanges a GitHub OIDC token for an
-      # npm-side publish credential at request time. No NPM_TOKEN secret.
+      # must not fail the workflow. Auth is the NPM_TOKEN repo secret
+      # (automation token scoped to @tangle-network with publish
+      # permission). The id-token: write permission stays so we can
+      # opportunistically attach Sigstore provenance attestations.
       - name: Publish to npm (skip if already published)
         run: |
           NAME=$(node -p "require('./package.json').name")
@@ -81,3 +79,5 @@ jobs:
           else
             pnpm publish --no-git-checks --access public --provenance
           fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
