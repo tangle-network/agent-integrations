@@ -1,0 +1,80 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const serpstatConnector = declarativeRestConnector({
+  kind: 'serpstat',
+  displayName: 'Serpstat',
+  description: 'Search keyword analysis and SEO research with Serpstat API.',
+  auth: { kind: 'api-key', hint: 'Serpstat API key.' },
+  category: 'doc',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.serpstat.com',
+  test: { method: 'GET', path: '/v2' },
+  capabilities: [
+    {
+      name: 'keywords.get',
+      class: 'read',
+      description: 'Get keyword research data and analytics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'The search query to find keywords for' },
+          se: { type: 'string', description: 'Search engine (g_us, g_au, g_uk, g_de, etc.)' },
+          minusKeywords: { type: 'object', description: 'Keywords to exclude from results' },
+          withIntents: { type: 'boolean', description: 'Include keyword intent data' },
+          sortField: { type: 'string', description: 'Field to sort results by' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: 'Sort direction' },
+          size: { type: 'integer', description: 'Number of results (max 100)' },
+          page: { type: 'integer', description: 'Page number for pagination' },
+          filters: { type: 'object', description: 'Additional filters' },
+        },
+        required: ['query', 'se'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2',
+        body: {
+          type: 'keywords',
+          query: '{query}',
+          se: '{se}',
+          minusKeywords: '{minusKeywords}',
+          withIntents: '{withIntents}',
+          sortField: '{sortField}',
+          sortOrder: '{sortOrder}',
+          size: '{size}',
+          page: '{page}',
+          filters: '{filters}',
+        },
+      },
+    },
+    {
+      name: 'keywords.suggestions',
+      class: 'read',
+      description: 'Get keyword suggestions for a search term.',
+      parameters: {
+        type: 'object',
+        properties: {
+          keyword: { type: 'string', description: 'The keyword to get suggestions for' },
+          se: { type: 'string', description: 'Search engine (g_us, g_au, g_uk, etc.)' },
+          sortField: { type: 'string', description: 'Field to sort suggestions by' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: 'Sort direction' },
+          size: { type: 'integer', description: 'Number of results' },
+          page: { type: 'integer', description: 'Page number for pagination' },
+        },
+        required: ['keyword', 'se'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2',
+        body: {
+          type: 'suggestions',
+          keyword: '{keyword}',
+          se: '{se}',
+          sortField: '{sortField}',
+          sortOrder: '{sortOrder}',
+          size: '{size}',
+          page: '{page}',
+        },
+      },
+    },
+  ],
+})

@@ -1,0 +1,198 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const ibmCognoseConnector = declarativeRestConnector({
+  kind: 'ibm-cognose',
+  displayName: 'IBM Cognos Analytics',
+  description: 'Business intelligence and performance management suite for data analysis and reporting',
+  auth: {
+    kind: 'api-key',
+    hint: 'IBM Cognos Analytics API key with base URL and CAM namespace.',
+  },
+  category: 'database',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'baseurl' },
+  test: { method: 'GET', path: '/api/v1/datasources' },
+  capabilities: [
+    {
+      name: 'datasources.create',
+      class: 'mutation',
+      description: 'Create a new data source in Cognos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          defaultName: { type: 'string' },
+          connectionString: { type: 'string' },
+          driverName: { type: 'string' },
+          username: { type: 'string' },
+          password: { type: 'string' },
+          signonDefaultName: { type: 'string' },
+          disabled: { type: 'boolean' },
+          hidden: { type: 'boolean' },
+        },
+        required: ['defaultName', 'connectionString'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/datasources',
+        body: {
+          defaultName: '{defaultName}',
+          connectionString: '{connectionString}',
+          driverName: '{driverName}',
+          username: '{username}',
+          password: '{password}',
+          signonDefaultName: '{signonDefaultName}',
+          disabled: '{disabled}',
+          hidden: '{hidden}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'datasources.update',
+      class: 'mutation',
+      description: 'Update an existing data source.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          defaultName: { type: 'string' },
+          connectionString: { type: 'string' },
+          driverName: { type: 'string' },
+          username: { type: 'string' },
+          password: { type: 'string' },
+          version: { type: 'number' },
+          disabled: { type: 'boolean' },
+          hidden: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v1/datasources/{id}',
+        body: {
+          defaultName: '{defaultName}',
+          connectionString: '{connectionString}',
+          driverName: '{driverName}',
+          username: '{username}',
+          password: '{password}',
+          version: '{version}',
+          disabled: '{disabled}',
+          hidden: '{hidden}',
+        },
+      },
+      cas: 'etag-if-match',
+    },
+    {
+      name: 'datasources.delete',
+      class: 'mutation',
+      description: 'Delete a data source.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      request: { method: 'DELETE', path: '/api/v1/datasources/{id}' },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'datasources.get',
+      class: 'read',
+      description: 'Retrieve details of a data source.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      request: { method: 'GET', path: '/api/v1/datasources/{id}' },
+    },
+    {
+      name: 'objects.update',
+      class: 'mutation',
+      description: 'Update a content object (report, dashboard, folder).',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          defaultDescriptions: { type: 'string' },
+          type: { type: 'string' },
+          version: { type: 'number' },
+          disabled: { type: 'boolean' },
+          hidden: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v1/objects/{id}',
+        body: {
+          defaultDescriptions: '{defaultDescriptions}',
+          type: '{type}',
+          version: '{version}',
+          disabled: '{disabled}',
+          hidden: '{hidden}',
+        },
+      },
+      cas: 'etag-if-match',
+    },
+    {
+      name: 'objects.get',
+      class: 'read',
+      description: 'Retrieve a content object.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          fields: { type: 'string' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/objects/{id}',
+        query: { fields: '{fields}' },
+      },
+    },
+    {
+      name: 'objects.move',
+      class: 'mutation',
+      description: 'Move a content object to a different folder.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          parentId: { type: 'string' },
+        },
+        required: ['id', 'parentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/objects/{id}/move',
+        body: { parentId: '{parentId}' },
+      },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'objects.copy',
+      class: 'mutation',
+      description: 'Copy a content object.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          parentId: { type: 'string' },
+          recursive: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/objects/{id}/copy',
+        body: {
+          parentId: '{parentId}',
+          recursive: '{recursive}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+  ],
+})

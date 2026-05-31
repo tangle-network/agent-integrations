@@ -1,0 +1,135 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const umamiConnector = declarativeRestConnector({
+  kind: 'umami',
+  displayName: 'Umami',
+  description: 'Privacy-focused, open-source web analytics. Query website stats, metrics, visitors, and send custom events.',
+  auth: { kind: 'api-key', hint: 'Umami API token or basic auth credentials (base64-encoded username:password).' },
+  category: 'database',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'baseUrl' },
+  test: { method: 'GET', path: '/api/websites' },
+  capabilities: [
+    {
+      name: 'websites.list',
+      class: 'read',
+      description: 'List all websites in the Umami instance.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+      request: { method: 'GET', path: '/api/websites' },
+    },
+    {
+      name: 'website.stats',
+      class: 'read',
+      description: 'Get website stats including pageviews, visitors, bounce rate, and session duration.',
+      parameters: {
+        type: 'object',
+        properties: {
+          websiteId: { type: 'string', description: 'The website ID.' },
+          startDate: { type: 'string', description: 'Start date (ISO 8601 format).' },
+          endDate: { type: 'string', description: 'End date (ISO 8601 format).' },
+          unit: { type: 'string', description: 'Group by unit: day, week, month, year.' },
+          timezone: { type: 'string', description: 'Timezone (e.g., Europe/Paris, UTC).' },
+        },
+        required: ['websiteId', 'startDate', 'endDate'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/websites/{websiteId}/stats',
+        query: { startDate: '{startDate}', endDate: '{endDate}', unit: '{unit}', timezone: '{timezone}' },
+      },
+    },
+    {
+      name: 'website.metrics',
+      class: 'read',
+      description: 'Get website metrics ranked by a specified metric type.',
+      parameters: {
+        type: 'object',
+        properties: {
+          websiteId: { type: 'string', description: 'The website ID.' },
+          startDate: { type: 'string', description: 'Start date (ISO 8601 format).' },
+          endDate: { type: 'string', description: 'End date (ISO 8601 format).' },
+          type: { type: 'string', description: 'Metric type: pageviews, visitors, bounce_rate, duration.' },
+          limit: { type: 'integer', description: 'Maximum number of results.' },
+        },
+        required: ['websiteId', 'startDate', 'endDate', 'type'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/websites/{websiteId}/metrics',
+        query: { startDate: '{startDate}', endDate: '{endDate}', type: '{type}', limit: '{limit}' },
+      },
+    },
+    {
+      name: 'website.active_visitors',
+      class: 'read',
+      description: 'Get the number of active visitors on a website right now.',
+      parameters: {
+        type: 'object',
+        properties: { websiteId: { type: 'string', description: 'The website ID.' } },
+        required: ['websiteId'],
+      },
+      request: { method: 'GET', path: '/api/websites/{websiteId}/active' },
+    },
+    {
+      name: 'website.pageviews',
+      class: 'read',
+      description: 'Get pageview data for a website.',
+      parameters: {
+        type: 'object',
+        properties: {
+          websiteId: { type: 'string', description: 'The website ID.' },
+          startDate: { type: 'string', description: 'Start date (ISO 8601 format).' },
+          endDate: { type: 'string', description: 'End date (ISO 8601 format).' },
+          unit: { type: 'string', description: 'Group by unit: day, week, month, year.' },
+          limit: { type: 'integer', description: 'Maximum number of results.' },
+        },
+        required: ['websiteId', 'startDate', 'endDate'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/websites/{websiteId}/pageviews',
+        query: { startDate: '{startDate}', endDate: '{endDate}', unit: '{unit}', limit: '{limit}' },
+      },
+    },
+    {
+      name: 'event.send',
+      class: 'mutation',
+      description: 'Send a custom event or pageview to Umami.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Page URL or path.' },
+          referrer: { type: 'string', description: 'Referrer URL.' },
+          eventName: { type: 'string', description: 'Custom event name (optional; omit for pageview).' },
+          eventData: { type: 'object', description: 'Additional event properties.' },
+          title: { type: 'string', description: 'Page title.' },
+          hostname: { type: 'string', description: 'Website hostname.' },
+          language: { type: 'string', description: 'User language.' },
+          screenResolution: { type: 'string', description: 'Screen resolution (WIDTHxHEIGHT).' },
+          userAgent: { type: 'string', description: 'User agent string.' },
+        },
+        required: ['url', 'hostname'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/collect',
+        body: {
+          url: '{url}',
+          referrer: '{referrer}',
+          eventName: '{eventName}',
+          eventData: '{eventData}',
+          title: '{title}',
+          hostname: '{hostname}',
+          language: '{language}',
+          screenResolution: '{screenResolution}',
+          userAgent: '{userAgent}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+  ],
+})

@@ -1,0 +1,180 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const woocommerceConnector = declarativeRestConnector({
+  kind: 'woocommerce',
+  displayName: 'WooCommerce',
+  description: 'Manage WooCommerce products, customers, and coupons.',
+  auth: {
+    kind: 'api-key',
+    hint: 'WooCommerce Consumer Key and Consumer Secret from WordPress admin. The connection must also store the WordPress store URL (e.g. https://mystore.com).',
+  },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'storeUrl' },
+  test: { method: 'GET', path: '/wp-json/wc/v3/system/status' },
+  capabilities: [
+    {
+      name: 'coupons.create',
+      class: 'mutation',
+      description: 'Create a WooCommerce coupon.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          discountType: { type: 'string', enum: ['percent', 'fixed_cart', 'fixed_product'] },
+          amount: { type: 'number' },
+          minimumAmount: { type: 'number' },
+        },
+        required: ['code', 'discountType', 'amount'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp-json/wc/v3/coupons',
+        body: {
+          code: '{code}',
+          discount_type: '{discountType}',
+          amount: '{amount}',
+          minimum_amount: '{minimumAmount}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'customers.create',
+      class: 'mutation',
+      description: 'Create a WooCommerce customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          username: { type: 'string' },
+          password: { type: 'string' },
+          billingAddress: {
+            type: 'object',
+            properties: {
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+              address1: { type: 'string' },
+              city: { type: 'string' },
+              state: { type: 'string' },
+              postcode: { type: 'string' },
+              country: { type: 'string' },
+              email: { type: 'string' },
+            },
+          },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp-json/wc/v3/customers',
+        body: {
+          email: '{email}',
+          first_name: '{firstName}',
+          last_name: '{lastName}',
+          username: '{username}',
+          password: '{password}',
+          billing: {
+            first_name: '{billingAddress.firstName}',
+            last_name: '{billingAddress.lastName}',
+            address_1: '{billingAddress.address1}',
+            city: '{billingAddress.city}',
+            state: '{billingAddress.state}',
+            postcode: '{billingAddress.postcode}',
+            country: '{billingAddress.country}',
+            email: '{billingAddress.email}',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'products.create',
+      class: 'mutation',
+      description: 'Create a WooCommerce product.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          price: { type: 'number' },
+          regularPrice: { type: 'number' },
+          salePrice: { type: 'number' },
+          categories: {
+            type: 'array',
+            items: { type: 'integer' },
+          },
+          sku: { type: 'string' },
+          manageStock: { type: 'boolean' },
+          stockQuantity: { type: 'integer' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp-json/wc/v3/products',
+        body: {
+          name: '{name}',
+          description: '{description}',
+          price: '{price}',
+          regular_price: '{regularPrice}',
+          sale_price: '{salePrice}',
+          categories: '{categories}',
+          sku: '{sku}',
+          manage_stock: '{manageStock}',
+          stock_quantity: '{stockQuantity}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'customers.find',
+      class: 'read',
+      description: 'Find a WooCommerce customer by email or search parameters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          search: { type: 'string' },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/wp-json/wc/v3/customers',
+        query: {
+          search: '{search}',
+          limit: '{limit}',
+          offset: '{offset}',
+        },
+      },
+    },
+    {
+      name: 'products.find',
+      class: 'read',
+      description: 'Find WooCommerce products by search or filter parameters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          category: { type: 'integer' },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/wp-json/wc/v3/products',
+        query: {
+          search: '{search}',
+          category: '{category}',
+          per_page: '{limit}',
+          offset: '{offset}',
+        },
+      },
+    },
+  ],
+})

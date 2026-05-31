@@ -1,0 +1,166 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+export const typefullyConnector = declarativeRestConnector({
+  kind: 'typefully',
+  displayName: 'Typefully',
+  description: 'Write, schedule, and publish social media content across multiple platforms.',
+  auth: { kind: 'api-key', hint: 'Typefully API key.' },
+  category: 'crm',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.typefully.com/v1',
+  credentialPlacement: { kind: 'header', header: 'X-API-Key' },
+  test: { method: 'GET', path: '/account' },
+  capabilities: [
+    {
+      name: 'drafts.create',
+      class: 'mutation',
+      description: 'Create a new social media draft.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          platforms: { type: 'array', items: { type: 'string' } },
+          draft_title: { type: 'string' },
+          reply_to_url: { type: 'string' },
+        },
+        required: ['text', 'platforms'],
+      },
+      request: {
+        method: 'POST',
+        path: '/drafts',
+        body: {
+          text: '{text}',
+          platforms: '{platforms}',
+          draft_title: '{draft_title}',
+          reply_to_url: '{reply_to_url}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'drafts.createAdvanced',
+      class: 'mutation',
+      description: 'Create a new social media draft with advanced options.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          platforms_json: { type: 'object' },
+          draft_title: { type: 'string' },
+          share: { type: 'boolean' },
+          publish_at: { type: 'string' },
+        },
+        required: ['text', 'platforms_json'],
+      },
+      request: {
+        method: 'POST',
+        path: '/drafts/advanced',
+        body: {
+          text: '{text}',
+          platforms_json: '{platforms_json}',
+          draft_title: '{draft_title}',
+          share: '{share}',
+          publish_at: '{publish_at}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'drafts.get',
+      class: 'read',
+      description: 'Get details of a specific draft.',
+      parameters: {
+        type: 'object',
+        properties: { draft_id: { type: 'string' } },
+        required: ['draft_id'],
+      },
+      request: { method: 'GET', path: '/drafts/{draft_id}' },
+    },
+    {
+      name: 'drafts.list',
+      class: 'read',
+      description: 'List drafts with optional filtering and sorting.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+          order_by: { type: 'string' },
+          limit: { type: 'integer' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/drafts',
+        query: {
+          status: '{status}',
+          order_by: '{order_by}',
+          limit: '{limit}',
+        },
+      },
+    },
+    {
+      name: 'drafts.delete',
+      class: 'mutation',
+      description: 'Delete a draft.',
+      parameters: {
+        type: 'object',
+        properties: { draft_id: { type: 'string' } },
+        required: ['draft_id'],
+      },
+      request: { method: 'DELETE', path: '/drafts/{draft_id}' },
+      cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'drafts.publishNow',
+      class: 'mutation',
+      description: 'Publish a draft immediately.',
+      parameters: {
+        type: 'object',
+        properties: { draft_id: { type: 'string' } },
+        required: ['draft_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/drafts/{draft_id}/publish',
+        body: {},
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'drafts.schedule',
+      class: 'mutation',
+      description: 'Schedule a draft for publishing at a specific date and time.',
+      parameters: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string' },
+          schedule_at: { type: 'string' },
+        },
+        required: ['draft_id', 'schedule_at'],
+      },
+      request: {
+        method: 'POST',
+        path: '/drafts/{draft_id}/schedule',
+        body: { schedule_at: '{schedule_at}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'media.upload',
+      class: 'mutation',
+      description: 'Upload media file (image, video, GIF, or PDF) for use in drafts.',
+      parameters: {
+        type: 'object',
+        properties: { file: { type: 'string' } },
+        required: ['file'],
+      },
+      request: {
+        method: 'POST',
+        path: '/media/upload',
+        body: { file: '{file}' },
+      },
+      cas: 'native-idempotency',
+    },
+  ],
+})
