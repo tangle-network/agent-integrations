@@ -1,10 +1,11 @@
 import { buildActivepiecesConnectors, listActivepiecesCatalogEntries } from './activepieces-catalog.js'
 import { buildTangleIntegrationCatalogConnectors } from './tangle-catalog.js'
 import type {
+  IntegrationCatalogSource,
   IntegrationConnector,
   IntegrationConnectorAction,
   IntegrationConnectorTrigger,
-} from './index.js'
+} from './core-types.js'
 import { integrationSpecToConnector, listIntegrationSpecs } from './specs/registry.js'
 
 export type IntegrationSupportTier =
@@ -13,12 +14,6 @@ export type IntegrationSupportTier =
   | 'gatewayExecutable'
   | 'firstPartyExecutable'
   | 'sandboxExecutable'
-
-export interface IntegrationCatalogSource {
-  id: string
-  connectors: IntegrationConnector[]
-  precedence?: number
-}
 
 export interface IntegrationRegistrySourceRef {
   sourceId: string

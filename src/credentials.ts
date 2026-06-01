@@ -5,60 +5,22 @@ import type {
   ResolvedDataSource,
 } from './connectors/types.js'
 import type {
-  IntegrationActor,
   IntegrationConnection,
   IntegrationConnectionStore,
   IntegrationCredentialsRotatedEvent,
+  IntegrationOAuthState,
+  IntegrationOAuthStateOutcome,
+  IntegrationOAuthStateStore,
   IntegrationProvider,
+  IntegrationSecretStore,
   SecretRef,
-} from './index.js'
+} from './core-types.js'
 
-export interface IntegrationSecretStore {
-  get(ref: SecretRef): Promise<ConnectorCredentials | undefined> | ConnectorCredentials | undefined
-  put(ref: SecretRef, credentials: ConnectorCredentials): Promise<void> | void
-  delete?(ref: SecretRef): Promise<void> | void
-}
-
-/** Single-use record stashed at OAuth-start and consumed once at callback to
- *  guard against CSRF / replay. The hub injects its own durable
- *  implementation (KV/Redis/D1) so the callback can land on any worker. */
-export interface IntegrationOAuthState {
-  /** Opaque value round-tripped through the provider redirect. */
-  state: string
-  /** Provider the auth flow targets. */
-  providerId: string
-  /** Connector the user is connecting. */
-  connectorId: string
-  /** Owner initiating the flow. */
-  owner: IntegrationActor
-  /** Scopes requested at start; verified against the granted scopes on callback. */
-  requestedScopes: string[]
-  /** Redirect URI used at start; MUST match exactly on callback exchange. */
-  redirectUri: string
-  /** PKCE code_verifier, when the connector uses PKCE. */
-  codeVerifier?: string
-  /** Absolute expiry (UTC ms since epoch). consume() MUST treat an expired
-   *  record as a miss. */
-  expiresAt: number
-  /** Arbitrary non-secret context the host pinned at start-time. */
-  metadata?: Record<string, unknown>
-}
-
-/** Outcome of consuming an OAuth state record. Callers MUST inspect `ok`
- *  before using `state`; a miss (`unknown`/`expired`) is the CSRF/replay
- *  guard firing, not an exception. */
-export type IntegrationOAuthStateOutcome =
-  | { ok: true; state: IntegrationOAuthState }
-  | { ok: false; reason: 'unknown' | 'expired' }
-
-/** Host-injectable store for single-use OAuth-start records. The default is
- *  in-memory for local/dev and tests; multi-tenant hubs inject a durable
- *  encrypted store so callbacks survive worker hops. consume() MUST be
- *  single-use: a second consume of the same state returns `{ ok: false }`. */
-export interface IntegrationOAuthStateStore {
-  put(state: IntegrationOAuthState): Promise<void> | void
-  consume(state: string): Promise<IntegrationOAuthStateOutcome> | IntegrationOAuthStateOutcome
-  sweep?(now: number): Promise<void> | void
+export type {
+  IntegrationOAuthState,
+  IntegrationOAuthStateOutcome,
+  IntegrationOAuthStateStore,
+  IntegrationSecretStore,
 }
 
 export interface ConnectionCredentialResolverOptions {
