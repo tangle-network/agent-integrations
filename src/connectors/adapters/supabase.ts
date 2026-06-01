@@ -30,7 +30,7 @@ export const supabaseConnector = declarativeRestConnector({
     clientIdEnv: 'SUPABASE_OAUTH_CLIENT_ID',
     clientSecretEnv: 'SUPABASE_OAUTH_CLIENT_SECRET',
   },
-  category: 'database',
+  category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.supabase.com',
   test: { method: 'GET', path: '/v1/organizations' },
