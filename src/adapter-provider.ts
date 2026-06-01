@@ -10,15 +10,15 @@ import type {
   CompleteAuthRequest,
   IntegrationActionRequest,
   IntegrationActionResult,
+  IntegrationCatalogSource,
   IntegrationConnection,
   IntegrationConnector,
   IntegrationProvider,
   IntegrationProviderKind,
   StartAuthRequest,
   StartAuthResult,
-} from './index.js'
-import { IntegrationError } from './index.js'
-import type { IntegrationCatalogSource } from './registry.js'
+} from './core-types.js'
+import { IntegrationError } from './core-error.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */

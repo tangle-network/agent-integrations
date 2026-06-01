@@ -8,11 +8,33 @@ import {
   InMemoryIntegrationOAuthStateStore,
   InMemoryIntegrationSecretStore,
   type IntegrationOAuthState,
-  type IntegrationOAuthStateStore,
-  type IntegrationSecretStore,
 } from './credentials.js'
-import type { ConnectorCredentials } from './connectors/types.js'
+import { IntegrationError } from './core-error.js'
+import type {
+  CompleteAuthRequest,
+  HttpIntegrationProviderOptions,
+  IntegrationActionGuard,
+  IntegrationActionRequest,
+  IntegrationActionResult,
+  IntegrationActor,
+  IntegrationCapability,
+  IntegrationConnection,
+  IntegrationConnectionStore,
+  IntegrationConnector,
+  IntegrationHubOptions,
+  IntegrationPolicyEngine,
+  IntegrationProvider,
+  IntegrationTriggerEvent,
+  IntegrationTriggerSubscription,
+  InvokeWithCapabilityRequest,
+  IssueCapabilityRequest,
+  IssuedIntegrationCapability,
+  StartAuthRequest,
+  StartAuthResult,
+} from './core-types.js'
 
+export * from './core-types.js'
+export * from './core-error.js'
 export * from './audit.js'
 export * from './approval.js'
 export * from './actions.js'
@@ -31,350 +53,6 @@ export * from './passthrough.js'
 export * from './presets.js'
 export * from './connect/index.js'
 export * from './middleware/index.js'
-
-export type IntegrationProviderKind =
-  | 'first_party'
-  | 'nango'
-  | 'pipedream'
-  | 'zapier'
-  | 'activepieces'
-  | 'tangle_catalog'
-  | 'executor'
-  | 'custom'
-
-export type IntegrationConnectorCategory =
-  | 'email'
-  | 'calendar'
-  | 'chat'
-  | 'crm'
-  | 'storage'
-  | 'docs'
-  | 'database'
-  | 'webhook'
-  | 'workflow'
-  | 'internal'
-  | 'other'
-
-export type IntegrationActionRisk = 'read' | 'write' | 'destructive'
-export type IntegrationDataClass = 'public' | 'internal' | 'private' | 'sensitive' | 'secret'
-
-export interface IntegrationActor {
-  type: 'user' | 'team' | 'app' | 'agent' | 'sandbox' | 'system'
-  id: string
-}
-
-export interface IntegrationConnectorAction {
-  id: string
-  title: string
-  risk: IntegrationActionRisk
-  requiredScopes: string[]
-  dataClass: IntegrationDataClass
-  description?: string
-  approvalRequired?: boolean
-  inputSchema?: unknown
-  outputSchema?: unknown
-}
-
-export interface IntegrationConnectorTrigger {
-  id: string
-  title: string
-  requiredScopes: string[]
-  dataClass: IntegrationDataClass
-  description?: string
-  payloadSchema?: unknown
-}
-
-export interface IntegrationConnector {
-  id: string
-  providerId: string
-  title: string
-  category: IntegrationConnectorCategory
-  auth: 'oauth2' | 'api_key' | 'none' | 'custom'
-  scopes: string[]
-  actions: IntegrationConnectorAction[]
-  triggers?: IntegrationConnectorTrigger[]
-  metadata?: Record<string, unknown>
-}
-
-export interface SecretRef {
-  provider: string
-  id: string
-  label?: string
-}
-
-export interface IntegrationConnection {
-  id: string
-  owner: IntegrationActor
-  providerId: string
-  connectorId: string
-  status: 'pending' | 'active' | 'expired' | 'revoked' | 'error'
-  grantedScopes: string[]
-  account?: {
-    id?: string
-    email?: string
-    displayName?: string
-  }
-  secretRef?: SecretRef
-  createdAt: string
-  updatedAt: string
-  expiresAt?: string
-  lastUsedAt?: string
-  metadata?: Record<string, unknown>
-}
-
-export interface StartAuthRequest {
-  connectorId: string
-  owner: IntegrationActor
-  requestedScopes: string[]
-  redirectUri: string
-  state?: string
-  metadata?: Record<string, unknown>
-}
-
-export interface StartAuthResult {
-  providerId: string
-  connectorId: string
-  authUrl: string
-  state: string
-  expiresAt?: string
-  metadata?: Record<string, unknown>
-}
-
-export interface CompleteAuthRequest {
-  connectorId: string
-  owner: IntegrationActor
-  code?: string
-  state: string
-  redirectUri: string
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationActionRequest {
-  connectionId: string
-  action: string
-  input?: unknown
-  idempotencyKey?: string
-  dryRun?: boolean
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationActionResult<T = unknown> {
-  ok: boolean
-  action: string
-  output?: T
-  externalId?: string
-  warnings?: string[]
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationTriggerSubscription {
-  id: string
-  connectionId: string
-  trigger: string
-  targetUrl?: string
-  status: 'active' | 'paused' | 'error'
-  createdAt: string
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationTriggerEvent<T = unknown> {
-  id: string
-  providerId: string
-  connectorId: string
-  connectionId: string
-  trigger: string
-  occurredAt: string
-  payload: T
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationProvider {
-  id: string
-  kind: IntegrationProviderKind
-  listConnectors(): Promise<IntegrationConnector[]> | IntegrationConnector[]
-  startAuth?(request: StartAuthRequest): Promise<StartAuthResult> | StartAuthResult
-  completeAuth?(request: CompleteAuthRequest): Promise<IntegrationConnection> | IntegrationConnection
-  invokeAction(connection: IntegrationConnection, request: IntegrationActionRequest): Promise<IntegrationActionResult> | IntegrationActionResult
-  subscribeTrigger?(connection: IntegrationConnection, trigger: string, targetUrl?: string): Promise<IntegrationTriggerSubscription> | IntegrationTriggerSubscription
-  unsubscribeTrigger?(subscriptionId: string): Promise<void> | void
-  normalizeTriggerEvent?(raw: unknown): Promise<IntegrationTriggerEvent> | IntegrationTriggerEvent
-}
-
-export interface IntegrationConnectionStore {
-  get(connectionId: string): Promise<IntegrationConnection | undefined> | IntegrationConnection | undefined
-  put(connection: IntegrationConnection): Promise<void> | void
-  listByOwner(owner: IntegrationActor): Promise<IntegrationConnection[]> | IntegrationConnection[]
-  delete?(connectionId: string): Promise<void> | void
-}
-
-export interface IssueCapabilityRequest {
-  subject: IntegrationActor
-  connectionId: string
-  scopes: string[]
-  allowedActions: string[]
-  ttlMs: number
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationCapability {
-  id: string
-  subject: IntegrationActor
-  connectionId: string
-  scopes: string[]
-  allowedActions: string[]
-  issuedAt: string
-  expiresAt: string
-  metadata?: Record<string, unknown>
-}
-
-export interface IssuedIntegrationCapability {
-  capability: IntegrationCapability
-  token: string
-}
-
-/**
- * Wraps every action invocation with cross-cutting discipline (idempotency,
- * conflict detection, rate-limiting, audit logging). Optional. When set on
- * the hub, runs BEFORE provider.invokeAction; can short-circuit (return a
- * result directly) or pass through (call `proceed()` to invoke the provider).
- *
- * Why this hook exists: production deployments need conflict-resolution
- * guarantees that span every provider, gateway, and webhook receiver. The
- * canonical implementation is a "MutationGuard" that:
- *   1. Short-circuits on a known idempotency key (returns recorded response).
- *   2. Refuses same-key-different-args (drift detection).
- *   3. Wraps `proceed()` and audit-logs the outcome.
- *   4. Translates upstream conflict signals into a structured result with
- *      alternatives the agent can act on.
- *
- * Implementations live in consumers (every product has different
- * persistence + telemetry needs); this interface is the contract.
- */
-export interface IntegrationActionGuard {
-  /** Wrap an invokeAction call. Implementations MUST call `proceed()` to
-   *  invoke the underlying provider unless they're returning a cached or
-   *  short-circuited result.
-   *
-   *  @param ctx connection + request the hub is about to dispatch
-   *  @param proceed call to invoke the wrapped provider; returns the
-   *                 underlying IntegrationActionResult
-   *  @returns the result the hub should return to the caller
-   */
-  invokeAction(
-    ctx: IntegrationGuardContext,
-    proceed: () => Promise<IntegrationActionResult>,
-  ): Promise<IntegrationActionResult>
-}
-
-export interface IntegrationGuardContext {
-  connection: IntegrationConnection
-  request: IntegrationActionRequest
-  /** The action descriptor from the connector manifest, if discovered. */
-  action?: IntegrationConnectorAction
-}
-
-export type IntegrationPolicyDecision =
-  | { decision: 'allow'; reason: string; metadata?: Record<string, unknown> }
-  | { decision: 'require_approval'; reason: string; approval: IntegrationApprovalRequest; metadata?: Record<string, unknown> }
-  | { decision: 'deny'; reason: string; metadata?: Record<string, unknown> }
-
-export interface IntegrationApprovalRequest {
-  id: string
-  connectionId: string
-  providerId: string
-  connectorId: string
-  action: string
-  actor: IntegrationActor
-  risk: IntegrationActionRisk
-  dataClass: IntegrationDataClass
-  reason: string
-  requestedAt: string
-  inputPreview?: unknown
-  metadata?: Record<string, unknown>
-}
-
-export interface IntegrationPolicyEngine {
-  decide(ctx: IntegrationGuardContext & { subject: IntegrationActor }): Promise<IntegrationPolicyDecision> | IntegrationPolicyDecision
-}
-
-export interface IntegrationHubOptions {
-  providers: IntegrationProvider[]
-  store: IntegrationConnectionStore
-  capabilitySecret: string
-  /** Optional cross-cutting guard. If provided, every invokeAction call
-   *  passes through it before reaching the provider. See {@link IntegrationActionGuard}. */
-  guard?: IntegrationActionGuard
-  /** Optional policy engine. Runs after capability/scope checks and before
-   *  provider invocation. Use it to pause writes, deny destructive actions,
-   *  or apply tenant-specific allow rules. */
-  policy?: IntegrationPolicyEngine
-  /** Host-injectable secret store. Multi-tenant hubs inject a durable
-   *  encrypted store; defaults to {@link InMemoryIntegrationSecretStore} for
-   *  local/dev and tests. The interface is the contract — the lib never
-   *  ships a D1/KV/encryption impl. */
-  secretStore?: IntegrationSecretStore
-  /** Host-injectable single-use OAuth-state store guarding the start →
-   *  callback CSRF boundary. Defaults to
-   *  {@link InMemoryIntegrationOAuthStateStore}. */
-  oauthStateStore?: IntegrationOAuthStateStore
-  /** TTL applied to OAuth-state records the hub stashes at startAuth.
-   *  Defaults to 10 minutes. */
-  oauthStateTtlMs?: number
-  /** Fired whenever a provider surfaces rotated credentials during an
-   *  invoke (e.g. an OAuth access token refreshed on expiry). The host
-   *  re-encrypts + persists the rotated envelope so the next expiry does
-   *  not force a reconnect. The hub also writes the rotated credentials to
-   *  {@link secretStore} when the connection carries a secretRef. */
-  credentialsRotated?: (event: IntegrationCredentialsRotatedEvent) => Promise<void> | void
-  now?: () => Date
-}
-
-/** Emitted when a provider rotates credentials mid-invoke. The host
- *  re-persists `credentials` against `secretRef` (when present) so the
- *  refreshed token survives the call. */
-export interface IntegrationCredentialsRotatedEvent {
-  connection: IntegrationConnection
-  secretRef?: SecretRef
-  credentials: ConnectorCredentials
-}
-
-export interface HttpIntegrationProviderOptions {
-  id: string
-  kind?: IntegrationProviderKind
-  connectors: IntegrationConnector[]
-  baseUrl: string
-  bearer?: string
-  fetchImpl?: typeof fetch
-}
-
-export interface InvokeWithCapabilityRequest extends Omit<IntegrationActionRequest, 'connectionId'> {
-  connectionId?: never
-}
-
-export class IntegrationError extends Error {
-  constructor(
-    message: string,
-    readonly code:
-      | 'provider_not_found'
-      | 'connector_not_found'
-      | 'connection_not_found'
-      | 'connection_not_active'
-      | 'auth_not_supported'
-      | 'capability_invalid'
-      | 'capability_expired'
-      | 'scope_denied'
-      | 'action_denied'
-      | 'action_not_found'
-      | 'trigger_not_found'
-      | 'approval_required'
-      | 'policy_denied'
-      | 'config_missing'
-      | 'provider_failure',
-  ) {
-    super(message)
-    this.name = 'IntegrationError'
-  }
-}
 
 export class InMemoryConnectionStore implements IntegrationConnectionStore {
   private readonly connections = new Map<string, IntegrationConnection>()
@@ -406,8 +84,8 @@ export class IntegrationHub {
   private readonly policy: IntegrationPolicyEngine | undefined
   /** Host-injected (or in-memory default) secret store. The hub re-persists
    *  rotated credentials here when a connection carries a secretRef. */
-  readonly secretStore: IntegrationSecretStore
-  private readonly oauthStateStore: IntegrationOAuthStateStore
+  readonly secretStore: IntegrationHubOptions['secretStore']
+  private readonly oauthStateStore: NonNullable<IntegrationHubOptions['oauthStateStore']>
   private readonly oauthStateTtlMs: number
   private readonly credentialsRotated: IntegrationHubOptions['credentialsRotated']
   private readonly now: () => Date
