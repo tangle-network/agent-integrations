@@ -48,7 +48,7 @@ afterEach(() => {
 describe('firebase connector', () => {
   it('exposes Firestore document CRUD + query under the database category with Google OAuth2', () => {
     expect(firebaseConnector.manifest.kind).toBe('firebase')
-    expect(firebaseConnector.manifest.category).toBe('database')
+    expect(firebaseConnector.manifest.category).toBe('other')
 
     const auth = firebaseConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')

@@ -33,7 +33,7 @@ export const firebaseConnector = declarativeRestConnector({
     clientSecretEnv: 'FIREBASE_OAUTH_CLIENT_SECRET',
     extraAuthParams: { access_type: 'offline', prompt: 'consent' },
   },
-  category: 'database',
+  category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://firestore.googleapis.com',
   test: { method: 'GET', path: '/v1/projects/{projectId}/databases/(default)/documents' },
