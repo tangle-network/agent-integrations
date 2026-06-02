@@ -49,6 +49,105 @@ export const brilliantDirectoriesConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.update',
+      class: 'mutation',
+      description: 'Update an existing Brilliant Directories member.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'Brilliant Directories user id to update.' },
+          email: { type: 'string' },
+          subscription_id: { type: 'string' },
+          meta: { type: 'object' },
+        },
+        required: ['userId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/user/update',
+        body: {
+          user_id: '{userId}',
+          email: '{email}',
+          subscription_id: '{subscription_id}',
+          meta: '{meta}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.delete',
+      class: 'mutation',
+      description: 'Delete a Brilliant Directories member by user id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'Brilliant Directories user id to delete.' },
+        },
+        required: ['userId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/user/delete',
+        body: { user_id: '{userId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'listings.create',
+      class: 'mutation',
+      description: 'Create a new listing on the Brilliant Directories site instance.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', description: 'Owning member user id.' },
+          subscription_id: { type: 'string', description: 'Listing subscription/plan id.' },
+          title: { type: 'string', description: 'Listing title.' },
+          meta: { type: 'object', description: 'Listing custom fields and content.' },
+        },
+        required: ['user_id', 'subscription_id', 'title'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/listing/create',
+        body: {
+          user_id: '{user_id}',
+          subscription_id: '{subscription_id}',
+          title: '{title}',
+          meta: '{meta}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'listings.update',
+      class: 'mutation',
+      description: 'Update a listing on the Brilliant Directories site instance.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listingId: { type: 'string', description: 'Brilliant Directories listing id to update.' },
+          title: { type: 'string' },
+          meta: { type: 'object' },
+        },
+        required: ['listingId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/listing/update',
+        body: {
+          listing_id: '{listingId}',
+          title: '{title}',
+          meta: '{meta}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })
