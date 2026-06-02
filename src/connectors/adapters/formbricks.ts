@@ -165,5 +165,62 @@ export const formbricksConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/api/v1/management/responses/{responseId}' },
       cas: 'native-idempotency',
     },
+    {
+      name: 'responses.create',
+      class: 'mutation',
+      description:
+        'Submit a survey response. The supplied data map keys must match the question ids on the target survey; the optional `finished`, `contactId`, and `language` fields can be folded into `data` by callers that need them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          surveyId: { type: 'string' },
+          data: { type: 'object', description: 'Map of questionId → response value.' },
+        },
+        required: ['surveyId', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/management/responses',
+        body: {
+          surveyId: '{surveyId}',
+          data: '{data}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'surveys.create',
+      class: 'mutation',
+      description:
+        'Create a survey in the environment the API key belongs to. The `questions` array must follow the Formbricks Management API schema for the chosen question types.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Survey display name.' },
+          type: {
+            type: 'string',
+            description: 'Survey type, e.g. "link" or "app".',
+          },
+          questions: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Ordered question definitions for the survey.',
+          },
+        },
+        required: ['name', 'type', 'questions'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/management/surveys',
+        body: {
+          name: '{name}',
+          type: '{type}',
+          questions: '{questions}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
