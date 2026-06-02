@@ -129,5 +129,112 @@ export const backblazeConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'files.list',
+      class: 'read',
+      description:
+        'List objects in the bucket using S3 ListObjectsV2. `prefix` narrows the listing to a key prefix; `maxKeys` caps the number of returned keys (S3 cap is 1000).',
+      parameters: {
+        type: 'object',
+        properties: {
+          bucket: {
+            type: 'string',
+            description: 'Bucket name. Defaults to the connector-configured bucket when omitted.',
+          },
+          prefix: {
+            type: 'string',
+            description: 'Only list keys that start with this prefix (e.g. "reports/2026/").',
+          },
+          maxKeys: {
+            type: 'integer',
+            description: 'Maximum number of keys to return (1..1000). Defaults to 1000.',
+          },
+          continuationToken: {
+            type: 'string',
+            description: 'Opaque token from a previous response when paginating.',
+          },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/{bucket}',
+        query: {
+          'list-type': '2',
+          prefix: '{prefix}',
+          'max-keys': '{maxKeys}',
+          'continuation-token': '{continuationToken}',
+        },
+      },
+    },
+    {
+      name: 'files.delete',
+      class: 'mutation',
+      description:
+        'Delete an object from the bucket via S3 DeleteObject. The key is opaque — pass the full key including any folder prefix.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bucket: {
+            type: 'string',
+            description: 'Bucket name. Defaults to the connector-configured bucket when omitted.',
+          },
+          key: {
+            type: 'string',
+            description:
+              'Full object key (e.g. "reports/2026/q1.pdf"). Include the extension verbatim.',
+          },
+        },
+        required: ['key'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{bucket}/{key}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'files.copy',
+      class: 'mutation',
+      description:
+        'Server-side copy of an object to a new key in the same (or another) bucket via S3 PUT + x-amz-copy-source. `sourceKey` is the full source object key; `destKey` is the destination key.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bucket: {
+            type: 'string',
+            description: 'Destination bucket name. Defaults to the connector-configured bucket when omitted.',
+          },
+          sourceBucket: {
+            type: 'string',
+            description: 'Source bucket name. Defaults to `bucket` when omitted.',
+          },
+          sourceKey: {
+            type: 'string',
+            description: 'Full source object key.',
+          },
+          destKey: {
+            type: 'string',
+            description: 'Full destination object key.',
+          },
+          acl: {
+            type: 'string',
+            enum: ['private', 'public-read'],
+            description: 'S3 canned ACL applied to the new object.',
+          },
+        },
+        required: ['sourceBucket', 'sourceKey', 'destKey'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/{bucket}/{destKey}',
+        headers: {
+          'x-amz-copy-source': '/{sourceBucket}/{sourceKey}',
+          'x-amz-acl': '{acl}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
