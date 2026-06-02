@@ -92,6 +92,71 @@ export const twilioSmsConnector: ConnectorAdapter = {
           },
         },
       },
+      {
+        name: 'send_mms',
+        class: 'mutation',
+        description: 'Send an MMS message with one or more media URLs attached.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            to: { type: 'string', description: 'E.164 destination.' },
+            body: { type: 'string', description: 'Optional MMS body (may be empty when only sending media).' },
+            from: { type: 'string', description: 'Optional E.164 sender; falls back to metadata.fromNumber.' },
+            mediaUrl: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+              description: 'One or more media URLs Twilio should attach to the MMS.',
+            },
+          },
+          required: ['to', 'mediaUrl'],
+        },
+      },
+      {
+        name: 'send_whatsapp',
+        class: 'mutation',
+        description: 'Send a WhatsApp message via Twilio (To/From use the whatsapp: prefix).',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            to: { type: 'string', description: 'E.164 destination (the connector prepends `whatsapp:` if missing).' },
+            body: { type: 'string', description: 'WhatsApp message body.' },
+            from: { type: 'string', description: 'Optional sender; falls back to metadata.whatsappFromNumber or metadata.fromNumber.' },
+          },
+          required: ['to', 'body'],
+        },
+      },
+      {
+        name: 'redact_message',
+        class: 'mutation',
+        description: 'Redact the body of an already-delivered SMS by SID. Sets Body="" on the Message resource.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            messageSid: { type: 'string', description: 'SID of the Message to redact (SM…).' },
+          },
+          required: ['messageSid'],
+        },
+      },
+      {
+        name: 'list_numbers',
+        class: 'read',
+        description: 'List the IncomingPhoneNumbers owned by the account.',
+        parameters: {
+          type: 'object',
+          properties: {
+            phoneNumber: { type: 'string', description: 'Optional exact-match filter on the E.164 number.' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          },
+        },
+      },
     ],
   },
 
@@ -147,51 +212,98 @@ export const twilioSmsConnector: ConnectorAdapter = {
         fetchedAt: Date.now(),
       }
     }
+    if (inv.capabilityName === 'list_numbers') {
+      const { phoneNumber, limit } = inv.args as { phoneNumber?: string; limit?: number }
+      const params = new URLSearchParams()
+      params.set('PageSize', String(Math.min(Math.max(1, limit ?? 50), 100)))
+      if (phoneNumber) params.set('PhoneNumber', phoneNumber)
+      const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/IncomingPhoneNumbers.json?${params.toString()}`
+      const res = await fetch(url, {
+        headers: { authorization: basicAuth(auth) },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`twilio-sms list_numbers ${res.status}: ${text.slice(0, 200)}`)
+      }
+      const json = (await res.json()) as {
+        incoming_phone_numbers?: Array<{ sid: string; phone_number: string; friendly_name?: string; capabilities?: unknown }>
+      }
+      return {
+        data: { numbers: json.incoming_phone_numbers ?? [] },
+        fetchedAt: Date.now(),
+      }
+    }
     throw new Error(`twilio-sms: unknown read capability ${inv.capabilityName}`)
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-    if (inv.capabilityName !== 'send_sms') {
-      throw new Error(`twilio-sms: unknown mutation capability ${inv.capabilityName}`)
-    }
     const auth = parseAuth(inv.source.credentials)
-    const { to, body, from } = inv.args as { to: string; body: string; from?: string }
-    const fromNumber = from ?? readMetaString(inv.source.metadata, 'fromNumber')
-    const formBody = new URLSearchParams({ To: to, From: fromNumber, Body: body })
-    const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/Messages.json`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        authorization: basicAuth(auth),
-        'content-type': 'application/x-www-form-urlencoded',
-        'idempotency-key': inv.idempotencyKey,
-      },
-      body: formBody,
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
-    if (res.status === 409) {
-      // Twilio surfaces 409 when an idempotency-key conflict is detected
-      // (same key, different request body).
-      throw new ResourceContention('Twilio idempotency-key conflict — different args under same key')
+    if (inv.capabilityName === 'send_sms') {
+      const { to, body, from } = inv.args as { to: string; body: string; from?: string }
+      const fromNumber = from ?? readMetaString(inv.source.metadata, 'fromNumber')
+      const formBody = new URLSearchParams({ To: to, From: fromNumber, Body: body })
+      return await postMessages(inv, auth, formBody, 'send_sms')
     }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`twilio-sms send_sms ${res.status}: ${text.slice(0, 200)}`)
+    if (inv.capabilityName === 'send_mms') {
+      const { to, body, from, mediaUrl } = inv.args as {
+        to: string
+        body?: string
+        from?: string
+        mediaUrl: string | string[]
+      }
+      const fromNumber = from ?? readMetaString(inv.source.metadata, 'fromNumber')
+      const formBody = new URLSearchParams()
+      formBody.set('To', to)
+      formBody.set('From', fromNumber)
+      if (typeof body === 'string') formBody.set('Body', body)
+      const media = Array.isArray(mediaUrl) ? mediaUrl : [mediaUrl]
+      for (const m of media) formBody.append('MediaUrl', m)
+      return await postMessages(inv, auth, formBody, 'send_mms')
     }
-    const created = (await res.json()) as {
-      sid: string
-      status: string
-      to: string
-      from: string
-      date_sent?: string
+    if (inv.capabilityName === 'send_whatsapp') {
+      const { to, body, from } = inv.args as { to: string; body: string; from?: string }
+      const ensureWhatsapp = (n: string): string => (n.startsWith('whatsapp:') ? n : `whatsapp:${n}`)
+      const fromRaw = from ?? readMetaStringOptional(inv.source.metadata, 'whatsappFromNumber') ?? readMetaString(inv.source.metadata, 'fromNumber')
+      const formBody = new URLSearchParams({
+        To: ensureWhatsapp(to),
+        From: ensureWhatsapp(fromRaw),
+        Body: body,
+      })
+      return await postMessages(inv, auth, formBody, 'send_whatsapp')
     }
-    return {
-      status: 'committed',
-      data: { messageSid: created.sid, deliveryStatus: created.status, to: created.to, from: created.from },
-      committedAt: Date.now(),
-      idempotentReplay: false,
+    if (inv.capabilityName === 'redact_message') {
+      const { messageSid } = inv.args as { messageSid: string }
+      const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/Messages/${encodeURIComponent(messageSid)}.json`
+      const formBody = new URLSearchParams({ Body: '' })
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: basicAuth(auth),
+          'content-type': 'application/x-www-form-urlencoded',
+          'idempotency-key': inv.idempotencyKey,
+        },
+        body: formBody,
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
+      if (res.status === 409) {
+        throw new ResourceContention('Twilio idempotency-key conflict — different args under same key')
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`twilio-sms redact_message ${res.status}: ${text.slice(0, 200)}`)
+      }
+      const updated = (await res.json()) as { sid: string; status: string; body: string }
+      return {
+        status: 'committed',
+        data: { messageSid: updated.sid, deliveryStatus: updated.status, body: updated.body },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
     }
+    throw new Error(`twilio-sms: unknown mutation capability ${inv.capabilityName}`)
   },
 
   async test(source) {
@@ -254,4 +366,49 @@ function readMetaString(meta: Record<string, unknown>, key: string): string {
     throw new Error(`twilio-sms DataSource.metadata.${key} is missing`)
   }
   return v
+}
+
+function readMetaStringOptional(meta: Record<string, unknown>, key: string): string | undefined {
+  const v = meta[key]
+  return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+async function postMessages(
+  inv: ConnectorInvocation,
+  auth: TwilioAuth,
+  formBody: URLSearchParams,
+  label: string,
+): Promise<CapabilityMutationResult> {
+  const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/Messages.json`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: basicAuth(auth),
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': inv.idempotencyKey,
+    },
+    body: formBody,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
+  if (res.status === 409) {
+    throw new ResourceContention('Twilio idempotency-key conflict — different args under same key')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`twilio-sms ${label} ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as {
+    sid: string
+    status: string
+    to: string
+    from: string
+    date_sent?: string
+  }
+  return {
+    status: 'committed',
+    data: { messageSid: created.sid, deliveryStatus: created.status, to: created.to, from: created.from },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
 }
