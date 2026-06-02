@@ -51,12 +51,36 @@ describe('sharepoint adapter', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
       'create_folder',
+      'files.delete',
+      'files.move',
       'get_item_content',
       'list_drive_items',
+      'lists.items.create',
+      'permissions.grant',
+      'permissions.revoke',
       'search_drive',
       'search_sites',
       'upload_file',
     ])
+  })
+
+  it('all new write-side mutations are native-idempotency with externalEffect:true', () => {
+    const newMutationNames = [
+      'files.delete',
+      'files.move',
+      'permissions.grant',
+      'permissions.revoke',
+      'lists.items.create',
+    ]
+    for (const name of newMutationNames) {
+      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
+      expect(cap, `${name} should exist`).toBeDefined()
+      expect(cap!.class).toBe('mutation')
+      if (cap!.class === 'mutation') {
+        expect(cap!.cas).toBe('native-idempotency')
+        expect(cap!.externalEffect).toBe(true)
+      }
+    }
   })
 
   it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
@@ -443,5 +467,223 @@ describe('sharepoint adapter', () => {
     const out = await adapter.test(source())
     expect(out.ok).toBe(false)
     if (!out.ok) expect(out.reason).toMatch(/reconnect required/i)
+  })
+
+  it('files.delete DELETEs the DriveItem and reports committed on 204', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      return new Response(null, { status: 204 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.delete',
+      args: { siteId: 'site-A', itemId: 'item-1' },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('DELETE')
+    expect(observedUrl).toBe('https://graph.microsoft.com/v1.0/sites/site-A/drive/items/item-1')
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(false)
+      expect((result.data as { deleted: boolean }).deleted).toBe(true)
+    }
+  })
+
+  it('files.delete maps 404 to a tombstone idempotentReplay commit', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.delete',
+      args: { siteId: 'site-A', itemId: 'item-gone' },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(true)
+      expect((result.data as { alreadyMissing: boolean }).alreadyMissing).toBe(true)
+    }
+  })
+
+  it('files.move PATCHes the DriveItem with parentReference and optional name', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({
+        id: 'item-1',
+        name: 'renamed.csv',
+        webUrl: 'https://acme.sharepoint.com/.../renamed.csv',
+        '@odata.etag': '"moved-etag"',
+        parentReference: { id: 'folder-2' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.move',
+      args: {
+        siteId: 'site-A',
+        itemId: 'item-1',
+        newParentFolderId: 'folder-2',
+        newName: 'renamed.csv',
+      },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('PATCH')
+    expect(observedUrl).toBe('https://graph.microsoft.com/v1.0/sites/site-A/drive/items/item-1')
+    expect(observedBody).toEqual({
+      parentReference: { id: 'folder-2' },
+      name: 'renamed.csv',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.etagAfter).toBe('"moved-etag"')
+    }
+  })
+
+  it('permissions.grant POSTs to /invite with recipients + roles', async () => {
+    let observedUrl = ''
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({
+        value: [{ id: 'perm-1', roles: ['write'] }],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'permissions.grant',
+      args: {
+        siteId: 'site-A',
+        itemId: 'item-1',
+        email: 'alice@example.com',
+        role: 'write',
+        sendInvitation: false,
+      },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/drive/items/item-1/invite',
+    )
+    expect(observedBody).toMatchObject({
+      recipients: [{ email: 'alice@example.com' }],
+      roles: ['write'],
+      requireSignIn: true,
+      sendInvitation: false,
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      const data = result.data as { permissions: Array<{ id: string }> }
+      expect(data.permissions[0].id).toBe('perm-1')
+    }
+  })
+
+  it("permissions.grant defaults role to 'read' when omitted", async () => {
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({ value: [{ id: 'perm-2', roles: ['read'] }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'permissions.grant',
+      args: { siteId: 'site-A', itemId: 'item-1', email: 'bob@example.com' },
+      idempotencyKey: 'k1',
+    })
+    expect((observedBody as { roles: string[] }).roles).toEqual(['read'])
+  })
+
+  it('permissions.revoke DELETEs the permission and reports committed on 204', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      return new Response(null, { status: 204 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'permissions.revoke',
+      args: { siteId: 'site-A', itemId: 'item-1', permissionId: 'perm-1' },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('DELETE')
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/drive/items/item-1/permissions/perm-1',
+    )
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(false)
+      expect((result.data as { revoked: boolean }).revoked).toBe(true)
+    }
+  })
+
+  it('lists.items.create POSTs to the list with a {fields} envelope', async () => {
+    let observedUrl = ''
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({
+        id: 'list-item-1',
+        webUrl: 'https://acme.sharepoint.com/.../list/1',
+        '@odata.etag': '"li-etag"',
+        fields: { Title: 'Q1 review' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'lists.items.create',
+      args: {
+        siteId: 'site-A',
+        listId: 'list-1',
+        fields: { Title: 'Q1 review', Owner: 'alice' },
+      },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/lists/list-1/items',
+    )
+    expect(observedBody).toEqual({ fields: { Title: 'Q1 review', Owner: 'alice' } })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { id: string }).id).toBe('list-item-1')
+      expect(result.etagAfter).toBe('"li-etag"')
+    }
+  })
+
+  it('files.delete maps 401 to CredentialsExpired', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'files.delete',
+        args: { siteId: 'site-A', itemId: 'item-1' },
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

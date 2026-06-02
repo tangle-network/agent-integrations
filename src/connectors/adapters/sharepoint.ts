@@ -210,6 +210,107 @@ export function sharepoint(opts: SharePointOptions): ConnectorAdapter {
             required: ['siteId', 'parentFolderId', 'name'],
           },
         },
+        {
+          name: 'files.delete',
+          class: 'mutation',
+          description:
+            'Delete a file or folder DriveItem. Graph returns 204 on success. (siteId, itemId) is the natural idempotency tuple — a re-delete of a missing item surfaces as 404 mapped to a tombstone result.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              itemId: { type: 'string', description: 'DriveItem id of the file or folder to delete.' },
+            },
+            required: ['siteId', 'itemId'],
+          },
+        },
+        {
+          name: 'files.move',
+          class: 'mutation',
+          description:
+            "Move a file or folder DriveItem to a new parent (and optionally rename it). PATCH on the DriveItem with parentReference + optional name.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              itemId: { type: 'string', description: 'DriveItem id of the file or folder to move.' },
+              newParentFolderId: {
+                type: 'string',
+                description: "Destination parent folder DriveItem id (use 'root' for the drive root).",
+              },
+              newName: { type: 'string', description: 'Optional new filename for the moved item.' },
+            },
+            required: ['siteId', 'itemId', 'newParentFolderId'],
+          },
+        },
+        {
+          name: 'permissions.grant',
+          class: 'mutation',
+          description:
+            "Grant a user (by email) access to a DriveItem at the requested role ('read' or 'write'). Uses the Graph invite action so the grant is created or upserted by recipient.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              itemId: { type: 'string', description: 'DriveItem id being shared.' },
+              email: { type: 'string', description: 'Recipient email address.' },
+              role: {
+                type: 'string',
+                description: "Permission role ('read' or 'write'). Defaults to 'read'.",
+              },
+              sendInvitation: {
+                type: 'boolean',
+                description: "Whether Graph should email the invite. Defaults to false.",
+              },
+              message: { type: 'string', description: 'Optional invitation message body.' },
+            },
+            required: ['siteId', 'itemId', 'email'],
+          },
+        },
+        {
+          name: 'permissions.revoke',
+          class: 'mutation',
+          description:
+            "Revoke a specific permission on a DriveItem. Graph returns 204 on success. (siteId, itemId, permissionId) is the natural idempotency tuple.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              itemId: { type: 'string', description: 'DriveItem id whose permission is being revoked.' },
+              permissionId: { type: 'string', description: 'Permission id from list_permissions / grant response.' },
+            },
+            required: ['siteId', 'itemId', 'permissionId'],
+          },
+        },
+        {
+          name: 'lists.items.create',
+          class: 'mutation',
+          description:
+            "Create a list item in a SharePoint list. Caller provides the field bag (column key → value). Graph rejects duplicates by list-defined unique columns server-side; MutationGuard handles dedup-on-retry by key.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              listId: { type: 'string', description: 'SharePoint list id (or list display name resolved by the caller).' },
+              fields: {
+                type: 'object',
+                description: 'Map of column internal-name → value. Must include all required columns the list defines.',
+                additionalProperties: true,
+              },
+            },
+            required: ['siteId', 'listId', 'fields'],
+          },
+        },
       ],
     },
 
@@ -535,6 +636,251 @@ export function sharepoint(opts: SharePointOptions): ConnectorAdapter {
         return {
           status: 'committed',
           data: { id: created.id, name: created.name, webUrl: created.webUrl },
+          etagAfter: created['@odata.etag'] ?? created.eTag,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'files.delete') {
+        const { siteId, itemId } = inv.args as { siteId: string; itemId: string }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/drive/items/${encodeURIComponent(itemId)}`
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 412 || res.status === 409) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on files.delete (${res.status})`,
+            [],
+          )
+        }
+        if (res.status === 404) {
+          // Tombstone: subsequent retries should land here; report idempotent
+          // success so MutationGuard's replay path stays honest.
+          return {
+            status: 'committed',
+            data: { id: itemId, deleted: true, alreadyMissing: true },
+            committedAt: Date.now(),
+            idempotentReplay: true,
+          }
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint files.delete ${res.status}: ${text.slice(0, 200)}`)
+        }
+        return {
+          status: 'committed',
+          data: { id: itemId, deleted: true },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'files.move') {
+        const { siteId, itemId, newParentFolderId, newName } = inv.args as {
+          siteId: string
+          itemId: string
+          newParentFolderId: string
+          newName?: string
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/drive/items/${encodeURIComponent(itemId)}`
+        const body: Record<string, unknown> = {
+          parentReference: { id: newParentFolderId },
+        }
+        if (typeof newName === 'string' && newName.length > 0) body.name = newName
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on files.move (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint files.move ${res.status}: ${text.slice(0, 200)}`)
+        }
+        const moved = (await res.json()) as {
+          id: string
+          name?: string
+          webUrl?: string
+          eTag?: string
+          '@odata.etag'?: string
+          parentReference?: { id?: string; path?: string }
+        }
+        return {
+          status: 'committed',
+          data: {
+            id: moved.id,
+            name: moved.name,
+            webUrl: moved.webUrl,
+            parentReference: moved.parentReference,
+          },
+          etagAfter: moved['@odata.etag'] ?? moved.eTag,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'permissions.grant') {
+        const { siteId, itemId, email, role, sendInvitation, message } = inv.args as {
+          siteId: string
+          itemId: string
+          email: string
+          role?: string
+          sendInvitation?: boolean
+          message?: string
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/drive/items/${encodeURIComponent(itemId)}/invite`
+        const body: Record<string, unknown> = {
+          recipients: [{ email }],
+          roles: [role === 'write' ? 'write' : 'read'],
+          requireSignIn: true,
+          sendInvitation: Boolean(sendInvitation),
+        }
+        if (typeof message === 'string' && message.length > 0) body.message = message
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on permissions.grant (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint permissions.grant ${res.status}: ${text.slice(0, 200)}`)
+        }
+        const json = (await res.json()) as {
+          value?: Array<{ id?: string; roles?: string[]; grantedToV2?: unknown }>
+        }
+        const granted = json.value ?? []
+        return {
+          status: 'committed',
+          data: { permissions: granted },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'permissions.revoke') {
+        const { siteId, itemId, permissionId } = inv.args as {
+          siteId: string
+          itemId: string
+          permissionId: string
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/drive/items/${encodeURIComponent(itemId)}/permissions/${encodeURIComponent(permissionId)}`
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 412 || res.status === 409) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on permissions.revoke (${res.status})`,
+            [],
+          )
+        }
+        if (res.status === 404) {
+          return {
+            status: 'committed',
+            data: { permissionId, revoked: true, alreadyMissing: true },
+            committedAt: Date.now(),
+            idempotentReplay: true,
+          }
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint permissions.revoke ${res.status}: ${text.slice(0, 200)}`)
+        }
+        return {
+          status: 'committed',
+          data: { permissionId, revoked: true },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'lists.items.create') {
+        const { siteId, listId, fields } = inv.args as {
+          siteId: string
+          listId: string
+          fields: Record<string, unknown>
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/lists/${encodeURIComponent(listId)}/items`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify({ fields }),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on lists.items.create (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint lists.items.create ${res.status}: ${text.slice(0, 200)}`)
+        }
+        const created = (await res.json()) as {
+          id: string
+          webUrl?: string
+          eTag?: string
+          '@odata.etag'?: string
+          fields?: Record<string, unknown>
+        }
+        return {
+          status: 'committed',
+          data: { id: created.id, webUrl: created.webUrl, fields: created.fields },
           etagAfter: created['@odata.etag'] ?? created.eTag,
           committedAt: Date.now(),
           idempotentReplay: false,
