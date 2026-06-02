@@ -113,5 +113,95 @@ export const parseurConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/documents/{documentId}/reprocess' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'documents.delete',
+      class: 'mutation',
+      description: 'Delete a document / parse job by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'The ID of the document to delete.' },
+        },
+        required: ['documentId'],
+      },
+      request: { method: 'DELETE', path: '/documents/{documentId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.list',
+      class: 'read',
+      description: 'List parser templates configured for a given mailbox (parser).',
+      parameters: {
+        type: 'object',
+        properties: {
+          parserId: {
+            type: 'string',
+            description:
+              'The ID of the parser (mailbox) whose templates to list. In Parseur, templates are scoped to a parser.',
+          },
+          limit: { type: 'integer', description: 'Maximum number of templates to return.' },
+        },
+        required: ['parserId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/parsers/{parserId}/templates',
+        query: { limit: '{limit}' },
+      },
+    },
+    {
+      name: 'templates.train',
+      class: 'mutation',
+      description:
+        'Submit feedback to retrain a template. The body is forwarded as-is so callers can pass corrected field positions, sample text, or layout adjustments per the Parseur template-training spec.',
+      parameters: {
+        type: 'object',
+        properties: {
+          templateId: { type: 'string', description: 'The ID of the template to train.' },
+          document_id: {
+            type: 'string',
+            description: 'Optional ID of a document whose extraction was incorrect.',
+          },
+          fields: {
+            type: 'array',
+            description: 'Corrected field values to use as training feedback.',
+          },
+          sample_text: {
+            type: 'string',
+            description: 'Raw text that the template should match.',
+          },
+        },
+        required: ['templateId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/templates/{templateId}/train',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'mailboxes.list',
+      class: 'read',
+      description: 'List parser mailboxes (Parseur exposes mailboxes through its parsers endpoint).',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: {
+            type: 'string',
+            description: 'Search term to filter mailboxes by name.',
+          },
+          limit: { type: 'integer', description: 'Maximum number of mailboxes to return.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/parsers',
+        query: { search: '{search}', limit: '{limit}' },
+      },
+    },
   ],
 })
