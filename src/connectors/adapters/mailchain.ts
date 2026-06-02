@@ -41,5 +41,29 @@ export const mailchainConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'messages.inbox.list',
+      class: 'read',
+      description:
+        'List messages in the inbox for a Mailchain address. Optional `page` and `limit` paginate results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          address: { type: 'string', description: 'Mailchain address whose inbox to list.' },
+          page: { type: 'number', description: 'Optional 1-based page number.' },
+          limit: { type: 'number', description: 'Optional page size.' },
+        },
+        required: ['address'],
+      },
+      request: {
+        method: 'GET',
+        path: '/v0/messages',
+        query: {
+          address: '{address}',
+          page: '{page}',
+          limit: '{limit}',
+        },
+      },
+    },
   ],
 })
