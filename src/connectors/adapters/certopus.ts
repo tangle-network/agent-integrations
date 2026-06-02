@@ -80,5 +80,78 @@ export const certopusConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'credentials.revoke',
+      class: 'mutation',
+      description: 'Revoke a previously issued Certopus credential by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Credential identifier.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/credentials/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'credentials.update',
+      class: 'mutation',
+      description: 'Update metadata (fields, generate, publish) on an existing credential.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Credential identifier.' },
+          fields: { type: 'object' },
+          generate: { type: 'boolean' },
+          publish: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/credentials/{id}',
+        body: {
+          fields: '{fields}',
+          generate: '{generate}',
+          publish: '{publish}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'events.create',
+      class: 'mutation',
+      description: 'Create a credential event under an organisation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organisation: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          startDate: { type: 'string', description: 'ISO start date.' },
+          endDate: { type: 'string', description: 'ISO end date.' },
+        },
+        required: ['organisation', 'title'],
+      },
+      request: {
+        method: 'POST',
+        path: '/events',
+        body: {
+          organisation: '{organisation}',
+          title: '{title}',
+          description: '{description}',
+          startDate: '{startDate}',
+          endDate: '{endDate}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
