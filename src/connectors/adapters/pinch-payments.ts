@@ -220,5 +220,81 @@ export const pinchPaymentsConnector = declarativeRestConnector({
         path: '/events/{eventId}',
       },
     },
+    {
+      name: 'payments.refund',
+      class: 'mutation',
+      description: 'Refund a real-time payment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paymentId: { type: 'string' },
+          amount: { type: 'number' },
+          reason: { type: 'string' },
+        },
+        required: ['paymentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/payments/{paymentId}/refunds',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscriptions.cancel',
+      class: 'mutation',
+      description: 'Cancel a subscription.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriptionId: { type: 'string' },
+        },
+        required: ['subscriptionId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/subscriptions/{subscriptionId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'payers.delete',
+      class: 'mutation',
+      description: 'Delete a payer record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          payerId: { type: 'string' },
+        },
+        required: ['payerId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/payers/{payerId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'sources.remove',
+      class: 'mutation',
+      description: 'Remove a payment source from a payer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          payerId: { type: 'string' },
+          sourceId: { type: 'string' },
+        },
+        required: ['payerId', 'sourceId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/payers/{payerId}/sources/{sourceId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
