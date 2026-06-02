@@ -51,6 +51,7 @@ describe('postmark adapter manifest', () => {
     expect(names).toEqual(
       [
         'bounces.activate',
+        'bounces.delete',
         'bounces.get',
         'bounces.search',
         'email.send',
@@ -60,10 +61,13 @@ describe('postmark adapter manifest', () => {
         'messages.outbound.get',
         'messages.outbound.search',
         'server.get',
+        'servers.update',
         'stats.outbound.overview',
         'templates.create',
+        'templates.delete',
         'templates.get',
         'templates.list',
+        'templates.update',
       ].sort(),
     )
   })
@@ -176,5 +180,136 @@ describe('postmark adapter execution', () => {
     mockFetch({ ErrorCode: 10, Message: 'Invalid token' }, { status: 401 })
     const probe = await postmarkConnector.test!(source)
     expect(probe.ok).toBe(false)
+  })
+})
+
+describe('postmark templates.update', () => {
+  it('issues PUT /templates/{idOrAlias} with the full body args', async () => {
+    const fetchMock = mockFetch({ TemplateId: 99, Name: 'updated' })
+    const inv: ConnectorInvocation = {
+      source,
+      capabilityName: 'templates.update',
+      args: { idOrAlias: 'welcome', Name: 'updated', Subject: 'new subject' },
+      idempotencyKey: 'k-tu-1',
+    }
+
+    const result = await postmarkConnector.executeMutation!(inv)
+    expect(result.status).toBe('committed')
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://api.postmarkapp.com/templates/welcome')
+    expect(init.method).toBe('PUT')
+    expect((init.headers as Record<string, string>)['X-Postmark-Server-Token']).toBe('pm_server_token_xyz')
+    expect(JSON.parse(String(init.body))).toEqual({
+      idOrAlias: 'welcome',
+      Name: 'updated',
+      Subject: 'new subject',
+    })
+  })
+
+  it('surfaces CredentialsExpired on 401', async () => {
+    mockFetch({ ErrorCode: 10, Message: 'Invalid token' }, { status: 401 })
+    await expect(
+      postmarkConnector.executeMutation!({
+        source,
+        capabilityName: 'templates.update',
+        args: { idOrAlias: 'welcome' },
+        idempotencyKey: 'k-tu-2',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+})
+
+describe('postmark templates.delete', () => {
+  it('issues DELETE /templates/{idOrAlias}', async () => {
+    const fetchMock = mockFetch({ ErrorCode: 0, Message: 'Template deleted.' })
+    const inv: ConnectorInvocation = {
+      source,
+      capabilityName: 'templates.delete',
+      args: { idOrAlias: '12345' },
+      idempotencyKey: 'k-td-1',
+    }
+
+    const result = await postmarkConnector.executeMutation!(inv)
+    expect(result.status).toBe('committed')
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://api.postmarkapp.com/templates/12345')
+    expect(init.method).toBe('DELETE')
+    expect(init.body).toBeUndefined()
+  })
+})
+
+describe('postmark bounces.delete', () => {
+  it('issues POST /message-streams/{streamId}/suppressions/delete with Suppressions', async () => {
+    const fetchMock = mockFetch({ Suppressions: [{ EmailAddress: 'b@x.co', Status: 'Deleted' }] })
+    const inv: ConnectorInvocation = {
+      source,
+      capabilityName: 'bounces.delete',
+      args: {
+        streamId: 'outbound',
+        Suppressions: [{ EmailAddress: 'b@x.co' }],
+      },
+      idempotencyKey: 'k-bd-1',
+    }
+
+    const result = await postmarkConnector.executeMutation!(inv)
+    expect(result.status).toBe('committed')
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://api.postmarkapp.com/message-streams/outbound/suppressions/delete')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(String(init.body))).toEqual({
+      Suppressions: [{ EmailAddress: 'b@x.co' }],
+    })
+  })
+})
+
+describe('postmark servers.update', () => {
+  it('issues PUT /server with the args body', async () => {
+    const fetchMock = mockFetch({ ID: 1, Name: 'renamed', Color: 'Purple' })
+    const inv: ConnectorInvocation = {
+      source,
+      capabilityName: 'servers.update',
+      args: { Name: 'renamed', Color: 'Purple', TrackOpens: true },
+      idempotencyKey: 'k-su-1',
+    }
+
+    const result = await postmarkConnector.executeMutation!(inv)
+    expect(result.status).toBe('committed')
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://api.postmarkapp.com/server')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(String(init.body))).toEqual({
+      Name: 'renamed',
+      Color: 'Purple',
+      TrackOpens: true,
+    })
+  })
+
+  it('surfaces CredentialsExpired on 403', async () => {
+    mockFetch({ ErrorCode: 10, Message: 'Forbidden' }, { status: 403 })
+    await expect(
+      postmarkConnector.executeMutation!({
+        source,
+        capabilityName: 'servers.update',
+        args: { Name: 'renamed' },
+        idempotencyKey: 'k-su-2',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+})
+
+describe('postmark manifest classifications', () => {
+  it('marks every new mutation as native-idempotency + external effect', () => {
+    const newOnes = ['templates.update', 'templates.delete', 'bounces.delete', 'servers.update']
+    const caps = postmarkConnector.manifest.capabilities.filter((c) => newOnes.includes(c.name))
+    expect(caps).toHaveLength(newOnes.length)
+    for (const c of caps) {
+      if (c.class !== 'mutation') throw new Error('unreachable')
+      expect(c.cas).toBe('native-idempotency')
+      expect(c.externalEffect).toBe(true)
+    }
   })
 })
