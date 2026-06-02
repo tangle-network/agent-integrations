@@ -423,5 +423,69 @@ export const pineconeConnector = declarativeRestConnector({
       cas: 'none',
       externalEffect: true,
     },
+    {
+      name: 'assistants.update',
+      class: 'mutation',
+      description:
+        'Update an existing Pinecone Assistant. Pass any subset of { instructions, metadata } — fields omitted from the body are left unchanged.',
+      parameters: {
+        type: 'object',
+        properties: {
+          assistantName: { type: 'string' },
+          instructions: { type: 'string' },
+          metadata: { type: 'object' },
+        },
+        required: ['assistantName'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/assistant/assistants/{assistantName}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'assistants.files.delete',
+      class: 'mutation',
+      description:
+        'Delete a file previously uploaded to a Pinecone Assistant. The file is removed from the assistant\'s knowledge base; existing chat sessions are unaffected.',
+      parameters: {
+        type: 'object',
+        properties: {
+          assistantName: { type: 'string' },
+          assistantFileId: { type: 'string', description: 'Assistant file ID returned by the upload endpoint.' },
+        },
+        required: ['assistantName', 'assistantFileId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/assistant/files/{assistantName}/{assistantFileId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'backups.create',
+      class: 'mutation',
+      description:
+        'Create a backup snapshot of an index. The backup is project-scoped and can be restored later via the Pinecone control plane.',
+      parameters: {
+        type: 'object',
+        properties: {
+          indexName: { type: 'string' },
+          name: { type: 'string', description: 'Backup name (project-unique).' },
+          description: { type: 'string' },
+        },
+        required: ['indexName', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/indexes/{indexName}/backups',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
