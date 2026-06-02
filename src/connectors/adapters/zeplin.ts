@@ -113,5 +113,85 @@ export const zeplinConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'notes.update',
+      class: 'mutation',
+      description: 'Update an existing screen note (content and/or color).',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          screenId: { type: 'string' },
+          noteId: { type: 'string' },
+          content: { type: 'string' },
+          color: { type: 'string' },
+        },
+        required: ['projectId', 'screenId', 'noteId', 'content', 'color'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/projects/{projectId}/screens/{screenId}/notes/{noteId}',
+        body: { content: '{content}', color: '{color}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'notes.delete',
+      class: 'mutation',
+      description: 'Delete a screen note by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          screenId: { type: 'string' },
+          noteId: { type: 'string' },
+        },
+        required: ['projectId', 'screenId', 'noteId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/projects/{projectId}/screens/{screenId}/notes/{noteId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'projects.list',
+      class: 'read',
+      description: 'List all projects the authenticated user has access to.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          offset: { type: 'integer', minimum: 0 },
+          status: { type: 'string', enum: ['active', 'archived', 'all'] },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/projects',
+        query: { limit: '{limit}', offset: '{offset}', status: '{status}' },
+      },
+    },
+    {
+      name: 'components.list',
+      class: 'read',
+      description: 'List style-guide components for a given project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/projects/{projectId}/styleguide/components',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
   ],
 })
