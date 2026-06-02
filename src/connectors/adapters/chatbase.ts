@@ -115,5 +115,112 @@ export const chatbaseConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'chatbot.update',
+      class: 'mutation',
+      description: 'Update a chatbot configuration (name, model, prompt, temperature, visibility).',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'Chatbase chatbot id.' },
+          chatbotName: { type: 'string', description: 'New chatbot name.' },
+          model: { type: 'string', description: 'Model identifier to use.' },
+          basePrompt: { type: 'string', description: 'System prompt.' },
+          temperature: { type: 'number' },
+          visibility: { type: 'string', enum: ['public', 'private'] },
+        },
+        required: ['chatbotId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/update-chatbot',
+        body: {
+          chatbotId: '{chatbotId}',
+          chatbotName: '{chatbotName}',
+          model: '{model}',
+          basePrompt: '{basePrompt}',
+          temperature: '{temperature}',
+          visibility: '{visibility}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'chatbot.delete',
+      class: 'mutation',
+      description: 'Delete a chatbot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'Chatbase chatbot id.' },
+        },
+        required: ['chatbotId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/delete-chatbot',
+        body: { chatbotId: '{chatbotId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'sources.upload',
+      class: 'mutation',
+      description: 'Upload a knowledge source (text, URL, or file content) to a chatbot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'Chatbase chatbot id.' },
+          type: {
+            type: 'string',
+            enum: ['text', 'url', 'file'],
+            description: 'Source type.',
+          },
+          content: {
+            type: 'string',
+            description: 'Raw text, URL, or base64-encoded file content depending on type.',
+          },
+          filename: { type: 'string', description: 'Optional filename for file uploads.' },
+        },
+        required: ['chatbotId', 'type', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/upload-source',
+        body: {
+          chatbotId: '{chatbotId}',
+          type: '{type}',
+          content: '{content}',
+          filename: '{filename}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'sources.delete',
+      class: 'mutation',
+      description: 'Delete a knowledge source from a chatbot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'Chatbase chatbot id.' },
+          sourceId: { type: 'string', description: 'Knowledge source id to delete.' },
+        },
+        required: ['chatbotId', 'sourceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/delete-source',
+        body: {
+          chatbotId: '{chatbotId}',
+          sourceId: '{sourceId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
