@@ -263,5 +263,110 @@ export const zendeskSellConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact from Zendesk Sell.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactId: { type: 'string', description: 'Contact identifier to delete' },
+        },
+        required: ['contactId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contact/{contactId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.update',
+      class: 'mutation',
+      description: 'Update an existing lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string', description: 'Lead identifier to update' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          organizationName: { type: 'string' },
+          status: { type: 'string' },
+          title: { type: 'string' },
+        },
+        required: ['leadId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/lead/{leadId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string', description: 'Lead identifier to delete' },
+        },
+        required: ['leadId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/lead/{leadId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'deals.delete',
+      class: 'mutation',
+      description: 'Delete a deal.',
+      parameters: {
+        type: 'object',
+        properties: {
+          dealId: { type: 'string', description: 'Deal identifier to delete' },
+        },
+        required: ['dealId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/deal/{dealId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.create',
+      class: 'mutation',
+      description: 'Create a task in Zendesk Sell.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Task title' },
+          description: { type: 'string', description: 'Task description' },
+          dueDate: { type: 'string', description: 'Due date (ISO 8601)' },
+          ownerId: { type: 'string', description: 'Task owner identifier' },
+          resourceType: { type: 'string', description: 'Associated resource type (e.g., contact, lead, deal)' },
+          resourceId: { type: 'string', description: 'Associated resource identifier' },
+          completed: { type: 'boolean', description: 'Whether the task is completed' },
+        },
+        required: ['title'],
+      },
+      request: {
+        method: 'POST',
+        path: '/task',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
