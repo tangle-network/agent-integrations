@@ -212,5 +212,88 @@ export const aircallConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact from the Aircall directory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactId: { type: 'string' },
+        },
+        required: ['contactId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contacts/{contactId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.transfer',
+      class: 'mutation',
+      description: 'Transfer an active call to another user or number.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callId: { type: 'string' },
+          to: {
+            type: 'string',
+            description: 'Aircall user id or external E.164 phone number to transfer the call to.',
+          },
+        },
+        required: ['callId', 'to'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls/{callId}/transfers',
+        body: { to: '{to}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.archive',
+      class: 'mutation',
+      description: 'Archive a completed call record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callId: { type: 'string' },
+        },
+        required: ['callId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls/{callId}/archive',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'numbers.assign',
+      class: 'mutation',
+      description: 'Assign a phone number to a user or team.',
+      parameters: {
+        type: 'object',
+        properties: {
+          numberId: { type: 'string' },
+          user_id: { type: 'string', description: 'Aircall user id to assign the number to.' },
+          team_id: { type: 'string', description: 'Aircall team id to assign the number to.' },
+        },
+        required: ['numberId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/numbers/{numberId}/users',
+        body: {
+          user_id: '{user_id}',
+          team_id: '{team_id}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
