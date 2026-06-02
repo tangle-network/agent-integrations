@@ -25,5 +25,34 @@ export const twinLabsConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/browsing/start', body: { startUrl: '{startUrl}', goal: '{goal}' } },
       cas: 'native-idempotency',
     },
+    {
+      name: 'browsing.stop',
+      class: 'mutation',
+      description: 'Stop an in-progress browsing session.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Identifier of the browsing session to stop.' },
+        },
+        required: ['sessionId'],
+      },
+      request: { method: 'POST', path: '/sessions/{sessionId}/stop' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'browsing.get',
+      class: 'read',
+      description:
+        'Fetch the current state of a browsing session, including status, current URL, and a screenshot URL.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Identifier of the browsing session to inspect.' },
+        },
+        required: ['sessionId'],
+      },
+      request: { method: 'GET', path: '/sessions/{sessionId}' },
+    },
   ],
 })
