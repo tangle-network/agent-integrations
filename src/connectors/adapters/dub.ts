@@ -220,5 +220,32 @@ export const dubConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/links/{linkId}' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'tags.create',
+      class: 'mutation',
+      description: 'Create a tag in the Dub workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Tag name.' },
+          color: {
+            type: 'string',
+            enum: ['red', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown'],
+            description: 'Tag colour (Dub palette).',
+          },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tags',
+        body: {
+          name: '{name}',
+          color: '{color}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
