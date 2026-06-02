@@ -184,5 +184,54 @@ export const lemonSqueezyConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'subscriptions.cancel',
+      class: 'mutation',
+      description:
+        'Cancel a subscription. The subscription remains active until the end of the current billing period, after which it transitions to cancelled.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/subscriptions/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'orders.issueRefund',
+      class: 'mutation',
+      description:
+        'Issue a refund for an order. Omit `amount` to refund the full order total; otherwise pass an integer amount in cents (the smallest currency unit) for a partial refund.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          amount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Optional partial-refund amount in cents. Omit for a full refund.',
+          },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/orders/{id}/refund',
+        body: {
+          data: {
+            type: 'refunds',
+            attributes: {
+              amount: '{amount}',
+            },
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
