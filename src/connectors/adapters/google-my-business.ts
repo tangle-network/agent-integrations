@@ -204,5 +204,146 @@ export const googleMyBusinessConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['https://www.googleapis.com/auth/business.manage'],
     },
+    {
+      // GBP "posts" — short-lived updates that surface on the storefront's
+      // listing. The legacy v4 endpoint is the only published surface; the
+      // Business Posts v1 API was retired in 2022 and Google never produced a
+      // replacement. Repeating a POST produces a duplicate localPost, so the
+      // MutationGuard idempotency-key layer must dedupe above the connector.
+      name: 'localPosts.create',
+      class: 'mutation',
+      description:
+        'Publish a Google Business Profile local post (status update, offer, event, or call-to-action) on a location.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          locationId: { type: 'string' },
+          languageCode: {
+            type: 'string',
+            description: 'BCP-47 language code, e.g. "en".',
+          },
+          summary: {
+            type: 'string',
+            description: 'Post body text (up to 1,500 characters).',
+            maxLength: 1500,
+          },
+          topicType: {
+            type: 'string',
+            description: 'STANDARD | EVENT | OFFER | ALERT.',
+          },
+          callToAction: {
+            type: 'object',
+            description: 'Optional { actionType, url } block, e.g. { actionType: "LEARN_MORE", url: "https://..." }.',
+          },
+          event: {
+            type: 'object',
+            description: 'For topicType=EVENT: { title, schedule: { startDate, endDate, ... } }.',
+          },
+          offer: {
+            type: 'object',
+            description: 'For topicType=OFFER: { couponCode, redeemOnlineUrl, termsConditions }.',
+          },
+          media: {
+            type: 'array',
+            description: 'Optional MediaItem list to attach images/video to the post.',
+          },
+        },
+        required: ['accountId', 'locationId', 'languageCode', 'summary'],
+      },
+      request: {
+        method: 'POST',
+        path: 'https://mybusiness.googleapis.com/v4/accounts/{accountId}/locations/{locationId}/localPosts',
+        body: {
+          languageCode: '{languageCode}',
+          summary: '{summary}',
+          topicType: '{topicType}',
+          callToAction: '{callToAction}',
+          event: '{event}',
+          offer: '{offer}',
+          media: '{media}',
+        },
+      },
+      // GBP localPosts has no requestId / idempotency-key on POST; consecutive
+      // calls produce duplicate posts. MutationGuard's idempotency-key layer
+      // is the only guard.
+      cas: 'none',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/business.manage'],
+    },
+    {
+      name: 'localPosts.delete',
+      class: 'mutation',
+      description:
+        'Delete a local post from a location. Repeating the call on an already-deleted post yields 404 but is idempotent in effect.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          locationId: { type: 'string' },
+          localPostId: { type: 'string' },
+        },
+        required: ['accountId', 'locationId', 'localPostId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: 'https://mybusiness.googleapis.com/v4/accounts/{accountId}/locations/{locationId}/localPosts/{localPostId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/business.manage'],
+    },
+    {
+      // GBP "media" — photos/videos on a location's profile. The legacy v4
+      // /media endpoint accepts a MediaItem body with either a sourceUrl
+      // (Google fetches it) or a reference from /media:startUpload (multi-step
+      // resumable upload). We expose the sourceUrl path because it's a single
+      // request the declarative-rest engine can model cleanly; bytestream
+      // upload is a separate hand-rolled adapter when needed.
+      name: 'media.create',
+      class: 'mutation',
+      description:
+        'Upload a photo or video to a Google Business Profile location via the v4 /media endpoint. Pass a sourceUrl Google can fetch (HTTPS, publicly reachable). For bytestream uploads use the /media:startUpload + PUT bytestream flow instead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          locationId: { type: 'string' },
+          mediaFormat: {
+            type: 'string',
+            description: 'PHOTO | VIDEO.',
+          },
+          locationAssociation: {
+            type: 'object',
+            description: 'Where the media attaches, e.g. { category: "EXTERIOR" } or { priceListItemId: "..." }.',
+          },
+          sourceUrl: {
+            type: 'string',
+            description: 'Public HTTPS URL Google should fetch the media from.',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional caption shown alongside the media.',
+          },
+        },
+        required: ['accountId', 'locationId', 'mediaFormat', 'sourceUrl'],
+      },
+      request: {
+        method: 'POST',
+        path: 'https://mybusiness.googleapis.com/v4/accounts/{accountId}/locations/{locationId}/media',
+        body: {
+          mediaFormat: '{mediaFormat}',
+          locationAssociation: '{locationAssociation}',
+          sourceUrl: '{sourceUrl}',
+          description: '{description}',
+        },
+      },
+      // GBP media POST has no idempotency token; consecutive calls produce
+      // duplicate media items. MutationGuard's idempotency-key layer is the
+      // only guard.
+      cas: 'none',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/business.manage'],
+    },
   ],
 })
