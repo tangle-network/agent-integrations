@@ -53,5 +53,79 @@ export const everhourConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/tasks/{taskId}/timer' },
       cas: 'native-idempotency',
     },
+    {
+      name: 'time.create',
+      class: 'mutation',
+      description: 'Log a time entry against an Everhour task.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'The ID of the task the time entry attaches to.' },
+          time: { type: 'integer', description: 'Duration in seconds.' },
+          date: { type: 'string', description: 'Date the entry is logged for (YYYY-MM-DD).' },
+          user: { type: 'integer', description: 'Optional user id; defaults to the authorised account.' },
+          comment: { type: 'string', description: 'Optional free-form comment for the entry.' },
+        },
+        required: ['taskId', 'time', 'date'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tasks/{taskId}/time',
+        body: {
+          time: '{time}',
+          date: '{date}',
+          user: '{user}',
+          comment: '{comment}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'time.update',
+      class: 'mutation',
+      description: 'Update an existing Everhour time entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'The ID of the task the entry belongs to.' },
+          timeId: { type: 'string', description: 'The ID of the time entry to update.' },
+          time: { type: 'integer', description: 'Updated duration in seconds.' },
+          date: { type: 'string', description: 'Updated date (YYYY-MM-DD).' },
+          comment: { type: 'string', description: 'Updated comment.' },
+        },
+        required: ['taskId', 'timeId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/tasks/{taskId}/time/{timeId}',
+        body: {
+          time: '{time}',
+          date: '{date}',
+          comment: '{comment}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'time.delete',
+      class: 'mutation',
+      description: 'Delete an Everhour time entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'The ID of the task the entry belongs to.' },
+          timeId: { type: 'string', description: 'The ID of the time entry to delete.' },
+        },
+        required: ['taskId', 'timeId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/tasks/{taskId}/time/{timeId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
