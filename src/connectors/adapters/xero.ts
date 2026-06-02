@@ -227,5 +227,148 @@ export const xeroConnector = declarativeRestConnector({
       },
       requiredScopes: ['accounting.settings.read'],
     },
+    {
+      name: 'contacts.archive',
+      class: 'mutation',
+      description: 'Archive a Xero contact (sets ContactStatus to ARCHIVED).',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          contactId: { type: 'string', description: 'Xero ContactID (GUID).' },
+        },
+        required: ['tenantId', 'contactId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api.xro/2.0/Contacts/{contactId}',
+        body: { ContactStatus: 'ARCHIVED' },
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['accounting.contacts'],
+    },
+    {
+      name: 'invoices.delete',
+      class: 'mutation',
+      description: 'Void or delete a Xero invoice. DRAFT/SUBMITTED invoices accept DELETED, AUTHORISED invoices accept VOIDED.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          invoiceId: { type: 'string', description: 'Xero InvoiceID (GUID) or InvoiceNumber.' },
+          status: {
+            type: 'string',
+            enum: ['VOIDED', 'DELETED'],
+            description: 'Target status. VOIDED for authorised invoices, DELETED for draft/submitted invoices.',
+          },
+        },
+        required: ['tenantId', 'invoiceId', 'status'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api.xro/2.0/Invoices/{invoiceId}',
+        body: { Status: '{status}' },
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['accounting.transactions'],
+    },
+    {
+      name: 'invoices.email',
+      class: 'mutation',
+      description: 'Email a Xero invoice to its contact using the saved template.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          invoiceId: { type: 'string', description: 'Xero InvoiceID (GUID) or InvoiceNumber.' },
+        },
+        required: ['tenantId', 'invoiceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api.xro/2.0/Invoices/{invoiceId}/Email',
+        body: {},
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['accounting.transactions'],
+    },
+    {
+      name: 'payments.create',
+      class: 'mutation',
+      description: 'Apply a payment to a Xero invoice or credit note. Pass a Payments array per the Xero API contract.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          Payments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Invoice: { type: 'object', description: 'Invoice reference, e.g. { InvoiceID: "..." }.' },
+                CreditNote: { type: 'object', description: 'CreditNote reference, e.g. { CreditNoteID: "..." }.' },
+                Account: { type: 'object', description: 'Bank account reference, e.g. { Code: "090" }.' },
+                Date: { type: 'string', description: 'YYYY-MM-DD.' },
+                Amount: { type: 'number' },
+                Reference: { type: 'string' },
+              },
+              required: ['Account', 'Date', 'Amount'],
+            },
+          },
+        },
+        required: ['tenantId', 'Payments'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api.xro/2.0/Payments',
+        body: { Payments: '{Payments}' },
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['accounting.transactions'],
+    },
+    {
+      name: 'credit-notes.create',
+      class: 'mutation',
+      description: 'Create a Xero credit note (ACCRECCREDIT or ACCPAYCREDIT). Pass a CreditNotes array per the Xero API contract.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          CreditNotes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Type: { type: 'string', enum: ['ACCRECCREDIT', 'ACCPAYCREDIT'] },
+                Contact: { type: 'object' },
+                LineItems: { type: 'array', items: { type: 'object' } },
+                Date: { type: 'string', description: 'YYYY-MM-DD.' },
+                Reference: { type: 'string' },
+                Status: { type: 'string', enum: ['DRAFT', 'SUBMITTED', 'AUTHORISED'] },
+              },
+              required: ['Type', 'Contact', 'LineItems'],
+            },
+          },
+        },
+        required: ['tenantId', 'CreditNotes'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api.xro/2.0/CreditNotes',
+        body: { CreditNotes: '{CreditNotes}' },
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['accounting.transactions'],
+    },
   ],
 })
