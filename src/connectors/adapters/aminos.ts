@@ -58,5 +58,63 @@ export const aminosConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'users.update',
+      class: 'mutation',
+      description: 'Update an existing Aminos One end-user by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userid: { type: 'string', description: 'Identifier of the Aminos user to update.' },
+          useremail: { type: 'string', description: 'New email address for the user.' },
+          userfriendlyname: { type: 'string', description: 'New display name for the user.' },
+          userplanid: { type: 'integer', description: 'New plan id for the user.' },
+        },
+        required: ['userid'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/api/users/{userid}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.delete',
+      class: 'mutation',
+      description: 'Delete an Aminos One end-user account by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userid: { type: 'string', description: 'Identifier of the Aminos user to delete.' },
+        },
+        required: ['userid'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/users/{userid}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.list',
+      class: 'read',
+      description: 'List end-users registered on the Aminos One panel.',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', description: 'Page number to retrieve.' },
+          limit: { type: 'integer', description: 'Maximum number of users per page.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/users',
+        query: { page: '{page}', limit: '{limit}' },
+      },
+    },
   ],
 })
