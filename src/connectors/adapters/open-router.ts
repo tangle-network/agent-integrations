@@ -67,5 +67,64 @@ export const openRouterConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'credits.get',
+      class: 'read',
+      description: 'Get the current account credit balance and total usage.',
+      parameters: { type: 'object', properties: {}, required: [] },
+      request: { method: 'GET', path: '/credits' },
+    },
+    {
+      name: 'keys.list',
+      class: 'read',
+      description: 'List provisioning API keys on the account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          offset: { type: 'integer', description: 'Pagination offset.' },
+          include_disabled: { type: 'boolean', description: 'Include revoked/disabled keys.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/keys',
+        query: { offset: '{offset}', include_disabled: '{include_disabled}' },
+      },
+    },
+    {
+      name: 'keys.create',
+      class: 'mutation',
+      description: 'Create a new provisioning API key on the account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Human-readable name for the key.' },
+          label: { type: 'string', description: 'Optional label for the key.' },
+          limit: { type: 'number', description: 'Optional credit limit in USD.' },
+        },
+        required: ['name'],
+      },
+      // Optional `label`/`limit` are forwarded via `body: 'args'` so the
+      // renderer doesn't throw on unset placeholders.
+      request: { method: 'POST', path: '/keys', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'keys.revoke',
+      class: 'mutation',
+      description: 'Revoke an existing provisioning API key by its hash.',
+      parameters: {
+        type: 'object',
+        properties: {
+          hash: { type: 'string', description: 'Hash identifier of the key to revoke.' },
+        },
+        required: ['hash'],
+      },
+      request: { method: 'DELETE', path: '/keys/{hash}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
