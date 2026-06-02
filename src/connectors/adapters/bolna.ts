@@ -63,6 +63,110 @@ export const bolnaConnector = declarativeRestConnector({
       request: { method: 'GET', path: '/executions/{executionId}' },
     },
     {
+      name: 'calls.cancel',
+      class: 'mutation',
+      description: 'Cancel a queued or scheduled Bolna voice call by execution id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          executionId: {
+            type: 'string',
+            description: 'Bolna call execution id to cancel.',
+          },
+        },
+        required: ['executionId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/call/{executionId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'agents.create',
+      class: 'mutation',
+      description: 'Create a new Bolna voice agent definition.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agent_config: {
+            type: 'object',
+            description: 'Bolna agent configuration (prompts, voice, model, etc.).',
+          },
+          agent_prompts: {
+            type: 'object',
+            description: 'Prompt set for the agent (task prompts keyed by task name).',
+          },
+        },
+        required: ['agent_config'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/agent',
+        body: {
+          agent_config: '{agent_config}',
+          agent_prompts: '{agent_prompts}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'agents.update',
+      class: 'mutation',
+      description: 'Update an existing Bolna voice agent definition.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agentId: {
+            type: 'string',
+            description: 'Bolna agent id to update.',
+          },
+          agent_config: {
+            type: 'object',
+            description: 'Updated agent configuration.',
+          },
+          agent_prompts: {
+            type: 'object',
+            description: 'Updated prompt set for the agent.',
+          },
+        },
+        required: ['agentId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v2/agent/{agentId}',
+        body: {
+          agent_config: '{agent_config}',
+          agent_prompts: '{agent_prompts}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'agents.delete',
+      class: 'mutation',
+      description: 'Delete a Bolna voice agent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agentId: {
+            type: 'string',
+            description: 'Bolna agent id to delete.',
+          },
+        },
+        required: ['agentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v2/agent/{agentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'calls.make',
       class: 'mutation',
       description:
