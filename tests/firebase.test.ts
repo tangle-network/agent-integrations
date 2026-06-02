@@ -62,6 +62,8 @@ describe('firebase connector', () => {
 
     const names = firebaseConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
+      'auth.user.create',
+      'auth.user.delete',
       'documents.create',
       'documents.delete',
       'documents.get',
@@ -75,6 +77,20 @@ describe('firebase connector', () => {
     if (patch.class === 'mutation') {
       expect(patch.cas).toBe('etag-if-match')
     }
+
+    const authCreate = firebaseConnector.manifest.capabilities.find((c) => c.name === 'auth.user.create')!
+    expect(authCreate.class).toBe('mutation')
+    if (authCreate.class === 'mutation') {
+      expect(authCreate.cas).toBe('native-idempotency')
+      expect(authCreate.externalEffect).toBe(true)
+    }
+
+    const authDelete = firebaseConnector.manifest.capabilities.find((c) => c.name === 'auth.user.delete')!
+    expect(authDelete.class).toBe('mutation')
+    if (authDelete.class === 'mutation') {
+      expect(authDelete.cas).toBe('native-idempotency')
+      expect(authDelete.externalEffect).toBe(true)
+    }
   })
 
   it('registers firebase under the connector-adapter provider with executable actions', async () => {
@@ -86,7 +102,52 @@ describe('firebase connector', () => {
     expect(connectors.map((c) => c.id)).toEqual(['firebase'])
     const fb = connectors[0]!
     expect(fb.auth).toBe('oauth2')
-    expect(fb.actions.length).toBeGreaterThanOrEqual(6)
+    expect(fb.actions.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('routes auth.user.create to identitytoolkit with the args envelope as body', async () => {
+    const fetchMock = mockFetch({ localId: 'uid_abc', email: 'ada@example.com' })
+    const provider = createConnectorAdapterProvider({
+      adapters: [firebaseConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    const result = await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'auth.user.create',
+      input: { projectId: 'demo-app', email: 'ada@example.com', password: 'hunter2' },
+    })
+
+    expect(result.ok).toBe(true)
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect((init as RequestInit).method).toBe('POST')
+    expect(String(url)).toBe(
+      'https://identitytoolkit.googleapis.com/v1/projects/demo-app/accounts',
+    )
+    const body = JSON.parse(String((init as RequestInit).body))
+    expect(body).toEqual({ projectId: 'demo-app', email: 'ada@example.com', password: 'hunter2' })
+  })
+
+  it('routes auth.user.delete to the accounts:delete RPC with localId body', async () => {
+    const fetchMock = mockFetch({})
+    const provider = createConnectorAdapterProvider({
+      adapters: [firebaseConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'auth.user.delete',
+      input: { projectId: 'demo-app', localId: 'uid_abc' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect((init as RequestInit).method).toBe('POST')
+    expect(String(url)).toBe(
+      'https://identitytoolkit.googleapis.com/v1/projects/demo-app/accounts:delete',
+    )
+    const body = JSON.parse(String((init as RequestInit).body))
+    expect(body).toEqual({ localId: 'uid_abc' })
   })
 
   it('issues a Firestore GET with Bearer credentials and the (default) database segment', async () => {
