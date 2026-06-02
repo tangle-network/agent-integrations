@@ -160,5 +160,102 @@ export const supabaseConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['secrets:write'],
     },
+    {
+      name: 'projects.delete',
+      class: 'mutation',
+      description: 'Delete a Supabase project. Permanently removes the project and all data.',
+      parameters: {
+        type: 'object',
+        properties: { ref: { type: 'string' } },
+        required: ['ref'],
+      },
+      request: { method: 'DELETE', path: '/v1/projects/{ref}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['projects:write'],
+    },
+    {
+      name: 'branches.create',
+      class: 'mutation',
+      description: 'Create a preview branch on a Supabase project. Pass git_branch and region as optional fields when needed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string' },
+          branch_name: { type: 'string' },
+          git_branch: { type: 'string', description: 'Optional git branch to link.' },
+          region: { type: 'string' },
+        },
+        required: ['ref', 'branch_name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/projects/{ref}/branches',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['projects:write'],
+    },
+    {
+      name: 'branches.delete',
+      class: 'mutation',
+      description: 'Delete a preview branch.',
+      parameters: {
+        type: 'object',
+        properties: { branch_id: { type: 'string' } },
+        required: ['branch_id'],
+      },
+      request: { method: 'DELETE', path: '/v1/branches/{branch_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['projects:write'],
+    },
+    {
+      name: 'secrets.delete',
+      class: 'mutation',
+      description:
+        'Delete a project edge-function secret by name. Note: the Supabase Management API also accepts a JSON-array body for bulk deletes; this capability deletes a single named secret per call via query parameter.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string' },
+          name: { type: 'string', description: 'Secret name to delete.' },
+        },
+        required: ['ref', 'name'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/projects/{ref}/secrets',
+        query: { name: '{name}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['secrets:write'],
+    },
+    {
+      name: 'storage.upload',
+      class: 'mutation',
+      description:
+        'Upload an object to a Supabase storage bucket. The body is the object payload; storage uses a separate hostname per project so callers must override metadata.baseUrl for storage calls.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string' },
+          bucket: { type: 'string' },
+          path: { type: 'string', description: 'Object path inside the bucket.' },
+          content: { type: 'string', description: 'Object content (raw or base64).' },
+        },
+        required: ['ref', 'bucket', 'path', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/projects/{ref}/storage/buckets/{bucket}/objects/{path}',
+        body: '{content}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['projects:write'],
+    },
   ],
 })
