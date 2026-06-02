@@ -275,6 +275,46 @@ export const quickzuConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
     },
     {
+      name: 'orders.cancel',
+      class: 'mutation',
+      description: 'Cancel an open order.',
+      parameters: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string' },
+        },
+        required: ['orderId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/orders/{orderId}/cancel',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'orders.refund',
+      class: 'mutation',
+      description: 'Refund an order, optionally specifying an amount and reason.',
+      parameters: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string' },
+          amount: { type: 'number', description: 'Optional refund amount (defaults to full order total).' },
+          reason: { type: 'string', description: 'Optional refund reason.' },
+        },
+        required: ['orderId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/orders/{orderId}/refund',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'discounts.create',
       class: 'mutation',
       description: 'Create a product discount.',
@@ -303,6 +343,65 @@ export const quickzuConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
+    },
+    {
+      name: 'discounts.delete',
+      class: 'mutation',
+      description: 'Delete a product discount.',
+      parameters: {
+        type: 'object',
+        properties: {
+          discountId: { type: 'string', description: 'Discount ID.' },
+        },
+        required: ['discountId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/discounts/product/{discountId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'promo-codes.delete',
+      class: 'mutation',
+      description: 'Delete a promotional code.',
+      parameters: {
+        type: 'object',
+        properties: {
+          promoCodeId: { type: 'string', description: 'Promo code ID.' },
+        },
+        required: ['promoCodeId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/promo-codes/{promoCodeId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'categories.reorder',
+      class: 'mutation',
+      description: 'Reorder the category list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          categoryIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Category IDs in their desired display order.',
+          },
+        },
+        required: ['categoryIds'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/categories/reorder',
+        body: { categoryIds: '{categoryIds}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'promo-codes.create',
