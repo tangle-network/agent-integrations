@@ -210,5 +210,93 @@ export const amazonSecretsManagerConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'secrets.rotate',
+      class: 'mutation',
+      description: 'Trigger immediate rotation of a secret.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Secret name or ARN.' },
+          rotationLambdaArn: {
+            type: 'string',
+            description: 'ARN of the Lambda rotation function (optional if already configured).',
+          },
+          rotationRules: {
+            type: 'object',
+            description:
+              'Optional RotationRules object (AutomaticallyAfterDays, Duration, ScheduleExpression).',
+          },
+          rotateImmediately: {
+            type: 'boolean',
+            description: 'When true, rotates the secret immediately in addition to scheduling.',
+          },
+          clientRequestToken: { type: 'string' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/',
+        headers: { 'X-Amz-Target': 'secretsmanager.RotateSecret' },
+        body: {
+          SecretId: '{name}',
+          RotationLambdaARN: '{rotationLambdaArn}',
+          RotationRules: '{rotationRules}',
+          RotateImmediately: '{rotateImmediately}',
+          ClientRequestToken: '{clientRequestToken}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'secrets.restore',
+      class: 'mutation',
+      description: 'Cancel a scheduled deletion of a secret and reinstate it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Secret name or ARN.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/',
+        headers: { 'X-Amz-Target': 'secretsmanager.RestoreSecret' },
+        body: { SecretId: '{name}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'secrets.tag',
+      class: 'mutation',
+      description: 'Attach tags to a secret.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Secret name or ARN.' },
+          tags: {
+            type: 'array',
+            description: 'List of { Key, Value } tag objects to attach.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['name', 'tags'],
+      },
+      request: {
+        method: 'POST',
+        path: '/',
+        headers: { 'X-Amz-Target': 'secretsmanager.TagResource' },
+        body: {
+          SecretId: '{name}',
+          Tags: '{tags}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
