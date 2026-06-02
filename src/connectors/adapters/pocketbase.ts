@@ -162,5 +162,81 @@ export const pocketbaseConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'collections.list',
+      class: 'read',
+      description: 'List collections (tables) in the PocketBase database.',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', description: 'Page number (default: 1)' },
+          perPage: { type: 'integer', description: 'Items per page (default: 30)' },
+          sort: { type: 'string', description: 'Order attribute(s).' },
+          filter: { type: 'string', description: 'Filter expression' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/collections',
+        query: {
+          page: '{page}',
+          perPage: '{perPage}',
+          sort: '{sort}',
+          filter: '{filter}',
+        },
+      },
+    },
+    {
+      name: 'collections.create',
+      class: 'mutation',
+      description: 'Create a new collection (table) in the PocketBase database.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Collection name' },
+          type: {
+            type: 'string',
+            description: 'Collection type (base, auth, view). Defaults to base.',
+          },
+          fields: {
+            type: 'array',
+            description: 'Schema field definitions for the collection.',
+          },
+          system: { type: 'boolean', description: 'Whether the collection is a system collection.' },
+          listRule: { type: 'string', description: 'List API rule.' },
+          viewRule: { type: 'string', description: 'View API rule.' },
+          createRule: { type: 'string', description: 'Create API rule.' },
+          updateRule: { type: 'string', description: 'Update API rule.' },
+          deleteRule: { type: 'string', description: 'Delete API rule.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/collections',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'collections.delete',
+      class: 'mutation',
+      description: 'Delete a collection (table) from the PocketBase database.',
+      parameters: {
+        type: 'object',
+        properties: {
+          collection: { type: 'string', description: 'Collection name or ID to delete.' },
+        },
+        required: ['collection'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/collections/{collection}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
