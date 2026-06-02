@@ -63,5 +63,48 @@ export const esignaturesConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'contract.cancel',
+      class: 'mutation',
+      description: 'Withdraw / cancel an in-progress contract.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contractId: { type: 'string', description: 'ID of the contract to cancel.' },
+          voidedBy: {
+            type: 'string',
+            description: 'Name of the user voiding the contract (recorded in audit trail).',
+          },
+        },
+        required: ['contractId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contracts/{contractId}/withdraw',
+        body: {
+          voided_by: '{voidedBy}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contract.delete',
+      class: 'mutation',
+      description: 'Delete a contract permanently.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contractId: { type: 'string', description: 'ID of the contract to delete.' },
+        },
+        required: ['contractId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contracts/{contractId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
