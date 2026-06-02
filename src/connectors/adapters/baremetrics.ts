@@ -129,5 +129,112 @@ export const baremetricsConnector = declarativeRestConnector({
       requiredScopes: ['write'],
       externalEffect: true,
     },
+    {
+      name: 'delete.customer',
+      class: 'mutation',
+      description:
+        'Delete a Baremetrics customer (identified by its oid) from a given source. Permanently removes customer history from Baremetrics analytics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sourceId: { type: 'string', description: 'Baremetrics source id.' },
+          customerOid: {
+            type: 'string',
+            description: 'External id of the customer to delete.',
+          },
+        },
+        required: ['sourceId', 'customerOid'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{sourceId}/customers/{customerOid}',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
+    {
+      name: 'cancel.subscription',
+      class: 'mutation',
+      description:
+        'Cancel a Baremetrics subscription (identified by its oid) under a given source. Marks the subscription as canceled in Baremetrics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sourceId: { type: 'string', description: 'Baremetrics source id.' },
+          subscriptionOid: {
+            type: 'string',
+            description: 'External id of the subscription to cancel.',
+          },
+        },
+        required: ['sourceId', 'subscriptionOid'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{sourceId}/subscriptions/{subscriptionOid}',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
+    {
+      name: 'delete.plan',
+      class: 'mutation',
+      description:
+        'Delete a Baremetrics plan definition (identified by its oid) under a given source.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sourceId: { type: 'string', description: 'Baremetrics source id.' },
+          planOid: {
+            type: 'string',
+            description: 'External id of the plan to delete.',
+          },
+        },
+        required: ['sourceId', 'planOid'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{sourceId}/plans/{planOid}',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
+    {
+      name: 'create.annotation',
+      class: 'mutation',
+      description:
+        'Create a chart annotation in Baremetrics. Annotations appear as labelled markers on time-series charts.',
+      parameters: {
+        type: 'object',
+        properties: {
+          metric: {
+            type: 'string',
+            description: 'Metric the annotation should appear on (e.g. mrr, active_customers).',
+          },
+          title: { type: 'string', description: 'Short annotation title.' },
+          description: { type: 'string', description: 'Optional longer annotation body.' },
+          date: {
+            type: 'string',
+            description: 'Date of the annotation in YYYY-MM-DD format.',
+          },
+        },
+        required: ['metric', 'title', 'date'],
+      },
+      request: {
+        method: 'POST',
+        path: '/annotations',
+        body: {
+          metric: '{metric}',
+          title: '{title}',
+          description: '{description}',
+          date: '{date}',
+        },
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
   ],
 })
