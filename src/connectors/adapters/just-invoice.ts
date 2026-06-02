@@ -134,5 +134,141 @@ export const justInvoiceConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'invoices.send',
+      class: 'mutation',
+      description:
+        'Send a JustInvoice invoice to the customer by email. Defaults to the customer email on the invoice; pass email_to to override the destination address.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoiceId: {
+            type: 'string',
+            description: 'The ID or invoice number of the invoice to send.',
+          },
+          email_to: {
+            type: 'string',
+            description:
+              'Optional override recipient email. When omitted, JustInvoice sends to the customer email on the invoice.',
+          },
+        },
+        required: ['invoiceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/invoices/{invoiceId}/send',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'invoices.markPaid',
+      class: 'mutation',
+      description:
+        'Mark a JustInvoice invoice as paid. Defaults to the current vendor-side timestamp; pass paid_at (YYYY-MM-DD or RFC3339) to backdate the payment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoiceId: {
+            type: 'string',
+            description: 'The ID or invoice number of the invoice to mark paid.',
+          },
+          paid_at: {
+            type: 'string',
+            description:
+              'Optional payment timestamp (YYYY-MM-DD or RFC3339). When omitted, the vendor stamps the current time.',
+          },
+        },
+        required: ['invoiceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/invoices/{invoiceId}/mark-paid',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'invoices.update',
+      class: 'mutation',
+      description:
+        'Update an existing JustInvoice invoice. Any subset of updatable fields may be supplied; omitted fields are left unchanged on the vendor side.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoiceId: {
+            type: 'string',
+            description: 'The ID or invoice number of the invoice to update.',
+          },
+          invoiceDate: {
+            type: 'string',
+            description: 'Updated invoice date in YYYY-MM-DD.',
+          },
+          invoiceStatus: {
+            type: 'string',
+            enum: ['draft', 'sent', 'paid', 'overdue', 'void'],
+            description: 'Updated status of the invoice.',
+          },
+          currencyCode: {
+            type: 'string',
+            description: 'Updated ISO currency code (e.g. USD, EUR, GBP).',
+          },
+          noteToCustomer: {
+            type: 'string',
+            description: 'Updated note shown to the customer on the invoice.',
+          },
+          customerEmail: {
+            type: 'string',
+            description: 'Updated billing email address for the invoice customer.',
+          },
+          customerFirstName: { type: 'string', description: 'Updated customer first name.' },
+          customerLastName: { type: 'string', description: 'Updated customer last name.' },
+          customerCompanyName: { type: 'string', description: 'Updated customer company name.' },
+          customerAddress: { type: 'string', description: 'Updated customer street address.' },
+          customerCity: { type: 'string', description: 'Updated customer city.' },
+          customerProvinceState: {
+            type: 'string',
+            description: 'Updated customer province or state.',
+          },
+          customerPostalCode: { type: 'string', description: 'Updated customer postal code.' },
+          customerCountry: {
+            type: 'string',
+            description: 'Updated customer ISO country code (e.g. US, CA, GB).',
+          },
+          lineItems: {
+            type: 'array',
+            minItems: 1,
+            description: 'Replacement line items for the invoice.',
+            items: {
+              type: 'object',
+              properties: {
+                description: {
+                  type: 'string',
+                  description: 'Description of the line item.',
+                },
+                quantity: {
+                  type: 'number',
+                  minimum: 0,
+                  description: 'Number of units billed.',
+                },
+                unitPrice: {
+                  type: 'number',
+                  minimum: 0,
+                  description: 'Price per unit, expressed in the invoice currency.',
+                },
+              },
+              required: ['description', 'quantity', 'unitPrice'],
+            },
+          },
+        },
+        required: ['invoiceId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/invoices/{invoiceId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
