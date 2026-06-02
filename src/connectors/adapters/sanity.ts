@@ -237,5 +237,106 @@ export const sanityConnector = declarativeRestConnector({
       externalEffect: true,
       requiredScopes: ['write'],
     },
+    {
+      name: 'documents.createOrReplace',
+      class: 'mutation',
+      description:
+        'Create a Sanity document, or replace it wholesale if a document with the same `_id` already exists. The caller passes the full document body including `_id` and `_type`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...datasetLocator,
+          document: {
+            type: 'object',
+            description: 'Document body. Must include `_id` and `_type`.',
+            additionalProperties: true,
+          },
+        },
+        required: ['dataset', 'document'],
+      },
+      request: {
+        method: 'POST',
+        path: '/{apiVersion}/data/mutate/{dataset}',
+        query: {
+          returnIds: 'true',
+          returnDocuments: 'true',
+        },
+        body: {
+          mutations: [{ createOrReplace: '{document}' }],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write'],
+    },
+    {
+      name: 'documents.publish',
+      class: 'mutation',
+      description:
+        'Publish a Sanity draft document. Issues a `sanity.action.document.publish` action against the dataset; `draftId` is typically `drafts.<publishedId>`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...datasetLocator,
+          draftId: { type: 'string', description: 'Draft document _id, usually `drafts.<publishedId>`.' },
+          publishedId: { type: 'string', description: 'Published document _id (without the `drafts.` prefix).' },
+        },
+        required: ['dataset', 'draftId', 'publishedId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/{apiVersion}/data/actions/{dataset}',
+        body: {
+          actions: [
+            {
+              actionType: 'sanity.action.document.publish',
+              draftId: '{draftId}',
+              publishedId: '{publishedId}',
+            },
+          ],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write'],
+    },
+    {
+      name: 'documents.delete-batch',
+      class: 'mutation',
+      description:
+        'Delete multiple documents in a single Sanity transaction using a GROQ delete-by-query (`*[_id in $ids]`). All deletes commit or roll back together.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...datasetLocator,
+          documentIds: {
+            type: 'array',
+            description: 'IDs of the documents to delete in a single transaction.',
+            items: { type: 'string' },
+          },
+        },
+        required: ['dataset', 'documentIds'],
+      },
+      request: {
+        method: 'POST',
+        path: '/{apiVersion}/data/mutate/{dataset}',
+        query: {
+          returnIds: 'true',
+        },
+        body: {
+          mutations: [
+            {
+              delete: {
+                query: '*[_id in $ids]',
+                params: { ids: '{documentIds}' },
+              },
+            },
+          ],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write'],
+    },
   ],
 })
