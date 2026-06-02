@@ -35,6 +35,7 @@ export const buttondownConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/subscribers', body: { email: '{email}', type: '{type}', notes: '{notes}', tags: '{tags}', metadata: '{metadata}', referrer_url: '{referrerUrl}', utm_source: '{utmSource}', utm_medium: '{utmMedium}', utm_campaign: '{utmCampaign}', referring_subscriber_id: '{referringSubscriberId}', ip_address: '{ipAddress}', collision_behavior: '{collisionBehavior}', bypass_firewall: '{bypassFirewall}' } },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'subscribers.list',
@@ -68,6 +69,97 @@ export const buttondownConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/emails', body: { subject: '{subject}', body: '{body}', subscriber_id: '{subscriberId}' } },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscribers.update',
+      class: 'mutation',
+      description: 'Update metadata on an existing Buttondown subscriber.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriberId: { type: 'string', description: 'Buttondown subscriber id.' },
+          email: { type: 'string', description: 'Updated email address.' },
+          type: { type: 'string', description: 'Updated subscriber status.' },
+          notes: { type: 'string', description: 'Internal notes about the subscriber.' },
+          tags: { type: 'array', items: { type: 'string' }, description: 'Tags to assign to the subscriber.' },
+          metadata: { type: 'object', description: 'Custom metadata to store on the subscriber.' },
+        },
+        required: ['subscriberId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/subscribers/{subscriberId}',
+        body: {
+          email: '{email}',
+          type: '{type}',
+          notes: '{notes}',
+          tags: '{tags}',
+          metadata: '{metadata}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description: 'Unsubscribe and delete a Buttondown subscriber.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriberId: { type: 'string', description: 'Buttondown subscriber id to delete.' },
+        },
+        required: ['subscriberId'],
+      },
+      request: { method: 'DELETE', path: '/subscribers/{subscriberId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'emails.create',
+      class: 'mutation',
+      description: 'Draft a new Buttondown email without sending it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string', description: 'Subject line of the email draft.' },
+          body: { type: 'string', description: 'HTML body of the email draft.' },
+          status: { type: 'string', description: 'Email status (defaults to "draft"). Set to "about_to_send" or "scheduled" to schedule sending.' },
+          publishDate: { type: 'string', description: 'Optional ISO 8601 publish date for scheduled emails.' },
+        },
+        required: ['subject', 'body'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emails',
+        body: {
+          subject: '{subject}',
+          body: '{body}',
+          status: '{status}',
+          publish_date: '{publishDate}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'emails.send',
+      class: 'mutation',
+      description: 'Send a previously drafted Buttondown email immediately.',
+      parameters: {
+        type: 'object',
+        properties: {
+          emailId: { type: 'string', description: 'Buttondown email/draft id to send.' },
+        },
+        required: ['emailId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emails/{emailId}/send',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })
