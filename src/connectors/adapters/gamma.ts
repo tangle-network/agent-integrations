@@ -70,5 +70,73 @@ export const gammaConnector = declarativeRestConnector({
         path: '/generation/{generationId}',
       },
     },
+    {
+      name: 'presentation.delete',
+      class: 'mutation',
+      description: 'Delete a Gamma presentation by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          gammaId: { type: 'string', description: 'The ID of the Gamma presentation to delete.' },
+        },
+        required: ['gammaId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/gammas/{gammaId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'presentation.update',
+      class: 'mutation',
+      description: 'Update metadata for an existing Gamma presentation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          gammaId: { type: 'string', description: 'The ID of the Gamma presentation to update.' },
+          title: { type: 'string', description: 'New title for the presentation.' },
+          folderId: { type: 'string', description: 'Folder to move the presentation into.' },
+          sharingOptions: {
+            type: 'object',
+            description: 'JSON object for sharing attributes (workspaceAccess, externalAccess).',
+          },
+        },
+        required: ['gammaId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/gammas/{gammaId}',
+        body: {
+          title: '{title}',
+          folderId: '{folderId}',
+          sharingOptions: '{sharingOptions}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'folder.create',
+      class: 'mutation',
+      description: 'Create a folder for organizing Gamma presentations.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Folder display name.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/folders',
+        body: {
+          name: '{name}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
