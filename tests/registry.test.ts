@@ -160,7 +160,15 @@ describe('integration registry', () => {
     expect(calendar?.supportTier).toBe('firstPartyExecutable')
     expect(calendar?.connector.providerId).toBe('first-party')
     expect(calendar?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['first-party', 'spec']))
-    expect(calendar?.connector.actions.map((action) => action.id).sort()).toEqual(['book_slot', 'list_availability'])
+    expect(calendar?.connector.actions.map((action) => action.id).sort()).toEqual([
+      'book_slot',
+      'create_event',
+      'delete_event',
+      'get_event',
+      'list_availability',
+      'list_events',
+      'update_event',
+    ])
   })
 
   it('keeps pure catalog-only connectors discoverable but not tool-bindable', () => {
