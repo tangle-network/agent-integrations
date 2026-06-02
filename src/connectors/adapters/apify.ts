@@ -103,5 +103,91 @@ export const apifyConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'actor.abort',
+      class: 'mutation',
+      description: 'Abort a running Apify actor run.',
+      parameters: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Identifier of the actor run to abort.' },
+          gracefully: {
+            type: 'boolean',
+            description: 'Whether to abort gracefully (send SIGINT) instead of forcibly killing the run.',
+          },
+        },
+        required: ['runId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/actor-runs/{runId}/abort',
+        query: { gracefully: '{gracefully}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'actor.run.resurrect',
+      class: 'mutation',
+      description: 'Resurrect a finished Apify actor run.',
+      parameters: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Identifier of the finished run to resurrect.' },
+          build: { type: 'string', description: 'Tag or number of the actor build to use.' },
+          timeout: { type: 'integer', description: 'New timeout in seconds for the resurrected run.' },
+          memory: { type: 'integer', description: 'New memory limit (in MB) for the resurrected run.' },
+        },
+        required: ['runId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/actor-runs/{runId}/resurrect',
+        query: {
+          build: '{build}',
+          timeout: '{timeout}',
+          memory: '{memory}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'dataset.create',
+      class: 'mutation',
+      description: 'Create a new named Apify dataset.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Name of the dataset to create.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/datasets',
+        query: { name: '{name}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'dataset.delete',
+      class: 'mutation',
+      description: 'Delete an Apify dataset.',
+      parameters: {
+        type: 'object',
+        properties: {
+          datasetId: { type: 'string', description: 'Identifier of the dataset to delete.' },
+        },
+        required: ['datasetId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/datasets/{datasetId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
