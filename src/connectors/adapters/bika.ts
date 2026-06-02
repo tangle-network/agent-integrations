@@ -76,5 +76,73 @@ export const bikaConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/records/{recordId}' },
       cas: 'native-idempotency',
     },
+    {
+      name: 'records.batchCreate',
+      class: 'mutation',
+      description: 'Create multiple records in one call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          records: {
+            type: 'array',
+            description: 'Array of record payloads, each shaped like { fields: { ... } }.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['records'],
+      },
+      request: {
+        method: 'POST',
+        path: '/records/batch',
+        body: { records: '{records}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'records.batchUpdate',
+      class: 'mutation',
+      description: 'Update multiple records in one call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          records: {
+            type: 'array',
+            description: 'Array of record updates, each shaped like { id, fields: { ... } }.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['records'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/records/batch',
+        body: { records: '{records}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'tables.create',
+      class: 'mutation',
+      description: 'Create a table in a workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          name: { type: 'string' },
+          fields: {
+            type: 'array',
+            description: 'Initial column / field definitions for the table.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['workspaceId', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workspaces/{workspaceId}/tables',
+        body: { name: '{name}', fields: '{fields}' },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
