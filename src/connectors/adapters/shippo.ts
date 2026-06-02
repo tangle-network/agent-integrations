@@ -106,5 +106,56 @@ export const shippoConnector = declarativeRestConnector({
         path: '/v1/transactions/{transactionId}',
       },
     },
+    {
+      name: 'transactions.create',
+      class: 'mutation',
+      description:
+        'Purchase a shipping label by transacting against a previously quoted rate. Returns transaction object_id, status, tracking_number, tracking_url_provider, and label_url.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rate: { type: 'string', description: 'Rate object_id returned from a previous shipment quote.' },
+          label_file_type: {
+            type: 'string',
+            description: 'Output format for the label file (PDF, PNG, PNG_2.3x7.5, ZPLII, etc.). Optional; defaults to the account-level setting.',
+          },
+          async: {
+            type: 'boolean',
+            description: 'When true the carrier purchase is queued and the transaction polls to SUCCESS asynchronously. Defaults to false (synchronous).',
+            default: false,
+          },
+        },
+        required: ['rate'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/transactions',
+        body: {
+          rate: '{rate}',
+          label_file_type: '{label_file_type}',
+          async: '{async}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tracks.get',
+      class: 'read',
+      description:
+        'Get current tracking status and history for a tracking number on a specific carrier. Returns tracking_status, tracking_history, and eta.',
+      parameters: {
+        type: 'object',
+        properties: {
+          carrier: { type: 'string', description: 'Carrier token (e.g. usps, ups, fedex, dhl_express).' },
+          tracking_number: { type: 'string', description: 'Carrier-issued tracking number.' },
+        },
+        required: ['carrier', 'tracking_number'],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/tracks/{carrier}/{tracking_number}',
+      },
+    },
   ],
 })
