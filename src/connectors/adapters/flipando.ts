@@ -128,6 +128,28 @@ export const flipandoConnector = declarativeRestConnector({
       externalEffect: true,
     },
     {
+      name: 'tasks.cancel',
+      class: 'mutation',
+      description:
+        'Cancel an in-flight Flipando task (the async handle returned by apps.run or apps.generate). Reaches the task even after the worker has started; idempotent — cancelling an already-completed or already-cancelled task returns the terminal state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: {
+            type: 'string',
+            description: 'Task ID returned by apps.run or apps.generate.',
+          },
+        },
+        required: ['task_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tasks/{task_id}/cancel',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'tasks.get',
       class: 'read',
       description:
