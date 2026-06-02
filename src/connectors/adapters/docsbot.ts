@@ -80,6 +80,22 @@ export const docsbotConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
+      name: 'sources.delete',
+      class: 'mutation',
+      description: 'Delete a training source from a bot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          botId: { type: 'string' },
+          sourceId: { type: 'string' },
+        },
+        required: ['botId', 'sourceId'],
+      },
+      request: { method: 'DELETE', path: '/v1/bots/{botId}/sources/{sourceId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'conversations.ask',
       class: 'read',
       description: 'Ask a question to a DocsBot.',
