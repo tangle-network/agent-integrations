@@ -176,5 +176,135 @@ export const woocommerceConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'customers.update',
+      class: 'mutation',
+      description: 'Update a WooCommerce customer by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          email: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          username: { type: 'string' },
+          password: { type: 'string' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/wp-json/wc/v3/customers/{id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'customers.delete',
+      class: 'mutation',
+      description:
+        'Delete a WooCommerce customer. WooCommerce requires force=true to permanently delete customers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          force: { type: 'boolean', description: 'Permanently delete the customer.' },
+          reassign: { type: 'integer', description: 'Reassign customer posts to this user ID.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/wp-json/wc/v3/customers/{id}',
+        query: {
+          force: '{force}',
+          reassign: '{reassign}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'products.update',
+      class: 'mutation',
+      description: 'Update a WooCommerce product by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          price: { type: 'number' },
+          regularPrice: { type: 'number' },
+          salePrice: { type: 'number' },
+          sku: { type: 'string' },
+          manageStock: { type: 'boolean' },
+          stockQuantity: { type: 'integer' },
+          status: { type: 'string', enum: ['draft', 'pending', 'private', 'publish'] },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/wp-json/wc/v3/products/{id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'products.delete',
+      class: 'mutation',
+      description:
+        'Delete a WooCommerce product. Pass force=true to permanently delete instead of trashing.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          force: { type: 'boolean', description: 'Bypass trash and permanently delete.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/wp-json/wc/v3/products/{id}',
+        query: { force: '{force}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'orders.update-status',
+      class: 'mutation',
+      description:
+        "Update a WooCommerce order's status (e.g. processing, completed, cancelled, refunded).",
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          status: {
+            type: 'string',
+            enum: [
+              'pending',
+              'processing',
+              'on-hold',
+              'completed',
+              'cancelled',
+              'refunded',
+              'failed',
+            ],
+          },
+        },
+        required: ['id', 'status'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/wp-json/wc/v3/orders/{id}',
+        body: { status: '{status}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
