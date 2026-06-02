@@ -121,5 +121,82 @@ export const sardisConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'transactions.get',
+      class: 'read',
+      description: 'Fetch a single transaction by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          transactionId: { type: 'string' },
+        },
+        required: ['transactionId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/transactions/{transactionId}',
+      },
+    },
+    {
+      name: 'payment.refund',
+      class: 'mutation',
+      description:
+        'Refund or reverse a previously-sent payment. Pass an optional `reason` inside `args` — when present it is forwarded to Sardis.',
+      parameters: {
+        type: 'object',
+        properties: {
+          transactionId: { type: 'string', description: 'Id of the payment transaction to refund.' },
+          reason: { type: 'string' },
+        },
+        required: ['transactionId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/payment/refund',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'policy.delete',
+      class: 'mutation',
+      description: 'Delete the spending policy associated with an agent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agentId: { type: 'string' },
+        },
+        required: ['agentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/policy/{agentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'balance.update',
+      class: 'mutation',
+      description:
+        'Adjust the on-chain balance for an agent (e.g. top-up or debit). `amount` is signed — positive credits the balance, negative debits it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agentId: { type: 'string' },
+          amount: { type: 'number' },
+          reason: { type: 'string' },
+        },
+        required: ['agentId', 'amount'],
+      },
+      request: {
+        method: 'POST',
+        path: '/agent/balance',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
