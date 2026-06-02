@@ -365,6 +365,85 @@ export const adobeCreativeCloudConnector = declarativeRestConnector({
       requiredScopes: ['lr_partner_apis'],
     },
     {
+      name: 'file.upload',
+      class: 'mutation',
+      description:
+        'Upload a file (create a Lightroom asset). The caller supplies the asset UUID; Lightroom dedupes by (catalog_id, asset_id) so replays are deterministic.',
+      parameters: {
+        type: 'object',
+        properties: {
+          catalog_id: { type: 'string', description: 'Lightroom catalog UUID.' },
+          asset_id: {
+            type: 'string',
+            description: 'Caller-supplied asset UUID (v4); Lightroom dedupes by (catalog_id, asset_id).',
+          },
+          payload: {
+            type: 'object',
+            description: 'AssetPayload — { subtype: "image"|"video", payload: { ... }, ... }.',
+          },
+        },
+        required: ['catalog_id', 'asset_id', 'payload'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v2/catalogs/{catalog_id}/assets/{asset_id}',
+        body: '{payload}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['lr_partner_apis'],
+    },
+    {
+      name: 'file.delete',
+      class: 'mutation',
+      description:
+        'Delete a file (Lightroom asset) by id. Lightroom marks the asset as deleted; rendition references are GC-collected asynchronously.',
+      parameters: {
+        type: 'object',
+        properties: {
+          catalog_id: { type: 'string', description: 'Lightroom catalog UUID.' },
+          asset_id: { type: 'string', description: 'Asset UUID.' },
+        },
+        required: ['catalog_id', 'asset_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v2/catalogs/{catalog_id}/assets/{asset_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['lr_partner_apis'],
+    },
+    {
+      name: 'folder.create',
+      class: 'mutation',
+      description:
+        'Create a folder (Lightroom collection_set album). The caller supplies the folder UUID; PUT with the same UUID is a deterministic replay.',
+      parameters: {
+        type: 'object',
+        properties: {
+          catalog_id: { type: 'string', description: 'Lightroom catalog UUID.' },
+          album_id: {
+            type: 'string',
+            description: 'Caller-supplied folder/album UUID (v4); Lightroom dedupes by (catalog_id, album_id).',
+          },
+          payload: {
+            type: 'object',
+            description: 'AlbumPayload — { name, parent: { id } | null, subtype: "collection_set" }.',
+          },
+        },
+        required: ['catalog_id', 'album_id', 'payload'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v2/catalogs/{catalog_id}/albums/{album_id}',
+        body: '{payload}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['lr_partner_apis'],
+    },
+    {
       name: 'assets.list_in_album',
       class: 'read',
       description:
