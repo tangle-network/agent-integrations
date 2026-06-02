@@ -1,8 +1,8 @@
 /**
  * @stable Gmail connector — email-triggered agent workflows.
  *
- * Four capabilities, picked to cover "agent reads inbox, replies, and
- * watches a label" without exposing all of Gmail's surface:
+ * Five capabilities, picked to cover "agent reads inbox, sends and
+ * replies, and watches a label" without exposing all of Gmail's surface:
  *
  *   list_messages(labelIds?, query?, maxResults?)
  *     → {messages: [{id, threadId, snippet, internalDate, from, to, subject, labelIds}], nextPageToken?}
@@ -16,6 +16,16 @@
  *     extracts `text/plain` + `text/html` + a flat attachment manifest.
  *     Attachment bodies are NOT inlined (could be huge) — the caller can
  *     follow up with `get_attachment` if needed.
+ *
+ *   send(to, subject, body, cc?, bcc?, replyTo?, html?)
+ *     → {id, threadId, labelIds}
+ *     Mutation. `users.messages.send` with a fresh RFC2822 message NOT
+ *     tied to an existing thread. Use this for new outbound mail; for
+ *     in-thread replies use `send_reply` (it pulls
+ *     In-Reply-To/References so the reply threads correctly).
+ *     Idempotency model identical to `send_reply` —
+ *     `X-Tangle-Idempotency-Key` header + the MutationGuard
+ *     short-circuit above the connector.
  *
  *   send_reply(threadId, body, replyAll?, cc?)
  *     → {id, threadId, labelIds}
@@ -37,9 +47,9 @@
  *     forces re-registration every 7 days; we surface the upstream
  *     `expiration` so the caller can schedule a refresh.
  *
- * Auth: OAuth2 with `gmail.readonly` (list/read), `gmail.send` (send),
- * `gmail.modify` (watch). Caller toggles which to include via the
- * `scopes` option.
+ * Auth: OAuth2 with `gmail.readonly` (list/read), `gmail.send` (send,
+ * send_reply), `gmail.modify` (watch). Caller toggles which to include
+ * via the `scopes` option.
  */
 
 import {
@@ -125,6 +135,39 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
           },
         },
         {
+          name: 'send',
+          class: 'mutation',
+          description:
+            "Send a new email to arbitrary recipients (not tied to an existing thread). Body is text/plain unless `html` is provided. Use send_reply for in-thread replies.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_SEND],
+          parameters: {
+            type: 'object',
+            properties: {
+              to: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'array', items: { type: 'string' } },
+                ],
+                description: 'Recipient address(es). String OR array of strings.',
+              },
+              subject: { type: 'string' },
+              body: { type: 'string', description: 'text/plain body (unless html set)' },
+              cc: { type: 'array', items: { type: 'string' } },
+              bcc: { type: 'array', items: { type: 'string' } },
+              replyTo: { type: 'string', description: 'Optional Reply-To header.' },
+              html: {
+                type: 'boolean',
+                default: false,
+                description:
+                  'When true, send body as text/html instead of text/plain. Gmail does NOT auto-derive a plain alternative — set html only when the body is HTML.',
+              },
+            },
+            required: ['to', 'subject', 'body'],
+          },
+        },
+        {
           name: 'send_reply',
           class: 'mutation',
           description:
@@ -173,6 +216,7 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
+      if (inv.capabilityName === 'send') return send(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'send_reply') return sendReply(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'watch_label') return watchLabel(inv, accessToken, timeoutMs)
       throw new Error(`gmail: unknown mutation capability ${inv.capabilityName}`)
@@ -399,6 +443,65 @@ function decodeBase64Url(s: string): string {
 
 function encodeBase64Url(s: string): string {
   return Buffer.from(s, 'utf-8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+async function send(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    to: string | string[]
+    subject: string
+    body: string
+    cc?: string[]
+    bcc?: string[]
+    replyTo?: string
+    html?: boolean
+  }
+  if (!args.to || (Array.isArray(args.to) && args.to.length === 0)) {
+    throw new Error('gmail send: `to` is required')
+  }
+  if (!args.subject) throw new Error('gmail send: `subject` is required')
+  if (!args.body) throw new Error('gmail send: `body` is required')
+
+  const toHeader = Array.isArray(args.to) ? args.to.join(', ') : args.to
+  const rfcHeaders: string[] = [`To: ${toHeader}`]
+  if (args.cc?.length) rfcHeaders.push(`Cc: ${args.cc.join(', ')}`)
+  if (args.bcc?.length) rfcHeaders.push(`Bcc: ${args.bcc.join(', ')}`)
+  if (args.replyTo) rfcHeaders.push(`Reply-To: ${args.replyTo}`)
+  rfcHeaders.push(`Subject: ${args.subject}`)
+  rfcHeaders.push(`X-Tangle-Idempotency-Key: ${inv.idempotencyKey}`)
+  const contentType = args.html
+    ? 'text/html; charset="UTF-8"'
+    : 'text/plain; charset="UTF-8"'
+  rfcHeaders.push(`Content-Type: ${contentType}`)
+  rfcHeaders.push('MIME-Version: 1.0')
+
+  const raw = `${rfcHeaders.join('\r\n')}\r\n\r\n${args.body}`
+  const sendRes = await fetch(`${API}/messages/send`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ raw: encodeBase64Url(raw) }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (sendRes.status === 401 || sendRes.status === 403) {
+    throw new CredentialsExpired(`Gmail rejected token (${sendRes.status})`, inv.source.id)
+  }
+  if (!sendRes.ok) {
+    const text = await sendRes.text().catch(() => '')
+    throw new Error(`gmail send ${sendRes.status}: ${text.slice(0, 200)}`)
+  }
+  const sent = (await sendRes.json()) as { id: string; threadId: string; labelIds?: string[] }
+  return {
+    status: 'committed',
+    data: { id: sent.id, threadId: sent.threadId, labelIds: sent.labelIds ?? [] },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
 }
 
 async function sendReply(
