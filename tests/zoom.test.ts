@@ -1,5 +1,33 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { zoomConnector } from '../src/connectors/adapters/zoom.js'
+import type { ResolvedDataSource } from '../src/connectors/types.js'
+
+function zoomSource(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
+  return {
+    id: 'src_zoom_1',
+    projectId: 'proj_1',
+    publishedAgentId: null,
+    kind: 'zoom',
+    label: 'Zoom test',
+    consistencyModel: 'authoritative',
+    scopes: ['meeting:update:meeting', 'webinar:update:webinar', 'webinar:delete:webinar', 'recording:write:recording', 'user:write:user'],
+    metadata: {},
+    credentials: { kind: 'oauth2', accessToken: 'zoom_tok' },
+    status: 'active',
+    ...overrides,
+  }
+}
+
+function zoomJson(body: unknown, init: ResponseInit = {}): Response {
+  const status = init.status ?? 200
+  if (status === 204 || status === 205 || status === 304) {
+    return new Response(null, { status })
+  }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
 
 describe('zoom adapter manifest', () => {
   it('classifies itself as the calendar category and exposes the zoom kind', () => {
@@ -42,18 +70,23 @@ describe('zoom adapter manifest', () => {
       [
         'users.get',
         'users.list',
+        'users.create',
         'meetings.list',
         'meetings.get',
         'meetings.create',
         'meetings.update',
         'meetings.delete',
+        'meetings.end',
         'meetings.list-registrants',
         'meetings.add-registrant',
         'webinars.list',
         'webinars.get',
         'webinars.create',
+        'webinars.update',
+        'webinars.delete',
         'recordings.list',
         'recordings.get',
+        'recordings.delete',
       ].sort(),
     )
     const reads = zoomConnector.manifest.capabilities
@@ -82,8 +115,13 @@ describe('zoom adapter manifest', () => {
         'meetings.add-registrant',
         'meetings.create',
         'meetings.delete',
+        'meetings.end',
         'meetings.update',
+        'recordings.delete',
+        'users.create',
         'webinars.create',
+        'webinars.delete',
+        'webinars.update',
       ].sort(),
     )
   })
@@ -121,5 +159,169 @@ describe('zoom adapter manifest', () => {
         expect(declared.has(scope)).toBe(true)
       }
     }
+  })
+
+  it('marks the new write-side mutations as native-idempotency external effect', () => {
+    const byName = new Map(zoomConnector.manifest.capabilities.map((c) => [c.name, c]))
+    for (const name of ['meetings.end', 'webinars.update', 'webinars.delete', 'recordings.delete', 'users.create']) {
+      const cap = byName.get(name)
+      if (!cap || cap.class !== 'mutation') throw new Error(`expected mutation ${name}`)
+      expect(cap.cas).toBe('native-idempotency')
+      expect(cap.externalEffect).toBe(true)
+    }
+  })
+})
+
+describe('zoom new mutations', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('ends a live meeting with PUT /status action=end', async () => {
+    let url: string | undefined
+    let method: string | undefined
+    let body: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input)
+        method = init?.method
+        body = init?.body as string | undefined
+        return zoomJson(null, { status: 204 })
+      }),
+    )
+
+    const result = await zoomConnector.executeMutation!({
+      source: zoomSource(),
+      capabilityName: 'meetings.end',
+      args: { meetingId: '99887766' },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(result.status).toBe('committed')
+    expect(method).toBe('PUT')
+    expect(url).toBe('https://api.zoom.us/v2/meetings/99887766/status')
+    expect(JSON.parse(body ?? '{}')).toEqual({ action: 'end' })
+  })
+
+  it('updates a webinar with PATCH and an optional body subset', async () => {
+    let url: string | undefined
+    let method: string | undefined
+    let body: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input)
+        method = init?.method
+        body = init?.body as string | undefined
+        return zoomJson(null, { status: 204 })
+      }),
+    )
+
+    await zoomConnector.executeMutation!({
+      source: zoomSource(),
+      capabilityName: 'webinars.update',
+      args: { webinarId: 'WBN1', topic: 'Renamed', duration: 45 },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(method).toBe('PATCH')
+    expect(url).toContain('/v2/webinars/WBN1')
+    // The body template carries optional fields; unset ones resolve to
+    // undefined under renderValue's exact-match branch, leaving the key with
+    // undefined → JSON.stringify drops them.
+    const parsed = JSON.parse(body ?? '{}') as Record<string, unknown>
+    expect(parsed.topic).toBe('Renamed')
+    expect(parsed.duration).toBe(45)
+  })
+
+  it('deletes a webinar with DELETE + optional query flags', async () => {
+    let url: string | undefined
+    let method: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input)
+        method = init?.method
+        return zoomJson(null, { status: 204 })
+      }),
+    )
+
+    await zoomConnector.executeMutation!({
+      source: zoomSource(),
+      capabilityName: 'webinars.delete',
+      args: { webinarId: 'WBN2', cancel_webinar_reminder: true },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(method).toBe('DELETE')
+    expect(url).toContain('/v2/webinars/WBN2')
+    expect(url).toContain('cancel_webinar_reminder=true')
+  })
+
+  it('deletes a cloud recording via DELETE /meetings/{id}/recordings with action query', async () => {
+    let url: string | undefined
+    let method: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input)
+        method = init?.method
+        return zoomJson(null, { status: 204 })
+      }),
+    )
+
+    await zoomConnector.executeMutation!({
+      source: zoomSource(),
+      capabilityName: 'recordings.delete',
+      args: { meetingId: 'M_REC_1', action: 'trash' },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(method).toBe('DELETE')
+    expect(url).toContain('/v2/meetings/M_REC_1/recordings')
+    expect(url).toContain('action=trash')
+  })
+
+  it('creates a user via POST /users with action + user_info', async () => {
+    let url: string | undefined
+    let method: string | undefined
+    let body: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input)
+        method = init?.method
+        body = init?.body as string | undefined
+        return zoomJson({ id: 'USR_1', email: 'new@example.com' }, { status: 201 })
+      }),
+    )
+
+    await zoomConnector.executeMutation!({
+      source: zoomSource(),
+      capabilityName: 'users.create',
+      args: {
+        action: 'create',
+        user_info: { email: 'new@example.com', type: 1, first_name: 'Ada', last_name: 'Lovelace' },
+      },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(method).toBe('POST')
+    expect(url).toBe('https://api.zoom.us/v2/users')
+    expect(JSON.parse(body ?? '{}')).toEqual({
+      action: 'create',
+      user_info: { email: 'new@example.com', type: 1, first_name: 'Ada', last_name: 'Lovelace' },
+    })
+  })
+
+  it('surfaces CredentialsExpired on 401 for the new mutations', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
+    await expect(
+      zoomConnector.executeMutation!({
+        source: zoomSource(),
+        capabilityName: 'meetings.end',
+        args: { meetingId: '99887766' },
+        idempotencyKey: 'k-1',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

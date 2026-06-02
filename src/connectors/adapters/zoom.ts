@@ -29,13 +29,17 @@ export const zoomConnector = declarativeRestConnector({
     tokenUrl: 'https://zoom.us/oauth/token',
     scopes: [
       'user:read:user',
+      'user:write:user',
       'meeting:read:meeting',
       'meeting:write:meeting',
       'meeting:update:meeting',
       'meeting:delete:meeting',
       'webinar:read:webinar',
       'webinar:write:webinar',
+      'webinar:update:webinar',
+      'webinar:delete:webinar',
       'recording:read:recording',
+      'recording:write:recording',
     ],
     clientIdEnv: 'ZOOM_OAUTH_CLIENT_ID',
     clientSecretEnv: 'ZOOM_OAUTH_CLIENT_SECRET',
@@ -446,6 +450,152 @@ export const zoomConnector = declarativeRestConnector({
         },
       },
       requiredScopes: ['recording:read:recording'],
+    },
+    {
+      // Zoom does not expose a DELETE /meetings/{id}/live; ending an in-flight
+      // meeting is modeled as a status PUT with `action: "end"`. The endpoint
+      // is idempotent — repeating it on an already-ended meeting returns 204.
+      name: 'meetings.end',
+      class: 'mutation',
+      description: 'End a live Zoom meeting via the status endpoint (PUT /meetings/{id}/status, action="end").',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: { type: 'string', description: 'Numeric Zoom meeting id of the live meeting to end.' },
+        },
+        required: ['meetingId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v2/meetings/{meetingId}/status',
+        body: { action: 'end' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['meeting:update:meeting'],
+    },
+    {
+      // Mirrors the meeting update contract: a PATCH against the webinar
+      // record. Zoom returns 204 on success and rejects with 300/400 on
+      // schedule conflicts; the declarative-rest layer surfaces both.
+      name: 'webinars.update',
+      class: 'mutation',
+      description: 'Update a scheduled Zoom webinar in place.',
+      parameters: {
+        type: 'object',
+        properties: {
+          webinarId: { type: 'string' },
+          occurrence_id: { type: 'string' },
+          topic: { type: 'string' },
+          start_time: { type: 'string' },
+          duration: { type: 'integer' },
+          timezone: { type: 'string' },
+          password: { type: 'string' },
+          agenda: { type: 'string' },
+          settings: { type: 'object' },
+          recurrence: { type: 'object' },
+        },
+        required: ['webinarId'],
+      },
+      request: {
+        // Optional-field forest: any of topic/start_time/duration/etc. may be
+        // absent, and the bare {x} body template requires every placeholder.
+        // body: 'args' passes the resolved arg bag through verbatim, dropping
+        // webinarId-on-path duplication via Zoom's lenient PATCH (extra
+        // fields are ignored). Keeps the caller's optional-field semantics
+        // exact instead of forcing them to send every field.
+        method: 'PATCH',
+        path: '/v2/webinars/{webinarId}',
+        query: { occurrence_id: '{occurrence_id}' },
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['webinar:update:webinar'],
+    },
+    {
+      name: 'webinars.delete',
+      class: 'mutation',
+      description: 'Delete a Zoom webinar. Optionally scope to a single occurrence and toggle host/panelist cancellation notifications.',
+      parameters: {
+        type: 'object',
+        properties: {
+          webinarId: { type: 'string' },
+          occurrence_id: { type: 'string' },
+          cancel_webinar_reminder: { type: 'boolean' },
+        },
+        required: ['webinarId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v2/webinars/{webinarId}',
+        query: {
+          occurrence_id: '{occurrence_id}',
+          cancel_webinar_reminder: '{cancel_webinar_reminder}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['webinar:delete:webinar'],
+    },
+    {
+      // `action=trash` moves the recording to the cloud trash (recoverable for
+      // 30 days); `action=delete` permanently deletes. The caller picks the
+      // mode — we won't default to one because the destructive variant is
+      // unrecoverable and the safe variant breaks downstream search indexes
+      // that watch the trash queue.
+      name: 'recordings.delete',
+      class: 'mutation',
+      description: 'Delete (or trash) a cloud recording for a meeting. action="trash" is recoverable; action="delete" is permanent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          meetingId: { type: 'string', description: 'Meeting id or recording UUID.' },
+          action: { type: 'string', enum: ['trash', 'delete'], description: 'trash (default, recoverable) or delete (permanent).' },
+        },
+        required: ['meetingId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v2/meetings/{meetingId}/recordings',
+        query: { action: '{action}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['recording:write:recording'],
+    },
+    {
+      // Zoom user provisioning is a single POST with an `action` discriminator:
+      // create (manual invite), autoCreate (provision into the account), or
+      // custCreate (custom-managed user). The user_info sub-object carries
+      // email/type/first_name/last_name. We expose `action` + `user_info`
+      // verbatim so callers can hit any of the three provisioning modes.
+      name: 'users.create',
+      class: 'mutation',
+      description: 'Create a user in the Zoom account. `action` selects the provisioning mode; user_info carries the user payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['create', 'autoCreate', 'custCreate', 'ssoCreate'],
+            description: 'Provisioning mode: create (invite), autoCreate (provision), custCreate (custom-managed), ssoCreate (SSO).',
+          },
+          user_info: {
+            type: 'object',
+            description: 'User payload (email, type, first_name, last_name, password for custCreate, etc.).',
+          },
+        },
+        required: ['action', 'user_info'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/users',
+        body: { action: '{action}', user_info: '{user_info}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['user:write:user'],
     },
     {
       name: 'recordings.get',
