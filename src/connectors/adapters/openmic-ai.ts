@@ -134,5 +134,87 @@ export const openmicAiConnector = declarativeRestConnector({
         path: '/calls/{callId}',
       },
     },
+    {
+      name: 'bots.create',
+      class: 'mutation',
+      description: 'Create a new voice bot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Display name of the bot' },
+          prompt: { type: 'string', description: 'System prompt that drives the bot' },
+          voice: { type: 'string', description: 'Voice identifier (optional)' },
+          settings: { type: 'object', description: 'Additional bot configuration (optional)' },
+        },
+        required: ['name', 'prompt'],
+      },
+      request: {
+        method: 'POST',
+        path: '/bots',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bots.update',
+      class: 'mutation',
+      description: 'Update bot prompt, voice, or settings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          botId: { type: 'string', description: 'The unique identifier of the bot' },
+          name: { type: 'string', description: 'Updated display name (optional)' },
+          prompt: { type: 'string', description: 'Updated system prompt (optional)' },
+          voice: { type: 'string', description: 'Updated voice identifier (optional)' },
+          settings: { type: 'object', description: 'Updated bot configuration (optional)' },
+        },
+        required: ['botId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/bots/{botId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bots.delete',
+      class: 'mutation',
+      description: 'Delete a bot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          botId: { type: 'string', description: 'The unique identifier of the bot to delete' },
+        },
+        required: ['botId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/bots/{botId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.cancel',
+      class: 'mutation',
+      description: 'Cancel an outbound call in progress.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callId: { type: 'string', description: 'The unique identifier of the call to cancel' },
+        },
+        required: ['callId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls/{callId}/cancel',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
