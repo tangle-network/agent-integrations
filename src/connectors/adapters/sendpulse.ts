@@ -183,5 +183,100 @@ export const sendpulseConnector = declarativeRestConnector({
         query: { email: '{email}' },
       },
     },
+    {
+      name: 'addressbooks.create',
+      class: 'mutation',
+      description: 'Create a new addressbook (contact list).',
+      parameters: {
+        type: 'object',
+        properties: {
+          bookName: {
+            type: 'string',
+            description: 'Display name for the new addressbook.',
+          },
+        },
+        required: ['bookName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/addressbooks',
+        body: { bookName: '{bookName}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'addressbooks.delete',
+      class: 'mutation',
+      description: 'Delete an addressbook by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          addressbookId: {
+            type: 'string',
+            description: 'ID of the addressbook to delete.',
+          },
+        },
+        required: ['addressbookId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/v1/addressbooks/{addressbookId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a new email campaign (sent immediately or scheduled via send_date).',
+      parameters: {
+        type: 'object',
+        properties: {
+          sender_name: { type: 'string' },
+          sender_email: { type: 'string' },
+          subject: { type: 'string' },
+          body: { type: 'string', description: 'Base64-encoded HTML body of the campaign.' },
+          list_id: { type: 'string', description: 'ID of the addressbook to send to.' },
+          name: { type: 'string' },
+          template_id: { type: 'string' },
+          type: { type: 'string', description: 'Optional campaign type (e.g., "regular").' },
+          send_date: {
+            type: 'string',
+            description: 'Optional scheduled send date in YYYY-MM-DD HH:mm:ss format.',
+          },
+          attachments: { type: 'object' },
+        },
+        required: ['sender_name', 'sender_email', 'subject', 'body', 'list_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/campaigns',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.cancel',
+      class: 'mutation',
+      description: 'Cancel a scheduled campaign before it is sent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: {
+            type: 'string',
+            description: 'ID of the scheduled campaign to cancel.',
+          },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/v1/campaigns/{campaignId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
