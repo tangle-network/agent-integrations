@@ -85,6 +85,70 @@ export const cryptolensConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
     },
     {
+      name: 'key.activate',
+      class: 'mutation',
+      description:
+        'Activate a license key against a machine. Verifies the key, records the activation under the supplied MachineCode, and returns the cryptographically-signed license payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'number' },
+          key: { type: 'string' },
+          machineCode: { type: 'string' },
+          friendlyName: { type: 'string' },
+          fieldsToReturn: { type: 'number' },
+          metadata: { type: 'boolean' },
+          floatingTimeInterval: { type: 'number' },
+          maxOverdraft: { type: 'number' },
+        },
+        required: ['productId', 'key', 'machineCode'],
+      },
+      request: {
+        method: 'POST',
+        path: '/key/Activate',
+        query: {
+          ProductId: '{productId}',
+          Key: '{key}',
+          MachineCode: '{machineCode}',
+          FriendlyName: '{friendlyName}',
+          FieldsToReturn: '{fieldsToReturn}',
+          Metadata: '{metadata}',
+          FloatingTimeInterval: '{floatingTimeInterval}',
+          MaxOverdraft: '{maxOverdraft}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'key.deactivate',
+      class: 'mutation',
+      description:
+        'Deactivate (or float-release) a license key activation for the supplied MachineCode, freeing the seat for re-use.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'number' },
+          key: { type: 'string' },
+          machineCode: { type: 'string' },
+          floating: { type: 'boolean' },
+        },
+        required: ['productId', 'key', 'machineCode'],
+      },
+      request: {
+        method: 'POST',
+        path: '/key/Deactivate',
+        query: {
+          ProductId: '{productId}',
+          Key: '{key}',
+          MachineCode: '{machineCode}',
+          Floating: '{floating}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'key.create',
       class: 'mutation',
       description: 'Create one or more license keys for a product with optional feature flags, machine limits, and customer/reseller binding.',
