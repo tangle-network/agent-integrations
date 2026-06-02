@@ -130,6 +130,7 @@ export const confluenceConnector = declarativeRestConnector({
         body: '{page}',
       },
       cas: 'native-idempotency',
+      externalEffect: true,
       requiredScopes: ['write:confluence-content'],
     },
     {
@@ -177,6 +178,7 @@ export const confluenceConnector = declarativeRestConnector({
         body: '{page}',
       },
       cas: 'optimistic-read-verify',
+      externalEffect: true,
       requiredScopes: ['write:confluence-content'],
     },
     {
@@ -196,6 +198,48 @@ export const confluenceConnector = declarativeRestConnector({
         path: '/ex/confluence/{cloudId}/wiki/api/v2/pages/{pageId}',
       },
       cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write:confluence-content'],
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description:
+        'Add a footer comment to a Confluence page. Posts to the v2 /footer-comments endpoint; caller assembles the full v2 footer-comment envelope (pageId, body, optional parentCommentId) and passes it as `comment` so optional fields can be omitted cleanly.',
+      parameters: {
+        type: 'object',
+        properties: {
+          cloudId: { type: 'string' },
+          comment: {
+            type: 'object',
+            description: 'Full v2 footer-comment envelope.',
+            properties: {
+              pageId: { type: 'string', description: 'Confluence page id the comment is attached to.' },
+              parentCommentId: {
+                type: 'string',
+                description: 'Optional id of a parent footer comment to reply to.',
+              },
+              body: {
+                type: 'object',
+                properties: {
+                  representation: { type: 'string', enum: ['storage', 'atlas_doc_format', 'wiki'] },
+                  value: { type: 'string' },
+                },
+                required: ['representation', 'value'],
+              },
+            },
+            required: ['pageId', 'body'],
+          },
+        },
+        required: ['cloudId', 'comment'],
+      },
+      request: {
+        method: 'POST',
+        path: '/ex/confluence/{cloudId}/wiki/api/v2/footer-comments',
+        body: '{comment}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
       requiredScopes: ['write:confluence-content'],
     },
     {

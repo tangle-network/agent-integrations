@@ -59,7 +59,7 @@ describe('confluence adapter manifest', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('exposes pages, spaces, and CQL search capabilities with scope gating', () => {
+  it('exposes pages, spaces, CQL search, and comments capabilities with scope gating', () => {
     const names = confluenceConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
@@ -71,6 +71,7 @@ describe('confluence adapter manifest', () => {
         'spaces.list',
         'spaces.get',
         'search.cql',
+        'comments.create',
       ].sort(),
     )
     const reads = confluenceConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
@@ -79,7 +80,7 @@ describe('confluence adapter manifest', () => {
       .map((c) => c.name)
       .sort()
     expect(reads).toEqual(['pages.get', 'pages.list', 'search.cql', 'spaces.get', 'spaces.list'])
-    expect(mutations).toEqual(['pages.create', 'pages.delete', 'pages.update'])
+    expect(mutations).toEqual(['comments.create', 'pages.create', 'pages.delete', 'pages.update'])
 
     const pagesCreate = confluenceConnector.manifest.capabilities.find((c) => c.name === 'pages.create')!
     expect(pagesCreate.requiredScopes).toEqual(['write:confluence-content'])
@@ -87,6 +88,41 @@ describe('confluence adapter manifest', () => {
     expect(searchCql.requiredScopes).toEqual(['search:confluence'])
     const spacesList = confluenceConnector.manifest.capabilities.find((c) => c.name === 'spaces.list')!
     expect(spacesList.requiredScopes).toEqual(['read:confluence-space.summary'])
+    const commentsCreate = confluenceConnector.manifest.capabilities.find((c) => c.name === 'comments.create')!
+    expect(commentsCreate.requiredScopes).toEqual(['write:confluence-content'])
+  })
+
+  it('marks every mutation as native-idempotency-or-stronger and external effect', () => {
+    const mutations = confluenceConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
+    for (const c of mutations) {
+      if (c.class !== 'mutation') continue
+      expect(c.externalEffect).toBe(true)
+      expect(['native-idempotency', 'optimistic-read-verify']).toContain(c.cas)
+    }
+  })
+})
+
+describe('confluence comments.create execution', () => {
+  it('POSTs the comment envelope unchanged to /wiki/api/v2/footer-comments', async () => {
+    const fetchMock = mockFetch({ id: 'cmt_1' })
+    const comment = {
+      pageId: 'page_42',
+      body: { representation: 'storage', value: '<p>great work</p>' },
+    }
+    const result = await confluenceConnector.executeMutation!({
+      source,
+      capabilityName: 'comments.create',
+      args: { cloudId: 'cloud_abc', comment },
+      idempotencyKey: 'idem_cmt',
+    })
+
+    expect(result.status).toBe('committed')
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(String(url)).toBe('https://api.atlassian.com/ex/confluence/cloud_abc/wiki/api/v2/footer-comments')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body))
+    expect(body).toEqual(comment)
+    expect(body.parentCommentId).toBeUndefined()
   })
 })
 
