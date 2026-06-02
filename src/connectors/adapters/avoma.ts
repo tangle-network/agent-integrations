@@ -97,5 +97,97 @@ export const avomaConnector = declarativeRestConnector({
         path: '/meetings/{meeting_uuid}/recordings',
       },
     },
+    {
+      name: 'calls.update',
+      class: 'mutation',
+      description:
+        'Update fields on a previously-registered call (e.g. correct start/end timestamps, attach a recording_url that was not ready at create time, change participants). Pass only the fields you want to change in `patch`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          external_id: {
+            type: 'string',
+            description: 'External call id used at create time; identifies the call to update.',
+          },
+          patch: {
+            type: 'object',
+            description:
+              'Partial call object; only the fields supplied are forwarded to Avoma. Supports start_at, end_at, frm, to, frm_name, to_name, recording_url, participants, answered, is_voicemail, additional_details.',
+            properties: {
+              start_at: { type: 'string' },
+              end_at: { type: 'string' },
+              frm: { type: 'string' },
+              to: { type: 'string' },
+              frm_name: { type: 'string' },
+              to_name: { type: 'string' },
+              recording_url: { type: 'string' },
+              participants: { type: 'array' },
+              answered: { type: 'boolean' },
+              is_voicemail: { type: 'boolean' },
+              additional_details: { type: 'string' },
+            },
+          },
+        },
+        required: ['external_id', 'patch'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/calls/{external_id}',
+        body: '{patch}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.cancel',
+      class: 'mutation',
+      description:
+        'Cancel/remove a previously-registered call by its external id. Used when an external dialer logs a call that was later voided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          external_id: {
+            type: 'string',
+            description: 'External call id used at create time; identifies the call to cancel.',
+          },
+        },
+        required: ['external_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/calls/{external_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'notes.create',
+      class: 'mutation',
+      description:
+        'Attach a note (free-form text) to a recorded Avoma meeting. Useful for adding human or agent-generated annotations after the meeting is processed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          meeting_uuid: {
+            type: 'string',
+            description: 'UUID of the meeting the note is attached to.',
+          },
+          note: {
+            type: 'string',
+            description: 'Note body text.',
+          },
+        },
+        required: ['meeting_uuid', 'note'],
+      },
+      request: {
+        method: 'POST',
+        path: '/meetings/{meeting_uuid}/notes',
+        body: {
+          note: '{note}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
