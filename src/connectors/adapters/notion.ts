@@ -190,5 +190,62 @@ export const notionConnector = declarativeRestConnector({
         query: { block_id: '{blockId}', page_size: '{pageSize}' },
       },
     },
+    {
+      name: 'users.list',
+      class: 'read',
+      description: 'List users in the connected Notion workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          startCursor: { type: 'string', description: 'Pagination cursor returned by a prior call.' },
+          pageSize: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/users',
+        query: { start_cursor: '{startCursor}', page_size: '{pageSize}' },
+      },
+    },
+    {
+      name: 'blocks.update',
+      class: 'mutation',
+      description:
+        'Update an existing Notion block. `content` carries the type-specific fields (e.g. { paragraph: { rich_text: [...] } }) Notion expects.',
+      parameters: {
+        type: 'object',
+        properties: {
+          blockId: { type: 'string' },
+          content: {
+            type: 'object',
+            description: 'Block content patch (type-specific fields keyed by block type).',
+          },
+        },
+        required: ['blockId', 'content'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/blocks/{blockId}',
+        body: '{content}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'blocks.delete',
+      class: 'mutation',
+      description: 'Delete a Notion block (moves it to trash).',
+      parameters: {
+        type: 'object',
+        properties: { blockId: { type: 'string' } },
+        required: ['blockId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/blocks/{blockId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
