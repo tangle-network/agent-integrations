@@ -170,5 +170,70 @@ export const influencersClubConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'lists.create',
+      class: 'mutation',
+      description:
+        'Create a new influencer list. Lists group creators for campaigns, exports, and bulk outreach.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Display name for the new list.' },
+          description: { type: 'string', description: 'Optional list description.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/lists',
+        body: {
+          name: '{name}',
+          description: '{description}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.add',
+      class: 'mutation',
+      description:
+        'Add a creator (by upstream creator id) to an influencer list. Uses native upsert semantics — adding the same creator twice is a no-op.',
+      parameters: {
+        type: 'object',
+        properties: {
+          list_id: { type: 'string', description: 'Target list id.' },
+          creator_id: { type: 'string', description: 'Upstream creator id to add to the list.' },
+        },
+        required: ['list_id', 'creator_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/lists/{list_id}/creators',
+        body: {
+          creator_id: '{creator_id}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete an influencer list and all of its memberships.',
+      parameters: {
+        type: 'object',
+        properties: {
+          list_id: { type: 'string', description: 'List id to delete.' },
+        },
+        required: ['list_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/lists/{list_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
