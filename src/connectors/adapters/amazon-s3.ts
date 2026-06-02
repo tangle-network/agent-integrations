@@ -120,5 +120,86 @@ export const amazonS3Connector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'files.copyFile',
+      class: 'mutation',
+      description: 'Server-side copy of an object to a new key. Source is left in place.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sourceKey: {
+            type: 'string',
+            description: 'Existing object identifier as {bucket}/{key}.',
+          },
+          destinationKey: {
+            type: 'string',
+            description: 'New object key (relative to the destination bucket).',
+          },
+        },
+        required: ['sourceKey', 'destinationKey'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/{destinationKey}',
+        headers: { 'x-amz-copy-source': '{sourceKey}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'files.setMetadata',
+      class: 'mutation',
+      description:
+        'Replace object metadata in place via the S3 copy-self pattern (x-amz-metadata-directive: REPLACE).',
+      parameters: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'Object key whose metadata should be replaced.' },
+          contentType: { type: 'string', description: 'New Content-Type for the object.' },
+          metadata: {
+            type: 'string',
+            description:
+              'Serialized x-amz-meta-* JSON forwarded as the x-amz-meta-user header (caller-controlled).',
+          },
+        },
+        required: ['key'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/{key}',
+        headers: {
+          'x-amz-copy-source': '{key}',
+          'x-amz-metadata-directive': 'REPLACE',
+          'Content-Type': '{contentType}',
+          'x-amz-meta-user': '{metadata}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'files.createBucket',
+      class: 'mutation',
+      description:
+        'Create a new bucket in the configured region. Request is a PUT against the bucket name path.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bucket: { type: 'string', description: 'Bucket name to create.' },
+          region: {
+            type: 'string',
+            description: 'AWS region for the bucket (sent via x-amz-bucket-region).',
+          },
+        },
+        required: ['bucket'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/{bucket}',
+        headers: { 'x-amz-bucket-region': '{region}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
