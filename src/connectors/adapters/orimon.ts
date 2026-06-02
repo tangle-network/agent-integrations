@@ -122,5 +122,94 @@ export const orimonConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'leads.update',
+      class: 'mutation',
+      description: 'Update an existing lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'Tenant ID.' },
+          leadId: { type: 'string', description: 'Lead ID to update.' },
+          name: { type: 'string', description: 'Updated lead name (optional).' },
+          email: { type: 'string', description: 'Updated email (optional).' },
+          phone: { type: 'string', description: 'Updated phone (optional).' },
+          metadata: { type: 'object', description: 'Updated metadata (optional).' },
+        },
+        required: ['tenantId', 'leadId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/tenants/{tenantId}/leads/{leadId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'Tenant ID.' },
+          leadId: { type: 'string', description: 'Lead ID to delete.' },
+        },
+        required: ['tenantId', 'leadId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/tenants/{tenantId}/leads/{leadId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'conversations.assign',
+      class: 'mutation',
+      description: 'Assign a conversation to an agent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'Tenant ID.' },
+          conversationId: { type: 'string', description: 'Conversation ID to assign.' },
+          agentId: { type: 'string', description: 'Agent ID to assign the conversation to.' },
+        },
+        required: ['tenantId', 'conversationId', 'agentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tenants/{tenantId}/conversations/{conversationId}/assign',
+        body: {
+          agentId: '{agentId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'conversations.tag',
+      class: 'mutation',
+      description: 'Add a tag to a conversation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'Tenant ID.' },
+          conversationId: { type: 'string', description: 'Conversation ID.' },
+          tag: { type: 'string', description: 'Tag to add to the conversation.' },
+        },
+        required: ['tenantId', 'conversationId', 'tag'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tenants/{tenantId}/conversations/{conversationId}/tags',
+        body: {
+          tag: '{tag}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
