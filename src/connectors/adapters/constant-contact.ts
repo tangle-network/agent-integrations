@@ -236,5 +236,100 @@ export const constantContactConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['contact_data'],
     },
+    {
+      name: 'contact.create',
+      class: 'mutation',
+      description:
+        'Create a new V3 contact with no upsert semantics. Use contacts.upsert when you want email-address dedupe + list-subscribe in one call; use this when you already know the contact does not exist.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email_address: {
+            type: 'object',
+            description: 'V3 email envelope, e.g. { address, permission_to_send }.',
+          },
+          first_name: { type: 'string' },
+          last_name: { type: 'string' },
+          job_title: { type: 'string' },
+          company_name: { type: 'string' },
+          phone_numbers: { type: 'array', items: { type: 'object' } },
+          list_memberships: { type: 'array', items: { type: 'string' } },
+          custom_fields: { type: 'array', items: { type: 'object' } },
+          create_source: { type: 'string', enum: ['Account', 'Contact'] },
+        },
+        required: ['email_address', 'create_source'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts',
+        body: {
+          email_address: '{email_address}',
+          first_name: '{first_name}',
+          last_name: '{last_name}',
+          job_title: '{job_title}',
+          company_name: '{company_name}',
+          phone_numbers: '{phone_numbers}',
+          list_memberships: '{list_memberships}',
+          custom_fields: '{custom_fields}',
+          create_source: '{create_source}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['contact_data'],
+    },
+    {
+      name: 'campaign.create',
+      class: 'mutation',
+      description:
+        'Create a Constant Contact email campaign. Caller assembles the V3 /emails envelope (name, type, scheduled_date, email_campaign_activities, etc.) and passes it as campaign; the adapter forwards it unchanged.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign: {
+            type: 'object',
+            description: 'Full V3 /emails campaign-create envelope.',
+          },
+        },
+        required: ['campaign'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emails',
+        body: '{campaign}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['campaign_data'],
+    },
+    {
+      name: 'campaign.send',
+      class: 'mutation',
+      description:
+        'Schedule (send) a drafted Constant Contact email campaign activity. POSTs to /emails/activities/{campaign_activity_id}/schedules with a scheduled_date — passing an immediate date (or "0") sends now per the V3 API.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_activity_id: {
+            type: 'string',
+            description: 'Campaign activity id from the /emails envelope.',
+          },
+          scheduled_date: {
+            type: 'string',
+            description:
+              'ISO-8601 timestamp to send at, or "0" to send immediately per the V3 API.',
+          },
+        },
+        required: ['campaign_activity_id', 'scheduled_date'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emails/activities/{campaign_activity_id}/schedules',
+        body: { scheduled_date: '{scheduled_date}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['campaign_data'],
+    },
   ],
 })
