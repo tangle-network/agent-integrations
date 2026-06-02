@@ -131,7 +131,13 @@ async function executeRestRequest(
   inv: ConnectorInvocation,
 ): Promise<{ data: unknown; etag?: string }> {
   const baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
-  const url = new URL(interpolate(request.path, inv.args), baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`)
+  // Make the operation path RELATIVE to the base URL so a base like
+  // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
+  // (leading `/`) would otherwise be resolved against the origin and drop
+  // every path segment the base URL carries.
+  const renderedPath = interpolate(request.path, inv.args).replace(/^\/+/, '')
+  const baseWithSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const url = new URL(renderedPath, baseWithSlash)
   for (const [key, value] of Object.entries(request.query ?? {})) {
     const rendered = renderQueryValue(value, inv.args)
     if (rendered !== undefined && rendered !== '') url.searchParams.set(key, String(rendered))
@@ -226,6 +232,16 @@ function renderValue(value: unknown, args: Record<string, unknown>): unknown {
     const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
     if (exact) return readRequiredPath(args, exact[1])
     return interpolate(value, args)
+  }
+  // Recurse into arrays and nested objects so declarative adapters that pass
+  // structured request bodies (e.g. JSON:API envelopes, multi-line-item
+  // payloads) get their placeholders interpolated, not left as literal
+  // "{amount}" strings. Required by billplz/emailit/lemon-squeezy adds.
+  if (Array.isArray(value)) {
+    return value.map((entry) => renderValue(entry, args))
+  }
+  if (value && typeof value === 'object') {
+    return renderObject(value as Record<string, unknown>, args)
   }
   return value
 }
