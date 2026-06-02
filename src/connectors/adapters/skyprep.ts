@@ -105,5 +105,91 @@ export const skyprepConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'users.unenroll',
+      class: 'mutation',
+      description: 'Unenroll a user from a course.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'The ID of the user to unenroll' },
+          courseId: { type: 'string', description: 'The ID of the course to unenroll from' },
+        },
+        required: ['userId', 'courseId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/users/{userId}/enrollments/courses/{courseId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.create',
+      class: 'mutation',
+      description: 'Create a user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'The email address of the new user' },
+          firstName: { type: 'string', description: 'The first name of the new user' },
+          lastName: { type: 'string', description: 'The last name of the new user' },
+          role: { type: 'string', description: 'The role of the new user' },
+          password: { type: 'string', description: 'Optional initial password for the user' },
+          title: { type: 'string', description: 'The title/position of the user' },
+          cellPhone: { type: 'string', description: 'The cell phone number of the user' },
+          workPhone: { type: 'string', description: 'The work phone number of the user' },
+          address: { type: 'string', description: 'The address of the user' },
+          cardNo: { type: 'string', description: 'The unique user identifier (student #, badge #)' },
+        },
+        required: ['email', 'firstName', 'lastName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/users',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'users.delete',
+      class: 'mutation',
+      description: 'Delete a user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'The ID of the user to delete' },
+        },
+        required: ['userId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/users/{userId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'groups.list',
+      class: 'read',
+      description: 'List groups.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Maximum number of groups to return' },
+          page: { type: 'integer', description: 'Page number for paginated results' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/groups',
+        query: {
+          limit: '{limit}',
+          page: '{page}',
+        },
+      },
+    },
   ],
 })
