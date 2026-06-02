@@ -8,9 +8,16 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * Mattermost instance origin (e.g. `https://activepieces.mattermost.com`);
  * REST paths hang off `/api/v4` per the Mattermost server API.
  *
- * The catalog only ships one action (`send.message`, upstream `sendMessage`),
- * which maps to `POST /api/v4/posts`. We expose only that capability here so
- * the manifest reflects the catalog exactly.
+ * Capabilities:
+ *   - send.message  → POST   /api/v4/posts          (create a post)
+ *   - update_post   → PUT    /api/v4/posts/{post_id} (edit a post message)
+ *   - delete_post   → DELETE /api/v4/posts/{post_id} (soft-delete a post)
+ *   - add_reaction  → POST   /api/v4/reactions      (add an emoji reaction)
+ *
+ * Mattermost has no header-based idempotency. update/delete are resource-
+ * level idempotent (same target id ⇒ same effect), and the reactions
+ * endpoint is set-semantic (same user_id+post_id+emoji_name dedupes
+ * server-side), so `cas: 'native-idempotency'` is honest for all four.
  */
 export const mattermostConnector = declarativeRestConnector({
   kind: 'mattermost',
@@ -62,6 +69,87 @@ export const mattermostConnector = declarativeRestConnector({
           message: '{message}',
           root_id: '{root_id}',
           props: '{props}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'update_post',
+      class: 'mutation',
+      description: 'Edit an existing post (replace its message text). Mattermost rewrites the post in place and marks it `edit_at`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          post_id: {
+            type: 'string',
+            description: 'The id of the post to update.',
+          },
+          message: {
+            type: 'string',
+            description: 'The new text of the post.',
+          },
+        },
+        required: ['post_id', 'message'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v4/posts/{post_id}',
+        body: {
+          id: '{post_id}',
+          message: '{message}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'delete_post',
+      class: 'mutation',
+      description: 'Soft-delete a post by id. Mattermost marks the post as deleted; the row remains for audit.',
+      parameters: {
+        type: 'object',
+        properties: {
+          post_id: {
+            type: 'string',
+            description: 'The id of the post to delete.',
+          },
+        },
+        required: ['post_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/v4/posts/{post_id}',
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'add_reaction',
+      class: 'mutation',
+      description: 'Add an emoji reaction to a post on behalf of `user_id`. Mattermost dedupes the (user, post, emoji) triple server-side.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: {
+            type: 'string',
+            description: 'The id of the user adding the reaction (typically the bot user id).',
+          },
+          post_id: {
+            type: 'string',
+            description: 'The id of the post being reacted to.',
+          },
+          emoji_name: {
+            type: 'string',
+            description: 'Emoji name without colons, e.g. "thumbsup".',
+          },
+        },
+        required: ['user_id', 'post_id', 'emoji_name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v4/reactions',
+        body: {
+          user_id: '{user_id}',
+          post_id: '{post_id}',
+          emoji_name: '{emoji_name}',
         },
       },
       cas: 'native-idempotency',

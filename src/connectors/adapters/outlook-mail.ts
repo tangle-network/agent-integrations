@@ -150,6 +150,69 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
           },
         },
         {
+          name: 'send_message',
+          class: 'mutation',
+          description:
+            "Send a new email to arbitrary recipients (not tied to an existing conversation). Uses Graph POST /me/sendMail with saveToSentItems=true. Body is text/plain unless `html` is true. Use send_reply for in-thread replies.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_SEND],
+          parameters: {
+            type: 'object',
+            properties: {
+              to: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'array', items: { type: 'string' } },
+                ],
+                description: 'Recipient address(es). String OR array of strings.',
+              },
+              subject: { type: 'string' },
+              body: { type: 'string', description: 'text/plain body (unless html set)' },
+              cc: { type: 'array', items: { type: 'string' } },
+              bcc: { type: 'array', items: { type: 'string' } },
+              html: {
+                type: 'boolean',
+                default: false,
+                description:
+                  'When true, set Graph body.contentType=HTML and send body as HTML; otherwise text. Graph does NOT auto-derive a plain alternative — set html only when the body is HTML.',
+              },
+            },
+            required: ['to', 'subject', 'body'],
+          },
+        },
+        {
+          name: 'create_draft',
+          class: 'mutation',
+          description:
+            "Create a draft email in the user's Drafts folder via Graph POST /me/messages. Returns the draft message id so callers can patch attachments, then send via a separate /send call.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_RW],
+          parameters: {
+            type: 'object',
+            properties: {
+              to: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'array', items: { type: 'string' } },
+                ],
+                description: 'Recipient address(es). String OR array of strings.',
+              },
+              subject: { type: 'string' },
+              body: { type: 'string', description: 'text/plain body (unless html set)' },
+              cc: { type: 'array', items: { type: 'string' } },
+              bcc: { type: 'array', items: { type: 'string' } },
+              html: {
+                type: 'boolean',
+                default: false,
+                description: 'When true, set Graph body.contentType=HTML; otherwise text.',
+              },
+            },
+            required: ['to', 'subject', 'body'],
+          },
+        },
+        {
           name: 'subscribe_folder',
           class: 'mutation',
           description:
@@ -181,6 +244,8 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
       if (inv.capabilityName === 'send_reply') return sendReply(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'send_message') return sendMessage(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'create_draft') return createDraft(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'subscribe_folder') return subscribeFolder(inv, accessToken, timeoutMs)
       throw new Error(`outlook-mail: unknown mutation capability ${inv.capabilityName}`)
     },
@@ -460,6 +525,150 @@ async function sendReply(
   return {
     status: 'committed',
     data: { sent: true, draftId: draft.id, replyAll: Boolean(replyAll) },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+interface GraphMessagePayload {
+  subject: string
+  body: { contentType: 'Text' | 'HTML'; content: string }
+  toRecipients: Array<{ emailAddress: { address: string } }>
+  ccRecipients?: Array<{ emailAddress: { address: string } }>
+  bccRecipients?: Array<{ emailAddress: { address: string } }>
+  internetMessageHeaders?: Array<{ name: string; value: string }>
+}
+
+function buildMessagePayload(
+  args: {
+    to: string | string[]
+    subject: string
+    body: string
+    cc?: string[]
+    bcc?: string[]
+    html?: boolean
+  },
+  idempotencyKey: string,
+  cap: 'send_message' | 'create_draft',
+): GraphMessagePayload {
+  if (!args.to || (Array.isArray(args.to) && args.to.length === 0)) {
+    throw new Error(`outlook-mail ${cap}: \`to\` is required`)
+  }
+  if (!args.subject) throw new Error(`outlook-mail ${cap}: \`subject\` is required`)
+  if (!args.body) throw new Error(`outlook-mail ${cap}: \`body\` is required`)
+  const toList = Array.isArray(args.to) ? args.to : [args.to]
+  const toRecipients = toList.map((address) => ({ emailAddress: { address } }))
+  const payload: GraphMessagePayload = {
+    subject: args.subject,
+    body: {
+      contentType: args.html ? 'HTML' : 'Text',
+      content: args.body,
+    },
+    toRecipients,
+    // Threading + forensic anchor: tag the message with the dedup key so
+    // post-hoc audits can prove this send corresponds to one and only one
+    // invocation. Graph preserves internetMessageHeaders on sendMail.
+    internetMessageHeaders: [
+      { name: 'X-Tangle-Idempotency-Key', value: idempotencyKey },
+    ],
+  }
+  if (args.cc?.length) {
+    payload.ccRecipients = args.cc.map((address) => ({ emailAddress: { address } }))
+  }
+  if (args.bcc?.length) {
+    payload.bccRecipients = args.bcc.map((address) => ({ emailAddress: { address } }))
+  }
+  return payload
+}
+
+async function sendMessage(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    to: string | string[]
+    subject: string
+    body: string
+    cc?: string[]
+    bcc?: string[]
+    html?: boolean
+  }
+  const message = buildMessagePayload(args, inv.idempotencyKey, 'send_message')
+  const res = await fetch(`${API}/me/sendMail`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ message, saveToSentItems: true }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  // Graph /sendMail is fire-and-forget: 202 Accepted with empty body.
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail send_message ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: {
+      sent: true,
+      to: Array.isArray(args.to) ? args.to : [args.to],
+      subject: args.subject,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createDraft(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    to: string | string[]
+    subject: string
+    body: string
+    cc?: string[]
+    bcc?: string[]
+    html?: boolean
+  }
+  const message = buildMessagePayload(args, inv.idempotencyKey, 'create_draft')
+  // POST /me/messages creates a draft by default (isDraft=true is server-set).
+  const res = await fetch(`${API}/me/messages`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(message),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail create_draft ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    conversationId?: string
+    webLink?: string
+    isDraft?: boolean
+  }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      conversationId: json.conversationId,
+      webLink: json.webLink,
+      isDraft: json.isDraft ?? true,
+    },
     committedAt: Date.now(),
     idempotentReplay: false,
   }

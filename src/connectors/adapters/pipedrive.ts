@@ -165,5 +165,46 @@ export const pipedriveConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['contacts:full'],
     },
+    {
+      name: 'activities.create',
+      class: 'mutation',
+      description:
+        'Create a Pipedrive activity (call, meeting, task, deadline, email, lunch, etc.) optionally linked to a deal, person, or organization.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string' },
+          type: { type: 'string', description: 'Activity type key (e.g. call, meeting, task, deadline, email, lunch).' },
+          due_date: { type: 'string', description: 'YYYY-MM-DD due date.' },
+          due_time: { type: 'string', description: 'HH:MM due time.' },
+          deal_id: { type: 'integer' },
+          person_id: { type: 'integer' },
+          org_id: { type: 'integer' },
+          note: { type: 'string' },
+        },
+        required: ['subject', 'type'],
+      },
+      request: { method: 'POST', path: '/v1/activities', body: 'args' },
+      cas: 'native-idempotency',
+      requiredScopes: ['activities:full'],
+    },
+    {
+      name: 'notes.create',
+      class: 'mutation',
+      description: 'Create a Pipedrive note attached to a deal, person, or organization.',
+      parameters: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'Note body. Supports HTML.' },
+          deal_id: { type: 'integer' },
+          person_id: { type: 'integer' },
+          org_id: { type: 'integer' },
+        },
+        required: ['content'],
+      },
+      request: { method: 'POST', path: '/v1/notes', body: 'args' },
+      cas: 'native-idempotency',
+      requiredScopes: ['contacts:full'],
+    },
   ],
 })

@@ -56,5 +56,44 @@ export const asanaConnector = declarativeRestConnector({
       request: { method: 'PUT', path: '/tasks/{taskGid}', body: { data: '{data}' } },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'tasks.addComment',
+      class: 'mutation',
+      description: 'Add a comment story to an Asana task. Comments are exposed as Asana stories with type=comment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskGid: { type: 'string', description: 'Asana task gid.' },
+          text: { type: 'string', description: 'Comment body as plain text.' },
+        },
+        required: ['taskGid', 'text'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tasks/{taskGid}/stories',
+        body: { data: { text: '{text}', type: 'comment' } },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.complete',
+      class: 'mutation',
+      description: 'Mark an Asana task as completed. Idempotent: setting completed=true twice converges on the same state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskGid: { type: 'string', description: 'Asana task gid.' },
+        },
+        required: ['taskGid'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/tasks/{taskGid}',
+        body: { data: { completed: true } },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

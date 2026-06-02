@@ -34,5 +34,78 @@ export const twitterConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/tweets', body: { text: '{text}', reply: { in_reply_to_tweet_id: '{replyTo}' } } },
       cas: 'native-idempotency',
     },
+    {
+      name: 'tweets.delete',
+      class: 'mutation',
+      description: 'Delete a tweet authored by the authenticated user.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Tweet id to delete.' } },
+        required: ['id'],
+      },
+      request: { method: 'DELETE', path: '/tweets/{id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tweets.like',
+      class: 'mutation',
+      description: 'Like a tweet on behalf of the authenticated user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', description: 'Authenticated user id performing the like.' },
+          tweet_id: { type: 'string', description: 'Tweet id to like.' },
+        },
+        required: ['user_id', 'tweet_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/users/{user_id}/likes',
+        body: { tweet_id: '{tweet_id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tweets.retweet',
+      class: 'mutation',
+      description: 'Retweet a tweet on behalf of the authenticated user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', description: 'Authenticated user id performing the retweet.' },
+          tweet_id: { type: 'string', description: 'Tweet id to retweet.' },
+        },
+        required: ['user_id', 'tweet_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/users/{user_id}/retweets',
+        body: { tweet_id: '{tweet_id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'dms.send',
+      class: 'mutation',
+      description: 'Send a direct message to a participant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          participant_id: { type: 'string', description: 'Recipient user id.' },
+          text: { type: 'string', description: 'Message text body.' },
+        },
+        required: ['participant_id', 'text'],
+      },
+      request: {
+        method: 'POST',
+        path: '/dm_conversations/with/{participant_id}/messages',
+        body: { text: '{text}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

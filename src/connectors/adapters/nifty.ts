@@ -48,5 +48,56 @@ export const niftyConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['tasks:write'],
     },
+    {
+      name: 'tasks.update',
+      class: 'mutation',
+      description:
+        'Update an existing task in Nifty. `taskId` is required; any provided field replaces the current value. Use `assignee_ids: []` to clear assignees.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Nifty task id (URL path).' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          milestone_id: { type: 'string' },
+          assignee_ids: { type: 'array', items: { type: 'string' } },
+          due_date: { type: 'string' },
+          status: { type: 'string' },
+        },
+        required: ['taskId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/tasks/{taskId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['tasks:write'],
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description:
+        'Create a comment on a Nifty task. `object_id` is the task id; `object_type` is fixed to `Task`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          object_id: { type: 'string', description: 'Task id to attach the comment to.' },
+          content: { type: 'string', description: 'Comment body.' },
+        },
+        required: ['object_id', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/comments',
+        body: {
+          object_type: 'Task',
+          object_id: '{object_id}',
+          content: '{content}',
+        },
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['tasks:write'],
+    },
   ],
 })

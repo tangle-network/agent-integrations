@@ -88,5 +88,56 @@ export const zapierConnector = declarativeRestConnector({
         path: 'https://api.zapier.com/v1/zaps/{zapId}',
       },
     },
+    {
+      name: 'actions.list',
+      class: 'read',
+      description:
+        'List Natural Language Actions (NLA) exposed to the authenticated Zapier account. Returns each exposed action and the args it accepts; feed the results to `actions.execute` to run one.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      request: {
+        method: 'GET',
+        path: 'https://nla.zapier.com/api/v1/exposed',
+      },
+    },
+    {
+      name: 'actions.execute',
+      class: 'mutation',
+      description:
+        "Execute a Zapier Natural Language Action by `action_id`. `instructions` is the natural-language directive Zapier's NLA layer parses into the action's argument fields. Set `preview_only: true` to return the parsed args without performing the side-effect — useful for surfacing a confirmation step before committing.",
+      cas: 'native-idempotency',
+      externalEffect: true,
+      parameters: {
+        type: 'object',
+        properties: {
+          action_id: {
+            type: 'string',
+            description: 'The exposed NLA action id (from `actions.list`).',
+          },
+          instructions: {
+            type: 'string',
+            description:
+              'Natural-language directive that Zapier maps onto the action\'s required + optional fields.',
+          },
+          preview_only: {
+            type: 'boolean',
+            default: false,
+            description:
+              'When true, Zapier returns the parsed args without executing the underlying side-effect.',
+          },
+        },
+        required: ['action_id', 'instructions'],
+      },
+      request: {
+        method: 'POST',
+        path: 'https://nla.zapier.com/api/v1/exposed/{action_id}/execute',
+        // `args` is forwarded as the JSON body — `instructions` is required;
+        // `preview_only` is forwarded when present. `action_id` is harmless
+        // in the body (Zapier ignores echo of the path param).
+        body: 'args',
+      },
+    },
   ],
 })

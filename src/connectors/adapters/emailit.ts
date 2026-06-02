@@ -82,5 +82,44 @@ export const emailitConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'logs.list',
+      class: 'read',
+      description:
+        'List Emailit delivery logs. Filter by RFC3339 `from`/`to` window and delivery `status` (delivered|bounced|opened|clicked). `limit` caps the page size.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: {
+            type: 'string',
+            description: 'RFC3339 lower bound for the log window (inclusive).',
+          },
+          to: {
+            type: 'string',
+            description: 'RFC3339 upper bound for the log window (inclusive).',
+          },
+          status: {
+            type: 'string',
+            enum: ['delivered', 'bounced', 'opened', 'clicked'],
+            description: 'Filter logs to a single delivery status.',
+          },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Maximum number of log entries to return.',
+          },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/logs',
+        query: {
+          from: '{from}',
+          to: '{to}',
+          status: '{status}',
+          limit: '{limit}',
+        },
+      },
+    },
   ],
 })

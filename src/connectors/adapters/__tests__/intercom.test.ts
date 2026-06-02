@@ -68,6 +68,8 @@ describe('intercomConnector', () => {
     const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
 
     expect(Object.keys(byName).sort()).toEqual([
+      'contacts.create',
+      'contacts.update',
       'customers.read',
       'tickets.reply',
       'tickets.search',

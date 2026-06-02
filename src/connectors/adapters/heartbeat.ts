@@ -50,5 +50,55 @@ export const heartbeatConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'threads.create',
+      class: 'mutation',
+      description: 'Create a new thread in a Heartbeat channel.',
+      parameters: {
+        type: 'object',
+        properties: {
+          channel_id: { type: 'string', description: 'The id of the channel where the thread will be created.' },
+          title: { type: 'string', description: 'The title of the thread.' },
+          body: { type: 'string', description: 'The body of the thread.' },
+          sender_user_id: { type: 'string', description: 'The id of the user who will be recorded as the author of the thread.' },
+        },
+        required: ['channel_id', 'title', 'body', 'sender_user_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/threads',
+        body: {
+          channel_id: '{channel_id}',
+          title: '{title}',
+          body: '{body}',
+          sender_user_id: '{sender_user_id}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'messages.create',
+      class: 'mutation',
+      description: 'Post a message to an existing Heartbeat thread.',
+      parameters: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'The id of the thread to post the message to.' },
+          body: { type: 'string', description: 'The body of the message.' },
+          sender_user_id: { type: 'string', description: 'The id of the user who will be recorded as the author of the message.' },
+        },
+        required: ['thread_id', 'body', 'sender_user_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/messages',
+        body: {
+          thread_id: '{thread_id}',
+          body: '{body}',
+          sender_user_id: '{sender_user_id}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })

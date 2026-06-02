@@ -134,5 +134,62 @@ export const billplzConnector = declarativeRestConnector({
         path: '/bills/{bill_id}',
       },
     },
+    {
+      name: 'cancel.bill',
+      class: 'mutation',
+      description:
+        'Delete (cancel) an unpaid Billplz bill by its identifier. Paid bills cannot be deleted and the upstream will reject the request.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Billplz bill identifier to cancel.',
+          },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/bills/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'create.refund',
+      class: 'mutation',
+      description:
+        'Refund a paid Billplz bill in full or in part. Amount is in sen (1/100 of a Ringgit) and must not exceed the original paid amount.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bill_id: {
+            type: 'string',
+            description: 'Identifier of the paid bill being refunded.',
+          },
+          amount: {
+            type: 'integer',
+            description: 'Refund amount in sen (1/100 of a Ringgit). E.g. 200 represents RM 2.00.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Reason recorded on the refund for audit/reporting.',
+          },
+        },
+        required: ['bill_id', 'amount', 'reason'],
+      },
+      request: {
+        method: 'POST',
+        path: '/refunds',
+        body: {
+          bill_id: '{bill_id}',
+          amount: '{amount}',
+          reason: '{reason}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

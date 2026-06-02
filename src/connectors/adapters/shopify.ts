@@ -426,5 +426,131 @@ export const shopifyConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       requiredScopes: ['write_inventory'],
     },
+    {
+      name: 'refunds.create',
+      class: 'mutation',
+      description: 'Issue a refund against an existing order. `refund_line_items` controls which line items are refunded and whether stock is returned; `transactions` issues the gateway refund(s).',
+      parameters: {
+        type: 'object',
+        properties: {
+          order_id: { type: 'integer', description: 'Order to refund.' },
+          refund_line_items: {
+            type: 'array',
+            description: 'Line items to refund. Omit to refund only via `transactions`.',
+            items: {
+              type: 'object',
+              properties: {
+                line_item_id: { type: 'integer' },
+                quantity: { type: 'integer' },
+                restock_type: { type: 'string', enum: ['no_restock', 'cancel', 'return', 'legacy_restock'] },
+              },
+              required: ['line_item_id', 'quantity'],
+            },
+          },
+          transactions: {
+            type: 'array',
+            description: 'Refund transactions. `parent_id` is the captured transaction being refunded.',
+            items: {
+              type: 'object',
+              properties: {
+                parent_id: { type: 'integer' },
+                amount: { type: 'string', description: 'Decimal amount as a string, e.g. "12.34".' },
+                kind: { type: 'string', enum: ['refund'], default: 'refund' },
+                gateway: { type: 'string' },
+              },
+              required: ['parent_id', 'amount', 'kind'],
+            },
+          },
+          notify: { type: 'boolean', description: 'Send the customer the refund-notification email.' },
+        },
+        required: ['order_id'],
+      },
+      request: {
+        method: 'POST',
+        path: 'admin/api/2024-10/orders/{order_id}/refunds.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write_orders'],
+    },
+    {
+      name: 'fulfillments.create',
+      class: 'mutation',
+      description: 'Create a fulfillment that ships one or more fulfillment orders. `line_items_by_fulfillment_order` selects which fulfillment orders (and optionally which line items within them) are shipped; `tracking_info` attaches a carrier tracking record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          line_items_by_fulfillment_order: {
+            type: 'array',
+            description: 'Fulfillment orders to ship. At minimum each entry needs `fulfillment_order_id`; omit `fulfillment_order_line_items` to ship the entire fulfillment order.',
+            items: {
+              type: 'object',
+              properties: {
+                fulfillment_order_id: { type: 'integer' },
+              },
+              required: ['fulfillment_order_id'],
+            },
+          },
+          tracking_info: {
+            type: 'object',
+            description: 'Carrier tracking record applied to the fulfillment.',
+            properties: {
+              number: { type: 'string' },
+              url: { type: 'string' },
+              company: { type: 'string' },
+            },
+          },
+          notify_customer: { type: 'boolean', description: 'Send the customer the shipping-confirmation email.' },
+        },
+        required: ['line_items_by_fulfillment_order'],
+      },
+      request: {
+        method: 'POST',
+        path: 'admin/api/2024-10/fulfillments.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write_orders'],
+    },
+    {
+      name: 'draft_orders.create',
+      class: 'mutation',
+      description: 'Create a draft order. Useful for agent-driven quoting, custom invoices, and assisted-sale flows where the order is staged before the customer commits.',
+      parameters: {
+        type: 'object',
+        properties: {
+          line_items: {
+            type: 'array',
+            description: 'Draft-order line items. `variant_id` identifies the product variant; `quantity` is the number of units.',
+            items: {
+              type: 'object',
+              properties: {
+                variant_id: { type: 'integer' },
+                quantity: { type: 'integer' },
+              },
+              required: ['variant_id', 'quantity'],
+            },
+          },
+          customer: {
+            type: 'object',
+            description: 'Existing customer to attach by id.',
+            properties: {
+              id: { type: 'integer' },
+            },
+          },
+        },
+        required: ['line_items'],
+      },
+      request: {
+        method: 'POST',
+        path: 'admin/api/2024-10/draft_orders.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['write_orders'],
+    },
   ],
 })

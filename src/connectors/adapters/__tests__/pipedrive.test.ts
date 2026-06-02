@@ -35,10 +35,12 @@ describe('pipedrive adapter manifest', () => {
     const names = pipedriveConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
+        'activities.create',
         'deals.search',
         'deals.get',
         'deals.create',
         'deals.update',
+        'notes.create',
         'persons.search',
         'persons.create',
         'organizations.search',
@@ -48,7 +50,14 @@ describe('pipedrive adapter manifest', () => {
     const reads = pipedriveConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
     const mutations = pipedriveConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
     expect(reads.sort()).toEqual(['deals.get', 'deals.search', 'organizations.search', 'persons.search'])
-    expect(mutations.sort()).toEqual(['deals.create', 'deals.update', 'organizations.create', 'persons.create'])
+    expect(mutations.sort()).toEqual([
+      'activities.create',
+      'deals.create',
+      'deals.update',
+      'notes.create',
+      'organizations.create',
+      'persons.create',
+    ])
   })
 
   it('classifies itself as crm with authoritative consistency', () => {

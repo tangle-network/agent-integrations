@@ -168,6 +168,78 @@ export const stripePackConnector: ConnectorAdapter = {
           required: ['customerId', 'returnUrl'],
         },
       },
+      {
+        name: 'create_payment_intent',
+        class: 'mutation',
+        description:
+          'Create a Stripe PaymentIntent to collect a one-off payment. `amount` is in the smallest currency unit (cents). Returns the client_secret for confirmation on the frontend. Idempotency-Key guarantees at-most-once.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            amount: { type: 'integer', description: 'Amount in the smallest currency unit (cents).' },
+            currency: { type: 'string', description: '3-letter ISO currency code, lowercase.' },
+            customer: { type: 'string', description: 'Optional Stripe customer id (cus_...).' },
+            automatic_payment_methods: {
+              type: 'object',
+              description:
+                "When { enabled: true }, Stripe automatically derives eligible payment methods from the connected account's dashboard config.",
+              properties: { enabled: { type: 'boolean' } },
+            },
+            description: { type: 'string' },
+            metadata: {
+              type: 'object',
+              additionalProperties: { type: 'string' },
+              description: 'Arbitrary string key/value pairs attached to the PaymentIntent.',
+            },
+          },
+          required: ['amount', 'currency'],
+        },
+      },
+      {
+        name: 'create_refund',
+        class: 'mutation',
+        description:
+          'Refund a Stripe charge or PaymentIntent. Provide either `payment_intent` OR `charge` (Stripe rejects both). `amount` is optional — when omitted Stripe refunds the full remaining amount. Idempotency-Key guarantees at-most-once.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            payment_intent: { type: 'string', description: 'PaymentIntent id (pi_...) to refund.' },
+            charge: { type: 'string', description: 'Charge id (ch_...) to refund.' },
+            amount: { type: 'integer', description: 'Optional partial refund amount in the smallest currency unit (cents). Omit for full refund.' },
+            reason: {
+              type: 'string',
+              enum: ['duplicate', 'fraudulent', 'requested_by_customer'],
+              description: 'Stripe-canonical refund reason.',
+            },
+          },
+        },
+      },
+      {
+        name: 'create_customer',
+        class: 'mutation',
+        description:
+          'Create a Stripe customer record. All fields are optional, but at least one of email / name is recommended for human-readable dashboards. Idempotency-Key guarantees at-most-once.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            email: { type: 'string' },
+            name: { type: 'string' },
+            phone: { type: 'string' },
+            description: { type: 'string' },
+            metadata: {
+              type: 'object',
+              additionalProperties: { type: 'string' },
+              description: 'Arbitrary string key/value pairs attached to the customer.',
+            },
+          },
+        },
+      },
     ],
   },
 
@@ -211,6 +283,9 @@ export const stripePackConnector: ConnectorAdapter = {
     if (inv.capabilityName === 'create_checkout_session') return createCheckoutSession(inv, apiKey)
     if (inv.capabilityName === 'cancel_subscription') return cancelSubscription(inv, apiKey)
     if (inv.capabilityName === 'create_billing_portal_session') return createBillingPortalSession(inv, apiKey)
+    if (inv.capabilityName === 'create_payment_intent') return createPaymentIntent(inv, apiKey)
+    if (inv.capabilityName === 'create_refund') return createRefund(inv, apiKey)
+    if (inv.capabilityName === 'create_customer') return createCustomer(inv, apiKey)
     throw new Error(`stripe-pack: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -474,6 +549,200 @@ async function createBillingPortalSession(inv: ConnectorInvocation, apiKey: stri
   return {
     status: 'committed',
     data: { sessionId: created.id, url: created.url, returnUrl: created.return_url },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createPaymentIntent(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    amount?: number
+    currency?: string
+    customer?: string
+    automatic_payment_methods?: { enabled?: boolean }
+    description?: string
+    metadata?: Record<string, string>
+  }
+  if (typeof args.amount !== 'number' || !Number.isFinite(args.amount)) {
+    throw new Error('stripe-pack create_payment_intent: `amount` is required')
+  }
+  if (!args.currency) {
+    throw new Error('stripe-pack create_payment_intent: `currency` is required')
+  }
+  const body = new URLSearchParams({
+    amount: String(args.amount),
+    currency: args.currency.toLowerCase(),
+  })
+  if (args.customer) body.set('customer', args.customer)
+  if (args.description) body.set('description', args.description)
+  if (args.automatic_payment_methods && typeof args.automatic_payment_methods.enabled === 'boolean') {
+    body.set('automatic_payment_methods[enabled]', args.automatic_payment_methods.enabled ? 'true' : 'false')
+  }
+  if (args.metadata) {
+    for (const [k, v] of Object.entries(args.metadata)) {
+      body.set(`metadata[${k}]`, String(v))
+    }
+  }
+  const res = await fetch(`${API}/payment_intents`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': inv.idempotencyKey,
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Stripe rejected API key (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Stripe payment intent conflict — retry rejected by idempotency check')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack create_payment_intent ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as {
+    id: string
+    client_secret?: string
+    status?: string
+    amount?: number
+    currency?: string
+    customer?: string | null
+  }
+  return {
+    status: 'committed',
+    data: {
+      paymentIntentId: created.id,
+      clientSecret: created.client_secret,
+      status: created.status,
+      amount: created.amount,
+      currency: created.currency,
+      customer: created.customer ?? null,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createRefund(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    payment_intent?: string
+    charge?: string
+    amount?: number
+    reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
+  }
+  if (!args.payment_intent && !args.charge) {
+    throw new Error('stripe-pack create_refund: `payment_intent` or `charge` is required')
+  }
+  if (args.payment_intent && args.charge) {
+    throw new Error('stripe-pack create_refund: pass `payment_intent` OR `charge`, not both')
+  }
+  const body = new URLSearchParams()
+  if (args.payment_intent) body.set('payment_intent', args.payment_intent)
+  if (args.charge) body.set('charge', args.charge)
+  if (typeof args.amount === 'number') body.set('amount', String(args.amount))
+  if (args.reason) body.set('reason', args.reason)
+  const res = await fetch(`${API}/refunds`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': inv.idempotencyKey,
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Stripe rejected API key (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Stripe refund conflict — retry rejected by idempotency check')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack create_refund ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as {
+    id: string
+    status?: string
+    amount?: number
+    currency?: string
+    payment_intent?: string | null
+    charge?: string | null
+    reason?: string | null
+  }
+  return {
+    status: 'committed',
+    data: {
+      refundId: created.id,
+      status: created.status,
+      amount: created.amount,
+      currency: created.currency,
+      paymentIntent: created.payment_intent ?? null,
+      charge: created.charge ?? null,
+      reason: created.reason ?? null,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createCustomer(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    email?: string
+    name?: string
+    phone?: string
+    description?: string
+    metadata?: Record<string, string>
+  }
+  const body = new URLSearchParams()
+  if (args.email) body.set('email', args.email)
+  if (args.name) body.set('name', args.name)
+  if (args.phone) body.set('phone', args.phone)
+  if (args.description) body.set('description', args.description)
+  if (args.metadata) {
+    for (const [k, v] of Object.entries(args.metadata)) {
+      body.set(`metadata[${k}]`, String(v))
+    }
+  }
+  const res = await fetch(`${API}/customers`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': inv.idempotencyKey,
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Stripe rejected API key (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Stripe customer conflict — retry rejected by idempotency check')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack create_customer ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as {
+    id: string
+    email?: string | null
+    name?: string | null
+    phone?: string | null
+    description?: string | null
+  }
+  return {
+    status: 'committed',
+    data: {
+      customerId: created.id,
+      email: created.email ?? null,
+      name: created.name ?? null,
+      phone: created.phone ?? null,
+      description: created.description ?? null,
+    },
     committedAt: Date.now(),
     idempotentReplay: false,
   }
