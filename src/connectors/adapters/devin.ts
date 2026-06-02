@@ -67,5 +67,56 @@ export const devinConnector = declarativeRestConnector({
         body: { message: '{message}' },
       },
     },
+    {
+      name: 'sessions.list',
+      class: 'read',
+      description: 'List Devin sessions visible to the API key. Optional limit/status filters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Maximum number of sessions to return.' },
+          status: { type: 'string', description: 'Filter to sessions in the given status.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/sessions',
+        query: { limit: '{limit}', status: '{status}' },
+      },
+    },
+    {
+      name: 'attachments.upload',
+      class: 'mutation',
+      description:
+        'Upload an attachment to an existing Devin session. `content` is the file body; set `encoding="base64"` for binary payloads. `mime_type` defaults upstream when omitted.',
+      parameters: {
+        type: 'object',
+        properties: {
+          session_id: { type: 'string', description: 'Devin session id the attachment belongs to.' },
+          content: { type: 'string', description: 'File contents, interpreted per `encoding`.' },
+          encoding: {
+            type: 'string',
+            enum: ['utf-8', 'base64'],
+            default: 'utf-8',
+            description: 'Encoding of `content`. Use base64 for binary payloads.',
+          },
+          filename: { type: 'string', description: 'Filename including extension.' },
+          mime_type: { type: 'string', description: 'Optional MIME type for the upload.' },
+        },
+        required: ['session_id', 'content', 'filename'],
+      },
+      request: {
+        method: 'POST',
+        path: '/attachments',
+        body: {
+          session_id: '{session_id}',
+          content: '{content}',
+          filename: '{filename}',
+          encoding: '{encoding}',
+          mime_type: '{mime_type}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
