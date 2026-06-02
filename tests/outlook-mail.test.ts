@@ -52,7 +52,14 @@ describe('outlook-mail adapter', () => {
       expect(adapter.manifest.auth.scopes).toContain('offline_access')
     }
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['list_messages', 'read_message', 'send_reply', 'subscribe_folder'])
+    expect(names).toEqual([
+      'create_draft',
+      'list_messages',
+      'read_message',
+      'send_message',
+      'send_reply',
+      'subscribe_folder',
+    ])
   })
 
   it('list_messages selects expected fields and maps summaries', async () => {
@@ -213,6 +220,234 @@ describe('outlook-mail adapter', () => {
     if (result.status === 'committed') {
       expect((result.data as { subscriptionId: string }).subscriptionId).toBe('sub-123')
     }
+  })
+
+  it('send_message POSTs /me/sendMail with text body + idempotency-key header', async () => {
+    let calledUrl = ''
+    let postedBody: {
+      saveToSentItems?: boolean
+      message?: {
+        subject?: string
+        body?: { contentType?: string; content?: string }
+        toRecipients?: Array<{ emailAddress: { address: string } }>
+        ccRecipients?: Array<{ emailAddress: { address: string } }>
+        bccRecipients?: Array<{ emailAddress: { address: string } }>
+        internetMessageHeaders?: Array<{ name: string; value: string }>
+      }
+    } | null = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      postedBody = JSON.parse(init!.body as string)
+      return new Response(null, { status: 202 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'send_message',
+      args: { to: 'someone@example.com', subject: 'Hello', body: 'Hi there' },
+      idempotencyKey: 'idemp-send-1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/sendMail')
+    expect(postedBody!.saveToSentItems).toBe(true)
+    expect(postedBody!.message!.subject).toBe('Hello')
+    expect(postedBody!.message!.body).toEqual({ contentType: 'Text', content: 'Hi there' })
+    expect(postedBody!.message!.toRecipients).toEqual([
+      { emailAddress: { address: 'someone@example.com' } },
+    ])
+    expect(postedBody!.message!.internetMessageHeaders).toEqual([
+      { name: 'X-Tangle-Idempotency-Key', value: 'idemp-send-1' },
+    ])
+  })
+
+  it('send_message threads multi-recipient + cc + bcc + html into Graph payload', async () => {
+    let postedBody: {
+      message?: {
+        body?: { contentType?: string }
+        toRecipients?: Array<{ emailAddress: { address: string } }>
+        ccRecipients?: Array<{ emailAddress: { address: string } }>
+        bccRecipients?: Array<{ emailAddress: { address: string } }>
+      }
+    } | null = null
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      postedBody = JSON.parse(init!.body as string)
+      return new Response(null, { status: 202 })
+    }))
+
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'send_message',
+      args: {
+        to: ['one@example.com', 'two@example.com'],
+        cc: ['cc1@example.com'],
+        bcc: ['bcc1@example.com', 'bcc2@example.com'],
+        subject: 'Multi',
+        body: '<p>hi</p>',
+        html: true,
+      },
+      idempotencyKey: 'k',
+    })
+    expect(postedBody!.message!.body!.contentType).toBe('HTML')
+    expect(postedBody!.message!.toRecipients).toEqual([
+      { emailAddress: { address: 'one@example.com' } },
+      { emailAddress: { address: 'two@example.com' } },
+    ])
+    expect(postedBody!.message!.ccRecipients).toEqual([
+      { emailAddress: { address: 'cc1@example.com' } },
+    ])
+    expect(postedBody!.message!.bccRecipients).toEqual([
+      { emailAddress: { address: 'bcc1@example.com' } },
+      { emailAddress: { address: 'bcc2@example.com' } },
+    ])
+  })
+
+  it('send_message rejects missing required args', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 202 })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'send_message',
+        args: { subject: 's', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`to` is required/)
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'send_message',
+        args: { to: [], subject: 's', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`to` is required/)
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'send_message',
+        args: { to: 'a@b.com', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`subject` is required/)
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'send_message',
+        args: { to: 'a@b.com', subject: 's' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`body` is required/)
+  })
+
+  it('send_message surfaces CredentialsExpired on 401/403', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 401,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ error: 'unauthorized' }),
+      text: async () => 'unauthorized',
+    })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'send_message',
+        args: { to: 'a@b.com', subject: 's', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+
+  it('create_draft POSTs /me/messages and returns the draft id', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    let postedBody: {
+      subject?: string
+      body?: { contentType?: string; content?: string }
+      toRecipients?: Array<{ emailAddress: { address: string } }>
+      internetMessageHeaders?: Array<{ name: string; value: string }>
+    } | null = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      postedBody = JSON.parse(init!.body as string)
+      return jsonResponse({
+        id: 'draft-xyz',
+        conversationId: 'conv-1',
+        webLink: 'https://outlook.office.com/mail/drafts/id/draft-xyz',
+        isDraft: true,
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'create_draft',
+      args: { to: 'someone@example.com', subject: 'Draft subj', body: 'Draft body' },
+      idempotencyKey: 'idemp-draft-1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/messages')
+    expect(calledUrl).not.toContain('/sendMail')
+    expect(calledMethod).toBe('POST')
+    expect(postedBody!.subject).toBe('Draft subj')
+    expect(postedBody!.body).toEqual({ contentType: 'Text', content: 'Draft body' })
+    expect(postedBody!.toRecipients).toEqual([
+      { emailAddress: { address: 'someone@example.com' } },
+    ])
+    expect(postedBody!.internetMessageHeaders).toEqual([
+      { name: 'X-Tangle-Idempotency-Key', value: 'idemp-draft-1' },
+    ])
+    if (result.status === 'committed') {
+      const data = result.data as { id: string; isDraft: boolean; webLink?: string }
+      expect(data.id).toBe('draft-xyz')
+      expect(data.isDraft).toBe(true)
+      expect(data.webLink).toContain('outlook.office.com')
+    }
+  })
+
+  it('create_draft rejects missing required args', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ id: 'x' })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'create_draft',
+        args: { subject: 's', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`to` is required/)
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'create_draft',
+        args: { to: 'a@b.com', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`subject` is required/)
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'create_draft',
+        args: { to: 'a@b.com', subject: 's' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/`body` is required/)
+  })
+
+  it('create_draft surfaces CredentialsExpired on 401/403', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ error: 'forbidden' }),
+      text: async () => 'forbidden',
+    })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'create_draft',
+        args: { to: 'a@b.com', subject: 's', body: 'b' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('test() probes /me and returns ok on 200', async () => {
