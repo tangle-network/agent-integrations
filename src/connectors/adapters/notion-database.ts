@@ -123,6 +123,71 @@ export function notionDatabase(opts: NotionDatabaseOptions): ConnectorAdapter {
           required: ['pageId', 'properties'],
         },
       },
+      {
+        name: 'pages.archive',
+        class: 'mutation',
+        description: 'Archive (soft-delete) a Notion page. Restorable via update_page with archived:false.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: { pageId: { type: 'string' } },
+          required: ['pageId'],
+        },
+      },
+      {
+        name: 'databases.create',
+        class: 'mutation',
+        description: 'Create a new Notion database underneath a parent page.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            parentPageId: { type: 'string', description: 'Parent page id under which to create the database.' },
+            title: {
+              type: 'array',
+              description: 'Notion rich_text array used as the database title.',
+            },
+            properties: {
+              type: 'object',
+              description: 'Schema map — property name → Notion property schema.',
+            },
+          },
+          required: ['parentPageId', 'title', 'properties'],
+        },
+      },
+      {
+        name: 'databases.update',
+        class: 'mutation',
+        description: 'Update a database title and/or schema.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            databaseId: { type: 'string' },
+            title: { type: 'array', description: 'Optional new rich_text title.' },
+            properties: { type: 'object', description: 'Optional partial schema update.' },
+          },
+          required: ['databaseId'],
+        },
+      },
+      {
+        name: 'blocks.append',
+        class: 'mutation',
+        description: 'Append child blocks to a page or block.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            blockId: { type: 'string', description: 'Parent page or block id.' },
+            children: { type: 'array', description: 'Block descriptor array per Notion schema.' },
+          },
+          required: ['blockId', 'children'],
+        },
+      },
     ],
   },
 
@@ -175,6 +240,10 @@ export function notionDatabase(opts: NotionDatabaseOptions): ConnectorAdapter {
     const accessToken = readToken(inv.source.credentials)
     if (inv.capabilityName === 'create_page') return createPage(inv, accessToken)
     if (inv.capabilityName === 'update_page') return updatePage(inv, accessToken)
+    if (inv.capabilityName === 'pages.archive') return archivePage(inv, accessToken)
+    if (inv.capabilityName === 'databases.create') return createDatabase(inv, accessToken)
+    if (inv.capabilityName === 'databases.update') return updateDatabase(inv, accessToken)
+    if (inv.capabilityName === 'blocks.append') return appendBlocks(inv, accessToken)
     throw new Error(`notion-database: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -365,6 +434,161 @@ async function updatePage(inv: ConnectorInvocation, accessToken: string): Promis
     status: 'committed',
     data: { pageId: updated.id, url: updated.url, lastEditedTime: updated.last_edited_time },
     etagAfter: updated.last_edited_time,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function archivePage(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const { pageId } = inv.args as { pageId: string }
+  if (typeof pageId !== 'string' || pageId.length === 0) {
+    throw new Error('notion-database pages.archive: pageId is required')
+  }
+  const res = await fetch(`${API}/pages/${encodeURIComponent(pageId)}`, {
+    method: 'PATCH',
+    headers: {
+      ...notionHeaders(accessToken),
+      'Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify({ archived: true }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Notion rejected token (401)', inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Notion idempotency-key conflict — different args under same key')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`notion-database pages.archive ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const archived = (await res.json()) as { id: string; last_edited_time?: string; archived?: boolean }
+  return {
+    status: 'committed',
+    data: { pageId: archived.id, archived: archived.archived ?? true, lastEditedTime: archived.last_edited_time },
+    etagAfter: archived.last_edited_time,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createDatabase(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const { parentPageId, title, properties } = inv.args as {
+    parentPageId: string
+    title: unknown
+    properties: Record<string, unknown>
+  }
+  if (typeof parentPageId !== 'string' || parentPageId.length === 0) {
+    throw new Error('notion-database databases.create: parentPageId is required')
+  }
+  if (!title) throw new Error('notion-database databases.create: title is required')
+  if (!properties) throw new Error('notion-database databases.create: properties is required')
+  const res = await fetch(`${API}/databases`, {
+    method: 'POST',
+    headers: {
+      ...notionHeaders(accessToken),
+      'Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify({
+      parent: { type: 'page_id', page_id: parentPageId },
+      title,
+      properties,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Notion rejected token (401)', inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Notion idempotency-key conflict — different args under same key')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`notion-database databases.create ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as { id: string; url?: string; last_edited_time?: string }
+  return {
+    status: 'committed',
+    data: { databaseId: created.id, url: created.url, lastEditedTime: created.last_edited_time },
+    etagAfter: created.last_edited_time,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function updateDatabase(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const { databaseId, title, properties } = inv.args as {
+    databaseId: string
+    title?: unknown
+    properties?: Record<string, unknown>
+  }
+  if (typeof databaseId !== 'string' || databaseId.length === 0) {
+    throw new Error('notion-database databases.update: databaseId is required')
+  }
+  const body: Record<string, unknown> = {}
+  if (title !== undefined) body.title = title
+  if (properties !== undefined) body.properties = properties
+  const res = await fetch(`${API}/databases/${encodeURIComponent(databaseId)}`, {
+    method: 'PATCH',
+    headers: {
+      ...notionHeaders(accessToken),
+      'Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Notion rejected token (401)', inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Notion idempotency-key conflict — different args under same key')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`notion-database databases.update ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const updated = (await res.json()) as { id: string; url?: string; last_edited_time?: string }
+  return {
+    status: 'committed',
+    data: { databaseId: updated.id, url: updated.url, lastEditedTime: updated.last_edited_time },
+    etagAfter: updated.last_edited_time,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function appendBlocks(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const { blockId, children } = inv.args as { blockId: string; children: unknown[] }
+  if (typeof blockId !== 'string' || blockId.length === 0) {
+    throw new Error('notion-database blocks.append: blockId is required')
+  }
+  if (!Array.isArray(children)) {
+    throw new Error('notion-database blocks.append: children must be an array')
+  }
+  const res = await fetch(`${API}/blocks/${encodeURIComponent(blockId)}/children`, {
+    method: 'PATCH',
+    headers: {
+      ...notionHeaders(accessToken),
+      'Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify({ children }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Notion rejected token (401)', inv.source.id)
+  }
+  if (res.status === 409) {
+    throw new ResourceContention('Notion idempotency-key conflict — different args under same key')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`notion-database blocks.append ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as { results?: Array<{ id: string }> }
+  return {
+    status: 'committed',
+    data: { results: json.results ?? [] },
     committedAt: Date.now(),
     idempotentReplay: false,
   }
