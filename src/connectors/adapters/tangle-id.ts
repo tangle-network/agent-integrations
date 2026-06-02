@@ -254,6 +254,69 @@ export function tangleIdentity(opts: TangleIdentityOptions = {}): ConnectorAdapt
           cas: 'native-idempotency',
           externalEffect: true,
         },
+        {
+          name: 'workspaces.create',
+          class: 'mutation',
+          description:
+            'Create a new workspace (team) owned by the calling user. Idempotent by display name + owner — re-issuing with the same name returns the existing workspace.',
+          parameters: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string', minLength: 1 },
+              name: { type: 'string', minLength: 1 },
+              slug: { type: 'string', minLength: 1 },
+            },
+            required: ['userId', 'name'],
+          },
+          cas: 'native-idempotency',
+          externalEffect: true,
+        },
+        {
+          name: 'workspaces.delete',
+          class: 'mutation',
+          description:
+            'Delete a workspace. Refuses to delete a user personal workspace. Idempotent: 404 is treated as a no-op.',
+          parameters: {
+            type: 'object',
+            properties: { workspaceId: { type: 'string', minLength: 1 } },
+            required: ['workspaceId'],
+          },
+          cas: 'native-idempotency',
+          externalEffect: true,
+        },
+        {
+          name: 'members.invite',
+          class: 'mutation',
+          description:
+            'Invite a member to a workspace by email. Idempotent: re-inviting the same email returns the existing invitation.',
+          parameters: {
+            type: 'object',
+            properties: {
+              workspaceId: { type: 'string', minLength: 1 },
+              email: { type: 'string', minLength: 3 },
+              role: { type: 'string', enum: ['owner', 'admin', 'member'] },
+            },
+            required: ['workspaceId', 'email'],
+          },
+          cas: 'native-idempotency',
+          externalEffect: true,
+        },
+        {
+          name: 'members.remove',
+          class: 'mutation',
+          description:
+            'Remove a member from a workspace by userId. Idempotent: 404 is treated as a no-op.',
+          parameters: {
+            type: 'object',
+            properties: {
+              workspaceId: { type: 'string', minLength: 1 },
+              userId: { type: 'string', minLength: 1 },
+            },
+            required: ['workspaceId', 'userId'],
+          },
+          cas: 'native-idempotency',
+          externalEffect: true,
+        },
       ],
     },
 
@@ -298,6 +361,51 @@ export function tangleIdentity(opts: TangleIdentityOptions = {}): ConnectorAdapt
           idempotentReplay: false,
         }
       }
+      if (inv.capabilityName === 'workspaces.create') {
+        const userId = readStringArg(inv.args, 'userId')
+        const name = readStringArg(inv.args, 'name')
+        const slug = readOptionalStringArg(inv.args, 'slug')
+        const workspace = await client.createWorkspace(userId, { name, slug })
+        return {
+          status: 'committed',
+          data: workspace,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'workspaces.delete') {
+        const workspaceId = readStringArg(inv.args, 'workspaceId')
+        await client.deleteWorkspace(workspaceId)
+        return {
+          status: 'committed',
+          data: { ok: true, workspaceId },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'members.invite') {
+        const workspaceId = readStringArg(inv.args, 'workspaceId')
+        const email = readStringArg(inv.args, 'email')
+        const role = readOptionalRole(inv.args, 'role')
+        const invitation = await client.inviteMember(workspaceId, email, role)
+        return {
+          status: 'committed',
+          data: invitation,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'members.remove') {
+        const workspaceId = readStringArg(inv.args, 'workspaceId')
+        const userId = readStringArg(inv.args, 'userId')
+        await client.removeMember(workspaceId, userId)
+        return {
+          status: 'committed',
+          data: { ok: true, workspaceId, userId },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
       throw new Error(`tangle-id: unknown mutation capability ${inv.capabilityName}`)
     },
 
@@ -331,7 +439,35 @@ export interface TangleIdentityClient {
     workspaceId: string,
   ): Promise<{ ok: true; workspaceId: string; scopes: string[] }>
   revokeSession(token: string): Promise<void>
+  /** Create a new workspace owned by `userId`. The platform's
+   *  `POST /v1/teams` returns the persisted row. Idempotent on
+   *  `(ownerId, name)` upstream; conflicts are unwrapped to the
+   *  existing row, not surfaced as errors. */
+  createWorkspace(
+    userId: string,
+    spec: { name: string; slug?: string },
+  ): Promise<TangleWorkspaceSummary>
+  /** Delete a workspace. Refuses to delete the user's personal
+   *  workspace (the platform-side `/v1/teams/{id}` returns 409). */
+  deleteWorkspace(workspaceId: string): Promise<void>
+  /** Invite a member to a workspace by email. Idempotent: re-issuing
+   *  the same invite returns the existing pending invitation row. */
+  inviteMember(
+    workspaceId: string,
+    email: string,
+    role?: TangleWorkspaceSummary['role'],
+  ): Promise<TangleInvitationSummary>
+  /** Remove a member from a workspace by `userId`. 404 is a no-op. */
+  removeMember(workspaceId: string, userId: string): Promise<void>
   ping(): Promise<boolean>
+}
+
+export interface TangleInvitationSummary {
+  id: string
+  workspaceId: string
+  email: string
+  role: TangleWorkspaceSummary['role']
+  status: 'pending' | 'accepted' | 'revoked'
 }
 
 export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): TangleIdentityClient {
@@ -639,6 +775,177 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
       }
     },
 
+    async createWorkspace(userId, spec) {
+      if (!userId) {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: createWorkspace requires a non-empty userId',
+        )
+      }
+      const res = await jsonFetch('/v1/teams', {
+        method: 'POST',
+        headers: { ...s2sHeaders(), 'x-platform-user-id': userId },
+        body: JSON.stringify({
+          name: spec.name,
+          ...(spec.slug ? { slug: spec.slug } : {}),
+        }),
+      })
+      if (res.status === 401) {
+        throw new CredentialsExpired(
+          'tangle-id: service token rejected on POST /v1/teams',
+          'tangle-id',
+        )
+      }
+      if (!res.ok) {
+        throw new TangleIdentityUnreachableError(
+          `tangle-id: POST /v1/teams returned ${res.status}: ${await readErrorDetail(res)}`,
+          { status: res.status },
+        )
+      }
+      const body = (await res.json().catch(() => null)) as
+        | {
+            success?: boolean
+            data?: { id?: string; name?: string; role?: string; isPersonal?: boolean; scopes?: unknown }
+          }
+        | null
+      const data = body?.data
+      if (!data || typeof data.id !== 'string' || typeof data.name !== 'string') {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: POST /v1/teams response had an invalid shape',
+        )
+      }
+      const role: TangleWorkspaceSummary['role'] =
+        data.role === 'owner' || data.role === 'admin' ? data.role : 'owner'
+      const scopes = Array.isArray(data.scopes)
+        ? data.scopes.filter((value): value is string => typeof value === 'string')
+        : []
+      return {
+        id: data.id,
+        name: data.name,
+        role,
+        isPersonal: Boolean(data.isPersonal) || data.id === userId,
+        scopes,
+      }
+    },
+
+    async deleteWorkspace(workspaceId) {
+      if (!workspaceId) {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: deleteWorkspace requires a non-empty workspaceId',
+        )
+      }
+      const res = await jsonFetch(`/v1/teams/${encodeURIComponent(workspaceId)}`, {
+        method: 'DELETE',
+        headers: s2sHeaders(),
+      })
+      if (res.status === 401) {
+        throw new CredentialsExpired(
+          'tangle-id: service token rejected on DELETE /v1/teams',
+          'tangle-id',
+        )
+      }
+      if (res.status === 404) return
+      if (!res.ok) {
+        throw new TangleIdentityUnreachableError(
+          `tangle-id: DELETE /v1/teams/${workspaceId} returned ${res.status}: ${await readErrorDetail(res)}`,
+          { status: res.status },
+        )
+      }
+    },
+
+    async inviteMember(workspaceId, email, role) {
+      if (!workspaceId) {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: inviteMember requires a non-empty workspaceId',
+        )
+      }
+      if (!email) {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: inviteMember requires a non-empty email',
+        )
+      }
+      const res = await jsonFetch(
+        `/v1/teams/${encodeURIComponent(workspaceId)}/invitations`,
+        {
+          method: 'POST',
+          headers: s2sHeaders(),
+          body: JSON.stringify({
+            email,
+            ...(role ? { role } : {}),
+          }),
+        },
+      )
+      if (res.status === 401) {
+        throw new CredentialsExpired(
+          'tangle-id: service token rejected on POST invitation',
+          'tangle-id',
+        )
+      }
+      if (!res.ok) {
+        throw new TangleIdentityUnreachableError(
+          `tangle-id: POST /v1/teams/${workspaceId}/invitations returned ${res.status}: ${await readErrorDetail(res)}`,
+          { status: res.status },
+        )
+      }
+      const body = (await res.json().catch(() => null)) as
+        | {
+            success?: boolean
+            data?: {
+              id?: string
+              workspaceId?: string
+              teamId?: string
+              email?: string
+              role?: string
+              status?: string
+            }
+          }
+        | null
+      const data = body?.data
+      if (!data || typeof data.id !== 'string') {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: POST invitation response had an invalid shape',
+        )
+      }
+      const resolvedRole: TangleWorkspaceSummary['role'] =
+        data.role === 'owner' || data.role === 'admin' ? data.role : 'member'
+      const status: TangleInvitationSummary['status'] =
+        data.status === 'accepted' || data.status === 'revoked' ? data.status : 'pending'
+      return {
+        id: data.id,
+        workspaceId: data.workspaceId ?? data.teamId ?? workspaceId,
+        email: data.email ?? email,
+        role: resolvedRole,
+        status,
+      }
+    },
+
+    async removeMember(workspaceId, userId) {
+      if (!workspaceId || !userId) {
+        throw new TangleIdentityUnreachableError(
+          'tangle-id: removeMember requires non-empty workspaceId and userId',
+        )
+      }
+      const res = await jsonFetch(
+        `/v1/teams/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'DELETE',
+          headers: s2sHeaders(),
+        },
+      )
+      if (res.status === 401) {
+        throw new CredentialsExpired(
+          'tangle-id: service token rejected on DELETE member',
+          'tangle-id',
+        )
+      }
+      if (res.status === 404) return
+      if (!res.ok) {
+        throw new TangleIdentityUnreachableError(
+          `tangle-id: DELETE /v1/teams/${workspaceId}/members/${userId} returned ${res.status}: ${await readErrorDetail(res)}`,
+          { status: res.status },
+        )
+      }
+    },
+
     async ping(): Promise<boolean> {
       const res = await jsonFetch('/health', { method: 'GET' })
       return res.ok
@@ -652,4 +959,20 @@ function readStringArg(args: Record<string, unknown>, key: string): string {
     throw new Error(`tangle-id: missing required argument "${key}"`)
   }
   return value
+}
+
+function readOptionalStringArg(args: Record<string, unknown>, key: string): string | undefined {
+  const value = args[key]
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'string' || !value) return undefined
+  return value
+}
+
+function readOptionalRole(
+  args: Record<string, unknown>,
+  key: string,
+): TangleWorkspaceSummary['role'] | undefined {
+  const value = args[key]
+  if (value === 'owner' || value === 'admin' || value === 'member') return value
+  return undefined
 }
