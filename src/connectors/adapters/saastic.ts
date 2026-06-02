@@ -92,5 +92,84 @@ export const saasticConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/v1/customers/{email}' },
     },
+    {
+      name: 'customers.update',
+      class: 'mutation',
+      description: 'Update an existing customer profile.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'Customer email address (identifier)' },
+          first_name: { type: 'string', description: 'Customer first name' },
+          last_name: { type: 'string', description: 'Customer last name' },
+          phone: { type: 'string', description: 'Customer phone number' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/v1/customers/{email}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'customers.delete',
+      class: 'mutation',
+      description: 'Delete a customer by email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'Customer email address (identifier)' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/customers/{email}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'charges.refund',
+      class: 'mutation',
+      description: 'Refund an existing charge.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chargeId: { type: 'string', description: 'Charge ID to refund' },
+          amount: { type: 'number', description: 'Optional partial refund amount; omit to refund the full charge.' },
+        },
+        required: ['chargeId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/charges/{chargeId}/refund',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscriptions.cancel',
+      class: 'mutation',
+      description: 'Cancel an active subscription.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriptionId: { type: 'string', description: 'Subscription ID to cancel' },
+        },
+        required: ['subscriptionId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/subscriptions/{subscriptionId}/cancel',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
