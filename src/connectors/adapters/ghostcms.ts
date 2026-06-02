@@ -156,5 +156,82 @@ export const ghostcmsConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'posts.update',
+      class: 'mutation',
+      description: 'Update a Ghost post by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          postId: { type: 'string' },
+          title: { type: 'string' },
+          slug: { type: 'string' },
+          status: { type: 'string', enum: ['draft', 'published', 'scheduled'] },
+          publishedAt: { type: 'string' },
+          html: { type: 'string' },
+          customExcerpt: { type: 'string' },
+          featured: { type: 'boolean' },
+          tags: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['postId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/ghost/api/admin/posts/{postId}/',
+        query: { source: 'html' },
+        body: {
+          posts: [
+            {
+              title: '{title}',
+              slug: '{slug}',
+              status: '{status}',
+              published_at: '{publishedAt}',
+              html: '{html}',
+              custom_excerpt: '{customExcerpt}',
+              featured: '{featured}',
+              tags: '{tags}',
+            },
+          ],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'posts.delete',
+      class: 'mutation',
+      description: 'Delete a Ghost post by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          postId: { type: 'string' },
+        },
+        required: ['postId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/ghost/api/admin/posts/{postId}/',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'members.delete',
+      class: 'mutation',
+      description: 'Delete a Ghost member by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          memberId: { type: 'string' },
+        },
+        required: ['memberId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/ghost/api/admin/members/{memberId}/',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
