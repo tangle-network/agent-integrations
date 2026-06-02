@@ -191,5 +191,87 @@ export const whatConvertsConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'The ID of the lead to delete.' },
+        },
+        required: ['lead_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/leads/{lead_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.qualify',
+      class: 'mutation',
+      description: 'Update qualified/quotable/quote-value fields on an existing lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'The ID of the lead to qualify.' },
+          quotable: { type: 'string', description: 'Indicates if the lead is quotable.' },
+          quote_value: { type: 'number', description: 'The monetary value of the quote associated with the lead.' },
+          quality_score: { type: 'string', description: 'The qualification quality score for the lead.' },
+        },
+        required: ['lead_id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/leads/{lead_id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'accounts.list',
+      class: 'read',
+      description: 'List accounts/profiles.',
+      parameters: {
+        type: 'object',
+        properties: {
+          per_page: { type: 'integer', description: 'Number of accounts to fetch per page.' },
+          page: { type: 'integer', description: 'The page number to retrieve.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/accounts',
+        query: {
+          per_page: '{per_page}',
+          page: '{page}',
+        },
+      },
+    },
+    {
+      name: 'users.list',
+      class: 'read',
+      description: 'List account users.',
+      parameters: {
+        type: 'object',
+        properties: {
+          per_page: { type: 'integer', description: 'Number of users to fetch per page.' },
+          page: { type: 'integer', description: 'The page number to retrieve.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/users',
+        query: {
+          per_page: '{per_page}',
+          page: '{page}',
+        },
+      },
+    },
   ],
 })
