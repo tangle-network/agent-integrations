@@ -178,5 +178,81 @@ export const zagomailConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description: 'Delete a subscriber from Zagomail.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriberUid: { type: 'string', description: 'Unique identifier of the subscriber to delete' },
+        },
+        required: ['subscriberUid'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/subscribers/{subscriberUid}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscribers.unsubscribe',
+      class: 'mutation',
+      description: 'Unsubscribe a subscriber.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriberUid: { type: 'string', description: 'Unique identifier of the subscriber' },
+          reason: { type: 'string', description: 'Optional reason for unsubscribing' },
+        },
+        required: ['subscriberUid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/subscribers/{subscriberUid}/unsubscribe',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tags.delete',
+      class: 'mutation',
+      description: 'Delete a tag from Zagomail.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tagId: { type: 'string', description: 'Unique identifier of the tag to delete' },
+        },
+        required: ['tagId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/tags/{tagId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.send',
+      class: 'mutation',
+      description: 'Send a campaign immediately.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Unique identifier of the campaign to send' },
+          scheduleAt: { type: 'string', description: 'Optional ISO timestamp to schedule the send instead of immediate' },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaignId}/send',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
