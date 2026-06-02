@@ -35,27 +35,32 @@
  *     where the watch notification carries only the responseId.
  *     Read. GET /v1/forms/{formId}/responses/{responseId}.
  *
- * Auth: OAuth2. We request `forms.body.readonly` for the schema and
- * `forms.responses.readonly` for the submissions — both are
- * non-sensitive read scopes that don't trigger Google's restricted-scope
- * verification flow. We deliberately do NOT request `forms.body` (write):
- * creating/mutating a form is a separate connector surface and would
- * upgrade this connector to a restricted scope, which forces the
- * customer's OAuth app through a security review.
+ *   create_form(title, documentTitle?)
+ *     → {formId, info, items, revisionId, responderUri}
+ *     Mutation. POST /v1/forms. Per Forms API, only info.title /
+ *     info.documentTitle may be set at creation; questions are added in
+ *     a follow-up batch_update call.
  *
- * Why no `create_form` / `submit_response`:
- *   - create_form requires the sensitive `forms.body` scope; out of
- *     scope for an ingest connector.
- *   - submit_response: the Forms API has no public endpoint for
- *     programmatic submission; the only path is the public form URL
- *     (formResponse), which the connector framework treats as a
- *     generic webhook, not a Forms-API capability.
+ *   batch_update(formId, requests, includeFormInResponse?, writeControl?)
+ *     → {formId, replies, form?, writeControl?}
+ *     Mutation. POST /v1/forms/{formId}:batchUpdate. The `requests` array
+ *     is passed through unchanged; callers compose Forms `Request`
+ *     objects (createItem / updateFormInfo / moveItem / deleteItem /
+ *     updateItem / updateSettings) directly.
+ *
+ * Auth: OAuth2. Reads use `forms.body.readonly` + `forms.responses.readonly`.
+ * Writes (`create_form`, `batch_update`) use `forms.body`, a Google
+ * "restricted" scope — adding it to the default set upgrades this
+ * connector to Google's security-review path. Submit_response remains
+ * unsupported: the Forms API exposes no programmatic submission endpoint;
+ * the only path is the public formResponse URL (a generic webhook).
  */
 
 import {
   type ConnectorAdapter,
   type ConnectorInvocation,
   type CapabilityReadResult,
+  type CapabilityMutationResult,
   type ConnectorCredentials,
   CredentialsExpired,
 } from '../types.js'
@@ -64,9 +69,16 @@ import {
   refreshAccessToken,
 } from '../oauth.js'
 
+// `forms.body` is a Google "restricted" scope: requesting it forces the
+// OAuth client through Google's security review. Required for create_form
+// and batch_update — there is no read-only mutation surface for Forms.
+const SCOPE_WRITE = 'https://www.googleapis.com/auth/forms.body'
+// Default scopes now include the write scope so fresh OAuth flows grant
+// create_form / batch_update without a second consent round.
 const SCOPES = [
   'https://www.googleapis.com/auth/forms.body.readonly',
   'https://www.googleapis.com/auth/forms.responses.readonly',
+  SCOPE_WRITE,
 ]
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -169,6 +181,63 @@ export function googleForms(opts: GoogleFormsOptions): ConnectorAdapter {
             required: ['formId', 'responseId'],
           },
         },
+        {
+          name: 'create_form',
+          class: 'mutation',
+          description:
+            "Create a new Google Form. Returns the freshly-created Form resource (formId, info, revisionId, responderUri). Only info.title/documentTitle are accepted at creation time per Forms API; use batch_update afterwards to add items.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              title: {
+                type: 'string',
+                description: 'Form title shown above the questions (info.title).',
+              },
+              documentTitle: {
+                type: 'string',
+                description:
+                  'Drive document title (info.documentTitle). Defaults to `title` when omitted.',
+              },
+            },
+            required: ['title'],
+          },
+        },
+        {
+          name: 'batch_update',
+          class: 'mutation',
+          description:
+            "Apply a batch of Forms `Request` objects to an existing form (add items, update info, move/delete items, etc.). The `requests` array is passed through unchanged to the Forms API — see Google's Forms batchUpdate request reference.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              formId: { type: 'string' },
+              requests: {
+                type: 'array',
+                description:
+                  'Array of Forms `Request` objects passed through to the batchUpdate endpoint.',
+                items: { type: 'object' },
+              },
+              includeFormInResponse: {
+                type: 'boolean',
+                default: false,
+                description:
+                  'When true, the response body includes the updated Form resource at `form`.',
+              },
+              writeControl: {
+                type: 'object',
+                description:
+                  "Optional Forms WriteControl object (e.g. `{requiredRevisionId: 'rev_1'}`) to guard against concurrent edits.",
+              },
+            },
+            required: ['formId', 'requests'],
+          },
+        },
       ],
     },
 
@@ -178,6 +247,13 @@ export function googleForms(opts: GoogleFormsOptions): ConnectorAdapter {
       if (inv.capabilityName === 'list_responses') return listResponses(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'get_response') return getResponse(inv, accessToken, timeoutMs)
       throw new Error(`google-forms: unknown read capability ${inv.capabilityName}`)
+    },
+
+    async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
+      const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
+      if (inv.capabilityName === 'create_form') return createForm(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'batch_update') return batchUpdate(inv, accessToken, timeoutMs)
+      throw new Error(`google-forms: unknown mutation capability ${inv.capabilityName}`)
     },
 
     async exchangeOAuth(input) {
@@ -417,6 +493,105 @@ async function getResponse(
       raw: r,
     },
     fetchedAt: Date.now(),
+  }
+}
+
+async function createForm(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { title, documentTitle } = (inv.args ?? {}) as {
+    title?: string
+    documentTitle?: string
+  }
+  if (!title) throw new Error('google-forms create_form: title is required')
+
+  const info: { title: string; documentTitle?: string } = { title }
+  if (documentTitle) info.documentTitle = documentTitle
+
+  const res = await fetch(`${API}/forms`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ info }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-forms create_form ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const form = (await res.json()) as FormsForm
+  return {
+    status: 'committed',
+    data: {
+      formId: form.formId,
+      info: form.info ?? {},
+      items: form.items ?? [],
+      revisionId: form.revisionId,
+      responderUri: form.responderUri,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function batchUpdate(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { formId, requests, includeFormInResponse, writeControl } = (inv.args ?? {}) as {
+    formId?: string
+    requests?: unknown[]
+    includeFormInResponse?: boolean
+    writeControl?: Record<string, unknown>
+  }
+  if (!formId) throw new Error('google-forms batch_update: formId is required')
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new Error('google-forms batch_update: requests is required (non-empty array)')
+  }
+
+  const body: Record<string, unknown> = { requests }
+  if (typeof includeFormInResponse === 'boolean') body.includeFormInResponse = includeFormInResponse
+  if (writeControl) body.writeControl = writeControl
+
+  const res = await fetch(`${API}/forms/${encodeURIComponent(formId)}:batchUpdate`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-forms batch_update ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    form?: FormsForm
+    replies?: unknown[]
+    writeControl?: Record<string, unknown>
+  }
+  return {
+    status: 'committed',
+    data: {
+      formId,
+      replies: json.replies ?? [],
+      form: json.form,
+      writeControl: json.writeControl,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
   }
 }
 

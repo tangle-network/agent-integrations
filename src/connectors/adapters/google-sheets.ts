@@ -126,6 +126,60 @@ export function googleSheets(opts: GoogleSheetsOptions): ConnectorAdapter {
           required: ['rowKey', 'patch'],
         },
       },
+      {
+        name: 'append_row',
+        class: 'mutation',
+        description: 'Append rows to the end of `range` in `spreadsheetId`. `values` is a 2D array (rows × cells). `valueInputOption` defaults to USER_ENTERED so formulas + dates are parsed like a human-typed entry.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            spreadsheetId: { type: 'string' },
+            range: { type: 'string', description: 'A1 notation, e.g. "Sheet1!A1:C1".' },
+            values: {
+              type: 'array',
+              items: { type: 'array', items: { type: 'string' } },
+              description: '2D array of cells; one inner array per appended row.',
+            },
+            valueInputOption: {
+              type: 'string',
+              enum: ['RAW', 'USER_ENTERED'],
+              default: 'USER_ENTERED',
+            },
+          },
+          required: ['spreadsheetId', 'range', 'values'],
+        },
+      },
+      {
+        name: 'clear_range',
+        class: 'mutation',
+        description: 'Clear all cell values in `range` (formatting is preserved).',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            spreadsheetId: { type: 'string' },
+            range: { type: 'string', description: 'A1 notation of the range to clear.' },
+          },
+          required: ['spreadsheetId', 'range'],
+        },
+      },
+      {
+        name: 'create_sheet',
+        class: 'mutation',
+        description: 'Create a brand-new spreadsheet (workbook). Returns the new spreadsheetId. To add an additional tab inside an existing spreadsheet use the batchUpdate addSheet request (not modeled here).',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Workbook title shown in Drive.' },
+          },
+          required: ['title'],
+        },
+      },
     ],
   },
 
@@ -154,71 +208,12 @@ export function googleSheets(opts: GoogleSheetsOptions): ConnectorAdapter {
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-    if (inv.capabilityName !== 'update_row') {
-      throw new Error(`google-sheets: unknown mutation ${inv.capabilityName}`)
-    }
-    const meta = readSheetMeta(inv.source.metadata)
-    const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
-    const { rowKey, patch, expectedFingerprint } = inv.args as {
-      rowKey: string
-      patch: Record<string, string>
-      expectedFingerprint?: string
-    }
-
-    // Pre-flight: read the row, compute fingerprint, compare.
-    const rows = await fetchAllRows(accessToken, meta)
-    const target = rows.find(r => normalizeKey(r.values[meta.keyColumn]) === normalizeKey(rowKey))
-    if (!target) {
-      throw new ResourceContention(
-        `row with key "${rowKey}" not found`,
-        [],
-        { availableRows: rows.length },
-      )
-    }
-    if (expectedFingerprint && expectedFingerprint !== target.fingerprint) {
-      throw new ResourceContention(
-        `row "${rowKey}" was modified since the agent last read it; re-read and try again`,
-        [],
-        { current: target.values, currentFingerprint: target.fingerprint },
-      )
-    }
-
-    // Build the new row preserving column order.
-    const updatedValues: string[] = meta.headers.map(h =>
-      h in patch ? String(patch[h]) : (target.values[h] ?? ''),
-    )
-    const range = `${meta.sheetName}!A${target.rowIndex + 1}:${columnIndexToLetter(meta.headers.length - 1)}${target.rowIndex + 1}`
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(meta.spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ values: [updatedValues] }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (res.status === 401 || res.status === 403) {
-      throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`google-sheets update_row ${res.status}: ${text.slice(0, 200)}`)
-    }
-    const updatedValuesByHeader = Object.fromEntries(
-      meta.headers.map((h, i) => [h, updatedValues[i] ?? '']),
-    )
-    return {
-      status: 'committed',
-      data: {
-        row: updatedValuesByHeader,
-        fingerprint: rowFingerprint(updatedValuesByHeader),
-        updatedRange: range,
-      },
-      etagAfter: rowFingerprint(updatedValuesByHeader),
-      committedAt: Date.now(),
-      idempotentReplay: false,
-    }
+    const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
+    if (inv.capabilityName === 'update_row') return updateRow(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'append_row') return appendRow(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'clear_range') return clearRange(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'create_sheet') return createSheet(inv, accessToken, 15_000)
+    throw new Error(`google-sheets: unknown mutation ${inv.capabilityName}`)
   },
 
   async exchangeOAuth(input) {
@@ -399,7 +394,12 @@ function columnIndexToLetter(idx: number): string {
   return s
 }
 
-async function ensureFreshAccessToken(creds: ConnectorCredentials, clientId: string, clientSecret: string): Promise<string> {
+async function ensureFreshAccessToken(
+  creds: ConnectorCredentials,
+  clientId: string,
+  clientSecret: string,
+  onCredentialsRotated?: (credentials: ConnectorCredentials) => void,
+): Promise<string> {
   if (creds.kind !== 'oauth2') {
     throw new Error('google-sheets: expected oauth2 credentials')
   }
@@ -418,5 +418,224 @@ async function ensureFreshAccessToken(creds: ConnectorCredentials, clientId: str
   creds.accessToken = refreshed.accessToken
   creds.expiresAt = refreshed.expiresIn ? Date.now() + refreshed.expiresIn * 1000 : undefined
   if (refreshed.refreshToken) creds.refreshToken = refreshed.refreshToken
+  onCredentialsRotated?.({
+    kind: 'oauth2',
+    accessToken: creds.accessToken,
+    refreshToken: creds.refreshToken,
+    expiresAt: creds.expiresAt,
+  })
   return creds.accessToken
+}
+
+async function updateRow(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const meta = readSheetMeta(inv.source.metadata)
+  const { rowKey, patch, expectedFingerprint } = inv.args as {
+    rowKey: string
+    patch: Record<string, string>
+    expectedFingerprint?: string
+  }
+
+  // Pre-flight: read the row, compute fingerprint, compare.
+  const rows = await fetchAllRows(accessToken, meta)
+  const target = rows.find(r => normalizeKey(r.values[meta.keyColumn]) === normalizeKey(rowKey))
+  if (!target) {
+    throw new ResourceContention(
+      `row with key "${rowKey}" not found`,
+      [],
+      { availableRows: rows.length },
+    )
+  }
+  if (expectedFingerprint && expectedFingerprint !== target.fingerprint) {
+    throw new ResourceContention(
+      `row "${rowKey}" was modified since the agent last read it; re-read and try again`,
+      [],
+      { current: target.values, currentFingerprint: target.fingerprint },
+    )
+  }
+
+  // Build the new row preserving column order.
+  const updatedValues: string[] = meta.headers.map(h =>
+    h in patch ? String(patch[h]) : (target.values[h] ?? ''),
+  )
+  const range = `${meta.sheetName}!A${target.rowIndex + 1}:${columnIndexToLetter(meta.headers.length - 1)}${target.rowIndex + 1}`
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(meta.spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ values: [updatedValues] }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-sheets update_row ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const updatedValuesByHeader = Object.fromEntries(
+    meta.headers.map((h, i) => [h, updatedValues[i] ?? '']),
+  )
+  return {
+    status: 'committed',
+    data: {
+      row: updatedValuesByHeader,
+      fingerprint: rowFingerprint(updatedValuesByHeader),
+      updatedRange: range,
+    },
+    etagAfter: rowFingerprint(updatedValuesByHeader),
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function appendRow(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    spreadsheetId?: string
+    range?: string
+    values?: unknown
+    valueInputOption?: string
+  }
+  if (!args.spreadsheetId) throw new Error('google-sheets append_row: `spreadsheetId` is required')
+  if (!args.range) throw new Error('google-sheets append_row: `range` is required')
+  if (!Array.isArray(args.values) || args.values.length === 0) {
+    throw new Error('google-sheets append_row: `values` is required (non-empty 2D array)')
+  }
+  const valueInputOption = args.valueInputOption ?? 'USER_ENTERED'
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(args.spreadsheetId)}` +
+    `/values/${encodeURIComponent(args.range)}:append` +
+    `?valueInputOption=${encodeURIComponent(valueInputOption)}&insertDataOption=INSERT_ROWS`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ values: args.values }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-sheets append_row ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    spreadsheetId?: string
+    tableRange?: string
+    updates?: {
+      updatedRange?: string
+      updatedRows?: number
+      updatedColumns?: number
+      updatedCells?: number
+    }
+  }
+  return {
+    status: 'committed',
+    data: {
+      spreadsheetId: json.spreadsheetId ?? args.spreadsheetId,
+      tableRange: json.tableRange,
+      updatedRange: json.updates?.updatedRange,
+      updatedRows: json.updates?.updatedRows ?? 0,
+      updatedColumns: json.updates?.updatedColumns ?? 0,
+      updatedCells: json.updates?.updatedCells ?? 0,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function clearRange(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as { spreadsheetId?: string; range?: string }
+  if (!args.spreadsheetId) throw new Error('google-sheets clear_range: `spreadsheetId` is required')
+  if (!args.range) throw new Error('google-sheets clear_range: `range` is required')
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(args.spreadsheetId)}` +
+    `/values/${encodeURIComponent(args.range)}:clear`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: '{}',
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-sheets clear_range ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    spreadsheetId?: string
+    clearedRange?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      spreadsheetId: json.spreadsheetId ?? args.spreadsheetId,
+      clearedRange: json.clearedRange ?? args.range,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createSheet(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as { title?: string }
+  if (!args.title) throw new Error('google-sheets create_sheet: `title` is required')
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets'
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ properties: { title: args.title } }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-sheets create_sheet ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    spreadsheetId: string
+    spreadsheetUrl?: string
+    properties?: { title?: string }
+  }
+  return {
+    status: 'committed',
+    data: {
+      spreadsheetId: json.spreadsheetId,
+      spreadsheetUrl: json.spreadsheetUrl,
+      title: json.properties?.title ?? args.title,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
 }

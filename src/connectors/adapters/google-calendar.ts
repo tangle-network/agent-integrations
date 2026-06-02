@@ -52,9 +52,18 @@ import {
   refreshAccessToken,
 } from '../oauth.js'
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar']
+// `/auth/calendar` is the legacy broad scope (covers calendars + events).
+// `/auth/calendar.events` is the fine-grained equivalent for the event-CRUD
+// surface (create/get/list/patch/delete on events). We request both so a
+// fresh OAuth grant lands the narrow scope alongside the broad one — when
+// Google promotes the narrow scope to required for unverified apps, existing
+// connections that reconnect will already have it.
+const SCOPE_CALENDAR = 'https://www.googleapis.com/auth/calendar'
+const SCOPE_WRITE = 'https://www.googleapis.com/auth/calendar.events'
+const SCOPES = [SCOPE_CALENDAR, SCOPE_WRITE]
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
+const CAL_API = 'https://www.googleapis.com/calendar/v3'
 
 /** OAuth client config the factory closes over. Caller resolves these
  *  at construction time (env, DB, secret manager — package doesn't care). */
@@ -125,24 +134,144 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
           required: ['start', 'end', 'summary'],
         },
       },
+      {
+        name: 'create_event',
+        class: 'mutation',
+        description:
+          "Create an event on the connected calendar without freebusy pre-flight. Use book_slot when the caller wants conflict-detection; use create_event when the caller already owns the slot decision (e.g. user-driven booking flows).",
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            start: { type: 'string', description: 'RFC3339 start time' },
+            end: { type: 'string', description: 'RFC3339 end time' },
+            summary: { type: 'string', description: 'Event title shown on the calendar' },
+            description: { type: 'string', description: 'Optional event description' },
+            location: { type: 'string', description: 'Optional event location' },
+            attendees: {
+              type: 'array',
+              items: { type: 'string', description: 'email' },
+            },
+            sendUpdates: {
+              type: 'string',
+              enum: ['all', 'externalOnly', 'none'],
+              default: 'none',
+              description: 'Whether Google sends invite emails to attendees.',
+            },
+          },
+          required: ['start', 'end', 'summary'],
+        },
+      },
+      {
+        name: 'update_event',
+        class: 'mutation',
+        description:
+          "Patch an existing event by id. Only the supplied fields are updated (PATCH semantics).",
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            eventId: { type: 'string' },
+            start: { type: 'string', description: 'RFC3339 start time' },
+            end: { type: 'string', description: 'RFC3339 end time' },
+            summary: { type: 'string' },
+            description: { type: 'string' },
+            location: { type: 'string' },
+            attendees: {
+              type: 'array',
+              items: { type: 'string', description: 'email' },
+            },
+            sendUpdates: {
+              type: 'string',
+              enum: ['all', 'externalOnly', 'none'],
+              default: 'none',
+            },
+          },
+          required: ['eventId'],
+        },
+      },
+      {
+        name: 'delete_event',
+        class: 'mutation',
+        description:
+          "Delete an event by id. Returns {ok:true} on success; treats 404 and 410 (already-deleted) as idempotent success.",
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            eventId: { type: 'string' },
+            sendUpdates: {
+              type: 'string',
+              enum: ['all', 'externalOnly', 'none'],
+              default: 'none',
+            },
+          },
+          required: ['eventId'],
+        },
+      },
+      {
+        name: 'get_event',
+        class: 'read',
+        description:
+          'Fetch a single event by id, including iCal-style fields (htmlLink, hangoutLink, attendees, status, etag).',
+        requiredScopes: [SCOPE_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            eventId: { type: 'string' },
+          },
+          required: ['eventId'],
+        },
+      },
+      {
+        name: 'list_events',
+        class: 'read',
+        description:
+          "List events between timeMin and timeMax (RFC3339). Optional free-text search (`q`) and maxResults paging. Returns ordered items + nextPageToken.",
+        requiredScopes: [SCOPE_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            timeMin: { type: 'string', description: 'RFC3339 lower bound (inclusive)' },
+            timeMax: { type: 'string', description: 'RFC3339 upper bound (exclusive)' },
+            q: { type: 'string', description: 'Free-text search query (summary, description, location, attendees).' },
+            maxResults: { type: 'integer', minimum: 1, maximum: 2500, default: 50 },
+            pageToken: { type: 'string' },
+            singleEvents: { type: 'boolean', default: true, description: 'Expand recurring events.' },
+            orderBy: { type: 'string', enum: ['startTime', 'updated'], default: 'startTime' },
+          },
+        },
+      },
     ],
   },
 
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
-    if (inv.capabilityName !== 'list_availability') {
-      throw new Error(`google-calendar: unknown read capability ${inv.capabilityName}`)
-    }
-    const calendarId = readMetaString(inv.source.metadata, 'calendarId')
-    const { timeMin, timeMax } = inv.args as { timeMin: string; timeMax: string }
     const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
-    const fb = await freebusyQuery({ accessToken, calendarId, timeMin, timeMax })
-    return {
-      data: { busy: fb.busy },
-      fetchedAt: Date.now(),
+    if (inv.capabilityName === 'list_availability') {
+      const calendarId = readMetaString(inv.source.metadata, 'calendarId')
+      const { timeMin, timeMax } = inv.args as { timeMin: string; timeMax: string }
+      const fb = await freebusyQuery({ accessToken, calendarId, timeMin, timeMax })
+      return {
+        data: { busy: fb.busy },
+        fetchedAt: Date.now(),
+      }
     }
+    if (inv.capabilityName === 'get_event') return getEvent(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'list_events') return listEvents(inv, accessToken, 15_000)
+    throw new Error(`google-calendar: unknown read capability ${inv.capabilityName}`)
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
+    const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
+    if (inv.capabilityName === 'create_event') return createEvent(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'update_event') return updateEvent(inv, accessToken, 15_000)
+    if (inv.capabilityName === 'delete_event') return deleteEvent(inv, accessToken, 15_000)
     if (inv.capabilityName !== 'book_slot') {
       throw new Error(`google-calendar: unknown mutation capability ${inv.capabilityName}`)
     }
@@ -154,7 +283,6 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
       description?: string
       attendees?: string[]
     }
-    const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
 
     // Pre-flight: is the requested window busy?
     const fb = await freebusyQuery({ accessToken, calendarId, timeMin: start, timeMax: end })
@@ -289,6 +417,276 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
   },
   }
   return adapter
+}
+
+/** Resolve calendarId for the event-CRUD capabilities. Unlike the
+ *  legacy `book_slot` / `list_availability` pair (which require
+ *  metadata.calendarId), these accept the id in args and fall back to
+ *  metadata, then to `'primary'`. */
+function resolveCalendarId(inv: ConnectorInvocation): string {
+  const fromArgs = (inv.args as { calendarId?: unknown } | undefined)?.calendarId
+  if (typeof fromArgs === 'string' && fromArgs.length > 0) return fromArgs
+  const fromMeta = inv.source.metadata?.calendarId
+  if (typeof fromMeta === 'string' && fromMeta.length > 0) return fromMeta
+  return 'primary'
+}
+
+async function createEvent(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    start?: string
+    end?: string
+    summary?: string
+    description?: string
+    location?: string
+    attendees?: string[]
+    sendUpdates?: 'all' | 'externalOnly' | 'none'
+  }
+  if (!args.start) throw new Error('google-calendar create_event: `start` is required')
+  if (!args.end) throw new Error('google-calendar create_event: `end` is required')
+  if (!args.summary) throw new Error('google-calendar create_event: `summary` is required')
+
+  const calendarId = resolveCalendarId(inv)
+  // requestId == idempotencyKey gives upstream-side dedup.
+  // Calendar requires ≤1024 chars and ASCII.
+  const requestId = inv.idempotencyKey.replace(/[^a-zA-Z0-9_:.-]/g, '_').slice(0, 1024)
+  const sendUpdates = args.sendUpdates ?? 'none'
+  const event: Record<string, unknown> = {
+    summary: args.summary,
+    description: args.description,
+    location: args.location,
+    start: { dateTime: args.start },
+    end: { dateTime: args.end },
+  }
+  if (args.attendees?.length) {
+    event.attendees = args.attendees.map((email) => ({ email }))
+  }
+
+  const url = `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${encodeURIComponent(sendUpdates)}&requestId=${encodeURIComponent(requestId)}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(event),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-calendar create_event ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const created = (await res.json()) as {
+    id: string
+    etag: string
+    htmlLink?: string
+    hangoutLink?: string
+    status?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      eventId: created.id,
+      htmlLink: created.htmlLink,
+      hangoutLink: created.hangoutLink,
+      eventStatus: created.status,
+    },
+    etagAfter: created.etag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function updateEvent(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    eventId?: string
+    start?: string
+    end?: string
+    summary?: string
+    description?: string
+    location?: string
+    attendees?: string[]
+    sendUpdates?: 'all' | 'externalOnly' | 'none'
+  }
+  if (!args.eventId) throw new Error('google-calendar update_event: `eventId` is required')
+
+  const calendarId = resolveCalendarId(inv)
+  const sendUpdates = args.sendUpdates ?? 'none'
+  // PATCH semantics — only include fields the caller supplied so we don't
+  // clobber server-side state.
+  const patch: Record<string, unknown> = {}
+  if (args.summary !== undefined) patch.summary = args.summary
+  if (args.description !== undefined) patch.description = args.description
+  if (args.location !== undefined) patch.location = args.location
+  if (args.start !== undefined) patch.start = { dateTime: args.start }
+  if (args.end !== undefined) patch.end = { dateTime: args.end }
+  if (args.attendees !== undefined) {
+    patch.attendees = args.attendees.map((email) => ({ email }))
+  }
+
+  const url = `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(args.eventId)}?sendUpdates=${encodeURIComponent(sendUpdates)}`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(patch),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-calendar update_event ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const updated = (await res.json()) as {
+    id: string
+    etag: string
+    htmlLink?: string
+    status?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      eventId: updated.id,
+      htmlLink: updated.htmlLink,
+      eventStatus: updated.status,
+    },
+    etagAfter: updated.etag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function deleteEvent(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = inv.args as {
+    eventId?: string
+    sendUpdates?: 'all' | 'externalOnly' | 'none'
+  }
+  if (!args.eventId) throw new Error('google-calendar delete_event: `eventId` is required')
+
+  const calendarId = resolveCalendarId(inv)
+  const sendUpdates = args.sendUpdates ?? 'none'
+  const url = `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(args.eventId)}?sendUpdates=${encodeURIComponent(sendUpdates)}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
+  }
+  // 404 = already gone, 410 = "resource has been deleted" — both are
+  // idempotent success from the caller's perspective.
+  const idempotent = res.status === 404 || res.status === 410
+  if (!res.ok && !idempotent) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-calendar delete_event ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: { ok: true, eventId: args.eventId },
+    committedAt: Date.now(),
+    idempotentReplay: idempotent,
+  }
+}
+
+async function getEvent(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityReadResult> {
+  const args = inv.args as { eventId?: string }
+  if (!args.eventId) throw new Error('google-calendar get_event: `eventId` is required')
+
+  const calendarId = resolveCalendarId(inv)
+  const url = `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(args.eventId)}`
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-calendar get_event ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const event = (await res.json()) as Record<string, unknown>
+  return {
+    data: event,
+    fetchedAt: Date.now(),
+  }
+}
+
+async function listEvents(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityReadResult> {
+  const args = (inv.args ?? {}) as {
+    timeMin?: string
+    timeMax?: string
+    q?: string
+    maxResults?: number
+    pageToken?: string
+    singleEvents?: boolean
+    orderBy?: 'startTime' | 'updated'
+  }
+  const calendarId = resolveCalendarId(inv)
+  const params = new URLSearchParams()
+  params.set('maxResults', String(args.maxResults ?? 50))
+  params.set('singleEvents', String(args.singleEvents ?? true))
+  // Calendar requires singleEvents=true when ordering by startTime; default
+  // to startTime when singleEvents is true (or unspecified), else updated.
+  const wantStartTime = args.orderBy === 'startTime' || (args.orderBy === undefined && (args.singleEvents ?? true))
+  params.set('orderBy', wantStartTime ? 'startTime' : (args.orderBy ?? 'updated'))
+  if (args.timeMin) params.set('timeMin', args.timeMin)
+  if (args.timeMax) params.set('timeMax', args.timeMax)
+  if (args.q) params.set('q', args.q)
+  if (args.pageToken) params.set('pageToken', args.pageToken)
+
+  const url = `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-calendar list_events ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    items?: Array<Record<string, unknown>>
+    nextPageToken?: string
+    nextSyncToken?: string
+  }
+  return {
+    data: {
+      items: json.items ?? [],
+      nextPageToken: json.nextPageToken,
+      nextSyncToken: json.nextSyncToken,
+    },
+    fetchedAt: Date.now(),
+  }
 }
 
 interface FreeBusyResult {
