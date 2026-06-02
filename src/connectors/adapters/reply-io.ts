@@ -229,5 +229,85 @@ export const replyIoConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'campaigns.list',
+      class: 'read',
+      description: 'List campaigns visible to the authenticated account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          state: { type: 'string', description: 'Optional campaign state filter (e.g. active, paused, new).' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/campaigns',
+        query: { state: '{state}' },
+      },
+    },
+    {
+      name: 'campaigns.start',
+      class: 'mutation',
+      description: 'Start (or resume) a campaign by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Campaign id to start.' },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaignId}/start',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.pause',
+      class: 'mutation',
+      description: 'Pause a running campaign by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Campaign id to pause.' },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaignId}/pause',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.create',
+      class: 'mutation',
+      description: 'Create a reusable email template.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Template name.' },
+          subject: { type: 'string', description: 'Email subject.' },
+          body: { type: 'string', description: 'Email body (HTML or text).' },
+        },
+        required: ['name', 'subject', 'body'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emailTemplates',
+        body: {
+          name: '{name}',
+          subject: '{subject}',
+          body: '{body}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
