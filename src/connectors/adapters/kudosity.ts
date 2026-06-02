@@ -23,10 +23,6 @@ export const kudosityConnector = declarativeRestConnector({
           listId: { type: 'string', description: 'Numeric ID of the recipient list.' },
           msisdn: { type: 'string', description: 'Phone number in E.164 (e.g., +1234567890).' },
           email: { type: 'string' },
-          firstName: { type: 'string' },
-          lastName: { type: 'string' },
-          phone: { type: 'string' },
-          customFields: { type: 'object' },
         },
         required: ['listId', 'msisdn', 'email'],
       },
@@ -37,13 +33,59 @@ export const kudosityConnector = declarativeRestConnector({
           list_id: '{listId}',
           msisdn: '{msisdn}',
           email: '{email}',
-          first_name: '{firstName}',
-          last_name: '{lastName}',
-          phone: '{phone}',
-          custom_fields: '{customFields}',
         },
       },
       cas: 'native-idempotency',
+    },
+    {
+      name: 'contact.create',
+      class: 'mutation',
+      description:
+        'Create a contact on a Kudosity recipient list. Kudosity upserts by msisdn, so re-issuing with the same number updates the record in place.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string', description: 'Numeric ID of the recipient list.' },
+          msisdn: { type: 'string', description: 'Phone number in E.164 format.' },
+          email: { type: 'string' },
+        },
+        required: ['listId', 'msisdn', 'email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/add-to-list.json',
+        body: {
+          list_id: '{listId}',
+          msisdn: '{msisdn}',
+          email: '{email}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contact.update',
+      class: 'mutation',
+      description:
+        'Update an existing contact on a Kudosity recipient list, matched by msisdn. Backed by the same add-to-list upsert endpoint.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string', description: 'Numeric ID of the recipient list the contact belongs to.' },
+          msisdn: { type: 'string', description: 'Phone number in E.164 identifying the existing contact.' },
+        },
+        required: ['listId', 'msisdn'],
+      },
+      request: {
+        method: 'POST',
+        path: '/add-to-list.json',
+        body: {
+          list_id: '{listId}',
+          msisdn: '{msisdn}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'contact.delete',
