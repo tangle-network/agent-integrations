@@ -54,9 +54,14 @@ import {
 
 const SCOPES_READONLY = ['https://www.googleapis.com/auth/drive.readonly']
 const SCOPE_WATCH = 'https://www.googleapis.com/auth/drive'
+// Per-file write scope: lets the connector create/modify/delete only files it
+// created or that were explicitly shared with the app — strictly narrower
+// than SCOPE_WATCH, which is full-Drive read+write.
+const SCOPE_WRITE = 'https://www.googleapis.com/auth/drive.file'
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API = 'https://www.googleapis.com/drive/v3'
+const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3'
 
 /** OAuth client config the factory closes over. */
 export interface GoogleDriveOptions {
@@ -73,7 +78,12 @@ export interface GoogleDriveOptions {
 export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
   const { clientId, clientSecret } = opts
   const timeoutMs = opts.timeoutMs ?? 30_000
-  const scopes = opts.includeWatchScope ? [...SCOPES_READONLY, SCOPE_WATCH] : SCOPES_READONLY
+  // Default scopes now include drive.file so fresh OAuth grants pick up the
+  // narrow per-file write permission required by upload/create/delete/move.
+  // Read paths still work under drive.readonly; watch_folder still needs the
+  // broader `drive` scope and is gated per-capability via requiredScopes.
+  const base = [...SCOPES_READONLY, SCOPE_WRITE]
+  const scopes = opts.includeWatchScope ? [...base, SCOPE_WATCH] : base
   const adapter: ConnectorAdapter = {
     manifest: {
       kind: 'google-drive',
@@ -145,6 +155,77 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
             required: ['folderId', 'channelId', 'address'],
           },
         },
+        {
+          name: 'upload_file',
+          class: 'mutation',
+          description:
+            "Upload a file to Drive via multipart upload. `content` is the file body; set `encoding='base64'` for binary payloads. Optional `parents` places the file in a specific folder.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'File name including extension.' },
+              mimeType: { type: 'string', description: "MIME type. Defaults to 'application/octet-stream'." },
+              parents: { type: 'array', items: { type: 'string' }, description: 'Parent folder ids.' },
+              content: { type: 'string', description: 'File contents. Decoded per `encoding`.' },
+              encoding: { type: 'string', enum: ['utf-8', 'base64'], default: 'utf-8' },
+            },
+            required: ['name', 'content'],
+          },
+        },
+        {
+          name: 'create_folder',
+          class: 'mutation',
+          description:
+            "Create a folder in Drive. Optionally nest under `parents`. Returns the new folder's id.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              parents: { type: 'array', items: { type: 'string' }, description: 'Parent folder ids.' },
+            },
+            required: ['name'],
+          },
+        },
+        {
+          name: 'delete_file',
+          class: 'mutation',
+          description:
+            "Permanently delete a file or folder by id. Bypasses trash — the operation is irreversible.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              fileId: { type: 'string' },
+            },
+            required: ['fileId'],
+          },
+        },
+        {
+          name: 'move_file',
+          class: 'mutation',
+          description:
+            "Move a file/folder by changing its parents. Removes `removeParents` and adds `addParents` in a single PATCH. At least one of removeParents/addParents is required.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              fileId: { type: 'string' },
+              addParents: { type: 'array', items: { type: 'string' } },
+              removeParents: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['fileId'],
+          },
+        },
       ],
     },
 
@@ -156,11 +237,13 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
     },
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-      if (inv.capabilityName !== 'watch_folder') {
-        throw new Error(`google-drive: unknown mutation capability ${inv.capabilityName}`)
-      }
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
-      return watchFolder(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'watch_folder') return watchFolder(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'upload_file') return uploadFile(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'create_folder') return createFolder(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'delete_file') return deleteFile(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'move_file') return moveFile(inv, accessToken, timeoutMs)
+      throw new Error(`google-drive: unknown mutation capability ${inv.capabilityName}`)
     },
 
     async exchangeOAuth(input) {
@@ -391,6 +474,219 @@ async function watchFolder(
   return {
     status: 'committed',
     data: { channelId: json.id, resourceId: json.resourceId, expiration: json.expiration },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function uploadFile(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    name?: string
+    mimeType?: string
+    parents?: string[]
+    content?: string
+    encoding?: 'utf-8' | 'base64'
+  }
+  if (!args.name) throw new Error('google-drive upload_file: `name` is required')
+  if (args.content === undefined || args.content === null) {
+    throw new Error('google-drive upload_file: `content` is required')
+  }
+  const mimeType = args.mimeType ?? 'application/octet-stream'
+  const metadata: Record<string, unknown> = { name: args.name, mimeType }
+  if (args.parents?.length) metadata.parents = args.parents
+
+  const boundary = `tangle-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const encoding = args.encoding ?? 'utf-8'
+  const bodyBytes = encoding === 'base64'
+    ? Buffer.from(args.content, 'base64')
+    : Buffer.from(args.content, 'utf-8')
+
+  // multipart/related: JSON metadata part + raw bytes part. We use a binary
+  // body so the bytes survive untransformed; Buffer.concat handles both UTF-8
+  // and binary uniformly.
+  const head = Buffer.from(
+    `--${boundary}\r\n` +
+      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+      `${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: ${mimeType}\r\n\r\n`,
+    'utf-8',
+  )
+  const tail = Buffer.from(`\r\n--${boundary}--`, 'utf-8')
+  const body = Buffer.concat([head, bodyBytes, tail])
+
+  const res = await fetch(`${UPLOAD_API}/files?uploadType=multipart&fields=id,name,mimeType,parents,modifiedTime,size,md5Checksum`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-drive upload_file ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    name: string
+    mimeType: string
+    parents?: string[]
+    modifiedTime?: string
+    size?: string
+    md5Checksum?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      mimeType: json.mimeType,
+      parents: json.parents ?? [],
+      modifiedTime: json.modifiedTime,
+      size: json.size,
+      md5Checksum: json.md5Checksum,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createFolder(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as { name?: string; parents?: string[] }
+  if (!args.name) throw new Error('google-drive create_folder: `name` is required')
+  const body: Record<string, unknown> = {
+    name: args.name,
+    mimeType: 'application/vnd.google-apps.folder',
+  }
+  if (args.parents?.length) body.parents = args.parents
+  const res = await fetch(`${API}/files?fields=id,name,mimeType,parents,modifiedTime`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-drive create_folder ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    name: string
+    mimeType: string
+    parents?: string[]
+    modifiedTime?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      mimeType: json.mimeType,
+      parents: json.parents ?? [],
+      modifiedTime: json.modifiedTime,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function deleteFile(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as { fileId?: string }
+  if (!args.fileId) throw new Error('google-drive delete_file: `fileId` is required')
+  const res = await fetch(`${API}/files/${encodeURIComponent(args.fileId)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
+  }
+  // Drive returns 204 No Content on success.
+  if (!res.ok && res.status !== 204) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-drive delete_file ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: { fileId: args.fileId, deleted: true },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function moveFile(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    fileId?: string
+    addParents?: string[]
+    removeParents?: string[]
+  }
+  if (!args.fileId) throw new Error('google-drive move_file: `fileId` is required')
+  if (!args.addParents?.length && !args.removeParents?.length) {
+    throw new Error('google-drive move_file: at least one of `addParents` or `removeParents` is required')
+  }
+  const params = new URLSearchParams({ fields: 'id,name,parents,modifiedTime' })
+  if (args.addParents?.length) params.set('addParents', args.addParents.join(','))
+  if (args.removeParents?.length) params.set('removeParents', args.removeParents.join(','))
+  const res = await fetch(`${API}/files/${encodeURIComponent(args.fileId)}?${params.toString()}`, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    // Empty body — the parent changes ride on the query string per the
+    // files.update contract; we still send {} so the server gets a valid
+    // JSON document.
+    body: '{}',
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-drive move_file ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    name: string
+    parents?: string[]
+    modifiedTime?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      parents: json.parents ?? [],
+      modifiedTime: json.modifiedTime,
+    },
     committedAt: Date.now(),
     idempotentReplay: false,
   }
