@@ -68,5 +68,65 @@ export const contiguityConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'sms.send',
+      class: 'mutation',
+      description: 'Send a transactional SMS. Canonical alias for messages.send_text exposed under the cross-connector send-SMS verb.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Recipient phone number in E.164 format' },
+          from: { type: 'string', description: 'Sender phone number (optional)' },
+          message: { type: 'string', description: 'SMS message content' },
+        },
+        required: ['to', 'message'],
+      },
+      request: {
+        method: 'POST',
+        path: '/messages/send/text',
+        body: {
+          to: '{to}',
+          from: '{from}',
+          message: '{message}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'email.send',
+      class: 'mutation',
+      description: 'Send a transactional email through Contiguity.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Recipient email address' },
+          from: { type: 'string', description: 'Sender email address (must be verified on the Contiguity account)' },
+          subject: { type: 'string', description: 'Email subject line' },
+          body: { type: 'string', description: 'Email body. Plain text unless contentType is text/html.' },
+          contentType: {
+            type: 'string',
+            enum: ['text/plain', 'text/html'],
+            description: 'Mime type for the body; defaults to text/plain.',
+          },
+          replyTo: { type: 'string', description: 'Optional Reply-To header' },
+        },
+        required: ['to', 'from', 'subject', 'body'],
+      },
+      request: {
+        method: 'POST',
+        path: '/send/email',
+        body: {
+          to: '{to}',
+          from: '{from}',
+          subject: '{subject}',
+          body: '{body}',
+          contentType: '{contentType}',
+          replyTo: '{replyTo}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
