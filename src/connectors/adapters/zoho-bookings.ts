@@ -215,5 +215,101 @@ export const zohoBookingsConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       requiredScopes: ['ZohoBokings.appointments.ALL'],
     },
+    {
+      name: 'services.list',
+      class: 'read',
+      description: 'List all bookable services configured in Zoho Bookings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: {
+            type: 'string',
+            description: 'Optional workspace ID to scope the listing.',
+          },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 200,
+            description: 'Number of records to return.',
+          },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/bookings/v1/services',
+        query: { workspaceId: '{workspaceId}', limit: '{limit}' },
+      },
+      requiredScopes: ['ZohoBokings.appointments.ALL'],
+    },
+    {
+      name: 'staff.list',
+      class: 'read',
+      description: 'List staff members eligible to host appointments.',
+      parameters: {
+        type: 'object',
+        properties: {
+          serviceId: {
+            type: 'string',
+            description: 'Optional service ID to scope the staff listing.',
+          },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 200,
+            description: 'Number of records to return.',
+          },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/bookings/v1/staff',
+        query: { serviceId: '{serviceId}', limit: '{limit}' },
+      },
+      requiredScopes: ['ZohoBokings.appointments.ALL'],
+    },
+    {
+      name: 'appointment.complete',
+      class: 'mutation',
+      description: 'Mark an existing appointment as completed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointmentId: {
+            type: 'string',
+            description: 'The appointment ID to mark completed.',
+          },
+        },
+        required: ['appointmentId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/bookings/v1/appointments/{appointmentId}/complete',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoBokings.appointments.ALL'],
+    },
+    {
+      name: 'appointment.no-show',
+      class: 'mutation',
+      description: 'Mark an existing appointment as a no-show.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointmentId: {
+            type: 'string',
+            description: 'The appointment ID to mark as a no-show.',
+          },
+        },
+        required: ['appointmentId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/bookings/v1/appointments/{appointmentId}/no-show',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoBokings.appointments.ALL'],
+    },
   ],
 })
