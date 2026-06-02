@@ -340,6 +340,104 @@ export const telegramConnector: ConnectorAdapter = {
           },
         },
       },
+      {
+        name: 'editMessageMedia',
+        class: 'mutation',
+        description:
+          'Replace media (photo / video / animation / audio / document) on a previously-sent message. Idempotent on (chat_id, message_id) — re-sending the same media is a no-op upstream.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            chat_id: { type: ['string', 'integer'] },
+            message_id: { type: 'integer' },
+            inline_message_id: { type: 'string', description: 'Use instead of (chat_id, message_id) for inline-mode messages.' },
+            media: {
+              type: 'object',
+              description:
+                'InputMedia object — { type: photo|video|animation|audio|document, media: <url|file_id>, caption?, parse_mode?, ... }.',
+            },
+            reply_markup: { type: 'object' },
+          },
+          required: ['media'],
+        },
+      },
+      {
+        name: 'pinChatMessage',
+        class: 'mutation',
+        description:
+          'Pin a message in a chat. Idempotent on (chat_id, message_id) — pinning an already-pinned message is a no-op upstream.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            chat_id: { type: ['string', 'integer'] },
+            message_id: { type: 'integer' },
+            disable_notification: { type: 'boolean' },
+            business_connection_id: { type: 'string' },
+          },
+          required: ['chat_id', 'message_id'],
+        },
+      },
+      {
+        name: 'unpinChatMessage',
+        class: 'mutation',
+        description:
+          'Unpin a message in a chat. Omit message_id to unpin the most-recently-pinned. Idempotent — unpinning an already-unpinned message is a no-op.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            chat_id: { type: ['string', 'integer'] },
+            message_id: { type: 'integer', description: 'Optional — when omitted, unpins the most-recently-pinned.' },
+            business_connection_id: { type: 'string' },
+          },
+          required: ['chat_id'],
+        },
+      },
+      {
+        name: 'banChatMember',
+        class: 'mutation',
+        description:
+          'Ban a user from a group / supergroup / channel. Idempotent on (chat_id, user_id) — re-banning an already-banned user is a no-op.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            chat_id: { type: ['string', 'integer'] },
+            user_id: { type: 'integer' },
+            until_date: { type: 'integer', description: 'Unix time when the ban lifts; 0 or omitted = permanent.' },
+            revoke_messages: { type: 'boolean', description: 'Delete all messages from the user.' },
+          },
+          required: ['chat_id', 'user_id'],
+        },
+      },
+      {
+        name: 'restrictChatMember',
+        class: 'mutation',
+        description:
+          'Restrict a user\'s permissions in a supergroup. Body carries the full ChatPermissions object — every setting must be present, omitted booleans are treated as false. Idempotent on (chat_id, user_id, permissions).',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            chat_id: { type: ['string', 'integer'] },
+            user_id: { type: 'integer' },
+            permissions: {
+              type: 'object',
+              description: 'ChatPermissions object — { can_send_messages, can_send_audios, can_send_documents, ... }.',
+            },
+            use_independent_chat_permissions: { type: 'boolean' },
+            until_date: { type: 'integer', description: 'Unix time when restrictions lift; 0 or omitted = permanent.' },
+          },
+          required: ['chat_id', 'user_id', 'permissions'],
+        },
+      },
     ],
   },
 

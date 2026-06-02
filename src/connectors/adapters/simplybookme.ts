@@ -189,6 +189,92 @@ export const simplybookmeConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
     },
     {
+      name: 'clients.update',
+      class: 'mutation',
+      description: 'Update a client record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          clientId: { type: 'integer' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          address: { type: 'string' },
+          city: { type: 'string' },
+          zip: { type: 'string' },
+          countryId: { type: 'string' },
+        },
+        required: ['clientId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/admin/clients/{clientId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'services.list',
+      class: 'read',
+      description: 'List bookable services.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer' },
+          page: { type: 'integer' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/admin/services',
+        query: {
+          limit: '{limit}',
+          page: '{page}',
+        },
+      },
+    },
+    {
+      name: 'providers.list',
+      class: 'read',
+      description: 'List service providers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer' },
+          page: { type: 'integer' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/admin/providers',
+        query: {
+          limit: '{limit}',
+          page: '{page}',
+        },
+      },
+    },
+    {
+      name: 'bookings.confirm',
+      class: 'mutation',
+      description: 'Confirm a tentative booking.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bookingId: { type: 'integer' },
+        },
+        required: ['bookingId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/admin/bookings/{bookingId}/approve',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'invoices.find',
       class: 'read',
       description: 'Find invoices by criteria.',

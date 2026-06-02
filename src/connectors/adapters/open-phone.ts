@@ -117,5 +117,82 @@ export const openPhoneConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/calls/{callId}/summary' },
     },
+    {
+      name: 'messages.list',
+      class: 'read',
+      description: 'List recent SMS/voice messages on a phone number.',
+      parameters: {
+        type: 'object',
+        properties: {
+          phoneNumberId: { type: 'string', description: 'OpenPhone phone number id (required).' },
+          participants: { type: 'array', items: { type: 'string' }, description: 'Filter messages by participant phone numbers (E.164).' },
+          maxResults: { type: 'integer', minimum: 1, maximum: 100, description: 'Maximum messages to return (1-100).' },
+          pageToken: { type: 'string', description: 'Opaque pagination cursor returned by a prior call.' },
+        },
+        required: ['phoneNumberId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/messages',
+        query: {
+          phoneNumberId: '{phoneNumberId}',
+          participants: '{participants}',
+          maxResults: '{maxResults}',
+          pageToken: '{pageToken}',
+        },
+      },
+    },
+    {
+      name: 'calls.create',
+      class: 'mutation',
+      description: 'Place an outbound call from an OpenPhone number to an external participant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'OpenPhone phone number (E.164) placing the call.' },
+          to: { type: 'string', description: 'Destination phone number (E.164).' },
+          userId: { type: 'string', description: 'OpenPhone user id initiating the call (optional; defaults to the API key owner).' },
+        },
+        required: ['from', 'to'],
+      },
+      request: { method: 'POST', path: '/calls', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact from OpenPhone by contact id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactId: { type: 'string' },
+        },
+        required: ['contactId'],
+      },
+      request: { method: 'DELETE', path: '/contacts/{contactId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.transfer',
+      class: 'mutation',
+      description: 'Transfer an active call to another OpenPhone user or external phone number.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callId: { type: 'string', description: 'Identifier of the active call to transfer.' },
+          to: { type: 'string', description: 'Destination phone number (E.164) for an external transfer. Mutually exclusive with toUserId.' },
+          toUserId: { type: 'string', description: 'OpenPhone user id to transfer the call to. Mutually exclusive with `to`.' },
+        },
+        required: ['callId'],
+      },
+      // Optional `to` / `toUserId` are forwarded via `body: 'args'` so the
+      // declarative renderer doesn't throw on the unset placeholder. callId
+      // is consumed by the path template.
+      request: { method: 'POST', path: '/calls/{callId}/transfer', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

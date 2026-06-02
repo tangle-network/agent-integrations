@@ -144,5 +144,131 @@ export const sendgridConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/v3/marketing/lists', body: { name: '{name}' } },
       cas: 'native-idempotency',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete one or more marketing contacts by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'string',
+            description: 'Comma-separated list of contact IDs to delete.',
+          },
+          delete_all_contacts: {
+            type: 'string',
+            description: 'Set to "true" to delete every contact on the account.',
+          },
+        },
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v3/marketing/contacts',
+        query: { ids: '{ids}', delete_all_contacts: '{delete_all_contacts}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete a marketing list. Optionally delete the contacts on it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+          delete_contacts: { type: 'boolean' },
+        },
+        required: ['listId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v3/marketing/lists/{listId}',
+        query: { delete_contacts: '{delete_contacts}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.addContacts',
+      class: 'mutation',
+      description: 'Add contacts to a marketing list by upserting them with the given list_ids.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+          contacts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                email: { type: 'string' },
+                first_name: { type: 'string' },
+                last_name: { type: 'string' },
+                custom_fields: { type: 'object' },
+              },
+              required: ['email'],
+            },
+          },
+        },
+        required: ['listId', 'contacts'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v3/marketing/contacts',
+        body: {
+          list_ids: ['{listId}'],
+          contacts: '{contacts}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.removeContacts',
+      class: 'mutation',
+      description: 'Remove contacts from a marketing list (does not delete the contacts).',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+          contact_ids: {
+            type: 'string',
+            description: 'Comma-separated list of contact IDs to remove from the list.',
+          },
+        },
+        required: ['listId', 'contact_ids'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v3/marketing/lists/{listId}/contacts',
+        query: { contact_ids: '{contact_ids}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'suppressions.create',
+      class: 'mutation',
+      description: 'Add one or more email addresses to a suppression group.',
+      parameters: {
+        type: 'object',
+        properties: {
+          groupId: { type: 'string' },
+          recipient_emails: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+        required: ['groupId', 'recipient_emails'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v3/asm/groups/{groupId}/suppressions',
+        body: { recipient_emails: '{recipient_emails}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

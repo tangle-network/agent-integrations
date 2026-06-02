@@ -36,6 +36,7 @@ export const typefullyConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'drafts.createAdvanced',
@@ -64,6 +65,7 @@ export const typefullyConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'drafts.get',
@@ -109,7 +111,8 @@ export const typefullyConnector = declarativeRestConnector({
         required: ['draft_id'],
       },
       request: { method: 'DELETE', path: '/drafts/{draft_id}' },
-      cas: 'optimistic-read-verify',
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'drafts.publishNow',
@@ -126,6 +129,7 @@ export const typefullyConnector = declarativeRestConnector({
         body: {},
       },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'drafts.schedule',
@@ -145,6 +149,7 @@ export const typefullyConnector = declarativeRestConnector({
         body: { schedule_at: '{schedule_at}' },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'media.upload',
@@ -161,6 +166,67 @@ export const typefullyConnector = declarativeRestConnector({
         body: { file: '{file}' },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'drafts.update',
+      class: 'mutation',
+      description: "Update an existing draft's content or scheduling fields.",
+      parameters: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string' },
+          text: { type: 'string' },
+          draft_title: { type: 'string' },
+          platforms: { type: 'array', items: { type: 'string' } },
+          schedule_at: { type: 'string' },
+        },
+        required: ['draft_id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/drafts/{draft_id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'drafts.unschedule',
+      class: 'mutation',
+      description: 'Unschedule a previously scheduled draft.',
+      parameters: {
+        type: 'object',
+        properties: { draft_id: { type: 'string' } },
+        required: ['draft_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/drafts/{draft_id}/unschedule',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'accounts.list',
+      class: 'read',
+      description: 'List connected social accounts.',
+      parameters: { type: 'object', properties: {}, required: [] },
+      request: { method: 'GET', path: '/accounts' },
+    },
+    {
+      name: 'media.delete',
+      class: 'mutation',
+      description: 'Delete a previously uploaded media asset.',
+      parameters: {
+        type: 'object',
+        properties: { media_id: { type: 'string' } },
+        required: ['media_id'],
+      },
+      request: { method: 'DELETE', path: '/media/{media_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })

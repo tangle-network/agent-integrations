@@ -52,20 +52,34 @@ describe('xero adapter manifest', () => {
     const names = xeroConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
-        'contacts.search',
-        'contacts.get',
-        'contacts.create',
-        'contacts.update',
-        'invoices.search',
-        'invoices.get',
-        'invoices.create',
         'accounts.search',
-      ].sort(),
+        'contacts.archive',
+        'contacts.create',
+        'contacts.get',
+        'contacts.search',
+        'contacts.update',
+        'credit-notes.create',
+        'invoices.create',
+        'invoices.delete',
+        'invoices.email',
+        'invoices.get',
+        'invoices.search',
+        'payments.create',
+      ],
     )
     const reads = xeroConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
     const mutations = xeroConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
     expect(reads.sort()).toEqual(['accounts.search', 'contacts.get', 'contacts.search', 'invoices.get', 'invoices.search'])
-    expect(mutations.sort()).toEqual(['contacts.create', 'contacts.update', 'invoices.create'])
+    expect(mutations.sort()).toEqual([
+      'contacts.archive',
+      'contacts.create',
+      'contacts.update',
+      'credit-notes.create',
+      'invoices.create',
+      'invoices.delete',
+      'invoices.email',
+      'payments.create',
+    ])
 
     const contactRead = xeroConnector.manifest.capabilities.find((c) => c.name === 'contacts.search')!
     expect(contactRead.requiredScopes).toEqual(['accounting.contacts'])

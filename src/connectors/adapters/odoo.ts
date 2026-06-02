@@ -186,5 +186,109 @@ export const odooConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'records.copy',
+      class: 'mutation',
+      description: 'Duplicate an existing Odoo record. Returns the new record id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          model: { type: 'string', description: 'Model name' },
+          recordId: { type: 'integer', description: 'Record ID to duplicate' },
+        },
+        required: ['model', 'recordId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/copy',
+        body: {
+          model: '{model}',
+          ids: ['{recordId}'],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'records.unlink_batch',
+      class: 'mutation',
+      description: 'Delete multiple records of a model in one call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          model: { type: 'string', description: 'Model name' },
+          recordIds: { type: 'array', description: 'List of record IDs to delete.' },
+        },
+        required: ['model', 'recordIds'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/unlink',
+        body: {
+          model: '{model}',
+          ids: '{recordIds}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'fields.set',
+      class: 'mutation',
+      description:
+        'Partial-update a single field on a record. `values` is the {fieldName: value} pair; using a one-key map keeps the wire payload identical to records.update so the existing /write endpoint applies.',
+      parameters: {
+        type: 'object',
+        properties: {
+          model: { type: 'string', description: 'Model name' },
+          recordId: { type: 'integer', description: 'Record ID' },
+          values: {
+            type: 'object',
+            description: 'Single-key object: {fieldName: newValue}.',
+          },
+        },
+        required: ['model', 'recordId', 'values'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/write',
+        body: {
+          model: '{model}',
+          ids: ['{recordId}'],
+          values: '{values}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflow.action',
+      class: 'mutation',
+      description:
+        'Trigger an Odoo workflow action (e.g. action_confirm, action_cancel, action_done) on a record by invoking the named method.',
+      parameters: {
+        type: 'object',
+        properties: {
+          model: { type: 'string', description: 'Model name' },
+          recordId: { type: 'integer', description: 'Record ID to act on' },
+          action: {
+            type: 'string',
+            description: 'Workflow method name (e.g. action_confirm).',
+          },
+        },
+        required: ['model', 'recordId', 'action'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/call_method',
+        body: {
+          model: '{model}',
+          ids: ['{recordId}'],
+          method: '{action}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

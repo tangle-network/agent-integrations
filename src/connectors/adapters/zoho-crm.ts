@@ -226,5 +226,136 @@ export const zohoCrmConnector = declarativeRestConnector({
       cas: 'none',
       requiredScopes: ['ZohoCRM.modules.ALL'],
     },
+    {
+      // Lead conversion is a Zoho-specific compound write: the request must
+      // supply at least one of `Contacts` / `Accounts` / `Deals` inside `data[0]`
+      // and Zoho returns the created ids per target module. We surface those
+      // sub-objects verbatim rather than aliasing — the Zoho contract is the
+      // contract; aliasing here would mask real-world fields (Notify_Lead_Owner,
+      // overwrite, etc.). Native idempotency via Zoho's duplicate-conversion
+      // guard.
+      name: 'records.convert',
+      class: 'mutation',
+      description: 'Convert a Lead into Contact + optional Account/Deal. data[0] carries the conversion payload (Contacts/Accounts/Deals sub-objects, Notify_Lead_Owner, overwrite, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string', description: 'Lead record id to convert.' },
+          data: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Single-element array with the Zoho conversion payload (Contacts, Accounts, Deals, Notify_Lead_Owner, overwrite, etc.).',
+            minItems: 1,
+            maxItems: 1,
+          },
+        },
+        required: ['leadId', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/crm/v6/Leads/{leadId}/actions/convert',
+        body: { data: '{data}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoCRM.modules.ALL'],
+    },
+    {
+      // Mass-reassign endpoint. `ids` is the slice of record ids to move and
+      // `data[0]` carries the new Owner sub-object. Zoho also supports a
+      // territory transfer but that is a different capability surface; we keep
+      // this one targeted at ownership transfer.
+      name: 'records.assign',
+      class: 'mutation',
+      description: 'Reassign one or more records in a module to a new owner. data[0] must carry the new Owner sub-object (e.g. { Owner: { id: "USER_ID" } }).',
+      parameters: {
+        type: 'object',
+        properties: {
+          module: moduleParam,
+          ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Record ids to reassign (up to 100 per call).',
+            minItems: 1,
+            maxItems: 100,
+          },
+          data: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Single-element array carrying the Owner sub-object Zoho should apply to every id.',
+            minItems: 1,
+            maxItems: 1,
+          },
+        },
+        required: ['module', 'ids', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/crm/v6/{module}/actions/mass_change_owner',
+        body: { ids: '{ids}', data: '{data}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoCRM.modules.ALL'],
+    },
+    {
+      // Notes attach to any module record via the parent_id link. We accept
+      // the flat Note_Title / Note_Content shape Zoho wants directly on
+      // data[0], so the caller doesn't have to know Zoho's envelope wrapping
+      // shape beyond "pass the note fields as one record".
+      name: 'notes.create',
+      class: 'mutation',
+      description: 'Attach a note to a record. data[0] must include Note_Title (optional), Note_Content, Parent_Id, and se_module (the parent module API name).',
+      parameters: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Note records (Note_Title, Note_Content, Parent_Id, se_module). Up to 100 per call.',
+            minItems: 1,
+            maxItems: 100,
+          },
+        },
+        required: ['data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/crm/v6/Notes',
+        body: { data: '{data}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoCRM.modules.ALL'],
+    },
+    {
+      // Zoho supports three file-attachment modes: multipart upload, link
+      // attachment (attachmentUrl), and Zoho-Docs/Workdrive linkage. The
+      // declarative-rest transport is JSON-only, so we wire the URL-based
+      // form — attachmentUrl is a public download URL Zoho fetches server-side
+      // and stores against the record. Multipart streaming attachment is a
+      // separate, non-declarative capability and is intentionally out of scope
+      // here.
+      name: 'files.upload',
+      class: 'mutation',
+      description: 'Attach a file to a record by URL. Zoho fetches the URL server-side and links the resulting attachment to the parent record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          module: moduleParam,
+          recordId: { type: 'string' },
+          attachmentUrl: { type: 'string', description: 'Publicly reachable URL Zoho will fetch and attach.' },
+        },
+        required: ['module', 'recordId', 'attachmentUrl'],
+      },
+      request: {
+        method: 'POST',
+        path: '/crm/v6/{module}/{recordId}/Attachments',
+        query: { attachmentUrl: '{attachmentUrl}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoCRM.modules.ALL'],
+    },
   ],
 })

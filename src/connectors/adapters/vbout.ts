@@ -237,5 +237,82 @@ export const vboutConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact from VBOUT.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'Email of the contact to delete.' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts/delete',
+        body: { email: '{email}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete an email list from VBOUT.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'ID of the list to delete.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/lists/delete',
+        body: { id: '{id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.send',
+      class: 'mutation',
+      description: 'Send a previously created email campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'ID of the campaign to send.' },
+          schedule: { type: 'string', description: 'Optional ISO 8601 datetime to schedule the send.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/send',
+        body: { id: '{id}', schedule: '{schedule}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.delete',
+      class: 'mutation',
+      description: 'Delete an email marketing campaign from VBOUT.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'ID of the campaign to delete.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/delete',
+        body: { id: '{id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -106,5 +106,86 @@ export const wufooConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/forms/{formHash}/fields.json' },
     },
+    {
+      name: 'entries.update',
+      class: 'mutation',
+      description: 'Update an existing entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formHash: { type: 'string' },
+          entryId: { type: 'string' },
+          data: { type: 'object', description: 'Field-id keyed update payload.' },
+        },
+        required: ['formHash', 'entryId', 'data'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/forms/{formHash}/entries/{entryId}.json',
+        body: '{data}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'entries.delete',
+      class: 'mutation',
+      description: 'Delete a form entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formHash: { type: 'string' },
+          entryId: { type: 'string' },
+        },
+        required: ['formHash', 'entryId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/forms/{formHash}/entries/{entryId}.json',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'webhooks.create',
+      class: 'mutation',
+      description: 'Subscribe a webhook to a form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formHash: { type: 'string' },
+          url: { type: 'string', description: 'Webhook target URL.' },
+          handshakeKey: { type: 'string', description: 'Optional shared secret echoed in posts.' },
+          metadata: { type: 'boolean', description: 'Include field metadata in payload.' },
+        },
+        required: ['formHash', 'url'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/forms/{formHash}/webhooks.json',
+        body: { url: '{url}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'webhooks.delete',
+      class: 'mutation',
+      description: 'Unsubscribe a webhook from a form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formHash: { type: 'string' },
+          webhookHash: { type: 'string' },
+        },
+        required: ['formHash', 'webhookHash'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/forms/{formHash}/webhooks/{webhookHash}.json',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -124,5 +124,100 @@ export const smartleadConnector = declarativeRestConnector({
       },
       cas: 'etag-if-match',
     },
+    {
+      name: 'campaigns.start',
+      class: 'mutation',
+      description: 'Start (or resume) a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/campaigns/{campaign_id}/status',
+        body: { status: 'START' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.pause',
+      class: 'mutation',
+      description: 'Pause a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/campaigns/{campaign_id}/status',
+        body: { status: 'PAUSED' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.delete',
+      class: 'mutation',
+      description: 'Delete a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+        },
+        required: ['campaign_id'],
+      },
+      request: { method: 'DELETE', path: '/v1/campaigns/{campaign_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.update',
+      class: 'mutation',
+      description: 'Update fields on a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'number', description: 'Lead ID' },
+          first_name: { type: 'string', description: 'Lead first name' },
+          last_name: { type: 'string', description: 'Lead last name' },
+          email: { type: 'string', description: 'Lead email address' },
+          phone_number: { type: 'string', description: 'Lead phone number' },
+          company_name: { type: 'string', description: 'Lead company name' },
+          website: { type: 'string', description: 'Lead website' },
+          location: { type: 'string', description: 'Lead location' },
+          custom_fields: { type: 'object', description: 'Custom field key/value pairs' },
+        },
+        required: ['lead_id'],
+      },
+      request: { method: 'POST', path: '/v1/leads/{lead_id}', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.remove',
+      class: 'mutation',
+      description: 'Remove a lead from a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number', description: 'Campaign ID' },
+          lead_id: { type: 'number', description: 'Lead ID' },
+        },
+        required: ['campaign_id', 'lead_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/campaigns/{campaign_id}/leads/{lead_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

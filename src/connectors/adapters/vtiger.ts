@@ -114,5 +114,88 @@ export const vtigerConnector = declarativeRestConnector({
         query: { query: '{query}' },
       },
     },
+    {
+      name: 'records.assign',
+      class: 'mutation',
+      description: 'Reassign a record to another user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recordId: { type: 'string', description: 'The record ID' },
+          assigned_user_id: { type: 'string', description: 'The user the record is reassigned to' },
+        },
+        required: ['recordId', 'assigned_user_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/restapi/v1/vtiger/default/records/{recordId}/assign',
+        body: { assigned_user_id: '{assigned_user_id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'records.convert',
+      class: 'mutation',
+      description: 'Convert lead to contact/opportunity.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recordId: { type: 'string', description: 'The lead record ID to convert' },
+          targetModule: { type: 'string', description: 'Target module (Contacts, Potentials)' },
+          data: { type: 'object', description: 'Conversion field map' },
+        },
+        required: ['recordId', 'targetModule'],
+      },
+      request: {
+        method: 'POST',
+        path: '/restapi/v1/vtiger/default/records/{recordId}/convert',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'files.upload',
+      class: 'mutation',
+      description: 'Upload a document attached to a record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recordId: { type: 'string', description: 'The record to attach to' },
+          filename: { type: 'string', description: 'The file name' },
+          content: { type: 'string', description: 'Base64-encoded file content' },
+          contentType: { type: 'string', description: 'Document content type' },
+        },
+        required: ['recordId', 'filename', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/restapi/v1/vtiger/default/records/{recordId}/documents',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description: 'Add a comment to a record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recordId: { type: 'string', description: 'The record ID' },
+          comment: { type: 'string', description: 'The comment body' },
+        },
+        required: ['recordId', 'comment'],
+      },
+      request: {
+        method: 'POST',
+        path: '/restapi/v1/vtiger/default/records/{recordId}/comments',
+        body: { comment: '{comment}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -75,5 +75,58 @@ export const pdfmonkeyConnector = declarativeRestConnector({
       },
       request: { method: 'DELETE', path: '/documents/{documentId}' },
     },
+    {
+      name: 'templates.list',
+      class: 'read',
+      description: 'List the PDF templates available in the PDFMonkey workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Maximum number of templates to return.' },
+          offset: { type: 'integer', description: 'Number of templates to skip.' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/document_templates',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
+    {
+      name: 'documents.share',
+      class: 'mutation',
+      description: 'Generate a public share URL for an existing PDFMonkey document.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'PDFMonkey document ID to share.' },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/documents/{documentId}/share_link',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'documents.regenerate',
+      class: 'mutation',
+      description: 'Regenerate a previously generated PDFMonkey document, producing a new render.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'PDFMonkey document ID to regenerate.' },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/documents/{documentId}/regenerate',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -445,6 +445,66 @@ export const wafeqConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact (customer or supplier).',
+      parameters: {
+        type: 'object',
+        properties: {
+          contact_id: { type: 'string', description: 'ID of the contact to delete.' },
+        },
+        required: ['contact_id'],
+      },
+      request: { method: 'DELETE', path: '/contacts/{contact_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'invoices.delete',
+      class: 'mutation',
+      description: 'Delete or void an invoice.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoice_id: { type: 'string', description: 'ID of the invoice to delete or void.' },
+        },
+        required: ['invoice_id'],
+      },
+      request: { method: 'DELETE', path: '/invoices/{invoice_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bills.delete',
+      class: 'mutation',
+      description: 'Delete a bill.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bill_id: { type: 'string', description: 'ID of the bill to delete.' },
+        },
+        required: ['bill_id'],
+      },
+      request: { method: 'DELETE', path: '/bills/{bill_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'items.delete',
+      class: 'mutation',
+      description: 'Delete a catalog item.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item_id: { type: 'string', description: 'ID of the item to delete.' },
+        },
+        required: ['item_id'],
+      },
+      request: { method: 'DELETE', path: '/items/{item_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'accounts.list',
       class: 'read',
       description: 'List chart of accounts, optionally filtered by type and payment capability.',

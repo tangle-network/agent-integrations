@@ -261,6 +261,78 @@ export const reachinboxConnector = declarativeRestConnector({
         body: { email: '{email}' },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a new outbound email campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          fromEmail: { type: 'string' },
+          subject: { type: 'string' },
+          body: { type: 'string' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/campaigns',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.delete',
+      class: 'mutation',
+      description: 'Delete a campaign.',
+      parameters: {
+        type: 'object',
+        properties: { campaignId: { type: 'string' } },
+        required: ['campaignId'],
+      },
+      request: { method: 'DELETE', path: '/api/v1/campaigns/{campaignId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.list',
+      class: 'read',
+      description: 'List email templates available in the workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer' },
+          offset: { type: 'integer' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/templates',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
+    {
+      name: 'inbox.replies.fetch',
+      class: 'read',
+      description: 'Fetch latest replies from the unified inbox (uni-box / master inbox).',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer' },
+          offset: { type: 'integer' },
+          campaignId: { type: 'string' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/unibox/replies',
+        query: { limit: '{limit}', offset: '{offset}', campaignId: '{campaignId}' },
+      },
     },
   ],
 })

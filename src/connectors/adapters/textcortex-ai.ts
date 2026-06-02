@@ -224,5 +224,77 @@ export const textcortexAiConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'templates.list',
+      class: 'read',
+      description: 'List saved generation templates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of results per page (optional).' },
+          offset: { type: 'integer', description: 'Pagination offset (optional).' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/templates',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
+    {
+      name: 'personas.list',
+      class: 'read',
+      description: 'List available personas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of results per page (optional).' },
+          offset: { type: 'integer', description: 'Pagination offset (optional).' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/personas',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
+    {
+      name: 'history.list',
+      class: 'read',
+      description: 'List previous generations.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Number of results per page (optional).' },
+          offset: { type: 'integer', description: 'Pagination offset (optional).' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/history',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
+    {
+      name: 'history.delete',
+      class: 'mutation',
+      description: 'Delete a generation entry from history.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'History entry ID.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/history/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

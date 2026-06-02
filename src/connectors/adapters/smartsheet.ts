@@ -83,5 +83,106 @@ export const smartsheetConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/sheets/{sheetId}/rows/{rowId}/attachments' },
     },
+    {
+      name: 'sheets.create',
+      class: 'mutation',
+      description: 'Create a new sheet.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          columns: { type: 'array' },
+        },
+        required: ['name', 'columns'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sheets',
+        body: { name: '{name}', columns: '{columns}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'rows.delete',
+      class: 'mutation',
+      description: 'Delete rows by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sheetId: { type: 'string' },
+          ids: { type: 'string', description: 'Comma-separated row IDs' },
+        },
+        required: ['sheetId', 'ids'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/sheets/{sheetId}/rows',
+        query: { ids: '{ids}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'attachments.delete',
+      class: 'mutation',
+      description: 'Delete an attachment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sheetId: { type: 'string' },
+          attachmentId: { type: 'string' },
+        },
+        required: ['sheetId', 'attachmentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/sheets/{sheetId}/attachments/{attachmentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'shares.create',
+      class: 'mutation',
+      description: 'Share a sheet with a user or group.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sheetId: { type: 'string' },
+          email: { type: 'string' },
+          accessLevel: { type: 'string', description: 'VIEWER, EDITOR, EDITOR_SHARE, ADMIN, OWNER' },
+        },
+        required: ['sheetId', 'email', 'accessLevel'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sheets/{sheetId}/shares',
+        body: { email: '{email}', accessLevel: '{accessLevel}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description: 'Add a comment to a row or sheet (via a discussion).',
+      parameters: {
+        type: 'object',
+        properties: {
+          sheetId: { type: 'string' },
+          rowId: { type: 'string' },
+          text: { type: 'string' },
+        },
+        required: ['sheetId', 'rowId', 'text'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sheets/{sheetId}/rows/{rowId}/discussions',
+        body: { comment: { text: '{text}' } },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

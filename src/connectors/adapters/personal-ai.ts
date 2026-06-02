@@ -172,5 +172,74 @@ export const personalAiConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'memory.delete',
+      class: 'mutation',
+      description: 'Delete a memory entry from the Personal AI memory store.',
+      parameters: {
+        type: 'object',
+        properties: {
+          memoryId: { type: 'string', description: 'The unique identifier of the memory entry to delete.' },
+        },
+        required: ['memoryId'],
+      },
+      request: { method: 'DELETE', path: '/memory/{memoryId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'document.delete',
+      class: 'mutation',
+      description: "Delete a document from the AI's knowledge base.",
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'The unique identifier of the document to delete.' },
+        },
+        required: ['documentId'],
+      },
+      request: { method: 'DELETE', path: '/documents/{documentId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'training.delete',
+      class: 'mutation',
+      description: 'Delete a custom training entry from the Personal AI training set.',
+      parameters: {
+        type: 'object',
+        properties: {
+          trainingId: { type: 'string', description: 'The unique identifier of the training entry to delete.' },
+        },
+        required: ['trainingId'],
+      },
+      request: { method: 'DELETE', path: '/training/{trainingId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'persona.update',
+      class: 'mutation',
+      description: 'Update persona settings (display name, tone, instructions) for the Personal AI profile.',
+      parameters: {
+        type: 'object',
+        properties: {
+          displayName: { type: 'string', description: 'Display name shown for this persona.' },
+          tone: { type: 'string', description: 'Tone descriptor used to shape AI responses.' },
+          instructions: { type: 'string', description: 'Free-form system instructions for the persona.' },
+          domainName: { type: 'string', description: 'Domain identifier for the AI profile this persona belongs to.' },
+        },
+        required: [],
+      },
+      // PATCH /persona accepts a partial payload; pass args through so any
+      // subset of fields is honoured without each being required.
+      request: {
+        method: 'PATCH',
+        path: '/persona',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

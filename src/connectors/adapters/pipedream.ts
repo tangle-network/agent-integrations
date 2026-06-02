@@ -117,5 +117,91 @@ export const pipedreamConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'workflows.deploy',
+      class: 'mutation',
+      description: 'Deploy a new version of a workflow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string' },
+        },
+        required: ['workflowId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workflows/{workflowId}/deploy',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflows.disable',
+      class: 'mutation',
+      description: 'Disable an active workflow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string' },
+        },
+        required: ['workflowId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/workflows/{workflowId}',
+        body: {
+          active: false,
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscriptions.delete',
+      class: 'mutation',
+      description: 'Delete an event subscription.',
+      parameters: {
+        type: 'object',
+        properties: {
+          emitterId: { type: 'string' },
+          listenerId: { type: 'string' },
+          eventName: { type: 'string' },
+        },
+        required: ['emitterId', 'listenerId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/subscriptions',
+        query: {
+          emitter_id: '{emitterId}',
+          listener_id: '{listenerId}',
+          event_name: '{eventName}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'sources.create',
+      class: 'mutation',
+      description: 'Create a new event source.',
+      parameters: {
+        type: 'object',
+        properties: {
+          componentId: { type: 'string' },
+        },
+        required: ['componentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sources',
+        body: {
+          component_id: '{componentId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

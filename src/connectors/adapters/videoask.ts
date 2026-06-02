@@ -172,5 +172,85 @@ export const videoaskConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'forms.create',
+      class: 'mutation',
+      description: 'Create a new VideoAsk form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          description: { type: 'string' },
+          settings: { type: 'object' },
+        },
+        required: ['title'],
+      },
+      request: {
+        method: 'POST',
+        path: '/forms',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.update',
+      class: 'mutation',
+      description: 'Update form configuration.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          settings: { type: 'object' },
+        },
+        required: ['formId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/forms/{formId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.delete',
+      class: 'mutation',
+      description: 'Delete a form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+        },
+        required: ['formId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/forms/{formId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'responses.delete',
+      class: 'mutation',
+      description: 'Delete a response.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          responseId: { type: 'string' },
+        },
+        required: ['formId', 'responseId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/forms/{formId}/responses/{responseId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

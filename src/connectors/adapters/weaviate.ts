@@ -353,5 +353,105 @@ export const weaviateConnector = declarativeRestConnector({
         query: { output: '{output}' },
       },
     },
+    {
+      name: 'classes.update',
+      class: 'mutation',
+      description:
+        'Update a class/collection schema in place. Body is a full class definition object; non-mutable settings (vectorizer, properties) must match the existing class — only invertedIndexConfig, replicationConfig, vectorIndexConfig and description are practically mutable.',
+      parameters: {
+        type: 'object',
+        properties: {
+          className: { type: 'string' },
+          class: { type: 'string', description: 'Must equal className.' },
+          description: { type: 'string' },
+          vectorIndexConfig: { type: 'object' },
+          invertedIndexConfig: { type: 'object' },
+          replicationConfig: { type: 'object' },
+          shardingConfig: { type: 'object' },
+          multiTenancyConfig: { type: 'object' },
+        },
+        required: ['className', 'class'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v1/schema/{className}',
+        body: 'args',
+      },
+      // PUT-replace on the same body lands the same end state.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'schema.shards',
+      class: 'read',
+      description: 'List shards for a class with their READY/READONLY/INDEXING status. Used to drive rebalancing and read-only failover decisions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          className: { type: 'string' },
+          tenant: { type: 'string', description: 'Tenant id for multi-tenant collections.' },
+        },
+        required: ['className'],
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/schema/{className}/shards',
+        query: { tenant: '{tenant}' },
+      },
+    },
+    {
+      name: 'backups.create',
+      class: 'mutation',
+      description:
+        'Create a backup snapshot to a configured backend (filesystem / s3 / gcs / azure). Body carries backup id and optional include/exclude class lists. The backup_id is the caller-supplied dedupe key.',
+      parameters: {
+        type: 'object',
+        properties: {
+          backend: { type: 'string', description: 'Backup backend module id, e.g. filesystem, s3, gcs, azure.' },
+          id: { type: 'string', description: 'Caller-chosen backup id; lowercase letters/digits/_-.' },
+          include: { type: 'array', items: { type: 'string' } },
+          exclude: { type: 'array', items: { type: 'string' } },
+          config: { type: 'object', description: 'Backend-specific overrides (e.g. chunkSize).' },
+        },
+        required: ['backend', 'id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/backups/{backend}',
+        body: 'args',
+      },
+      // backup id is the dedupe key — repeating the same (backend, id) returns
+      // 422 instead of duplicating, which is the native-idempotency contract
+      // the planner expects.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'backups.restore',
+      class: 'mutation',
+      description:
+        'Restore a previously-created backup snapshot. Specify backend + id; optional include/exclude narrows the restore scope.',
+      parameters: {
+        type: 'object',
+        properties: {
+          backend: { type: 'string' },
+          id: { type: 'string' },
+          include: { type: 'array', items: { type: 'string' } },
+          exclude: { type: 'array', items: { type: 'string' } },
+          config: { type: 'object' },
+          nodeMapping: { type: 'object', description: 'Map original node names to current cluster nodes.' },
+        },
+        required: ['backend', 'id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/backups/{backend}/{id}/restore',
+        body: 'args',
+      },
+      // Restoring the same (backend, id) twice into a non-overlapping target
+      // set is idempotent; overlapping restores 422 — same contract as create.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

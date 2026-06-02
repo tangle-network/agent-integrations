@@ -217,5 +217,145 @@ export const twentyConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'opportunities.update',
+      class: 'mutation',
+      description: 'Update an opportunity in Twenty.',
+      parameters: {
+        type: 'object',
+        properties: {
+          opportunityId: { type: 'string' },
+          name: { type: 'string' },
+          amount: { type: 'number' },
+          currency: { type: 'string' },
+          stage: { type: 'string' },
+          closeDate: { type: 'string' },
+        },
+        required: ['opportunityId', 'name', 'amount', 'currency', 'stage', 'closeDate'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: 'mutation UpdateOpportunity($input: UpdateOpportunityInput!) { updateOpportunity(input: $input) { id name amount currency stage closeDate } }',
+          variables: {
+            input: {
+              id: '{opportunityId}',
+              name: '{name}',
+              amount: '{amount}',
+              currency: '{currency}',
+              stage: '{stage}',
+              closeDate: '{closeDate}',
+            },
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'opportunities.delete',
+      class: 'mutation',
+      description: 'Delete an opportunity in Twenty.',
+      parameters: {
+        type: 'object',
+        properties: {
+          opportunityId: { type: 'string' },
+        },
+        required: ['opportunityId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: 'mutation DeleteOpportunity($id: ID!) { deleteOpportunity(id: $id) { id } }',
+          variables: {
+            id: '{opportunityId}',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a person/contact in Twenty.',
+      parameters: {
+        type: 'object',
+        properties: {
+          personId: { type: 'string' },
+        },
+        required: ['personId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: 'mutation DeletePerson($id: ID!) { deletePerson(id: $id) { id } }',
+          variables: {
+            id: '{personId}',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'companies.delete',
+      class: 'mutation',
+      description: 'Delete a company in Twenty.',
+      parameters: {
+        type: 'object',
+        properties: {
+          companyId: { type: 'string' },
+        },
+        required: ['companyId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: 'mutation DeleteCompany($id: ID!) { deleteCompany(id: $id) { id } }',
+          variables: {
+            id: '{companyId}',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'notes.create',
+      class: 'mutation',
+      description: 'Add a note to a contact, company, or opportunity in Twenty.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          body: { type: 'string' },
+          targetType: { type: 'string', description: 'Type of object the note is attached to (person, company, opportunity)' },
+          targetId: { type: 'string', description: 'ID of the object the note is attached to' },
+        },
+        required: ['title', 'body', 'targetType', 'targetId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: 'mutation CreateNote($input: CreateNoteInput!) { createNote(input: $input) { id title body targetType targetId } }',
+          variables: {
+            input: {
+              title: '{title}',
+              body: '{body}',
+              targetType: '{targetType}',
+              targetId: '{targetId}',
+            },
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

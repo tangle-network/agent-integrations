@@ -88,5 +88,81 @@ export const signNowConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'documents.delete',
+      class: 'mutation',
+      description: 'Delete a document by id.',
+      parameters: {
+        type: 'object',
+        properties: { documentId: { type: 'string' } },
+        required: ['documentId'],
+      },
+      request: { method: 'DELETE', path: '/documents/{documentId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'invites.resend',
+      class: 'mutation',
+      description: 'Resend a pending signing invite to the recipient.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string' },
+          inviteId: { type: 'string' },
+        },
+        required: ['documentId', 'inviteId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/documents/{documentId}/invites/{inviteId}/resend',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'documents.download',
+      class: 'read',
+      description:
+        'Download the (signed) document file. Returns the SignNow file response payload (signed PDF metadata + url).',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string' },
+          type: {
+            type: 'string',
+            description: "Download variant ('collapsed' for the signed PDF, 'zip' for the package).",
+          },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/documents/{documentId}/download',
+        query: { type: '{type}' },
+      },
+    },
+    {
+      name: 'templates.create',
+      class: 'mutation',
+      description:
+        'Create a reusable template from an existing document. Returns the new template id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'Source document id to clone into a template.' },
+          templateName: { type: 'string', description: 'Display name for the new template.' },
+        },
+        required: ['documentId', 'templateName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/documents/{documentId}/template',
+        body: { document_name: '{templateName}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

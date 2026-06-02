@@ -145,5 +145,100 @@ export const twilioConnector = declarativeRestConnector({
         query: { PageSize: '{limit}' },
       },
     },
+    {
+      name: 'messages.delete',
+      class: 'mutation',
+      description: 'Delete a message record (irreversible — purges the message and its body from logs).',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageSid: { type: 'string', description: 'The unique identifier of the message (SM…).' },
+        },
+        required: ['messageSid'],
+      },
+      request: { method: 'DELETE', path: '/Messages/{messageSid}.json' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.cancel',
+      class: 'mutation',
+      description: 'Cancel a queued or ringing call by setting its Status to canceled.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callSid: { type: 'string', description: 'The unique identifier of the call (CA…).' },
+        },
+        required: ['callSid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/Calls/{callSid}.json',
+        body: { Status: 'canceled' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.update',
+      class: 'mutation',
+      description: 'Update an in-progress call — redirect TwiML, hang up, or mute via the Status field.',
+      parameters: {
+        type: 'object',
+        properties: {
+          callSid: { type: 'string', description: 'The unique identifier of the call (CA…).' },
+          Url: { type: 'string', description: 'Optional new TwiML URL to redirect the call to.' },
+          Method: { type: 'string', enum: ['GET', 'POST'], description: 'HTTP method Twilio uses when fetching the new URL.' },
+          Status: { type: 'string', enum: ['canceled', 'completed'], description: 'Set "completed" to hang up an in-progress call.' },
+        },
+        required: ['callSid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/Calls/{callSid}.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'numbers.list',
+      class: 'read',
+      description: 'List IncomingPhoneNumbers on the account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          phoneNumber: { type: 'string', description: 'Optional exact-match filter on the E.164 number.' },
+          limit: { type: 'integer', minimum: 1, maximum: 1000, default: 50 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/IncomingPhoneNumbers.json',
+        query: { PhoneNumber: '{phoneNumber}', PageSize: '{limit}' },
+      },
+    },
+    {
+      name: 'numbers.update',
+      class: 'mutation',
+      description: 'Update an IncomingPhoneNumber configuration (voice/SMS webhook URLs, friendly name).',
+      parameters: {
+        type: 'object',
+        properties: {
+          phoneNumberSid: { type: 'string', description: 'The unique identifier of the phone number resource (PN…).' },
+          FriendlyName: { type: 'string', description: 'Optional friendly label.' },
+          SmsUrl: { type: 'string', description: 'Optional URL Twilio fetches when an SMS comes in.' },
+          VoiceUrl: { type: 'string', description: 'Optional URL Twilio fetches when a call comes in.' },
+        },
+        required: ['phoneNumberSid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/IncomingPhoneNumbers/{phoneNumberSid}.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

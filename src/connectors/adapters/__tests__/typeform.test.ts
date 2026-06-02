@@ -53,11 +53,15 @@ describe('typeform adapter', () => {
     const names = typeformConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
       'account.get',
+      'forms.create',
+      'forms.delete',
       'forms.get',
       'forms.list',
       'forms.update',
+      'images.create',
       'responses.delete',
       'responses.list',
+      'themes.list',
       'webhooks.delete',
       'webhooks.get',
       'webhooks.list',
@@ -71,12 +75,16 @@ describe('typeform adapter', () => {
       'forms.get',
       'forms.list',
       'responses.list',
+      'themes.list',
       'webhooks.get',
       'webhooks.list',
       'workspaces.list',
     ])
     expect(mutators).toEqual([
+      'forms.create',
+      'forms.delete',
       'forms.update',
+      'images.create',
       'responses.delete',
       'webhooks.delete',
       'webhooks.upsert',

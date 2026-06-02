@@ -175,5 +175,99 @@ export const woodpeckerConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'prospect.update',
+      class: 'mutation',
+      description:
+        'Update fields on an existing Woodpecker prospect, addressed by email. Woodpecker treats POST /prospect with update=true as an upsert against the email key.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          first_name: { type: 'string' },
+          last_name: { type: 'string' },
+          company: { type: 'string' },
+          website: { type: 'string' },
+          linkedin_url: { type: 'string' },
+          title: { type: 'string' },
+          phone: { type: 'string' },
+          address: { type: 'string' },
+          city: { type: 'string' },
+          state: { type: 'string' },
+          country: { type: 'string' },
+          industry: { type: 'string' },
+          tags: { type: 'string' },
+          status: { type: 'string' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/prospect',
+        body: 'args',
+        query: { update: 'true' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'prospect.remove-from-campaign',
+      class: 'mutation',
+      description: 'Remove a prospect from a campaign by prospect ID and campaign ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prospectId: { type: 'number' },
+          campaignId: { type: 'string' },
+        },
+        required: ['prospectId', 'campaignId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/prospect/campaign',
+        query: {
+          id: '{prospectId}',
+          campaigns_id: '{campaignId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'prospect.stop',
+      class: 'mutation',
+      description: 'Stop follow-ups for a prospect across all campaigns or within a specific campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          campaign_id: { type: 'string' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/prospect/stop_followups',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.list',
+      class: 'read',
+      description: 'List Woodpecker campaigns, optionally filtered by status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/campaign_list',
+        query: { status: '{status}' },
+      },
+    },
   ],
 })

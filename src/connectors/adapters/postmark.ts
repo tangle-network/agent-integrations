@@ -399,5 +399,117 @@ export const postmarkConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'templates.update',
+      class: 'mutation',
+      description:
+        'Update an existing template by ID or alias (PUT /templates/{idOrAlias}). Only the fields supplied are modified; omit fields to leave them unchanged.',
+      parameters: {
+        type: 'object',
+        properties: {
+          idOrAlias: { type: 'string', description: 'Template ID or string alias.' },
+          Name: { type: 'string' },
+          Subject: { type: 'string' },
+          HtmlBody: { type: 'string' },
+          TextBody: { type: 'string' },
+          Alias: { type: 'string' },
+          TemplateType: { type: 'string', enum: ['Standard', 'Layout'] },
+          LayoutTemplate: { type: 'string' },
+        },
+        required: ['idOrAlias'],
+      },
+      request: { method: 'PUT', path: '/templates/{idOrAlias}', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.delete',
+      class: 'mutation',
+      description: 'Delete a template by ID or alias (DELETE /templates/{idOrAlias}).',
+      parameters: {
+        type: 'object',
+        properties: {
+          idOrAlias: { type: 'string', description: 'Template ID or string alias.' },
+        },
+        required: ['idOrAlias'],
+      },
+      request: { method: 'DELETE', path: '/templates/{idOrAlias}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bounces.delete',
+      class: 'mutation',
+      description:
+        'Delete suppression records for one or more recipients on a message stream (POST /message-streams/{streamId}/suppressions/delete). This is Postmark\'s "un-suppress" operation — the way to clear a bounce-driven block so future sends to that recipient are accepted again.',
+      parameters: {
+        type: 'object',
+        properties: {
+          streamId: {
+            type: 'string',
+            description: 'Outbound message stream ID (e.g. "outbound", "broadcast").',
+          },
+          Suppressions: {
+            type: 'array',
+            description: 'List of email addresses to remove from the stream\'s suppression list.',
+            items: {
+              type: 'object',
+              properties: {
+                EmailAddress: { type: 'string' },
+              },
+              required: ['EmailAddress'],
+            },
+          },
+        },
+        required: ['streamId', 'Suppressions'],
+      },
+      request: {
+        method: 'POST',
+        path: '/message-streams/{streamId}/suppressions/delete',
+        body: { Suppressions: '{Suppressions}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'servers.update',
+      class: 'mutation',
+      description:
+        'Update settings on the server this token belongs to (PUT /server). Server-token scoped — account-level server provisioning (creating new servers) requires an account token and is intentionally out of scope.',
+      parameters: {
+        type: 'object',
+        properties: {
+          Name: { type: 'string' },
+          Color: {
+            type: 'string',
+            description:
+              'UI badge color (Purple, Blue, Turquoise, Green, Red, Yellow, Grey).',
+          },
+          SmtpApiActivated: { type: 'boolean' },
+          RawEmailEnabled: { type: 'boolean' },
+          DeliveryHookUrl: { type: 'string' },
+          InboundHookUrl: { type: 'string' },
+          BounceHookUrl: { type: 'string' },
+          OpenHookUrl: { type: 'string' },
+          ClickHookUrl: { type: 'string' },
+          DeliveryType: {
+            type: 'string',
+            enum: ['Live', 'Sandbox'],
+            description: 'Live sends real email; Sandbox is a no-send dev mode.',
+          },
+          PostFirstOpenOnly: { type: 'boolean' },
+          TrackOpens: { type: 'boolean' },
+          TrackLinks: {
+            type: 'string',
+            enum: ['None', 'HtmlAndText', 'HtmlOnly', 'TextOnly'],
+          },
+          IncludeBounceContentInHook: { type: 'boolean' },
+          EnableSmtpApiErrorHooks: { type: 'boolean' },
+        },
+      },
+      request: { method: 'PUT', path: '/server', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

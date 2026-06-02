@@ -248,6 +248,138 @@ export const wordpressConnector = declarativeRestConnector({
       requiredScopes: ['posts'],
     },
     {
+      name: 'pages.update',
+      class: 'mutation',
+      description: 'Update fields on an existing WordPress page.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          id: { type: 'integer' },
+          title: { type: 'string' },
+          content: { type: 'string' },
+          slug: { type: 'string' },
+          status: {
+            type: 'string',
+            enum: ['publish', 'future', 'draft', 'pending', 'private'],
+          },
+          parent: { type: 'integer' },
+        },
+        required: ['site', 'id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp/v2/sites/{site}/pages/{id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['posts'],
+    },
+    {
+      name: 'pages.delete',
+      class: 'mutation',
+      description:
+        'Move a page to trash, or permanently delete it when `force` is true.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          id: { type: 'integer' },
+          force: { type: 'boolean', description: 'Bypass trash and permanently delete.' },
+        },
+        required: ['site', 'id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/wp/v2/sites/{site}/pages/{id}',
+        query: { force: '{force}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['posts'],
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description: 'Create a comment on a post.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          post: { type: 'integer', description: 'Post ID to comment on.' },
+          content: { type: 'string' },
+          author_name: { type: 'string' },
+          author_email: { type: 'string' },
+          parent: { type: 'integer', description: 'Parent comment ID for threaded replies.' },
+        },
+        required: ['site', 'post', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp/v2/sites/{site}/comments',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['comments'],
+    },
+    {
+      name: 'comments.delete',
+      class: 'mutation',
+      description:
+        'Trash a comment, or permanently delete it when `force` is true.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          id: { type: 'integer' },
+          force: { type: 'boolean' },
+        },
+        required: ['site', 'id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/wp/v2/sites/{site}/comments/{id}',
+        query: { force: '{force}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['comments'],
+    },
+    {
+      name: 'media.upload',
+      class: 'mutation',
+      description:
+        'Register a media asset on the site. Accepts the public URL of the source asset (WordPress.com sideloads from URL when supplied with `source_url`).',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          source_url: {
+            type: 'string',
+            description: 'Public URL WordPress should sideload as a media item.',
+          },
+          title: { type: 'string' },
+          caption: { type: 'string' },
+          alt_text: { type: 'string' },
+          post: {
+            type: 'integer',
+            description: 'Attach the uploaded media to this post ID.',
+          },
+        },
+        required: ['site', 'source_url'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp/v2/sites/{site}/media',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['media'],
+    },
+    {
       name: 'media.list',
       class: 'read',
       description: 'List media items on a site.',
@@ -331,6 +463,89 @@ export const wordpressConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       externalEffect: true,
       requiredScopes: ['comments'],
+    },
+    {
+      name: 'categories.create',
+      class: 'mutation',
+      description:
+        'Create a taxonomy category on a site. `name` is required; `slug`, `description`, and `parent` (parent category ID) are optional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          name: { type: 'string' },
+          slug: { type: 'string' },
+          description: { type: 'string' },
+          parent: { type: 'integer', description: 'Parent category ID for nested hierarchy.' },
+        },
+        required: ['site', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp/v2/sites/{site}/categories',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['posts'],
+    },
+    {
+      name: 'tags.create',
+      class: 'mutation',
+      description:
+        'Create a taxonomy tag on a site. `name` is required; `slug` and `description` are optional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          name: { type: 'string' },
+          slug: { type: 'string' },
+          description: { type: 'string' },
+        },
+        required: ['site', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/wp/v2/sites/{site}/tags',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['posts'],
+    },
+    {
+      name: 'users.list',
+      class: 'read',
+      description:
+        'List users (authors) on a site. Optionally filter by role (administrator, editor, author, contributor, subscriber) or search.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...siteLocator,
+          search: { type: 'string' },
+          roles: {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['administrator', 'editor', 'author', 'contributor', 'subscriber'],
+            },
+          },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+          page: { type: 'integer', minimum: 1 },
+        },
+        required: ['site'],
+      },
+      request: {
+        method: 'GET',
+        path: '/wp/v2/sites/{site}/users',
+        query: {
+          search: '{search}',
+          roles: '{roles}',
+          per_page: '{per_page}',
+          page: '{page}',
+        },
+      },
+      requiredScopes: ['posts'],
     },
   ],
 })

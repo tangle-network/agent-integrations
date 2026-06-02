@@ -96,5 +96,68 @@ export const smartsuiteConnector = declarativeRestConnector({
         body: { field: '{field}', file: '{file}' },
       },
     },
+    {
+      name: 'tables.list',
+      class: 'read',
+      description: 'List tables in the workspace/solution.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+      request: { method: 'GET', path: '/applications' },
+    },
+    {
+      name: 'fields.list',
+      class: 'read',
+      description: 'List fields on a table.',
+      parameters: {
+        type: 'object',
+        properties: { table: { type: 'string' } },
+        required: ['table'],
+      },
+      request: { method: 'GET', path: '/applications/{table}' },
+    },
+    {
+      name: 'records.bulk-create',
+      class: 'mutation',
+      description: 'Bulk-create multiple records in a table.',
+      parameters: {
+        type: 'object',
+        properties: {
+          table: { type: 'string' },
+          items: { type: 'array', description: 'Array of record objects to create' },
+        },
+        required: ['table', 'items'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tables/{table}/records/bulk',
+        body: { items: '{items}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'comments.create',
+      class: 'mutation',
+      description: 'Add a comment to a record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          table: { type: 'string' },
+          recordId: { type: 'string' },
+          message: { type: 'string' },
+        },
+        required: ['table', 'recordId', 'message'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tables/{table}/records/{recordId}/comments',
+        body: { message: '{message}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

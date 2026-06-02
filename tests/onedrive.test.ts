@@ -50,7 +50,16 @@ describe('onedrive adapter', () => {
 
   it('manifest exposes list_files, read_file, watch_folder', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['list_files', 'read_file', 'watch_folder'])
+    expect(names).toEqual([
+      'files.delete',
+      'files.move',
+      'files.share',
+      'files.upload',
+      'folders.create',
+      'list_files',
+      'read_file',
+      'watch_folder',
+    ])
   })
 
   it('declares the Microsoft v2.0 OAuth URLs and env vars', () => {
@@ -249,5 +258,293 @@ describe('onedrive adapter', () => {
     await expect(
       broken.exchangeOAuth!({ code: 'c', state: 's', codeVerifier: 'v', redirectUri: 'https://x/cb' }),
     ).rejects.toThrow(/MS_OAUTH_CLIENT_ID/)
+  })
+
+  it('exposes the write-side capabilities as native-idempotency externalEffect mutations', () => {
+    const writeNames = ['files.upload', 'files.delete', 'files.move', 'files.share', 'folders.create']
+    for (const name of writeNames) {
+      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
+      expect(cap, `missing capability ${name}`).toBeDefined()
+      expect(cap!.class).toBe('mutation')
+      if (cap!.class === 'mutation') {
+        expect(cap!.cas).toBe('native-idempotency')
+        expect(cap!.externalEffect).toBe(true)
+      }
+      expect(cap!.requiredScopes).toContain('https://graph.microsoft.com/Files.ReadWrite')
+    }
+  })
+
+  it('files.upload PUTs the small-file content endpoint with the requested content-type', async () => {
+    let capturedUrl: string | undefined
+    let capturedHeaders: Record<string, string> | undefined
+    let capturedBody: BodyInit | null | undefined
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input)
+      capturedHeaders = (init?.headers ?? {}) as Record<string, string>
+      capturedBody = init?.body as BodyInit | null | undefined
+      expect(init?.method).toBe('PUT')
+      return jsonResponse({ id: 'fid_1', name: 'hello.txt', eTag: 'W/"v1"', size: 5, file: { mimeType: 'text/plain' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.upload',
+      args: { folderId: 'fld_42', fileName: 'hello.txt', fileContent: 'hello', contentType: 'text/plain' },
+      idempotencyKey: 'k1',
+    })
+    expect(capturedUrl).toContain('/me/drive/items/fld_42:/hello.txt:/content')
+    expect(capturedHeaders!['content-type']).toBe('text/plain')
+    expect(Buffer.isBuffer(capturedBody)).toBe(true)
+    expect((capturedBody as Buffer).toString('utf-8')).toBe('hello')
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { id: string }).id).toBe('fid_1')
+      expect(result.etagAfter).toBe('W/"v1"')
+    }
+  })
+
+  it('files.upload decodes base64 fileContent before uploading', async () => {
+    let capturedBody: BodyInit | null | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        capturedBody = init?.body as BodyInit | null | undefined
+        return jsonResponse({ id: 'fid_2', name: 'photo.jpg', eTag: 'W/"v2"' })
+      }),
+    )
+    const base64 = Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64')
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.upload',
+      args: { folderId: 'root', fileName: 'photo.jpg', fileContent: base64, encoding: 'base64', contentType: 'image/jpeg' },
+      idempotencyKey: 'k2',
+    })
+    expect(Buffer.isBuffer(capturedBody)).toBe(true)
+    expect((capturedBody as Buffer).toString('hex')).toBe('ffd8ffe0')
+  })
+
+  it('files.upload routes folderId="root" to /me/drive/root:/...:/content', async () => {
+    let capturedUrl: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        capturedUrl = String(input)
+        return jsonResponse({ id: 'fid_3', name: 'r.txt', eTag: 'W/"v3"' })
+      }),
+    )
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.upload',
+      args: { folderId: 'root', fileName: 'r.txt', fileContent: 'hi' },
+      idempotencyKey: 'k3',
+    })
+    expect(capturedUrl).toContain('/me/drive/root:/r.txt:/content')
+  })
+
+  it('files.upload surfaces CredentialsExpired on 401', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'files.upload',
+        args: { folderId: 'fld', fileName: 'x.txt', fileContent: 'x' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+
+  it('files.delete issues DELETE on /items/{id} and returns committed', async () => {
+    let capturedMethod: string | undefined
+    let capturedUrl: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedMethod = init?.method
+        capturedUrl = String(input)
+        return new Response(null, { status: 204 })
+      }),
+    )
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.delete',
+      args: { itemId: 'fid_x' },
+      idempotencyKey: 'k-del',
+    })
+    expect(capturedMethod).toBe('DELETE')
+    expect(capturedUrl).toContain('/me/drive/items/fid_x')
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { deleted: boolean }).deleted).toBe(true)
+      expect(result.idempotentReplay).toBe(false)
+    }
+  })
+
+  it('files.delete treats 404 as idempotent replay', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.delete',
+      args: { itemId: 'fid_gone' },
+      idempotencyKey: 'k-del2',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(true)
+      expect((result.data as { alreadyDeleted: boolean }).alreadyDeleted).toBe(true)
+    }
+  })
+
+  it('files.move PATCHes /items/{id} with parentReference and name', async () => {
+    let capturedMethod: string | undefined
+    let capturedUrl: string | undefined
+    let capturedBody: Record<string, unknown> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedMethod = init?.method
+        capturedUrl = String(input)
+        capturedBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        return jsonResponse({ id: 'fid_x', name: 'renamed.txt', eTag: 'W/"v9"', parentReference: { id: 'fld_new' } })
+      }),
+    )
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.move',
+      args: { itemId: 'fid_x', newParentId: 'fld_new', newName: 'renamed.txt' },
+      idempotencyKey: 'k-mv',
+    })
+    expect(capturedMethod).toBe('PATCH')
+    expect(capturedUrl).toContain('/me/drive/items/fid_x')
+    expect(capturedBody.parentReference).toEqual({ id: 'fld_new' })
+    expect(capturedBody.name).toBe('renamed.txt')
+    expect(result.status).toBe('committed')
+  })
+
+  it('files.move maps newParentId="root" to the drive-root path', async () => {
+    let capturedBody: Record<string, unknown> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        return jsonResponse({ id: 'fid_x', name: 'a.txt' })
+      }),
+    )
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.move',
+      args: { itemId: 'fid_x', newParentId: 'root' },
+      idempotencyKey: 'k-mv2',
+    })
+    expect((capturedBody.parentReference as { path: string }).path).toBe('/drive/root')
+  })
+
+  it('files.move requires at least one of newParentId or newName', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'files.move',
+        args: { itemId: 'fid_x' },
+        idempotencyKey: 'k-mv3',
+      }),
+    ).rejects.toThrow(/at least one of newParentId or newName/)
+  })
+
+  it('files.share POSTs createLink and returns the permission payload', async () => {
+    let capturedUrl: string | undefined
+    let capturedBody: Record<string, unknown> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedUrl = String(input)
+        capturedBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        return jsonResponse({
+          id: 'perm_1',
+          roles: ['read'],
+          link: { webUrl: 'https://1drv.ms/abc', type: 'view', scope: 'anonymous' },
+        })
+      }),
+    )
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.share',
+      args: { itemId: 'fid_share', type: 'edit', scope: 'organization' },
+      idempotencyKey: 'k-share',
+    })
+    expect(capturedUrl).toContain('/me/drive/items/fid_share/createLink')
+    expect(capturedBody.type).toBe('edit')
+    expect(capturedBody.scope).toBe('organization')
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { permissionId: string }).permissionId).toBe('perm_1')
+    }
+  })
+
+  it('files.share defaults to view/anonymous when type/scope are omitted', async () => {
+    let capturedBody: Record<string, unknown> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        return jsonResponse({ id: 'perm_2', link: { webUrl: 'https://1drv.ms/x' } })
+      }),
+    )
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'files.share',
+      args: { itemId: 'fid_d' },
+      idempotencyKey: 'k-share-d',
+    })
+    expect(capturedBody.type).toBe('view')
+    expect(capturedBody.scope).toBe('anonymous')
+  })
+
+  it('folders.create POSTs /items/{parent}/children with folder + conflict behavior', async () => {
+    let capturedUrl: string | undefined
+    let capturedBody: Record<string, unknown> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedUrl = String(input)
+        capturedBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        return jsonResponse(
+          { id: 'fld_new', name: 'Reports', eTag: 'W/"f1"' },
+          { status: 201 },
+        )
+      }),
+    )
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'folders.create',
+      args: { parentId: 'fld_root_x', name: 'Reports' },
+      idempotencyKey: 'k-mkdir',
+    })
+    expect(capturedUrl).toContain('/me/drive/items/fld_root_x/children')
+    expect(capturedBody.name).toBe('Reports')
+    expect((capturedBody.folder as Record<string, unknown>)).toEqual({})
+    expect(capturedBody['@microsoft.graph.conflictBehavior']).toBe('fail')
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { id: string }).id).toBe('fld_new')
+    }
+  })
+
+  it('folders.create routes parentId="root" to /me/drive/root/children', async () => {
+    let capturedUrl: string | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        capturedUrl = String(input)
+        return jsonResponse({ id: 'fld_r', name: 'Inbox' }, { status: 201 })
+      }),
+    )
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'folders.create',
+      args: { parentId: 'root', name: 'Inbox' },
+      idempotencyKey: 'k-mkdir-root',
+    })
+    expect(capturedUrl).toContain('/me/drive/root/children')
   })
 })

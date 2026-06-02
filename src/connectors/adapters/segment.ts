@@ -349,6 +349,92 @@ export const segmentConnector = declarativeRestConnector({
         body: { name: '{name}', description: '{description}', enabled: '{enabled}', definition: '{definition}' },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'audiences.update',
+      class: 'mutation',
+      description: 'Update an existing audience definition or metadata within a Unify space.',
+      parameters: {
+        type: 'object',
+        properties: {
+          spaceId: { type: 'string' },
+          audienceId: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          enabled: { type: 'boolean' },
+          definition: {
+            type: 'object',
+            description: 'Updated audience query expressed in Segment FQL.',
+            properties: {
+              query: { type: 'string' },
+              type: { type: 'string', enum: ['USERS', 'ACCOUNTS'] },
+            },
+          },
+        },
+        required: ['spaceId', 'audienceId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/spaces/{spaceId}/audiences/{audienceId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'audiences.delete',
+      class: 'mutation',
+      description: 'Delete an audience from a Unify space.',
+      parameters: {
+        type: 'object',
+        properties: {
+          spaceId: { type: 'string' },
+          audienceId: { type: 'string' },
+        },
+        required: ['spaceId', 'audienceId'],
+      },
+      request: { method: 'DELETE', path: '/spaces/{spaceId}/audiences/{audienceId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tracking-plans.connect',
+      class: 'mutation',
+      description: 'Connect (attach) a tracking plan to a source so the plan is enforced for that source.',
+      parameters: {
+        type: 'object',
+        properties: {
+          trackingPlanId: { type: 'string' },
+          sourceId: { type: 'string' },
+        },
+        required: ['trackingPlanId', 'sourceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tracking-plans/{trackingPlanId}/sources',
+        body: { sourceId: '{sourceId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'warehouses.create',
+      class: 'mutation',
+      description: 'Create a destination warehouse (e.g. Snowflake, BigQuery, Redshift) wired to the workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          metadataId: { type: 'string', description: 'Warehouse-type metadata id from the catalog.' },
+          name: { type: 'string' },
+          enabled: { type: 'boolean' },
+          settings: { type: 'object', description: 'Warehouse-specific connection settings (credentials, region, schema).' },
+        },
+        required: ['metadataId', 'settings'],
+      },
+      request: { method: 'POST', path: '/warehouses', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })

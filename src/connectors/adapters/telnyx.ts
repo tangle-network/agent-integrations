@@ -120,5 +120,85 @@ export const telnyxConnector = declarativeRestConnector({
         query: { filter: '{filter}', page_size: '{page_size}' },
       },
     },
+    {
+      name: 'calls.hangup',
+      class: 'mutation',
+      description: 'Hang up an active call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          call_control_id: { type: 'string', description: 'Telnyx Call Control ID for the active call.' },
+        },
+        required: ['call_control_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls/{call_control_id}/actions/hangup',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'calls.transfer',
+      class: 'mutation',
+      description: 'Transfer an active call to a new destination.',
+      parameters: {
+        type: 'object',
+        properties: {
+          call_control_id: { type: 'string', description: 'Telnyx Call Control ID for the active call.' },
+          to: { type: 'string', description: 'Destination number or SIP URI to transfer the call to.' },
+          from: { type: 'string', description: 'Caller ID number to present on the transferred leg (optional).' },
+        },
+        required: ['call_control_id', 'to'],
+      },
+      request: {
+        method: 'POST',
+        path: '/calls/{call_control_id}/actions/transfer',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'numbers.list',
+      class: 'read',
+      description: 'List phone numbers on the account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          filter: { type: 'string', description: 'Optional filter criteria.' },
+          page_size: { type: 'integer', description: 'Number of results per page.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/phone_numbers',
+        query: { filter: '{filter}', page_size: '{page_size}' },
+      },
+    },
+    {
+      name: 'numbers.update',
+      class: 'mutation',
+      description: 'Update phone number configuration (tags, connection, customer reference).',
+      parameters: {
+        type: 'object',
+        properties: {
+          phone_number_id: { type: 'string', description: 'Telnyx phone number ID.' },
+          tags: { type: 'array', items: { type: 'string' }, description: 'Tags to set on the number (optional).' },
+          customer_reference: { type: 'string', description: 'Customer reference string (optional).' },
+          connection_id: { type: 'string', description: 'Telnyx Call Control Application or Connection ID (optional).' },
+        },
+        required: ['phone_number_id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/phone_numbers/{phone_number_id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

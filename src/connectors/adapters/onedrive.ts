@@ -160,6 +160,97 @@ export function oneDrive(opts: OneDriveOptions): ConnectorAdapter {
             required: ['folderId', 'notificationUrl'],
           },
         },
+        {
+          name: 'files.upload',
+          class: 'mutation',
+          description:
+            'Upload a new file via Graph small-file upload (PUT /items/{parent}:/{name}:/content). Suitable for <4MB payloads; larger files require an upload session, which is out of scope here. fileContent may be utf-8 text or base64 (when encoding="base64" the buffer is decoded before PUT).',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              folderId: { type: 'string', description: 'driveItem id of destination folder; pass "root" for the drive root.' },
+              fileName: { type: 'string', description: 'Name of the new file, including extension.' },
+              fileContent: { type: 'string', description: 'File contents. utf-8 by default; base64-encoded when encoding="base64".' },
+              encoding: { type: 'string', enum: ['utf-8', 'base64'], default: 'utf-8' },
+              contentType: { type: 'string', description: 'Optional MIME type override sent as content-type on the PUT.' },
+            },
+            required: ['folderId', 'fileName', 'fileContent'],
+          },
+        },
+        {
+          name: 'files.delete',
+          class: 'mutation',
+          description: 'Delete a file or folder by driveItem id. Returns 204 with no body on success.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              itemId: { type: 'string', description: 'driveItem id of the file or folder to delete.' },
+            },
+            required: ['itemId'],
+          },
+        },
+        {
+          name: 'files.move',
+          class: 'mutation',
+          description:
+            'Move (or rename) a driveItem by PATCHing its parentReference and/or name. Supply newParentId, newName, or both.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              itemId: { type: 'string', description: 'driveItem id of the file or folder to move.' },
+              newParentId: { type: 'string', description: 'Destination folder id; pass "root" for the drive root. Omit to rename in place.' },
+              newName: { type: 'string', description: 'New name for the item. Omit to keep the existing name.' },
+            },
+            required: ['itemId'],
+          },
+        },
+        {
+          name: 'files.share',
+          class: 'mutation',
+          description:
+            "Create a sharing link via POST /items/{id}/createLink. type is one of 'view' | 'edit' | 'embed'; scope is one of 'anonymous' | 'organization'.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              itemId: { type: 'string', description: 'driveItem id to share.' },
+              type: { type: 'string', enum: ['view', 'edit', 'embed'], default: 'view' },
+              scope: { type: 'string', enum: ['anonymous', 'organization'], default: 'anonymous' },
+              password: { type: 'string', description: 'Optional password for the link (where supported).' },
+              expirationDateTime: { type: 'string', description: 'Optional ISO-8601 expiration timestamp.' },
+            },
+            required: ['itemId'],
+          },
+        },
+        {
+          name: 'folders.create',
+          class: 'mutation',
+          description:
+            'Create a new folder under {parentId} via POST /items/{parent}/children. conflictBehavior defaults to "fail" so re-issuing the same idempotency key against an existing name surfaces a 409 rather than silently creating a sibling folder.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_WRITE],
+          parameters: {
+            type: 'object',
+            properties: {
+              parentId: { type: 'string', description: 'Parent folder driveItem id; pass "root" for the drive root.' },
+              name: { type: 'string', description: 'Name of the new folder.' },
+              conflictBehavior: { type: 'string', enum: ['fail', 'replace', 'rename'], default: 'fail' },
+            },
+            required: ['parentId', 'name'],
+          },
+        },
       ],
     },
 
@@ -171,11 +262,23 @@ export function oneDrive(opts: OneDriveOptions): ConnectorAdapter {
     },
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-      if (inv.capabilityName !== 'watch_folder') {
-        throw new Error(`onedrive: unknown mutation capability ${inv.capabilityName}`)
-      }
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
-      return watchFolder(inv, accessToken, timeoutMs)
+      switch (inv.capabilityName) {
+        case 'watch_folder':
+          return watchFolder(inv, accessToken, timeoutMs)
+        case 'files.upload':
+          return uploadFile(inv, accessToken, timeoutMs)
+        case 'files.delete':
+          return deleteItem(inv, accessToken, timeoutMs)
+        case 'files.move':
+          return moveItem(inv, accessToken, timeoutMs)
+        case 'files.share':
+          return shareItem(inv, accessToken, timeoutMs)
+        case 'folders.create':
+          return createFolder(inv, accessToken, timeoutMs)
+        default:
+          throw new Error(`onedrive: unknown mutation capability ${inv.capabilityName}`)
+      }
     },
 
     async exchangeOAuth(input) {
@@ -455,6 +558,262 @@ async function watchFolder(
       expirationDateTime: json.expirationDateTime,
       resource: json.resource,
     },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+function itemPath(itemId: string): string {
+  return itemId === 'root' ? '/me/drive/root' : `/me/drive/items/${encodeURIComponent(itemId)}`
+}
+
+async function uploadFile(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { folderId, fileName, fileContent, encoding, contentType } = (inv.args ?? {}) as {
+    folderId: string
+    fileName: string
+    fileContent: string
+    encoding?: 'utf-8' | 'base64'
+    contentType?: string
+  }
+  if (!folderId) throw new Error('onedrive files.upload: folderId is required')
+  if (!fileName) throw new Error('onedrive files.upload: fileName is required')
+  if (fileContent === undefined || fileContent === null) {
+    throw new Error('onedrive files.upload: fileContent is required')
+  }
+  const body =
+    encoding === 'base64' ? Buffer.from(fileContent, 'base64') : Buffer.from(fileContent, 'utf-8')
+  // Small-file upload: PUT against /items/{parent}:/{name}:/content.
+  // /items/root:/foo.txt:/content is the special root form Graph documents.
+  const parentSegment =
+    folderId === 'root' ? '/me/drive/root' : `/me/drive/items/${encodeURIComponent(folderId)}`
+  const url = `${API}${parentSegment}:/${encodeURIComponent(fileName)}:/content`
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': contentType ?? 'application/octet-stream',
+    },
+    body,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`OneDrive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`onedrive files.upload ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as DriveItem & { id: string }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      eTag: json.eTag,
+      size: json.size,
+      webUrl: json.webUrl,
+      mimeType: json.file?.mimeType,
+    },
+    etagAfter: json.eTag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function deleteItem(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { itemId } = (inv.args ?? {}) as { itemId: string }
+  if (!itemId) throw new Error('onedrive files.delete: itemId is required')
+  const res = await fetch(`${API}${itemPath(itemId)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`OneDrive rejected token (${res.status})`, inv.source.id)
+  }
+  // Graph returns 204 on success; 404 = already gone, surface as a typed
+  // result rather than throwing so callers can treat delete idempotently.
+  if (res.status === 404) {
+    return {
+      status: 'committed',
+      data: { id: itemId, alreadyDeleted: true },
+      committedAt: Date.now(),
+      idempotentReplay: true,
+    }
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`onedrive files.delete ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: { id: itemId, deleted: true },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function moveItem(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { itemId, newParentId, newName } = (inv.args ?? {}) as {
+    itemId: string
+    newParentId?: string
+    newName?: string
+  }
+  if (!itemId) throw new Error('onedrive files.move: itemId is required')
+  if (!newParentId && !newName) {
+    throw new Error('onedrive files.move: at least one of newParentId or newName is required')
+  }
+  const body: Record<string, unknown> = {}
+  if (newParentId) {
+    body.parentReference = newParentId === 'root' ? { path: '/drive/root' } : { id: newParentId }
+  }
+  if (newName) body.name = newName
+  const res = await fetch(`${API}${itemPath(itemId)}`, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`OneDrive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`onedrive files.move ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as DriveItem & { id: string }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      eTag: json.eTag,
+      parentReference: json.parentReference,
+      webUrl: json.webUrl,
+    },
+    etagAfter: json.eTag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function shareItem(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { itemId, type, scope, password, expirationDateTime } = (inv.args ?? {}) as {
+    itemId: string
+    type?: 'view' | 'edit' | 'embed'
+    scope?: 'anonymous' | 'organization'
+    password?: string
+    expirationDateTime?: string
+  }
+  if (!itemId) throw new Error('onedrive files.share: itemId is required')
+  const body: Record<string, unknown> = {
+    type: type ?? 'view',
+    scope: scope ?? 'anonymous',
+  }
+  if (password) body.password = password
+  if (expirationDateTime) body.expirationDateTime = expirationDateTime
+  const res = await fetch(`${API}${itemPath(itemId)}/createLink`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`OneDrive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`onedrive files.share ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id?: string
+    roles?: string[]
+    link?: { webUrl?: string; type?: string; scope?: string }
+    expirationDateTime?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      permissionId: json.id,
+      link: json.link,
+      roles: json.roles,
+      expirationDateTime: json.expirationDateTime,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createFolder(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { parentId, name, conflictBehavior } = (inv.args ?? {}) as {
+    parentId: string
+    name: string
+    conflictBehavior?: 'fail' | 'replace' | 'rename'
+  }
+  if (!parentId) throw new Error('onedrive folders.create: parentId is required')
+  if (!name) throw new Error('onedrive folders.create: name is required')
+  const parentSegment =
+    parentId === 'root'
+      ? '/me/drive/root/children'
+      : `/me/drive/items/${encodeURIComponent(parentId)}/children`
+  const body: Record<string, unknown> = {
+    name,
+    folder: {},
+    '@microsoft.graph.conflictBehavior': conflictBehavior ?? 'fail',
+  }
+  const res = await fetch(`${API}${parentSegment}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`OneDrive rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`onedrive folders.create ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as DriveItem & { id: string }
+  return {
+    status: 'committed',
+    data: {
+      id: json.id,
+      name: json.name,
+      eTag: json.eTag,
+      webUrl: json.webUrl,
+      parentReference: json.parentReference,
+    },
+    etagAfter: json.eTag,
     committedAt: Date.now(),
     idempotentReplay: false,
   }

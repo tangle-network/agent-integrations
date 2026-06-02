@@ -119,5 +119,66 @@ export const tableauConnector = declarativeRestConnector({
         query: { pageSize: '{limit}' },
       },
     },
+    {
+      name: 'workbooks.delete',
+      class: 'mutation',
+      description: 'Delete a workbook by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteId: { type: 'string', description: 'The site ID' },
+          workbookId: { type: 'string', description: 'The ID of the workbook to delete' },
+        },
+        required: ['siteId', 'workbookId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/3.19/sites/{siteId}/workbooks/{workbookId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscriptions.create',
+      class: 'mutation',
+      description: 'Create a subscription to a view or workbook.',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteId: { type: 'string', description: 'The site ID' },
+          subscription: {
+            type: 'object',
+            description: 'Tableau subscription envelope, e.g. { subscription: { subject, contentId, userId, scheduleId, ... } }',
+          },
+        },
+        required: ['siteId', 'subscription'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/3.19/sites/{siteId}/subscriptions',
+        body: { subscription: '{subscription}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'datasources.delete',
+      class: 'mutation',
+      description: 'Delete a datasource by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteId: { type: 'string', description: 'The site ID' },
+          datasourceId: { type: 'string', description: 'The ID of the datasource to delete' },
+        },
+        required: ['siteId', 'datasourceId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/3.19/sites/{siteId}/datasources/{datasourceId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

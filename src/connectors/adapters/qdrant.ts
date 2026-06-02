@@ -888,5 +888,115 @@ export const qdrantConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/collections/{collection_name}/cluster' },
     },
+    {
+      name: 'snapshots.restore',
+      class: 'mutation',
+      description:
+        'Restore a collection from a previously created snapshot URL. The Qdrant node fetches the snapshot file from `location` and replays it into the collection (creating it if needed). priority selects whether the local snapshot or the live replicas are authoritative during recovery.',
+      parameters: {
+        type: 'object',
+        properties: {
+          collection_name: { type: 'string' },
+          location: { type: 'string', description: 'URL or local path of the snapshot file to recover from.' },
+          priority: { type: 'string', enum: ['no_sync', 'snapshot', 'replica'] },
+          checksum: { type: 'string', description: 'Optional SHA-256 of the snapshot file for integrity.' },
+          api_key: { type: 'string', description: 'Optional api-key to authenticate the remote snapshot fetch.' },
+          wait: { type: 'boolean' },
+        },
+        required: ['collection_name', 'location'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/collections/{collection_name}/snapshots/recover',
+        query: { wait: '{wait}' },
+        // location is the only required body field; priority/checksum/api_key
+        // are optional, so use 'args' (the declarative-rest pattern) instead of
+        // bare {placeholder} body strings (which throw on undefined).
+        body: 'args',
+      },
+      // Recover is keyed by the snapshot location; replaying the same restore
+      // against an identical snapshot is a no-op on the destination collection.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'shards.create',
+      class: 'mutation',
+      description:
+        'Create a custom shard for collections that use sharding_method="custom". Body carries shard_key (string or integer) and optional shards_number / replication_factor / placement overrides.',
+      parameters: {
+        type: 'object',
+        properties: {
+          collection_name: { type: 'string' },
+          shard_key: { description: 'Shard key — string or integer.' },
+          shards_number: { type: 'integer', minimum: 1 },
+          replication_factor: { type: 'integer', minimum: 1 },
+          placement: { type: 'array', items: { type: 'integer' } },
+          wait: { type: 'boolean' },
+          timeout: { type: 'integer' },
+        },
+        required: ['collection_name', 'shard_key'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/collections/{collection_name}/shards',
+        query: { wait: '{wait}', timeout: '{timeout}' },
+        // shard_key is the only required body field; the rest are optional, so
+        // pass through args directly (declarative-rest can't represent optional
+        // body placeholders without throwing on undefined).
+        body: 'args',
+      },
+      // Replaying create against an existing shard_key is rejected with 409 and
+      // mapped to status:conflict by the engine — no duplicate side effect.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'shards.delete',
+      class: 'mutation',
+      description:
+        'Delete a custom shard from a collection. Body carries the shard_key to drop. Only valid for collections that use sharding_method="custom".',
+      parameters: {
+        type: 'object',
+        properties: {
+          collection_name: { type: 'string' },
+          shard_key: { description: 'Shard key to delete — string or integer.' },
+          wait: { type: 'boolean' },
+          timeout: { type: 'integer' },
+        },
+        required: ['collection_name', 'shard_key'],
+      },
+      request: {
+        method: 'POST',
+        path: '/collections/{collection_name}/shards/delete',
+        query: { wait: '{wait}', timeout: '{timeout}' },
+        body: { shard_key: '{shard_key}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'cluster.peer.remove',
+      class: 'mutation',
+      description:
+        'Remove a peer from the Raft cluster by peer_id. Pass force=true to drop the peer even when it still holds replicas (data on that peer is lost). Use after physically decommissioning a node.',
+      parameters: {
+        type: 'object',
+        properties: {
+          peer_id: { type: 'integer' },
+          force: { type: 'boolean' },
+        },
+        required: ['peer_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/cluster/peer/{peer_id}',
+        query: { force: '{force}' },
+      },
+      // Replay against an already-removed peer_id returns 404 (status:not_found)
+      // — no double-removal effect.
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

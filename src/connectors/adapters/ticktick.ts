@@ -160,5 +160,90 @@ export const ticktickConnector = declarativeRestConnector({
         path: '/project/{projectId}',
       },
     },
+    {
+      name: 'projects.create',
+      class: 'mutation',
+      description: 'Create a new project (list) in TickTick.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          color: { type: 'string', description: 'Hex color code for the project (optional).' },
+          viewMode: { type: 'string', description: "View mode, e.g. 'list', 'kanban', 'timeline' (optional)." },
+          kind: { type: 'string', description: "Project kind, e.g. 'TASK' or 'NOTE' (optional)." },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/project',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'projects.update',
+      class: 'mutation',
+      description: 'Update an existing project in TickTick.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          name: { type: 'string', description: 'New project name (optional).' },
+          color: { type: 'string', description: 'Hex color code for the project (optional).' },
+          viewMode: { type: 'string', description: 'View mode (optional).' },
+          kind: { type: 'string', description: 'Project kind (optional).' },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/project/{projectId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'projects.delete',
+      class: 'mutation',
+      description: 'Delete a project from TickTick.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/project/{projectId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.move',
+      class: 'mutation',
+      description: 'Move a task to another project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string' },
+          projectId: { type: 'string', description: 'Destination project ID.' },
+        },
+        required: ['taskId', 'projectId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/task/{taskId}/move',
+        body: {
+          projectId: '{projectId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

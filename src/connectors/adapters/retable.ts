@@ -179,5 +179,80 @@ export const retableConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'records.delete',
+      class: 'mutation',
+      description: 'Delete a record in a retable.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          retableId: { type: 'string' },
+          recordId: { type: 'string' },
+        },
+        required: ['projectId', 'retableId', 'recordId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/projects/{projectId}/retables/{retableId}/records/{recordId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'projects.delete',
+      class: 'mutation',
+      description: 'Delete a project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/projects/{projectId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workspaces.delete',
+      class: 'mutation',
+      description: 'Delete a workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+        },
+        required: ['workspaceId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/workspaces/{workspaceId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'retables.delete',
+      class: 'mutation',
+      description: 'Delete a retable (table) in a project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          retableId: { type: 'string' },
+        },
+        required: ['projectId', 'retableId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/projects/{projectId}/retables/{retableId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

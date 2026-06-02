@@ -199,5 +199,104 @@ export const serviceNowConnector = declarativeRestConnector({
       },
       cas: 'etag-if-match',
     },
+    {
+      name: 'incidents.close',
+      class: 'mutation',
+      description:
+        'Close (not just resolve) a ServiceNow incident. Sets incident_state to Closed (7) with the supplied close code and notes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          incidentSysSysId: { type: 'string', description: 'Incident sys_id' },
+          closeCode: { type: 'string', description: 'Close code (e.g. "Solved (Permanently)").' },
+          closeNotes: { type: 'string', description: 'Closure notes / root cause summary.' },
+        },
+        required: ['incidentSysSysId', 'closeCode', 'closeNotes'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/api/now/v2/table/incident/{incidentSysSysId}',
+        body: {
+          state: '7',
+          incident_state: '7',
+          close_code: '{closeCode}',
+          close_notes: '{closeNotes}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'incidents.assign',
+      class: 'mutation',
+      description:
+        'Assign a ServiceNow incident to a user and/or assignment group. Pass `assignedTo` (user sys_id) and/or `assignmentGroup` (group sys_id); at least one is required at runtime.',
+      parameters: {
+        type: 'object',
+        properties: {
+          incidentSysSysId: { type: 'string', description: 'Incident sys_id' },
+          assignedTo: { type: 'string', description: 'User sys_id to assign the incident to.' },
+          assignmentGroup: { type: 'string', description: 'Assignment group sys_id.' },
+        },
+        required: ['incidentSysSysId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/api/now/v2/table/incident/{incidentSysSysId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'changes.create',
+      class: 'mutation',
+      description: 'Create a change request (change_request table) in ServiceNow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fields: {
+            type: 'object',
+            description:
+              'Change request fields. Common values: `short_description`, `description`, `type` ("standard"|"normal"|"emergency"), `risk`, `impact`, `priority`, `assignment_group`.',
+          },
+        },
+        required: ['fields'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/now/v2/table/change_request',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.create',
+      class: 'mutation',
+      description:
+        'Create a task record on a ServiceNow task table. Pass `table` to target a concrete task subtype (e.g. `sc_task`, `incident_task`, `change_task`, or the base `task` table).',
+      parameters: {
+        type: 'object',
+        properties: {
+          table: {
+            type: 'string',
+            description: 'Task table name (e.g. `sc_task`, `incident_task`, `change_task`, `task`).',
+          },
+          fields: {
+            type: 'object',
+            description: 'Task fields. Common values: `short_description`, `description`, `assigned_to`, `assignment_group`, `parent`.',
+          },
+        },
+        required: ['table', 'fields'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/now/v2/table/{table}',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

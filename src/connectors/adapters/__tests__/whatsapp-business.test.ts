@@ -65,14 +65,20 @@ describe('whatsappBusiness adapter', () => {
       'send_template_message',
       'list_message_templates',
       'get_business_phone_number',
+      'media.upload',
+      'templates.create',
+      'templates.delete',
+      'messages.mark-read',
     ])
 
     for (const cap of adapter.manifest.capabilities) {
       if (cap.class === 'mutation') {
-        // outbound chat is append-only — Meta has no idempotency primitive on /messages,
-        // so MutationGuard owns dedup above us.
-        expect(cap.cas).toBe('none')
         expect(cap.externalEffect).toBe(true)
+        if (cap.name === 'send_text_message' || cap.name === 'send_template_message') {
+          // outbound chat is append-only — Meta has no idempotency primitive on /messages,
+          // so MutationGuard owns dedup above us.
+          expect(cap.cas).toBe('none')
+        }
       }
     }
   })

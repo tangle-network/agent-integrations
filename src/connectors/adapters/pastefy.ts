@@ -88,5 +88,85 @@ export const pastefyConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'pastes.update',
+      class: 'mutation',
+      description: 'Update the content, title, or metadata of a paste.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paste_id: { type: 'string' },
+          title: { type: 'string' },
+          content: { type: 'string' },
+          name: { type: 'string' },
+          folder: { type: 'string' },
+          visibility: { type: 'string' },
+        },
+        required: ['paste_id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v1/pastes/{paste_id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'folders.list',
+      class: 'read',
+      description: 'List user folders.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/folders',
+      },
+    },
+    {
+      name: 'folders.create',
+      class: 'mutation',
+      description: 'Create a new folder for organizing pastes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          parent: { type: 'string', description: 'Optional parent folder ID.' },
+          visibility: { type: 'string' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/folders',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'pastes.share',
+      class: 'mutation',
+      description:
+        'Generate a share link for a paste. Pastefy returns a token-bearing URL the caller can hand out.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paste_id: { type: 'string' },
+          expires_at: { type: 'string', description: 'Optional ISO-8601 expiry for the share link.' },
+        },
+        required: ['paste_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/pastes/{paste_id}/share',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

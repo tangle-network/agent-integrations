@@ -117,5 +117,98 @@ export const systemeIoConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Delete a contact from Systeme.io.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactId: { type: 'string', description: 'Contact ID' },
+        },
+        required: ['contactId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contacts/{contactId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tags.create',
+      class: 'mutation',
+      description: 'Create a new tag in Systeme.io.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Tag name' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tags',
+        body: { name: '{name}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tags.delete',
+      class: 'mutation',
+      description: 'Delete a tag from Systeme.io.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tagId: { type: 'string', description: 'Tag ID' },
+        },
+        required: ['tagId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/tags/{tagId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.list',
+      class: 'read',
+      description: 'List automation campaigns.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Page size' },
+          startingAfter: { type: 'string', description: 'Pagination cursor' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/community/campaigns',
+        query: { limit: '{limit}', startingAfter: '{startingAfter}' },
+      },
+    },
+    {
+      name: 'campaigns.subscribe',
+      class: 'mutation',
+      description: 'Subscribe a contact to an automation campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Campaign ID' },
+          contactId: { type: 'string', description: 'Contact ID' },
+        },
+        required: ['campaignId', 'contactId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/community/campaigns/{campaignId}/subscribers',
+        body: { contactId: '{contactId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

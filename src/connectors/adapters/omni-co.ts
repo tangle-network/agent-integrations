@@ -177,5 +177,95 @@ export const omniCoConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/v1/dashboards/{identifier}/schedules/{scheduleId}' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'documents.update',
+      class: 'mutation',
+      description: 'Update an existing document title and/or content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'The ID of the document to update' },
+          name: { type: 'string', description: 'Updated document title' },
+          content: { type: 'object', description: 'Updated document content payload' },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/v1/documents/{documentId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'queries.delete',
+      class: 'mutation',
+      description: 'Delete a saved query by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          queryId: { type: 'string', description: 'The ID of the saved query to delete' },
+        },
+        required: ['queryId'],
+      },
+      request: { method: 'DELETE', path: '/v1/queries/{queryId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'schedules.run-now',
+      class: 'mutation',
+      description: 'Trigger an immediate run of a scheduled query / dashboard delivery.',
+      parameters: {
+        type: 'object',
+        properties: {
+          identifier: { type: 'string', description: 'The dashboard identifier' },
+          scheduleId: { type: 'string', description: 'The schedule ID to run' },
+        },
+        required: ['identifier', 'scheduleId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/dashboards/{identifier}/schedules/{scheduleId}/run',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'documents.share',
+      class: 'mutation',
+      description: 'Share a document with a user or group at a given access level.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'The ID of the document to share' },
+          principalType: {
+            type: 'string',
+            description: 'Recipient kind: "user" or "group".',
+          },
+          principalId: {
+            type: 'string',
+            description: 'User or group id receiving access.',
+          },
+          accessLevel: {
+            type: 'string',
+            description: 'Access level (e.g. viewer, editor).',
+          },
+        },
+        required: ['documentId', 'principalType', 'principalId', 'accessLevel'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/documents/{documentId}/shares',
+        body: {
+          principalType: '{principalType}',
+          principalId: '{principalId}',
+          accessLevel: '{accessLevel}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -232,5 +232,87 @@ export const typeformConnector = declarativeRestConnector({
         query: { page: '{page}', page_size: '{page_size}', search: '{search}' },
       },
     },
+    {
+      name: 'forms.create',
+      class: 'mutation',
+      description: 'Create a new form. Body must be the complete form payload (title, fields[], settings, theme, workspace, ...).',
+      parameters: {
+        type: 'object',
+        properties: {
+          fields: {
+            type: 'object',
+            description: 'Full form payload — title, fields[], welcome_screens, thankyou_screens, settings, theme, workspace, hidden, logic.',
+          },
+        },
+        required: ['fields'],
+      },
+      request: {
+        method: 'POST',
+        path: '/forms',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.delete',
+      class: 'mutation',
+      description: 'Delete a form. Irreversible — wipes the form, its responses, and webhook subscriptions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          form_id: { type: 'string' },
+        },
+        required: ['form_id'],
+      },
+      request: { method: 'DELETE', path: '/forms/{form_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'themes.list',
+      class: 'read',
+      description: 'List themes available to the connected account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', minimum: 1 },
+          page_size: { type: 'integer', minimum: 1, maximum: 200 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/themes',
+        query: { page: '{page}', page_size: '{page_size}' },
+      },
+    },
+    {
+      name: 'images.create',
+      class: 'mutation',
+      description: 'Upload an image used in forms. Provide either a base64-encoded `image` envelope or a remote `url`; `file_name` is required.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_name: { type: 'string', description: 'File name (with extension) Typeform should store under.' },
+          image: {
+            type: 'object',
+            description: 'Base64 image envelope: { value: <base64>, type: "image/png" }.',
+            properties: {
+              value: { type: 'string' },
+              type: { type: 'string' },
+            },
+          },
+          url: { type: 'string', description: 'Optional remote URL Typeform should fetch the image from (alternative to `image`).' },
+        },
+        required: ['file_name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/images',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

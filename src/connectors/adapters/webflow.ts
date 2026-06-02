@@ -310,6 +310,105 @@ export const webflowConnector = declarativeRestConnector({
       requiredScopes: ['cms:write'],
     },
     {
+      name: 'items.unpublish',
+      class: 'mutation',
+      description:
+        'Unpublish one or more CMS items from the live Webflow site. Items remain in their collection but are removed from the published view.',
+      parameters: {
+        type: 'object',
+        properties: {
+          collectionId: { type: 'string' },
+          itemIds: {
+            type: 'array',
+            description: 'Item IDs in the collection to unpublish.',
+            items: { type: 'string' },
+            minItems: 1,
+          },
+        },
+        required: ['collectionId', 'itemIds'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/collections/{collectionId}/items/unpublish',
+        body: {
+          itemIds: '{itemIds}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['cms:write'],
+    },
+    {
+      name: 'collections.create',
+      class: 'mutation',
+      description:
+        'Create a CMS collection on a Webflow site. `displayName` is the human-readable label, `singularName` is the per-item noun, `slug` (optional) sets the URL/api slug.',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteId: { type: 'string', description: 'Webflow site ID that owns the new collection.' },
+          displayName: { type: 'string', description: 'Display name of the collection.' },
+          singularName: { type: 'string', description: 'Singular noun for an item in the collection.' },
+          slug: { type: 'string', description: 'Optional collection slug — auto-generated from displayName if omitted.' },
+        },
+        required: ['siteId', 'displayName', 'singularName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/sites/{siteId}/collections',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['cms:write'],
+    },
+    {
+      name: 'collections.delete',
+      class: 'mutation',
+      description: 'Delete a CMS collection from a Webflow site. All items in the collection are removed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          collectionId: { type: 'string' },
+        },
+        required: ['collectionId'],
+      },
+      request: { method: 'DELETE', path: '/v2/collections/{collectionId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['cms:write'],
+    },
+    {
+      name: 'sites.publish',
+      class: 'mutation',
+      description:
+        'Publish a Webflow site to its domains. `publishToWebflowSubdomain` toggles the *.webflow.io staging URL; `customDomains` is an array of domain IDs (from `sites.get`) to publish to. At least one target must be supplied.',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteId: { type: 'string' },
+          publishToWebflowSubdomain: {
+            type: 'boolean',
+            description: 'Publish to the *.webflow.io staging subdomain. Defaults to false.',
+          },
+          customDomains: {
+            type: 'array',
+            description: 'Custom domain IDs (see Site.customDomains[].id) to publish to.',
+            items: { type: 'string' },
+          },
+        },
+        required: ['siteId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/sites/{siteId}/publish',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['sites:read', 'cms:write'],
+    },
+    {
       name: 'pages.list',
       class: 'read',
       description: 'List static pages defined on a Webflow site.',

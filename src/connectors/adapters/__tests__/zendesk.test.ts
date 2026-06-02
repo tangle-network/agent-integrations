@@ -67,12 +67,17 @@ describe('zendeskConnector', () => {
     const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
 
     expect(Object.keys(byName).sort()).toEqual([
+      'tickets.add-comment',
       'tickets.create',
+      'tickets.delete',
       'tickets.get',
+      'tickets.merge',
       'tickets.search',
       'tickets.update',
       'users.create',
+      'users.delete',
       'users.search',
+      'users.update',
     ])
 
     expect(byName['tickets.search'].class).toBe('read')

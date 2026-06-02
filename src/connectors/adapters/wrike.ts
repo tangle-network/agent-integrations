@@ -269,6 +269,85 @@ export const wrikeConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'tasks.delete',
+      class: 'mutation',
+      description: 'Delete a task.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string' },
+        },
+        required: ['taskId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/tasks/{taskId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.complete',
+      class: 'mutation',
+      description: 'Mark a task complete.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string' },
+        },
+        required: ['taskId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/tasks/{taskId}',
+        body: {
+          status: 'Completed',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'folders.delete',
+      class: 'mutation',
+      description: 'Delete a folder.',
+      parameters: {
+        type: 'object',
+        properties: {
+          folderId: { type: 'string' },
+        },
+        required: ['folderId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/folders/{folderId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'comments.update',
+      class: 'mutation',
+      description: 'Edit a comment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          commentId: { type: 'string' },
+          text: { type: 'string' },
+        },
+        required: ['commentId', 'text'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/comments/{commentId}',
+        body: {
+          text: '{text}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'folders.find',
       class: 'read',
       description: 'Search for a folder in Wrike.',

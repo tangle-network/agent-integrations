@@ -157,5 +157,82 @@ export const shortIoConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'domains.list',
+      class: 'read',
+      description: 'List custom domains on the Short.io account.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+      // baseUrl ends in /api/links — use `../../domains` to escape to /domains.
+      request: { method: 'GET', path: '../../domains' },
+    },
+    {
+      name: 'domains.create',
+      class: 'mutation',
+      description: 'Create a custom domain on the Short.io account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          hostname: { type: 'string', description: 'Domain hostname (e.g., short.example.com).' },
+          hideReferer: { type: 'boolean', description: 'Hide the referer header on redirect.' },
+          httpsLinks: { type: 'boolean', description: 'Enforce HTTPS-only redirects.' },
+        },
+        required: ['hostname'],
+      },
+      // Escape /api/links to hit /domains.
+      request: {
+        method: 'POST',
+        path: '../../domains',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'links.import',
+      class: 'mutation',
+      description: 'Bulk-import short links. `links` is an array of {originalURL, …} entries.',
+      parameters: {
+        type: 'object',
+        properties: {
+          domain: { type: 'string', description: 'Target Short.io domain hostname.' },
+          links: {
+            type: 'array',
+            description: 'Array of link objects to import (each requires originalURL).',
+            items: { type: 'object' },
+          },
+        },
+        required: ['domain', 'links'],
+      },
+      request: {
+        method: 'POST',
+        path: 'bulk',
+        body: {
+          domain: '{domain}',
+          links: '{links}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'targeting.delete',
+      class: 'mutation',
+      description: 'Delete a country targeting rule by rule id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          linkId: { type: 'string', description: 'The ID of the short link.' },
+          ruleId: { type: 'string', description: 'The ID of the country-targeting rule.' },
+        },
+        required: ['linkId', 'ruleId'],
+      },
+      request: { method: 'DELETE', path: '/{linkId}/country-rules/{ruleId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -296,5 +296,128 @@ export const snowflakeConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['session:role:manage'],
     },
+    {
+      name: 'tables.create',
+      class: 'mutation',
+      description: 'Create a table in a schema.',
+      parameters: {
+        type: 'object',
+        properties: {
+          database: { type: 'string' },
+          schema: { type: 'string' },
+          name: { type: 'string' },
+          columns: {
+            type: 'array',
+            description: 'Column definitions: name + Snowflake type, e.g. {name: "id", type: "NUMBER"}.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                type: { type: 'string' },
+                nullable: { type: 'boolean' },
+                default: {},
+              },
+              required: ['name', 'type'],
+            },
+          },
+        },
+        required: ['database', 'schema', 'name', 'columns'],
+      },
+      request: {
+        method: 'POST',
+        path: '/databases/{database}/schemas/{schema}/tables',
+        body: { name: '{name}', columns: '{columns}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['session:role:manage'],
+    },
+    {
+      name: 'tables.drop',
+      class: 'mutation',
+      description: 'Drop a table from a schema.',
+      parameters: {
+        type: 'object',
+        properties: {
+          database: { type: 'string' },
+          schema: { type: 'string' },
+          table: { type: 'string' },
+        },
+        required: ['database', 'schema', 'table'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/databases/{database}/schemas/{schema}/tables/{table}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['session:role:manage'],
+    },
+    {
+      name: 'stages.create',
+      class: 'mutation',
+      description: 'Create an internal stage for file loads.',
+      parameters: {
+        type: 'object',
+        properties: {
+          database: { type: 'string' },
+          schema: { type: 'string' },
+          name: { type: 'string' },
+          fileFormat: { type: 'string', description: 'Optional named file format, e.g. "CSV".' },
+          comment: { type: 'string' },
+        },
+        required: ['database', 'schema', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/databases/{database}/schemas/{schema}/stages',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['session:role:manage'],
+    },
+    {
+      name: 'stages.unloadData',
+      class: 'mutation',
+      description: 'Unload table data to a stage (COPY INTO @stage FROM table).',
+      parameters: {
+        type: 'object',
+        properties: {
+          database: { type: 'string' },
+          schema: { type: 'string' },
+          table: { type: 'string' },
+          stage: { type: 'string' },
+          fileFormat: { type: 'string' },
+          overwrite: { type: 'boolean' },
+        },
+        required: ['database', 'schema', 'table', 'stage'],
+      },
+      request: {
+        method: 'POST',
+        path: '/databases/{database}/schemas/{schema}/tables/{table}/unload',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['session:role:manage'],
+    },
+    {
+      name: 'warehouses.list',
+      class: 'read',
+      description: 'List warehouses available to the authenticated identity.',
+      parameters: {
+        type: 'object',
+        properties: {
+          like: { type: 'string', description: 'Optional name pattern (SQL LIKE syntax).' },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/warehouses',
+        query: { like: '{like}' },
+      },
+      requiredScopes: ['session:role:manage'],
+    },
   ],
 })

@@ -86,6 +86,84 @@ export const wonderchatConnector = declarativeRestConnector({
         method: 'DELETE',
         path: '/chatbot/{chatbotId}/tags/{tagKey}',
       },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'page.remove',
+      class: 'mutation',
+      description: 'Remove a previously trained page from a Wonderchat chatbot by page id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The ID of your chatbot' },
+          pageId: { type: 'string', description: 'The ID of the page to remove' },
+        },
+        required: ['chatbotId', 'pageId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/chatbot/{chatbotId}/pages/{pageId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bot.train',
+      class: 'mutation',
+      description: 'Trigger a retrain of the Wonderchat chatbot against its current sources.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The ID of your chatbot' },
+        },
+        required: ['chatbotId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chatbot/{chatbotId}/train',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'conversations.list',
+      class: 'read',
+      description: 'List historical conversations for a Wonderchat chatbot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The ID of your chatbot' },
+          limit: { type: 'integer', minimum: 1, maximum: 200, description: 'Maximum conversations to return' },
+          cursor: { type: 'string', description: 'Pagination cursor from a previous call' },
+        },
+        required: ['chatbotId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/chatbot/{chatbotId}/conversations',
+        query: { limit: '{limit}', cursor: '{cursor}' },
+      },
+    },
+    {
+      name: 'conversations.delete',
+      class: 'mutation',
+      description: 'Delete a stored Wonderchat conversation by chatlog id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The ID of your chatbot' },
+          chatlogId: { type: 'string', description: 'The chatlog id to delete' },
+        },
+        required: ['chatbotId', 'chatlogId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/chatbot/{chatbotId}/conversations/{chatlogId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })
