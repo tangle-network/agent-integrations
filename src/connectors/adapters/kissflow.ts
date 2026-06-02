@@ -60,5 +60,53 @@ export const kissflowConnector = declarativeRestConnector({
         path: '/process/2/{accountId}/{processId}/{instanceId}/{activityInstanceId}/{fieldId}/{attachmentId}/download',
       },
     },
+    {
+      name: 'process.instance.create',
+      class: 'mutation',
+      description:
+        'Create a new Kissflow process instance under the given process. `payload` holds the initial record field values.',
+      cas: 'native-idempotency',
+      externalEffect: true,
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string', description: 'Kissflow account id.' },
+          processId: { type: 'string', description: 'Kissflow process id.' },
+          payload: {
+            type: 'object',
+            description: 'Initial record field values for the new process instance.',
+            additionalProperties: true,
+          },
+        },
+        required: ['accountId', 'processId', 'payload'],
+      },
+      request: {
+        method: 'POST',
+        path: '/process/2/{accountId}/{processId}',
+        body: '{payload}',
+      },
+    },
+    {
+      name: 'process.instance.submit',
+      class: 'mutation',
+      description:
+        'Submit an existing Kissflow process instance, advancing it from draft to the next workflow step.',
+      cas: 'native-idempotency',
+      externalEffect: true,
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string', description: 'Kissflow account id.' },
+          processId: { type: 'string', description: 'Kissflow process id.' },
+          instanceId: { type: 'string', description: 'Process instance id to submit.' },
+        },
+        required: ['accountId', 'processId', 'instanceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/process/2/{accountId}/{processId}/{instanceId}/submit',
+        body: {},
+      },
+    },
   ],
 })
