@@ -268,5 +268,105 @@ export const blueskyConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      // AT Protocol record delete: repo + collection + rkey identify a single
+      // record in the authenticated user's repo. Callers extract the rkey from
+      // the post AT URI (at://did:.../app.bsky.feed.post/{rkey}).
+      name: 'post.delete',
+      class: 'mutation',
+      description: 'Delete a post by URI.',
+      parameters: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string' },
+          rkey: { type: 'string', description: 'Record key extracted from the post AT URI.' },
+        },
+        required: ['repo', 'rkey'],
+      },
+      request: {
+        method: 'POST',
+        path: '/com.atproto.repo.deleteRecord',
+        body: {
+          repo: '{repo}',
+          collection: 'app.bsky.feed.post',
+          rkey: '{rkey}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      // Follow = createRecord under app.bsky.graph.follow with subject = DID.
+      name: 'follow.user',
+      class: 'mutation',
+      description: 'Follow a Bluesky account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string' },
+          subject: { type: 'string', description: 'DID of the actor to follow.' },
+          createdAt: { type: 'string' },
+        },
+        required: ['repo', 'subject'],
+      },
+      request: {
+        method: 'POST',
+        path: '/com.atproto.repo.createRecord',
+        body: {
+          repo: '{repo}',
+          collection: 'app.bsky.graph.follow',
+          record: {
+            $type: 'app.bsky.graph.follow',
+            subject: '{subject}',
+            createdAt: '{createdAt}',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      // Unfollow = deleteRecord on the follow record's rkey. Callers resolve
+      // rkey from the follow's AT URI returned by createRecord or listRecords.
+      name: 'unfollow.user',
+      class: 'mutation',
+      description: 'Unfollow a Bluesky account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string' },
+          rkey: { type: 'string', description: 'Record key of the follow record to delete.' },
+        },
+        required: ['repo', 'rkey'],
+      },
+      request: {
+        method: 'POST',
+        path: '/com.atproto.repo.deleteRecord',
+        body: {
+          repo: '{repo}',
+          collection: 'app.bsky.graph.follow',
+          rkey: '{rkey}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      // Mute is a server-side block list operation (not a record under the
+      // user's repo) — single-arg `actor` accepts a handle or DID.
+      name: 'mute.user',
+      class: 'mutation',
+      description: 'Mute an account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          actor: { type: 'string', description: 'Handle or DID of the actor to mute.' },
+        },
+        required: ['actor'],
+      },
+      request: {
+        method: 'POST',
+        path: '/app.bsky.graph.muteActor',
+        body: { actor: '{actor}' },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
