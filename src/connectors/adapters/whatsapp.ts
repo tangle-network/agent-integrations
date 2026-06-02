@@ -103,5 +103,99 @@ export const whatsappConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'messages.reply',
+      class: 'mutation',
+      description: 'Reply to a specific WhatsApp message in-thread by quoting the original message id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Recipient phone number' },
+          text: { type: 'string', description: 'Reply text body' },
+          replyToMessageId: { type: 'string', description: 'WAMID of the message to reply to' },
+          businessAccountId: { type: 'string', description: 'Business Account ID' },
+        },
+        required: ['to', 'text', 'replyToMessageId', 'businessAccountId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/{businessAccountId}/messages',
+        body: {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: '{to}',
+          context: { message_id: '{replyToMessageId}' },
+          type: 'text',
+          text: { body: '{text}' },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'messages.react',
+      class: 'mutation',
+      description: 'React to a specific WhatsApp message with an emoji. Pass an empty emoji to remove an existing reaction.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Recipient phone number' },
+          messageId: { type: 'string', description: 'WAMID of the message to react to' },
+          emoji: { type: 'string', description: 'Emoji to react with (empty string removes existing reaction)' },
+          businessAccountId: { type: 'string', description: 'Business Account ID' },
+        },
+        required: ['to', 'messageId', 'emoji', 'businessAccountId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/{businessAccountId}/messages',
+        body: {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: '{to}',
+          type: 'reaction',
+          reaction: { message_id: '{messageId}', emoji: '{emoji}' },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'messages.delete',
+      class: 'mutation',
+      description: 'Delete a previously sent WhatsApp message by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageId: { type: 'string', description: 'WAMID of the message to delete' },
+          businessAccountId: { type: 'string', description: 'Business Account ID' },
+        },
+        required: ['messageId', 'businessAccountId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{businessAccountId}/messages/{messageId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contacts.list',
+      class: 'read',
+      description: 'List contacts associated with the WhatsApp Business Account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          limit: { type: 'integer', minimum: 1, maximum: 200, description: 'Maximum number of contacts to return' },
+        },
+        required: ['businessAccountId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/{businessAccountId}/contacts',
+        query: { limit: '{limit}' },
+      },
+    },
   ],
 })
