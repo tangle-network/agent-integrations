@@ -128,5 +128,78 @@ export const circleConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/community_members/{community_member_id}' },
     },
+    {
+      name: 'posts.delete',
+      class: 'mutation',
+      description: 'Delete a Circle post by id.',
+      parameters: {
+        type: 'object',
+        properties: { post_id: { type: 'integer' } },
+        required: ['post_id'],
+      },
+      request: { method: 'DELETE', path: '/posts/{post_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'comments.delete',
+      class: 'mutation',
+      description: 'Delete a Circle comment by id.',
+      parameters: {
+        type: 'object',
+        properties: { comment_id: { type: 'integer' } },
+        required: ['comment_id'],
+      },
+      request: { method: 'DELETE', path: '/comments/{comment_id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'spaces.create',
+      class: 'mutation',
+      description: 'Create a new space in a Circle community.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          space_group_id: { type: 'integer' },
+          visibility: { type: 'string' },
+          is_private: { type: 'boolean' },
+          slug: { type: 'string' },
+        },
+        required: ['name', 'space_group_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/spaces',
+        body: {
+          name: '{name}',
+          space_group_id: '{space_group_id}',
+          visibility: '{visibility}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'members.remove',
+      class: 'mutation',
+      description: 'Remove a member from a Circle space.',
+      parameters: {
+        type: 'object',
+        properties: {
+          space_id: { type: 'integer' },
+          email: { type: 'string' },
+        },
+        required: ['space_id', 'email'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/space_members',
+        query: { space_id: '{space_id}', email: '{email}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
