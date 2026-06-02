@@ -81,5 +81,95 @@ export const opnformConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/v1/forms/{formId}/submissions/{submissionId}' },
     },
+    {
+      name: 'forms.create',
+      class: 'mutation',
+      description: 'Create a new form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Form title' },
+          description: { type: 'string', description: 'Form description (optional)' },
+          properties: {
+            type: 'array',
+            description: 'Form field definitions',
+            items: { type: 'object' },
+          },
+          settings: { type: 'object', description: 'Form settings (optional)' },
+        },
+        required: ['title', 'properties'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/forms',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.update',
+      class: 'mutation',
+      description: 'Update form schema or settings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string', description: 'The form identifier' },
+          title: { type: 'string', description: 'Updated form title (optional)' },
+          description: { type: 'string', description: 'Updated description (optional)' },
+          properties: {
+            type: 'array',
+            description: 'Updated form field definitions (optional)',
+            items: { type: 'object' },
+          },
+          settings: { type: 'object', description: 'Updated form settings (optional)' },
+        },
+        required: ['formId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v1/forms/{formId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.delete',
+      class: 'mutation',
+      description: 'Delete a form.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string', description: 'The form identifier' },
+        },
+        required: ['formId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/forms/{formId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'submissions.delete',
+      class: 'mutation',
+      description: 'Delete a form submission.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string', description: 'The form identifier' },
+          submissionId: { type: 'string', description: 'The submission identifier' },
+        },
+        required: ['formId', 'submissionId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/forms/{formId}/submissions/{submissionId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
