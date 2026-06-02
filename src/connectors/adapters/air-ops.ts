@@ -121,5 +121,94 @@ export const airOpsConnector = declarativeRestConnector({
         path: '/airops_apps/{app}/executions/{execution_uuid}',
       },
     },
+    {
+      name: 'cancel.execution',
+      class: 'mutation',
+      description: 'Cancel a running Airops workflow execution.',
+      parameters: {
+        type: 'object',
+        properties: {
+          app: {
+            type: 'string',
+            description: 'The AirOps workflow (app) UUID.',
+          },
+          execution_uuid: {
+            type: 'string',
+            description: 'The UUID of the execution to cancel.',
+          },
+        },
+        required: ['app', 'execution_uuid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/airops_apps/{app}/executions/{execution_uuid}/cancel',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflow.publish',
+      class: 'mutation',
+      description: 'Promote a workflow draft to published.',
+      parameters: {
+        type: 'object',
+        properties: {
+          app: {
+            type: 'string',
+            description: 'The AirOps workflow (app) UUID.',
+          },
+        },
+        required: ['app'],
+      },
+      request: {
+        method: 'POST',
+        path: '/airops_apps/{app}/publish',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflow.update',
+      class: 'mutation',
+      description: 'Patch workflow definition fields.',
+      parameters: {
+        type: 'object',
+        properties: {
+          app: {
+            type: 'string',
+            description: 'The AirOps workflow (app) UUID.',
+          },
+          name: {
+            type: 'string',
+            description: 'Workflow display name.',
+          },
+          description: {
+            type: 'string',
+            description: 'Workflow description.',
+          },
+          inputs_schema: {
+            type: 'object',
+            description: 'Schema defining the workflow inputs.',
+          },
+          definition: {
+            type: 'object',
+            description: 'Workflow definition steps.',
+          },
+        },
+        required: ['app'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/airops_apps/{app}',
+        body: {
+          name: '{name}',
+          description: '{description}',
+          inputs_schema: '{inputs_schema}',
+          definition: '{definition}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
