@@ -148,5 +148,74 @@ export const couchbaseConnector = declarativeRestConnector({
       },
       cas: 'etag-if-match',
     },
+    {
+      name: 'document.upsert',
+      class: 'mutation',
+      description:
+        'Upsert (insert or replace) a document by key. Idempotent: re-runs with the same key and content produce the same final state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bucket: { type: 'string' },
+          scope: { type: 'string' },
+          collection: { type: 'string' },
+          docId: { type: 'string' },
+          content: { type: 'object' },
+        },
+        required: ['bucket', 'docId', 'content'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/buckets/{bucket}/scopes/{scope}/collections/{collection}/docs/{docId}',
+        body: '{content}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'index.create',
+      class: 'mutation',
+      description:
+        'Create a primary or secondary index by executing a CREATE INDEX statement against the N1QL query service.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statement: {
+            type: 'string',
+            description:
+              'Full CREATE [PRIMARY] INDEX statement, e.g. `CREATE PRIMARY INDEX ON `bucket`` or `CREATE INDEX ix_name ON `bucket`(field)`.',
+          },
+          timeout: { type: 'string' },
+        },
+        required: ['statement'],
+      },
+      request: {
+        method: 'POST',
+        path: '/query/service',
+        body: { statement: '{statement}', timeout: '{timeout}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'query.run',
+      class: 'read',
+      description:
+        'Execute an arbitrary N1QL query against the query service. Canonical query-execution verb; mirrors documents.query but is not scoped to document retrieval semantics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statement: { type: 'string' },
+          timeout: { type: 'string' },
+          consistency: { type: 'string' },
+        },
+        required: ['statement'],
+      },
+      request: {
+        method: 'POST',
+        path: '/query/service',
+        body: { statement: '{statement}', timeout: '{timeout}', consistency: '{consistency}' },
+      },
+    },
   ],
 })
