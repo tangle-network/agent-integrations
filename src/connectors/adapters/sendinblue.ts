@@ -131,5 +131,148 @@ export const sendinblueConnector = declarativeRestConnector({
         query: { limit: '{limit}', offset: '{offset}' },
       },
     },
+    {
+      name: 'lists.create',
+      class: 'mutation',
+      description: 'Create a new contact list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Name of the list to create.' },
+          folderId: {
+            type: 'integer',
+            description: 'ID of the parent folder to place the list under.',
+          },
+        },
+        required: ['name', 'folderId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts/lists',
+        body: { name: '{name}', folderId: '{folderId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete a contact list by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: {
+            type: 'integer',
+            description: 'ID of the list to delete.',
+          },
+        },
+        required: ['listId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contacts/lists/{listId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.addContacts',
+      class: 'mutation',
+      description: 'Add existing contacts (by email) to a list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'integer' },
+          emails: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Email addresses of contacts to add.',
+          },
+        },
+        required: ['listId', 'emails'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts/lists/{listId}/contacts/add',
+        body: { emails: '{emails}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.send',
+      class: 'mutation',
+      description: 'Trigger sending of an email campaign immediately.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: {
+            type: 'integer',
+            description: 'ID of the campaign to send.',
+          },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/emailCampaigns/{campaignId}/sendNow',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'transactional.send',
+      class: 'mutation',
+      description: 'Send a transactional email via the SMTP API.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sender: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              email: { type: 'string' },
+            },
+            required: ['email'],
+          },
+          to: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                email: { type: 'string' },
+              },
+              required: ['email'],
+            },
+          },
+          subject: { type: 'string' },
+          htmlContent: { type: 'string' },
+          textContent: { type: 'string' },
+          templateId: { type: 'integer' },
+          params: { type: 'object' },
+          replyTo: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              email: { type: 'string' },
+            },
+          },
+          cc: { type: 'array' },
+          bcc: { type: 'array' },
+          attachment: { type: 'array' },
+          headers: { type: 'object' },
+          tags: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['sender', 'to'],
+      },
+      request: {
+        method: 'POST',
+        path: '/smtp/email',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
