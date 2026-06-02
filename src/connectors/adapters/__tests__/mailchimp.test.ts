@@ -43,10 +43,12 @@ describe('mailchimp adapter', () => {
     expect(mailchimpConnector.manifest.category).toBe('crm')
     const names = mailchimpConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
+      'campaigns.create',
       'campaigns.list',
       'campaigns.send',
       'lists.get',
       'lists.list',
+      'members.delete-permanent',
       'members.get',
       'members.search',
       'members.update-tags',
@@ -55,7 +57,7 @@ describe('mailchimp adapter', () => {
     const readers = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
     const mutators = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
     expect(readers).toEqual(['campaigns.list', 'lists.get', 'lists.list', 'members.get', 'members.search'])
-    expect(mutators).toEqual(['campaigns.send', 'members.update-tags', 'members.upsert'])
+    expect(mutators).toEqual(['campaigns.create', 'campaigns.send', 'members.delete-permanent', 'members.update-tags', 'members.upsert'])
   })
 
   it('exposes both executeRead and executeMutation handlers', () => {

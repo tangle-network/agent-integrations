@@ -238,5 +238,59 @@ export const instantlyAiConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete a lead from Instantly.ai by its lead id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Lead id to delete.' },
+        },
+        required: ['lead_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/leads/{lead_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.pause',
+      class: 'mutation',
+      description: 'Pause a running campaign. Halts further sends until resumed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'string', description: 'Campaign id to pause.' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaign_id}/pause',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.resume',
+      class: 'mutation',
+      description: 'Resume a previously paused campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'string', description: 'Campaign id to resume.' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaign_id}/activate',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

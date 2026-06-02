@@ -217,5 +217,73 @@ export const klentyConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'prospect.remove.from.campaign',
+      class: 'mutation',
+      description:
+        'Remove a prospect from a Klenty cadence, halting any further sequence steps for that prospect in that cadence.',
+      parameters: {
+        type: 'object',
+        properties: {
+          username: {
+            type: 'string',
+            description: 'Klenty username/email used in the API URL path.',
+          },
+          email: {
+            type: 'string',
+            description: 'Email of the prospect to remove from the cadence.',
+          },
+          cadenceName: {
+            type: 'string',
+            description: 'Name of the cadence to remove the prospect from.',
+          },
+        },
+        required: ['username', 'email', 'cadenceName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/user/{username}/stopCadence',
+        body: {
+          email: '{email}',
+          cadenceName: '{cadenceName}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'cadence.pause',
+      class: 'mutation',
+      description:
+        'Pause a Klenty cadence for a specific prospect. The prospect stays enrolled, but no further steps fire until the cadence is resumed for them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          username: {
+            type: 'string',
+            description: 'Klenty username/email used in the API URL path.',
+          },
+          email: {
+            type: 'string',
+            description: 'Email of the prospect whose cadence should be paused.',
+          },
+          cadenceName: {
+            type: 'string',
+            description: 'Name of the cadence to pause for this prospect.',
+          },
+        },
+        required: ['username', 'email', 'cadenceName'],
+      },
+      request: {
+        method: 'POST',
+        path: '/user/{username}/pauseCadence',
+        body: {
+          email: '{email}',
+          cadenceName: '{cadenceName}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

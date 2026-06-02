@@ -121,5 +121,56 @@ export const bitlyConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      // Bitly has no hard delete; archived: true is the destructive op.
+      // bitlink.archive (above) and bitlink.delete are intentionally distinct
+      // capability names so agent surfaces can expose the conventional
+      // "delete" verb without leaking Bitly's archival semantics.
+      name: 'bitlink.delete',
+      class: 'mutation',
+      description: 'Soft-delete (archive permanently) a Bitlink.',
+      parameters: {
+        type: 'object',
+        properties: { bitlink: { type: 'string' } },
+        required: ['bitlink'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/bitlinks/{bitlink}',
+        body: { archived: true },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'group.update',
+      class: 'mutation',
+      description: 'Update group display name.',
+      parameters: {
+        type: 'object',
+        properties: {
+          group_guid: { type: 'string' },
+          name: { type: 'string' },
+        },
+        required: ['group_guid', 'name'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/groups/{group_guid}',
+        body: { name: '{name}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'qr.delete',
+      class: 'mutation',
+      description: 'Delete a generated QR code.',
+      parameters: {
+        type: 'object',
+        properties: { qrcode_id: { type: 'string' } },
+        required: ['qrcode_id'],
+      },
+      request: { method: 'DELETE', path: '/qr-codes/{qrcode_id}' },
+      cas: 'native-idempotency',
+    },
   ],
 })

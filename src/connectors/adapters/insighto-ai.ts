@@ -112,5 +112,66 @@ export const insightoAiConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'assistants.create',
+      class: 'mutation',
+      description: 'Create an Insighto AI assistant (voice/chat agent) with provider, model, and prompt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Assistant display name.' },
+          provider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic).' },
+          model: { type: 'string', description: 'Model identifier from the chosen provider.' },
+          first_message: { type: 'string', description: 'Opening line the assistant should speak.' },
+          system_prompt: { type: 'string', description: 'System prompt that scopes assistant behavior.' },
+          voice_id: { type: 'string', description: 'Voice id (when the assistant is voice-capable).' },
+          org_id: { type: 'string', description: 'Organization id this assistant belongs to.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/assistants',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'assistants.delete',
+      class: 'mutation',
+      description: 'Delete an Insighto AI assistant by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          assistant_id: { type: 'string', description: 'Assistant id to delete.' },
+        },
+        required: ['assistant_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/assistants/{assistant_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.cancel',
+      class: 'mutation',
+      description: 'Cancel a running Insighto AI campaign. Halts pending executions and stops further outreach.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'string', description: 'Campaign id to cancel.' },
+        },
+        required: ['campaign_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaign_id}/cancel',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

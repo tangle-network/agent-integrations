@@ -44,5 +44,48 @@ export const instaChartsConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['chart.create'],
     },
+    {
+      name: 'chart.update',
+      class: 'mutation',
+      description: 'Update an existing chart by id (title, data, options, or chart type).',
+      parameters: {
+        type: 'object',
+        properties: {
+          chartId: { type: 'string', description: 'Chart id to update.' },
+          chartType: { type: 'string', enum: ['line', 'bar', 'pie', 'area', 'scatter'] },
+          title: { type: 'string' },
+          data: { type: 'object' },
+          options: { type: 'object' },
+        },
+        required: ['chartId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/chart/{chartId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['chart.create'],
+    },
+    {
+      name: 'chart.delete',
+      class: 'mutation',
+      description: 'Delete a chart by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chartId: { type: 'string', description: 'Chart id to delete.' },
+        },
+        required: ['chartId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/chart/{chartId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['chart.create'],
+    },
   ],
 })

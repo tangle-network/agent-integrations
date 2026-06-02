@@ -73,5 +73,132 @@ export const azureCommunicationServicesConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'send.sms',
+      class: 'mutation',
+      description:
+        'Send an SMS message through the Azure Communication Services SMS API (POST /sms?api-version=2021-03-07).',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: {
+            type: 'string',
+            description: 'ACS-provisioned sender phone number (E.164).',
+          },
+          smsRecipients: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                to: { type: 'string' },
+                repeatabilityRequestId: { type: 'string' },
+                repeatabilityFirstSent: { type: 'string' },
+              },
+              required: ['to'],
+            },
+            description: 'Recipient list. Each entry carries an E.164 destination and optional repeatability fields.',
+          },
+          message: {
+            type: 'string',
+            description: 'SMS body text. Plain text only; ACS handles GSM7/UCS2 segmentation.',
+          },
+          smsSendOptions: {
+            type: 'object',
+            properties: {
+              enableDeliveryReport: { type: 'boolean' },
+              tag: { type: 'string' },
+            },
+          },
+        },
+        required: ['from', 'smsRecipients', 'message'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sms?api-version=2021-03-07',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'chat.thread.create',
+      class: 'mutation',
+      description:
+        'Create a chat thread for ACS Chat (POST /chat/threads?api-version=2021-09-07). Returns the thread id used by chat.message.send.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topic: {
+            type: 'string',
+            description: 'Human-readable thread topic.',
+          },
+          participants: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'object',
+                  properties: {
+                    communicationUser: {
+                      type: 'object',
+                      properties: { id: { type: 'string' } },
+                      required: ['id'],
+                    },
+                  },
+                  required: ['communicationUser'],
+                },
+                displayName: { type: 'string' },
+              },
+              required: ['id'],
+            },
+            description: 'Initial participants; each carries an ACS communication user identity.',
+          },
+        },
+        required: ['topic', 'participants'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chat/threads?api-version=2021-09-07',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'chat.message.send',
+      class: 'mutation',
+      description:
+        'Post a message to an existing ACS chat thread (POST /chat/threads/{threadId}/messages?api-version=2021-09-07). Pass the full ACS message body as `message`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          threadId: {
+            type: 'string',
+            description: 'Chat thread id (returned by chat.thread.create).',
+          },
+          message: {
+            type: 'object',
+            description:
+              'ACS message body. Carries `content` (required), and optional `senderDisplayName`, `type` (text|html), and `metadata`.',
+            properties: {
+              content: { type: 'string' },
+              senderDisplayName: { type: 'string' },
+              type: { type: 'string', enum: ['text', 'html'] },
+              metadata: { type: 'object' },
+            },
+            required: ['content'],
+          },
+        },
+        required: ['threadId', 'message'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chat/threads/{threadId}/messages?api-version=2021-09-07',
+        body: '{message}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

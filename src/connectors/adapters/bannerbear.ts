@@ -61,5 +61,124 @@ export const bannerbearConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'images.delete',
+      class: 'mutation',
+      description: 'Delete a previously-rendered image by its Bannerbear image id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          imageId: {
+            type: 'string',
+            description: 'Bannerbear image id (uid returned by images.create).',
+          },
+        },
+        required: ['imageId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/images/{imageId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'videos.create',
+      class: 'mutation',
+      description:
+        'Render a video from a Bannerbear video template. Pass the Bannerbear video-create body directly (snake_case fields: video_template, modifications, input_media_url, blur_media_url, frames, frames_per_row, metadata, webhook_url).',
+      parameters: {
+        type: 'object',
+        properties: {
+          video_template: {
+            type: 'string',
+            description: 'Bannerbear video template id.',
+          },
+          modifications: {
+            type: 'array',
+            description:
+              'Per-layer modifications applied to the video template (text/image/colour overrides).',
+            items: { type: 'object' },
+          },
+          input_media_url: {
+            type: 'string',
+            description: 'URL to source media when the template ingests external footage.',
+          },
+          blur_media_url: {
+            type: 'string',
+            description: 'URL to media used as background blur (template-specific).',
+          },
+          frames: {
+            type: 'array',
+            description: 'Per-frame modifications for multi-frame video templates.',
+            items: { type: 'object' },
+          },
+          frames_per_row: {
+            type: 'integer',
+            description: 'Layout hint for multi-frame templates (frames per row).',
+          },
+          metadata: {
+            type: 'string',
+            description: 'Free-form metadata stored on the video render.',
+          },
+          webhook_url: {
+            type: 'string',
+            description: 'Callback URL invoked when the video render completes.',
+          },
+        },
+        required: ['video_template'],
+      },
+      request: {
+        method: 'POST',
+        path: '/videos',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'collections.create',
+      class: 'mutation',
+      description:
+        'Create a Bannerbear collection render — a single API call that fans out one set of modifications across every template attached to the collection template. Pass the body directly (snake_case fields: template_set, modifications, transparent, render_pdf, metadata, webhook_url).',
+      parameters: {
+        type: 'object',
+        properties: {
+          template_set: {
+            type: 'string',
+            description: 'Bannerbear template-set (collection) id.',
+          },
+          modifications: {
+            type: 'array',
+            description: 'Per-layer modifications applied to every template in the set.',
+            items: { type: 'object' },
+          },
+          transparent: {
+            type: 'boolean',
+            description: 'Render PNGs with transparent backgrounds. Default false.',
+          },
+          render_pdf: {
+            type: 'boolean',
+            description: 'Render PDFs instead of PNGs. Default false.',
+          },
+          metadata: {
+            type: 'string',
+            description: 'Free-form metadata stored on the collection render.',
+          },
+          webhook_url: {
+            type: 'string',
+            description: 'Callback URL invoked when the collection render completes.',
+          },
+        },
+        required: ['template_set', 'modifications'],
+      },
+      request: {
+        method: 'POST',
+        path: '/collections',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

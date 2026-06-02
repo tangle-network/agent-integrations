@@ -61,5 +61,64 @@ export const airparserConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/documents/{documentId}' },
     },
+    {
+      name: 'documents.delete',
+      class: 'mutation',
+      description: 'Delete a parsed document.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'ID of the document to delete.' },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/documents/{documentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'documents.reprocess',
+      class: 'mutation',
+      description: 'Reprocess an existing document with the latest template.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string', description: 'ID of the document to reprocess.' },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/documents/{documentId}/reprocess',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'inbox.create',
+      class: 'mutation',
+      description: 'Create a new parsing inbox.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Display name for the inbox.' },
+          description: { type: 'string', description: 'Optional inbox description.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/inboxes',
+        body: {
+          name: '{name}',
+          description: '{description}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

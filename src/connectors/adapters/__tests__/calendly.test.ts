@@ -45,12 +45,16 @@ describe('calendly adapter', () => {
     expect(names).toEqual([
       'event-types.get',
       'event-types.list',
+      'invitee.no-show.create',
       'scheduled-events.cancel',
       'scheduled-events.get',
       'scheduled-events.list',
       'scheduled-events.list-invitees',
       'scheduling-links.create',
+      'scheduling-links.delete',
       'user.get-current',
+      'webhooks.create',
+      'webhooks.delete',
     ])
     const readers = calendlyConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
     const mutators = calendlyConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
@@ -62,7 +66,14 @@ describe('calendly adapter', () => {
       'scheduled-events.list-invitees',
       'user.get-current',
     ])
-    expect(mutators).toEqual(['scheduled-events.cancel', 'scheduling-links.create'])
+    expect(mutators).toEqual([
+      'invitee.no-show.create',
+      'scheduled-events.cancel',
+      'scheduling-links.create',
+      'scheduling-links.delete',
+      'webhooks.create',
+      'webhooks.delete',
+    ])
   })
 
   it('every mutation declares a CAS strategy', () => {

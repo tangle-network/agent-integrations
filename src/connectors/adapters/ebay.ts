@@ -283,5 +283,90 @@ export const ebayConnector = declarativeRestConnector({
       },
       requiredScopes: ['https://api.ebay.com/oauth/api_scope/commerce.identity.readonly'],
     },
+    {
+      name: 'inventory.update',
+      class: 'mutation',
+      description: 'Bulk-update price and/or available quantity for one or more inventory items / offers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          marketplaceId: { type: 'string', description: 'Marketplace id header override, e.g. EBAY_US.' },
+          requests: {
+            type: 'array',
+            description:
+              'eBay PriceQuantity request array. Each entry targets a SKU and/or offerId with new ship-to-locationAvailability / price values.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['requests'],
+      },
+      request: {
+        method: 'POST',
+        path: 'sell/inventory/v1/bulk_update_price_quantity',
+        headers: {
+          'content-language': 'en-US',
+          'x-ebay-c-marketplace-id': '{marketplaceId}',
+        },
+        body: { requests: '{requests}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://api.ebay.com/oauth/api_scope/sell.inventory'],
+    },
+    {
+      name: 'orders.cancel',
+      class: 'mutation',
+      description:
+        'Request order cancellation via the Post-Order Cancellation API. Sellers can request cancellation on unshipped orders.',
+      parameters: {
+        type: 'object',
+        properties: {
+          legacyOrderId: {
+            type: 'string',
+            description: 'eBay legacy (string) order id the cancellation request applies to.',
+          },
+          cancelReason: {
+            type: 'string',
+            description:
+              'Reason for the cancellation, e.g. OUT_OF_STOCK_OR_CANNOT_FULFILL, BUYER_ASKED_CANCEL, ADDRESS_ISSUES.',
+          },
+          marketplaceId: { type: 'string', description: 'Marketplace id header override, e.g. EBAY_US.' },
+        },
+        required: ['legacyOrderId', 'cancelReason'],
+      },
+      request: {
+        method: 'POST',
+        path: 'post-order/v2/cancellation',
+        headers: {
+          'x-ebay-c-marketplace-id': '{marketplaceId}',
+        },
+        body: {
+          legacyOrderId: '{legacyOrderId}',
+          cancelReason: '{cancelReason}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://api.ebay.com/oauth/api_scope/sell.fulfillment'],
+    },
+    {
+      name: 'listing.end',
+      class: 'mutation',
+      description: 'End an active listing by withdrawing its offer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          offerId: { type: 'string', description: 'Unique identifier of the offer (active listing) to withdraw.' },
+        },
+        required: ['offerId'],
+      },
+      request: {
+        method: 'POST',
+        path: 'sell/inventory/v1/offer/{offerId}/withdraw',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://api.ebay.com/oauth/api_scope/sell.inventory'],
+    },
   ],
 })

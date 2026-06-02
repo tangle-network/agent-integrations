@@ -154,6 +154,56 @@ export const fountainConnector = declarativeRestConnector({
       externalEffect: true,
     },
     {
+      name: 'applicants.advance',
+      class: 'mutation',
+      description:
+        'Advance an applicant to the next stage in their funnel. Optional `stage_id` jumps to a specific stage; omit it to move to the immediate next stage.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Applicant id.' },
+          stage_id: {
+            type: 'string',
+            description: 'Optional target stage id; defaults to the next stage in the funnel order.',
+          },
+          skip_automated_actions: {
+            type: 'boolean',
+            description: 'When true, suppress any automated emails/SMS/webhooks wired to the destination stage.',
+          },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/applicants/{id}/advance',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'applicants.reject',
+      class: 'mutation',
+      description:
+        'Reject an applicant. `rejection_reason` is the human-readable reason recorded on the applicant timeline; `send_rejection_email` triggers the funnel-configured rejection notification.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Applicant id.' },
+          rejection_reason: { type: 'string', description: 'Rejection reason recorded on the applicant.' },
+          send_rejection_email: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/applicants/{id}/reject',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'applicants.interviewSessions',
       class: 'read',
       description: 'List interview sessions scheduled for an applicant.',

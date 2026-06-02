@@ -230,6 +230,28 @@ export const googleSearchConsoleConnector = declarativeRestConnector({
       },
       request: { method: 'PUT', path: '/webmasters/v3/sites/{siteUrl}/sitemaps/{feedpath}' },
       cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/webmasters'],
+    },
+    {
+      name: 'sitemaps.delete',
+      class: 'mutation',
+      description:
+        'Remove a submitted sitemap from a verified property in Search Console. The sitemap file at feedpath is not touched — only Search Console\'s record of the submission is dropped (DELETE /webmasters/v3/sites/{siteUrl}/sitemaps/{feedpath}).',
+      parameters: {
+        type: 'object',
+        properties: {
+          siteUrl: { type: 'string', description: 'Verified property identifier the sitemap belongs to.' },
+          feedpath: {
+            type: 'string',
+            description: 'Fully-qualified sitemap URL previously submitted, e.g. "https://example.com/sitemap.xml". The runtime URL-encodes this when substituting into the path.',
+          },
+        },
+        required: ['siteUrl', 'feedpath'],
+      },
+      request: { method: 'DELETE', path: '/webmasters/v3/sites/{siteUrl}/sitemaps/{feedpath}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
       requiredScopes: ['https://www.googleapis.com/auth/webmasters'],
     },
   ],

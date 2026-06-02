@@ -116,5 +116,58 @@ export const helpscoutConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       requiredScopes: ['tickets.reply.write'],
     },
+    {
+      name: 'conversations.create',
+      class: 'mutation',
+      description:
+        'Create a new Help Scout conversation (support ticket). Caller supplies subject, customer, mailboxId and the initial thread payload. Help Scout assigns a unique conversation id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string' },
+          customer: {
+            type: 'object',
+            description: 'Customer envelope: { email } at minimum; full Help Scout customer schema accepted.',
+          },
+          mailboxId: { type: 'integer' },
+          type: { type: 'string', enum: ['email', 'chat', 'phone'] },
+          status: { type: 'string', enum: ['active', 'pending', 'closed', 'spam'] },
+          threads: {
+            type: 'array',
+            description: 'Initial thread payload — at least one thread is required by the upstream API.',
+            items: { type: 'object' },
+          },
+          tags: { type: 'array', items: { type: 'string' } },
+          assignTo: { type: 'integer' },
+        },
+        required: ['subject', 'customer', 'mailboxId', 'type', 'threads'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/conversations',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['tickets.reply.write'],
+    },
+    {
+      name: 'conversations.delete',
+      class: 'mutation',
+      description:
+        'Delete a Help Scout conversation. Help Scout returns 204 on success; a second delete returns 404 (treated as committed-replay by the caller).',
+      parameters: {
+        type: 'object',
+        properties: { conversationId: { type: 'string' } },
+        required: ['conversationId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v2/conversations/{conversationId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['tickets.reply.write'],
+    },
   ],
 })

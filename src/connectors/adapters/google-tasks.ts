@@ -117,6 +117,47 @@ export const googleTasksConnector = declarativeRestConnector({
       },
       request: { method: 'DELETE', path: '/users/@me/lists/{tasklistId}/tasks/{taskId}' },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.complete',
+      class: 'mutation',
+      description:
+        'Mark a task as completed. Issues a PATCH against the task with status="completed"; Google records `completed` as the current time. To uncomplete, use tasks.update with status="needsAction".',
+      parameters: {
+        type: 'object',
+        properties: {
+          tasklistId: { type: 'string', description: 'Containing task list ID.' },
+          taskId: { type: 'string', description: 'Task ID to mark complete.' },
+        },
+        required: ['tasklistId', 'taskId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/users/@me/lists/{tasklistId}/tasks/{taskId}',
+        body: { status: 'completed' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.create',
+      class: 'mutation',
+      description: 'Create a new task list owned by the authenticated user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Display title of the new task list.' },
+        },
+        required: ['title'],
+      },
+      request: {
+        method: 'POST',
+        path: '/users/@me/lists',
+        body: { title: '{title}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
   ],
 })

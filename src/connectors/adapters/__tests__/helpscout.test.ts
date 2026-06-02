@@ -67,6 +67,8 @@ describe('helpscoutConnector', () => {
     const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
 
     expect(Object.keys(byName).sort()).toEqual([
+      'conversations.create',
+      'conversations.delete',
       'customers.read',
       'tickets.read',
       'tickets.reply',

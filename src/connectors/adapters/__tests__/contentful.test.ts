@@ -65,9 +65,11 @@ describe('contentful adapter manifest', () => {
     const names = m.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
       'entries.create',
+      'entries.delete',
       'entries.get',
       'entries.list',
       'entries.publish',
+      'entries.unpublish',
       'entries.update',
     ])
     const update = m.capabilities.find((c) => c.name === 'entries.update')

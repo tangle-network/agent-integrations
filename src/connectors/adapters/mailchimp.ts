@@ -176,5 +176,48 @@ export const mailchimpConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'members.delete-permanent',
+      class: 'mutation',
+      description:
+        'Permanently delete a Mailchimp audience member (irreversible — the member cannot be re-imported under the same email).',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+          subscriberHash: { type: 'string', description: 'MD5 hex digest of the lowercased email address.' },
+        },
+        required: ['listId', 'subscriberHash'],
+      },
+      request: {
+        method: 'POST',
+        path: '/3.0/lists/{listId}/members/{subscriberHash}/actions/delete-permanent',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a Mailchimp campaign. Body matches the Marketing API v3.0 campaign create schema.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fields: {
+            type: 'object',
+            description:
+              'Campaign body; typically `{ type: "regular", recipients: { list_id }, settings: { subject_line, from_name, reply_to } }`.',
+          },
+        },
+        required: ['fields'],
+      },
+      request: {
+        method: 'POST',
+        path: '/3.0/campaigns',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

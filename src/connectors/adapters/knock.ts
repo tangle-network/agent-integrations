@@ -32,6 +32,42 @@ export const knockConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
+      name: 'workflows.cancel',
+      class: 'mutation',
+      description:
+        'Cancel a scheduled workflow run. Identifies the run by the cancellation key supplied at trigger time and optionally narrows to specific recipients.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowKey: {
+            type: 'string',
+            description: 'The workflow key whose pending run should be cancelled.',
+          },
+          cancellationKey: {
+            type: 'string',
+            description:
+              'The cancellation key originally passed to trigger; Knock uses this to locate the scheduled run.',
+          },
+          recipients: {
+            type: 'array',
+            description:
+              'Optional list of recipient user ids; omit to cancel for all recipients of the run.',
+          },
+        },
+        required: ['workflowKey', 'cancellationKey'],
+      },
+      request: {
+        method: 'POST',
+        path: '/workflows/{workflowKey}/cancel',
+        body: {
+          cancellation_key: '{cancellationKey}',
+          recipients: '{recipients}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'users.identify',
       class: 'mutation',
       description: 'Identify or create a user with profile properties.',

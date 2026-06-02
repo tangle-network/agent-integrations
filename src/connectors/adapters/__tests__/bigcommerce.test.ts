@@ -44,15 +44,27 @@ describe('bigcommerce adapter manifest', () => {
         'products.get',
         'products.create',
         'products.update',
+        'products.delete',
         'orders.search',
         'orders.get',
         'orders.update',
+        'orders.refund',
+        'customers.create',
+        'customers.update',
       ].sort(),
     )
     const reads = bigcommerceConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
     const mutations = bigcommerceConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
     expect(reads.sort()).toEqual(['orders.get', 'orders.search', 'products.get', 'products.search'])
-    expect(mutations.sort()).toEqual(['orders.update', 'products.create', 'products.update'])
+    expect(mutations.sort()).toEqual([
+      'customers.create',
+      'customers.update',
+      'orders.refund',
+      'orders.update',
+      'products.create',
+      'products.delete',
+      'products.update',
+    ])
   })
 
   it('classifies itself as commerce with authoritative consistency', () => {

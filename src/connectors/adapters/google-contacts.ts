@@ -369,6 +369,37 @@ export const googleContactsConnector = declarativeRestConnector({
       requiredScopes: ['https://www.googleapis.com/auth/contacts'],
     },
     {
+      name: 'groups.create',
+      class: 'mutation',
+      description:
+        'Create a user-owned contact group (label) via "contactGroups:create". `contactGroup.name` is the human-readable label. The People API has no Idempotency-Key on this endpoint; consecutive POSTs produce duplicate groups, so the MutationGuard layer must dedupe.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactGroup: {
+            type: 'object',
+            description: 'ContactGroup body, e.g. { name: "Customers" }.',
+          },
+          readGroupFields: {
+            type: 'string',
+            description: 'Comma-separated FieldMask selecting which group fields the response should populate, e.g. "name,clientData".',
+          },
+        },
+        required: ['contactGroup'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/contactGroups',
+        body: {
+          contactGroup: '{contactGroup}',
+          readGroupFields: '{readGroupFields}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/contacts'],
+    },
+    {
       name: 'people.batchGet',
       class: 'read',
       description:

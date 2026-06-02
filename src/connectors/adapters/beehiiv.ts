@@ -137,5 +137,114 @@ export const beehiivConnector = declarativeRestConnector({
         query: { publication_id: '{publication_id}', platform: '{platform}', status: '{status}', limit: '{limit}', page: '{page}' },
       },
     },
+    {
+      name: 'subscriptions.delete',
+      class: 'mutation',
+      description:
+        'Unsubscribe and remove a subscriber from a publication. Hard-deletes the subscription record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          publication_id: { type: 'string' },
+          subscription_id: { type: 'string' },
+        },
+        required: ['publication_id', 'subscription_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/publications/{publication_id}/subscriptions/{subscription_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'posts.create',
+      class: 'mutation',
+      description: 'Draft a new post in a Beehiiv publication.',
+      parameters: {
+        type: 'object',
+        properties: {
+          publication_id: { type: 'string' },
+          title: { type: 'string' },
+          subtitle: { type: 'string' },
+          body_content: {
+            type: 'string',
+            description: 'HTML or markdown body, depending on publication configuration.',
+          },
+          status: {
+            type: 'string',
+            description: 'draft | scheduled | confirmed (default: draft).',
+          },
+          audience: { type: 'string', description: 'free | premium | all' },
+          platform: { type: 'string', description: 'web | email | both' },
+        },
+        required: ['publication_id', 'title', 'body_content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/publications/{publication_id}/posts',
+        body: {
+          title: '{title}',
+          subtitle: '{subtitle}',
+          body_content: '{body_content}',
+          status: '{status}',
+          audience: '{audience}',
+          platform: '{platform}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'posts.publish',
+      class: 'mutation',
+      description: 'Publish a previously drafted Beehiiv post.',
+      parameters: {
+        type: 'object',
+        properties: {
+          publication_id: { type: 'string' },
+          post_id: { type: 'string' },
+        },
+        required: ['publication_id', 'post_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/publications/{publication_id}/posts/{post_id}/publish',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'segments.create',
+      class: 'mutation',
+      description: 'Create a subscriber segment under a publication.',
+      parameters: {
+        type: 'object',
+        properties: {
+          publication_id: { type: 'string' },
+          name: { type: 'string' },
+          type: {
+            type: 'string',
+            description: 'dynamic | static — controls whether the segment is recomputed.',
+          },
+          filters: {
+            type: 'object',
+            description: 'Beehiiv segment filter expression.',
+          },
+        },
+        required: ['publication_id', 'name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/publications/{publication_id}/segments',
+        body: {
+          name: '{name}',
+          type: '{type}',
+          filters: '{filters}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

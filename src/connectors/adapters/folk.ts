@@ -282,5 +282,21 @@ export const folkConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/people/{personId}' },
     },
+    {
+      name: 'delete.person',
+      class: 'mutation',
+      description:
+        'Delete a Folk person record by id. Irreversible; Folk returns 204 on success and 404 if the person was already removed, both treated as a committed terminal state by callers that rely on native idempotency.',
+      parameters: {
+        type: 'object',
+        properties: {
+          personId: { type: 'string', description: 'Folk person id.' },
+        },
+        required: ['personId'],
+      },
+      request: { method: 'DELETE', path: '/people/{personId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

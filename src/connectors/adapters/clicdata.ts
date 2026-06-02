@@ -165,5 +165,53 @@ export const clicdataConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/datasets/{datasetId}/data' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'datasets.create',
+      class: 'mutation',
+      description: 'Create a new ClicData dataset.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          category_id: { type: 'integer' },
+          columns: { type: 'array' },
+        },
+        required: ['name', 'columns'],
+      },
+      request: {
+        method: 'POST',
+        path: '/datasets',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'datasets.delete',
+      class: 'mutation',
+      description: 'Delete a ClicData dataset by id.',
+      parameters: {
+        type: 'object',
+        properties: { datasetId: { type: 'string' } },
+        required: ['datasetId'],
+      },
+      request: { method: 'DELETE', path: '/datasets/{datasetId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'dashboards.refresh',
+      class: 'mutation',
+      description: 'Trigger a refresh of all data backing a ClicData dashboard.',
+      parameters: {
+        type: 'object',
+        properties: { dashboardId: { type: 'string' } },
+        required: ['dashboardId'],
+      },
+      request: { method: 'POST', path: '/dashboards/{dashboardId}/refresh' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

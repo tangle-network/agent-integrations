@@ -58,7 +58,12 @@ describe('hellosign (Dropbox Sign) adapter', () => {
 
   it('manifest exposes the e-signature capability triple', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['cancel_signature_request', 'get_signature_request', 'send_signature_request'])
+    expect(names).toEqual([
+      'cancel_signature_request',
+      'get_signature_request',
+      'remind_signature_request',
+      'send_signature_request',
+    ])
     const send = adapter.manifest.capabilities.find((c) => c.name === 'send_signature_request')
     expect(send?.class).toBe('mutation')
     if (send?.class === 'mutation') {

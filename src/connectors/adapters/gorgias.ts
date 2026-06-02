@@ -191,7 +191,29 @@ export const gorgiasConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/api/customers', body: 'args' },
       cas: 'native-idempotency',
+      externalEffect: true,
       requiredScopes: ['customers:write'],
+    },
+    {
+      name: 'tickets.close',
+      class: 'mutation',
+      description:
+        'Close a Gorgias ticket. Issues PUT /api/tickets/{ticketId} with status="closed"; idempotent — already-closed tickets stay closed. Use tickets.update to set status to a different value (open, pending, resolved).',
+      parameters: {
+        type: 'object',
+        properties: {
+          ticketId: { type: 'integer', description: 'Gorgias ticket ID to close.' },
+        },
+        required: ['ticketId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/tickets/{ticketId}',
+        body: { status: 'closed' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['tickets:write'],
     },
   ],
 })

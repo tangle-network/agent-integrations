@@ -124,5 +124,65 @@ export const dripConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description: 'Delete a Drip subscriber by id or email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          account_id: { type: 'string', description: 'Drip account ID' },
+          id_or_email: {
+            type: 'string',
+            description: 'Subscriber id or URL-encoded email to delete.',
+          },
+        },
+        required: ['account_id', 'id_or_email'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/accounts/{account_id}/subscribers/{id_or_email}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'events.record',
+      class: 'mutation',
+      description: 'Record a custom event for a Drip subscriber.',
+      parameters: {
+        type: 'object',
+        properties: {
+          account_id: { type: 'string', description: 'Drip account ID' },
+          email: { type: 'string', description: 'Subscriber email the event belongs to.' },
+          action: { type: 'string', description: 'Event action name, e.g. "Purchased a product".' },
+          properties: {
+            type: 'object',
+            description: 'Free-form key/value properties to attach to the event.',
+          },
+          occurred_at: {
+            type: 'string',
+            description: 'ISO-8601 timestamp the event occurred at.',
+          },
+        },
+        required: ['account_id', 'email', 'action'],
+      },
+      request: {
+        method: 'POST',
+        path: '/accounts/{account_id}/events',
+        body: {
+          events: [
+            {
+              email: '{email}',
+              action: '{action}',
+              properties: '{properties}',
+              occurred_at: '{occurred_at}',
+            },
+          ],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

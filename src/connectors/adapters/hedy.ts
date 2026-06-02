@@ -242,5 +242,74 @@ export const hedyConnector = declarativeRestConnector({
         path: '/v1/context/{contextId}',
       },
     },
+    {
+      name: 'topics.delete',
+      class: 'mutation',
+      description:
+        'Delete a Hedy topic. Sessions stored under the topic become orphaned per the upstream API contract.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topicId: {
+            type: 'string',
+            description: 'The unique identifier of the topic to delete.',
+          },
+        },
+        required: ['topicId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/topics/{topicId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'context.update',
+      class: 'mutation',
+      description:
+        'Update an existing session context (title, content, default flag).',
+      parameters: {
+        type: 'object',
+        properties: {
+          contextId: {
+            type: 'string',
+            description: 'The unique identifier of the context to update.',
+          },
+          title: { type: 'string', description: 'Updated title.' },
+          content: { type: 'string', description: 'Updated content.' },
+          isDefault: { type: 'boolean', description: 'Updated default flag.' },
+        },
+        required: ['contextId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/v1/context/{contextId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'context.delete',
+      class: 'mutation',
+      description: 'Delete a Hedy session context entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contextId: {
+            type: 'string',
+            description: 'The unique identifier of the context to delete.',
+          },
+        },
+        required: ['contextId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/context/{contextId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

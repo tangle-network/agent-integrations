@@ -166,5 +166,64 @@ export const firebaseConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       requiredScopes: ['https://www.googleapis.com/auth/datastore'],
     },
+    {
+      // Firebase Auth admin REST lives on identitytoolkit.googleapis.com, NOT
+      // firestore.googleapis.com. The declarative-rest URL constructor honors
+      // absolute paths (`new URL(abs, base)` returns the absolute), so we
+      // route per-capability instead of forking the whole adapter.
+      name: 'auth.user.create',
+      class: 'mutation',
+      description:
+        'Create a Firebase Auth user under the project. Body fields map to the Identity Toolkit Account resource (localId, email, password, displayName, phoneNumber, emailVerified, disabled). Idempotent on localId when supplied.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          localId: { type: 'string', description: 'Optional caller-chosen uid; Identity Toolkit assigns one if omitted.' },
+          email: { type: 'string' },
+          password: { type: 'string' },
+          displayName: { type: 'string' },
+          phoneNumber: { type: 'string' },
+          emailVerified: { type: 'boolean' },
+          disabled: { type: 'boolean' },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'POST',
+        path: 'https://identitytoolkit.googleapis.com/v1/projects/{projectId}/accounts',
+        // Pass args through so optional fields (email/password/displayName/etc.)
+        // are omitted when the caller omits them. The declarative renderer's
+        // per-field placeholders throw on `undefined`; `'args'` skips that
+        // strictness for optional bodies. `projectId` is also included but
+        // Identity Toolkit ignores unrecognized fields.
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/firebase'],
+    },
+    {
+      name: 'auth.user.delete',
+      class: 'mutation',
+      description:
+        'Delete a Firebase Auth user by localId via the Identity Toolkit accounts:delete RPC. Destructive; downstream Firestore documents are not cascaded.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          localId: { type: 'string', description: 'Firebase Auth uid to delete.' },
+        },
+        required: ['projectId', 'localId'],
+      },
+      request: {
+        method: 'POST',
+        path: 'https://identitytoolkit.googleapis.com/v1/projects/{projectId}/accounts:delete',
+        body: { localId: '{localId}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/firebase'],
+    },
   ],
 })

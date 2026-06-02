@@ -80,6 +80,85 @@ export const hashiCorpVaultConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
+      name: 'kv.write',
+      class: 'mutation',
+      description: 'Create or update a KV v2 secret (alias of secrets.write surfaced under the kv.* namespace).',
+      parameters: {
+        type: 'object',
+        properties: {
+          secretEngine: { type: 'string' },
+          secretPath: { type: 'string' },
+          secretData: { type: 'object', description: 'Key/value payload to persist under data.' },
+        },
+        required: ['secretEngine', 'secretPath', 'secretData'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/{secretEngine}/data/{secretPath}',
+        body: { data: '{secretData}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'kv.delete',
+      class: 'mutation',
+      description: 'Delete a KV v2 secret and all versions (alias of secrets.delete under the kv.* namespace).',
+      parameters: {
+        type: 'object',
+        properties: {
+          secretEngine: { type: 'string' },
+          secretPath: { type: 'string' },
+        },
+        required: ['secretEngine', 'secretPath'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/{secretEngine}/metadata/{secretPath}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'token.revoke',
+      class: 'mutation',
+      description: 'Revoke a Vault auth token (and its children). POSTs the token to /v1/auth/token/revoke.',
+      parameters: {
+        type: 'object',
+        properties: {
+          token: { type: 'string', description: 'The Vault token to revoke.' },
+        },
+        required: ['token'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/auth/token/revoke',
+        body: { token: '{token}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lease.revoke',
+      class: 'mutation',
+      description: 'Revoke a Vault lease immediately. POSTs the lease id to /v1/sys/leases/revoke.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leaseId: { type: 'string', description: 'The lease id to revoke.' },
+          sync: { type: 'boolean', description: 'If true, the call blocks until revocation completes.' },
+        },
+        required: ['leaseId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/sys/leases/revoke',
+        body: { lease_id: '{leaseId}', sync: '{sync}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'secrets.list',
       class: 'read',
       description: 'List secret keys under a path in a KV v2 secrets engine.',

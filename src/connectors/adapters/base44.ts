@@ -70,5 +70,69 @@ export const base44Connector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'entities.update',
+      class: 'mutation',
+      description: 'Update an existing entity row by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entityType: { type: 'string', description: 'The name of the entity type' },
+          entityId: { type: 'string', description: 'Id of the entity to update' },
+          entityData: { type: 'object', description: 'Fields to update on the entity' },
+        },
+        required: ['entityType', 'entityId', 'entityData'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/entities/{entityType}/{entityId}',
+        body: '{entityData}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'entities.delete',
+      class: 'mutation',
+      description: 'Delete an entity row by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entityType: { type: 'string', description: 'The name of the entity type' },
+          entityId: { type: 'string', description: 'Id of the entity to delete' },
+        },
+        required: ['entityType', 'entityId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/entities/{entityType}/{entityId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'entities.bulkUpsert',
+      class: 'mutation',
+      description: 'Bulk upsert a list of entities under a single entity type.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entityType: { type: 'string', description: 'The name of the entity type' },
+          entities: {
+            type: 'array',
+            description: 'Array of entity payloads to upsert.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['entityType', 'entities'],
+      },
+      request: {
+        method: 'POST',
+        path: '/entities/{entityType}/bulkUpsert',
+        body: { entities: '{entities}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

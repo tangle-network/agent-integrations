@@ -102,5 +102,75 @@ export const appfollowConnector = declarativeRestConnector({
         query: { ext_id: '{ext_id}' },
       },
     },
+    {
+      name: 'reply.update',
+      class: 'mutation',
+      description: 'Edit a previously posted reply to an app store review.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ext_id: { type: 'string', description: 'Application external id in AppFollow.' },
+          review_id: { type: 'string', description: 'Review id whose reply will be updated.' },
+          answer_text: { type: 'string', description: 'New reply text.' },
+        },
+        required: ['ext_id', 'review_id', 'answer_text'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/reviews/reply',
+        body: {
+          ext_id: '{ext_id}',
+          review_id: '{review_id}',
+          answer_text: '{answer_text}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'reply.delete',
+      class: 'mutation',
+      description: 'Delete a posted reply to an app store review.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ext_id: { type: 'string', description: 'Application external id in AppFollow.' },
+          review_id: { type: 'string', description: 'Review id whose reply will be deleted.' },
+        },
+        required: ['ext_id', 'review_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/reviews/reply',
+        query: { ext_id: '{ext_id}', review_id: '{review_id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tags.assign',
+      class: 'mutation',
+      description: 'Attach a tag to a review.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ext_id: { type: 'string', description: 'Application external id in AppFollow.' },
+          review_id: { type: 'string', description: 'Review id to tag.' },
+          tag: { type: 'string', description: 'Tag value to attach.' },
+        },
+        required: ['ext_id', 'review_id', 'tag'],
+      },
+      request: {
+        method: 'POST',
+        path: '/tags',
+        body: {
+          ext_id: '{ext_id}',
+          review_id: '{review_id}',
+          tag: '{tag}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -91,5 +91,86 @@ export const askHandleConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'messages.update',
+      class: 'mutation',
+      description: 'Update a draft AskHandle message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message_id: { type: 'string', description: 'Identifier of the message to update.' },
+          body: { type: 'string', description: 'New message body.' },
+        },
+        required: ['message_id', 'body'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/messages/{message_id}',
+        body: { body: '{body}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'messages.delete',
+      class: 'mutation',
+      description: 'Delete an AskHandle message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message_id: { type: 'string', description: 'Identifier of the message to delete.' },
+        },
+        required: ['message_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/messages/{message_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.update',
+      class: 'mutation',
+      description: 'Patch attributes on an existing AskHandle lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Identifier of the lead to patch.' },
+          nickname: { type: 'string' },
+          email: { type: 'string' },
+          phone_number: { type: 'string' },
+          device: { type: 'string' },
+          from_page_title: { type: 'string' },
+          referrer: { type: 'string' },
+        },
+        required: ['lead_id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/leads/{lead_id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete an AskHandle lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Identifier of the lead to delete.' },
+        },
+        required: ['lead_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/leads/{lead_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

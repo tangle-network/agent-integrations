@@ -48,13 +48,14 @@ describe('google-contacts adapter manifest', () => {
         'otherContacts.search',
         'directory.list',
         'directory.search',
+        'groups.create',
       ].sort(),
     )
     const mutations = googleContactsConnector.manifest.capabilities
       .filter((c) => c.class === 'mutation')
       .map((c) => c.name)
       .sort()
-    expect(mutations).toEqual(['people.create', 'people.update', 'people.delete'].sort())
+    expect(mutations).toEqual(['people.create', 'people.update', 'people.delete', 'groups.create'].sort())
   })
 
   it('encodes People API concurrency semantics: create=none, update=etag-if-match, delete=native-idempotency', () => {
@@ -87,6 +88,15 @@ describe('google-contacts adapter manifest', () => {
         expect(declared.has(scope)).toBe(true)
       }
     }
+  })
+
+  it('declares groups.create as native-idempotency external effect against contactGroups', () => {
+    const byName = new Map(googleContactsConnector.manifest.capabilities.map((c) => [c.name, c]))
+    const create = byName.get('groups.create')
+    if (!create || create.class !== 'mutation') throw new Error('expected mutation')
+    expect(create.cas).toBe('native-idempotency')
+    expect(create.externalEffect).toBe(true)
+    expect(create.requiredScopes).toContain('https://www.googleapis.com/auth/contacts')
   })
 
   it('contains no TODO/FIXME/placeholder text', () => {

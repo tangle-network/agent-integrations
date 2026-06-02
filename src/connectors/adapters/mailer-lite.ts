@@ -141,5 +141,106 @@ export const mailerLiteConnector = declarativeRestConnector({
         path: '/subscribers/{searchValue}',
       },
     },
+    {
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description:
+        'Delete a subscriber from the account (DELETE /subscribers/{subscriberId}). Removes the record entirely — distinct from setting status=unsubscribed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriberId: {
+            type: 'string',
+            description: 'MailerLite subscriber ID or email.',
+          },
+        },
+        required: ['subscriberId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/subscribers/{subscriberId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description:
+        'Create a regular email campaign (POST /campaigns). Returns the draft campaign ID needed by campaigns.schedule.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Campaign name (internal label).' },
+          type: {
+            type: 'string',
+            enum: ['regular', 'ab', 'resend'],
+            description: 'Campaign type; defaults to regular.',
+          },
+          emails: {
+            type: 'array',
+            description:
+              'Per-variant email definitions (subject, from, from_name, content). Regular campaigns expect a single entry.',
+            items: { type: 'object' },
+          },
+          groups: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Group IDs the campaign should target.',
+          },
+          segments: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Segment IDs the campaign should target.',
+          },
+          language_id: { type: 'string', description: 'Optional MailerLite language ID.' },
+        },
+        required: ['name', 'emails'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.schedule',
+      class: 'mutation',
+      description:
+        'Schedule (or immediately send) a previously-created draft campaign (POST /campaigns/{campaignId}/schedule). Pass delivery=instant for immediate send or delivery=scheduled with a schedule.date payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Draft campaign ID returned by campaigns.create.' },
+          delivery: {
+            type: 'string',
+            enum: ['instant', 'scheduled', 'timezone_based'],
+            description: 'Delivery strategy; instant sends immediately, scheduled honors schedule.date.',
+          },
+          schedule: {
+            type: 'object',
+            description:
+              'Schedule payload required when delivery=scheduled or timezone_based. Shape `{ date: ISO8601, timezone_id?: string }`.',
+            properties: {
+              date: { type: 'string', description: 'ISO-8601 send time.' },
+              timezone_id: { type: 'string' },
+            },
+          },
+        },
+        required: ['campaignId', 'delivery'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns/{campaignId}/schedule',
+        body: {
+          delivery: '{delivery}',
+          schedule: '{schedule}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

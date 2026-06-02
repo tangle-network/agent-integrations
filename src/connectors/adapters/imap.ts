@@ -85,5 +85,27 @@ export const imapConnector = declarativeRestConnector({
         path: '/{mailbox}/{messageId}/delete',
       },
     },
+    {
+      name: 'folders.create',
+      class: 'mutation',
+      description: 'Create a new IMAP folder (mailbox).',
+      parameters: {
+        type: 'object',
+        properties: {
+          folder: {
+            type: 'string',
+            description: 'IMAP folder name to create (e.g. INBOX/Archive).',
+          },
+        },
+        required: ['folder'],
+      },
+      request: {
+        method: 'POST',
+        path: '/folders',
+        body: { folder: '{folder}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

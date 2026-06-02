@@ -18,7 +18,9 @@ describe('lofty adapter manifest', () => {
     expect(names).toEqual(
       [
         'leads.create',
+        'leads.delete',
         'leads.update',
+        'tasks.create',
         'transactions.create',
         'transactions.update',
       ].sort(),
@@ -33,7 +35,14 @@ describe('lofty adapter manifest', () => {
       .sort()
     expect(reads).toEqual([])
     expect(mutations).toEqual(
-      ['leads.create', 'leads.update', 'transactions.create', 'transactions.update'].sort(),
+      [
+        'leads.create',
+        'leads.delete',
+        'leads.update',
+        'tasks.create',
+        'transactions.create',
+        'transactions.update',
+      ].sort(),
     )
   })
 })

@@ -30,7 +30,42 @@ describe('google-my-business adapter manifest', () => {
       ['accounts.list', 'locations.list', 'reviews.get', 'reviews.list'].sort(),
     )
     expect(mutations).toEqual(
-      ['reviews.reply.create', 'reviews.reply.delete'].sort(),
+      [
+        'reviews.reply.create',
+        'reviews.reply.delete',
+        'localPosts.create',
+        'localPosts.delete',
+        'media.create',
+      ].sort(),
     )
+  })
+
+  it('declares write-side mutations with the correct CAS + externalEffect', () => {
+    const byName = new Map(googleMyBusinessConnector.manifest.capabilities.map((c) => [c.name, c]))
+    const postCreate = byName.get('localPosts.create')
+    const postDelete = byName.get('localPosts.delete')
+    const mediaCreate = byName.get('media.create')
+    if (
+      !postCreate || postCreate.class !== 'mutation' ||
+      !postDelete || postDelete.class !== 'mutation' ||
+      !mediaCreate || mediaCreate.class !== 'mutation'
+    ) {
+      throw new Error('expected mutation capabilities')
+    }
+    // POST endpoints have no upstream idempotency token, so cas='none' +
+    // MutationGuard's idempotency-key layer dedupes above the connector.
+    expect(postCreate.cas).toBe('none')
+    expect(postCreate.externalEffect).toBe(true)
+    expect(mediaCreate.cas).toBe('none')
+    expect(mediaCreate.externalEffect).toBe(true)
+    // DELETE on an already-deleted resource is naturally idempotent.
+    expect(postDelete.cas).toBe('native-idempotency')
+    expect(postDelete.externalEffect).toBe(true)
+  })
+
+  it('every capability requires the business.manage scope', () => {
+    for (const cap of googleMyBusinessConnector.manifest.capabilities) {
+      expect(cap.requiredScopes).toContain('https://www.googleapis.com/auth/business.manage')
+    }
   })
 })

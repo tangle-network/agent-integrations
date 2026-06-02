@@ -128,5 +128,82 @@ export const bookedinConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/v1/leads/{leadId}' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'appointments.create',
+      class: 'mutation',
+      description: 'Book a new Bookedin appointment for a lead or customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string', description: 'Optional lead id to attach the appointment to.' },
+          serviceId: { type: 'string', description: 'Service or appointment type id.' },
+          staffId: { type: 'string', description: 'Staff member to assign to the appointment.' },
+          startTime: { type: 'string', description: 'ISO 8601 start time for the appointment.' },
+          endTime: { type: 'string', description: 'ISO 8601 end time for the appointment.' },
+          notes: { type: 'string', description: 'Optional notes attached to the appointment.' },
+        },
+        required: ['serviceId', 'startTime'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/appointments',
+        body: {
+          leadId: '{leadId}',
+          serviceId: '{serviceId}',
+          staffId: '{staffId}',
+          startTime: '{startTime}',
+          endTime: '{endTime}',
+          notes: '{notes}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'appointments.cancel',
+      class: 'mutation',
+      description: 'Cancel an existing Bookedin appointment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointmentId: { type: 'string', description: 'Bookedin appointment id to cancel.' },
+          reason: { type: 'string', description: 'Optional cancellation reason.' },
+        },
+        required: ['appointmentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/appointments/{appointmentId}/cancel',
+        body: { reason: '{reason}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'appointments.reschedule',
+      class: 'mutation',
+      description: 'Reschedule an existing Bookedin appointment to a new start/end time.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointmentId: { type: 'string', description: 'Bookedin appointment id to reschedule.' },
+          startTime: { type: 'string', description: 'New ISO 8601 start time.' },
+          endTime: { type: 'string', description: 'New ISO 8601 end time.' },
+          staffId: { type: 'string', description: 'Optional new staff member id.' },
+        },
+        required: ['appointmentId', 'startTime'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/appointments/{appointmentId}/reschedule',
+        body: {
+          startTime: '{startTime}',
+          endTime: '{endTime}',
+          staffId: '{staffId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

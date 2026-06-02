@@ -310,6 +310,91 @@ export const docusignConnector = declarativeRestConnector({
       requiredScopes: ['signature'],
     },
     {
+      // Send a drafted envelope. DocuSign exposes "send" as a status transition
+      // on an existing envelope: PUT envelopes/{id} body { status: "sent" }.
+      // The orchestrator-friendly capability hides the status-transition shape
+      // so the agent can call envelope.send(envelopeId) without re-stating the
+      // verb. The upstream is idempotent — sending an already-sent envelope is
+      // a no-op and returns 200.
+      name: 'envelope.send',
+      class: 'mutation',
+      description:
+        'Send a previously-drafted DocuSign envelope by transitioning its status from "created" to "sent". Idempotent: sending an already-sent envelope is a no-op.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          envelopeId: { type: 'string' },
+        },
+        required: ['accountId', 'envelopeId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/restapi/v2.1/accounts/{accountId}/envelopes/{envelopeId}',
+        body: { status: 'sent' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['signature'],
+    },
+    {
+      // Void an in-progress envelope. DocuSign requires a voidedReason string;
+      // there is no separate /void endpoint — the operation is a PUT to the
+      // envelope resource with status="voided".
+      name: 'envelope.void',
+      class: 'mutation',
+      description:
+        'Void an in-progress DocuSign envelope. Requires a voidedReason string that is recorded on the envelope and shown to signers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          envelopeId: { type: 'string' },
+          voidedReason: { type: 'string' },
+        },
+        required: ['accountId', 'envelopeId', 'voidedReason'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/restapi/v2.1/accounts/{accountId}/envelopes/{envelopeId}',
+        body: { status: 'voided', voidedReason: '{voidedReason}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['signature'],
+    },
+    {
+      // Resend the signing invitation to one or more recipients. DocuSign does
+      // this by PUT-ing the recipients collection with resend_envelope=true;
+      // the body echoes the recipient objects so the upstream knows which
+      // recipients to re-notify. Caller MUST pass the recipient descriptors
+      // (matched on recipientId / email + routingOrder).
+      name: 'recipient.resendInvitation',
+      class: 'mutation',
+      description:
+        'Resend the signing invitation email to one or more recipients of an in-flight envelope. Pass the recipient descriptors that should be re-notified; resend_envelope=true is forced on.',
+      parameters: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string' },
+          envelopeId: { type: 'string' },
+          signers: { type: 'array', items: { type: 'object' } },
+          carbonCopies: { type: 'array', items: { type: 'object' } },
+          certifiedDeliveries: { type: 'array', items: { type: 'object' } },
+        },
+        required: ['accountId', 'envelopeId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/restapi/v2.1/accounts/{accountId}/envelopes/{envelopeId}/recipients',
+        query: { resend_envelope: 'true' },
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['signature'],
+    },
+    {
       name: 'envelopes.views.recipient',
       class: 'mutation',
       description:

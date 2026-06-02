@@ -56,5 +56,53 @@ export const alttextifyConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: false,
     },
+    {
+      name: 'batch.generate.alt.text',
+      class: 'mutation',
+      description: 'Generate alt text for a list of images in a single call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          images: {
+            type: 'array',
+            description:
+              'Array of image entries. Each entry mirrors the single generate.alt.text body fields.',
+            items: { type: 'object' },
+          },
+          lang: { type: 'string' },
+          async: { type: 'boolean' },
+        },
+        required: ['images'],
+      },
+      request: {
+        method: 'POST',
+        path: '/image/raw/bulk',
+        body: {
+          images: '{images}',
+          lang: '{lang}',
+          async: '{async}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'result.delete',
+      class: 'mutation',
+      description: 'Delete a stored alt-text generation by its id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'AltTextify generation id.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/image/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

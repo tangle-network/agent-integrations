@@ -136,6 +136,72 @@ export const freshserviceConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
+      name: 'tickets.update',
+      class: 'mutation',
+      description:
+        'Update fields on an existing Freshservice ticket — subject/description/status/priority/assignment/tags/custom_fields. PUT semantics: only supplied fields are changed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ticketId: { type: 'string' },
+          subject: { type: 'string' },
+          description: { type: 'string' },
+          status: { type: 'integer', minimum: 2, maximum: 5 },
+          priority: { type: 'integer', minimum: 1, maximum: 4 },
+          source: { type: 'integer' },
+          type: { type: 'string' },
+          category: { type: 'string' },
+          sub_category: { type: 'string' },
+          tags: { type: 'array', items: { type: 'string' } },
+          custom_fields: { type: 'object' },
+          group_id: { type: 'integer' },
+          responder_id: { type: 'integer' },
+          department_id: { type: 'integer' },
+          urgency: { type: 'integer', minimum: 1, maximum: 3 },
+          impact: { type: 'integer', minimum: 1, maximum: 3 },
+        },
+        required: ['ticketId'],
+      },
+      request: { method: 'PUT', path: '/api/v2/tickets/{ticketId}', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tickets.delete',
+      class: 'mutation',
+      description:
+        'Move a Freshservice ticket to the trash. Destructive; subsequent reads of the same ticket id return 404.',
+      parameters: {
+        type: 'object',
+        properties: { ticketId: { type: 'string' } },
+        required: ['ticketId'],
+      },
+      request: { method: 'DELETE', path: '/api/v2/tickets/{ticketId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tickets.close',
+      class: 'mutation',
+      description:
+        'Close a resolved Freshservice ticket. Implemented as a status update to 5 (Closed) on the underlying ticket record; pair with `tickets.note` to record a closure comment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ticketId: { type: 'string' },
+        },
+        required: ['ticketId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v2/tickets/{ticketId}',
+        // Status 5 = Closed in Freshservice's status enum.
+        body: { status: 5 },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'tickets.note',
       class: 'mutation',
       description:

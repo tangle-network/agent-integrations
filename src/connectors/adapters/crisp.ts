@@ -170,5 +170,66 @@ export const crispConnector = declarativeRestConnector({
         query: { search_query: '{searchQuery}' },
       },
     },
+    {
+      name: 'messages.send',
+      class: 'mutation',
+      description:
+        'Post a user-visible text message into an existing conversation, attributed by default to an operator.',
+      parameters: {
+        type: 'object',
+        properties: {
+          websiteId: { type: 'string' },
+          sessionId: { type: 'string' },
+          content: { type: 'string', description: 'Message content (plain text).' },
+          from: {
+            type: 'string',
+            enum: ['operator', 'user'],
+            description: 'Who the message is attributed to. Defaults to operator.',
+          },
+          origin: { type: 'string', description: 'Origin tag for the message (e.g. "chat", "email").' },
+        },
+        required: ['websiteId', 'sessionId', 'content'],
+      },
+      request: {
+        method: 'POST',
+        path: '/website/{websiteId}/conversation/{sessionId}/message',
+        body: {
+          type: 'text',
+          content: '{content}',
+          from: '{from}',
+          origin: '{origin}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'conversation.assign',
+      class: 'mutation',
+      description:
+        'Assign a conversation to an operator (and optionally pin it to a routing assignment list).',
+      parameters: {
+        type: 'object',
+        properties: {
+          websiteId: { type: 'string' },
+          sessionId: { type: 'string' },
+          assigned: {
+            type: 'object',
+            description: 'Routing target. Provide `user_id` to assign to a specific operator.',
+            properties: {
+              user_id: { type: 'string' },
+            },
+          },
+        },
+        required: ['websiteId', 'sessionId', 'assigned'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/website/{websiteId}/conversation/{sessionId}/routing',
+        body: { assigned: '{assigned}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -63,5 +63,71 @@ export const googleSlidesConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       requiredScopes: ['https://www.googleapis.com/auth/presentations'],
     },
+    {
+      name: 'presentation.update',
+      class: 'mutation',
+      description:
+        'Apply a batch of Slides API edit requests (insertText, deleteObject, updateShapeProperties, etc.) to an existing presentation. Pass `requests` as an array of Slides batchUpdate Request objects; the API applies them atomically (POST /presentations/{presentationId}:batchUpdate).',
+      parameters: {
+        type: 'object',
+        properties: {
+          presentationId: { type: 'string', description: 'Presentation resource ID.' },
+          requests: {
+            type: 'array',
+            description: 'Array of Slides batchUpdate Request objects, e.g. [{ insertText: { objectId, text } }].',
+            items: { type: 'object' },
+          },
+          writeControl: {
+            type: 'object',
+            description: 'Optional WriteControl object with required_revision_id for optimistic locking.',
+          },
+        },
+        required: ['presentationId', 'requests'],
+      },
+      request: {
+        method: 'POST',
+        path: '/presentations/{presentationId}:batchUpdate',
+        body: { requests: '{requests}', writeControl: '{writeControl}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/presentations'],
+    },
+    {
+      name: 'slides.duplicate',
+      class: 'mutation',
+      description:
+        'Duplicate an existing slide within a presentation. Issues a Slides batchUpdate with a `duplicateObject` request keyed by the slide\'s objectId (POST /presentations/{presentationId}:batchUpdate).',
+      parameters: {
+        type: 'object',
+        properties: {
+          presentationId: { type: 'string', description: 'Presentation resource ID.' },
+          objectId: { type: 'string', description: 'Object ID of the slide to duplicate (slides are page-level objects).' },
+          objectIds: {
+            type: 'object',
+            description:
+              'Optional map of source-objectId -> desired-objectId for the duplicated children, letting callers pin stable IDs.',
+          },
+        },
+        required: ['presentationId', 'objectId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/presentations/{presentationId}:batchUpdate',
+        body: {
+          requests: [
+            {
+              duplicateObject: {
+                objectId: '{objectId}',
+                objectIds: '{objectIds}',
+              },
+            },
+          ],
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['https://www.googleapis.com/auth/presentations'],
+    },
   ],
 })

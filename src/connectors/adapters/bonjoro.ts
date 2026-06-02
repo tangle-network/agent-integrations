@@ -48,6 +48,78 @@ export const bonjoroConnector = declarativeRestConnector({
       externalEffect: true,
     },
     {
+      name: 'greets.update',
+      class: 'mutation',
+      description: 'Update an existing Bonjoro greet (note, assignee, template, custom fields).',
+      parameters: {
+        type: 'object',
+        properties: {
+          greetId: { type: 'string', description: 'Bonjoro greet id to update.' },
+          note: { type: 'string', description: 'Updated note for the greet.' },
+          assignee: { type: 'string', description: 'Assignee user id.' },
+          template: { type: 'string', description: 'Template id to use for the greet.' },
+          campaign: { type: 'string', description: 'Campaign id the greet belongs to.' },
+          custom: { type: 'object', description: 'Custom attributes attached to the greet.' },
+        },
+        required: ['greetId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/greets/{greetId}',
+        body: {
+          note: '{note}',
+          assignee: '{assignee}',
+          template: '{template}',
+          campaign: '{campaign}',
+          custom: '{custom}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'greets.delete',
+      class: 'mutation',
+      description: 'Delete a Bonjoro greet by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          greetId: { type: 'string', description: 'Bonjoro greet id to delete.' },
+        },
+        required: ['greetId'],
+      },
+      request: { method: 'DELETE', path: '/greets/{greetId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a new Bonjoro campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Display name of the campaign.' },
+          assignee: { type: 'string', description: 'Default assignee user id for greets in the campaign.' },
+          template: { type: 'string', description: 'Default template id for greets in the campaign.' },
+          description: { type: 'string', description: 'Optional campaign description.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaigns',
+        body: {
+          name: '{name}',
+          assignee: '{assignee}',
+          template: '{template}',
+          description: '{description}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'assignees.list',
       class: 'read',
       description: 'List Bonjoro account members eligible to be assigned a greet.',

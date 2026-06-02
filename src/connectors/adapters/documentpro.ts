@@ -146,5 +146,68 @@ export const documentproConnector = declarativeRestConnector({
       cas: 'none',
       externalEffect: true,
     },
+    {
+      // Hard-delete of a document and its derived extractions. DocumentPro
+      // billing meters extraction, not retention, so removing the source
+      // file does not refund prior `run.extract` calls.
+      name: 'documents.delete',
+      class: 'mutation',
+      description:
+        'Delete a previously uploaded DocumentPro document and its associated extraction history. Cannot be undone.',
+      parameters: {
+        type: 'object',
+        properties: {
+          document_id: {
+            type: 'string',
+            description: 'ID of the document to remove (returned by the upload endpoint).',
+          },
+        },
+        required: ['document_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/documents/{document_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      // Export the structured extraction output for downstream pipelines.
+      // Modeled as a mutation because the upstream meters export calls and
+      // some formats (xlsx, csv) re-run formatting pipelines server-side.
+      name: 'extraction.export',
+      class: 'mutation',
+      description:
+        'Export the structured extraction for a document in the requested format (json, csv, xlsx). The response is the serialized export payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          document_id: {
+            type: 'string',
+            description: 'ID of the document whose extraction should be exported.',
+          },
+          template_id: {
+            type: 'string',
+            description: 'Template / Workflow whose extraction is being exported. Required when a document has multiple templates run against it.',
+          },
+          format: {
+            type: 'string',
+            enum: ['json', 'csv', 'xlsx'],
+            description: 'Export format. Defaults to json on the upstream when omitted.',
+          },
+        },
+        required: ['document_id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/documents/{document_id}/export',
+        query: {
+          template_id: '{template_id}',
+          format: '{format}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

@@ -135,7 +135,7 @@ export const bigcommerceConnector = declarativeRestConnector({
         required: ['productId', 'fields'],
       },
       request: { method: 'PUT', path: 'v3/catalog/products/{productId}', body: '{fields}' },
-      cas: 'optimistic-read-verify',
+      cas: 'native-idempotency',
       requiredScopes: ['store_v2_products'],
     },
     {
@@ -192,8 +192,93 @@ export const bigcommerceConnector = declarativeRestConnector({
         required: ['orderId', 'fields'],
       },
       request: { method: 'PUT', path: 'v2/orders/{orderId}', body: '{fields}' },
-      cas: 'optimistic-read-verify',
+      cas: 'native-idempotency',
       requiredScopes: ['store_v2_orders'],
+    },
+    {
+      // Refund quotation + capture in one call. Per BigCommerce docs the
+      // refund_method/amount/reason payload lives under `items[]`; callers
+      // pass the prepared item list (validated against the order's
+      // refund-quotation read in higher layers).
+      name: 'orders.refund',
+      class: 'mutation',
+      description: 'Issue a refund on an order via Payment Actions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'integer' },
+          items: {
+            type: 'array',
+            description: 'Refund line items: [{ item_id, item_type, quantity, amount?, reason? }, ...].',
+            items: { type: 'object' },
+          },
+          memo: { type: 'string', description: 'Internal memo attached to the refund.' },
+        },
+        required: ['orderId', 'items', 'memo'],
+      },
+      request: {
+        method: 'POST',
+        path: 'v3/orders/{orderId}/payment_actions/refunds',
+        body: {
+          items: '{items}',
+          memo: '{memo}',
+        },
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['store_v2_orders'],
+    },
+    {
+      name: 'products.delete',
+      class: 'mutation',
+      description: 'Delete a catalog product by id.',
+      parameters: {
+        type: 'object',
+        properties: { productId: { type: 'integer' } },
+        required: ['productId'],
+      },
+      request: { method: 'DELETE', path: 'v3/catalog/products/{productId}' },
+      cas: 'native-idempotency',
+      requiredScopes: ['store_v2_products'],
+    },
+    {
+      // BigCommerce's v3 customers endpoint accepts an array even for
+      // single-customer creates; callers pass the customers[] payload.
+      name: 'customers.create',
+      class: 'mutation',
+      description: 'Create one or more customer records (BigCommerce v3 batches single creates as an array).',
+      parameters: {
+        type: 'object',
+        properties: {
+          customers: {
+            type: 'array',
+            description: 'Array of customer payloads; each at minimum requires email + first_name + last_name.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['customers'],
+      },
+      request: { method: 'POST', path: 'v3/customers', body: '{customers}' },
+      cas: 'native-idempotency',
+      requiredScopes: ['store_v2_customers_read_only'],
+    },
+    {
+      name: 'customers.update',
+      class: 'mutation',
+      description: 'Update one or more customer records by id (v3 batched PUT).',
+      parameters: {
+        type: 'object',
+        properties: {
+          customers: {
+            type: 'array',
+            description: 'Array of partial customer payloads; each entry MUST include the customer id.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['customers'],
+      },
+      request: { method: 'PUT', path: 'v3/customers', body: '{customers}' },
+      cas: 'native-idempotency',
+      requiredScopes: ['store_v2_customers_read_only'],
     },
   ],
 })

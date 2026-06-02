@@ -119,5 +119,93 @@ export const giftbitConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'campaigns.create',
+      class: 'mutation',
+      description: 'Create a gift campaign that bundles a reward template, brand selection, and contact list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Unique identifier for this campaign' },
+          priceInCents: { type: 'integer', description: 'Reward value in cents (e.g., 2500 = $25.00)' },
+          subject: { type: 'string', description: 'Email subject line' },
+          message: { type: 'string', description: 'Email body message' },
+          giftTemplate: { type: 'string', description: 'Gift template ID from Giftbit account' },
+          contacts: {
+            type: 'array',
+            description: 'Recipient contacts as { email, firstName, lastName } objects',
+            items: { type: 'object' },
+          },
+          brandCodes: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Brand codes to restrict campaign to specific merchants',
+          },
+          expiryDate: { type: 'string', description: 'ISO date for reward claim deadline' },
+        },
+        required: ['id', 'priceInCents'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaign',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.send',
+      class: 'mutation',
+      description: 'Send a previously created gift campaign to its recipients.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string', description: 'Unique campaign identifier created via campaigns.create' },
+        },
+        required: ['campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/campaign/{campaignId}/send',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'giftcard.resend',
+      class: 'mutation',
+      description: 'Resend the claim email for an outstanding gift card.',
+      parameters: {
+        type: 'object',
+        properties: {
+          giftId: { type: 'string', description: 'The unique gift card / reward identifier' },
+        },
+        required: ['giftId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/gifts/{giftId}/resend',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'giftcard.cancel',
+      class: 'mutation',
+      description: 'Cancel an undelivered or unclaimed gift card.',
+      parameters: {
+        type: 'object',
+        properties: {
+          giftId: { type: 'string', description: 'The unique gift card / reward identifier' },
+        },
+        required: ['giftId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/gifts/{giftId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

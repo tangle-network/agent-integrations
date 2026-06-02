@@ -146,6 +146,93 @@ export const guideliteConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'guide.create',
+      class: 'mutation',
+      description:
+        'Create a GuideLite guide (assistant). Maps to POST /assistants — the upstream resource that backs "guides" in the catalog.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Display name of the new guide.' },
+          description: {
+            type: 'string',
+            description: 'Optional description shown in the workspace UI.',
+          },
+          systemPrompt: {
+            type: 'string',
+            description: 'Optional system prompt configuring the guide behaviour.',
+          },
+          knowledgeBaseIds: {
+            type: 'array',
+            description: 'Optional knowledge-base ids to wire to the guide.',
+            items: { type: 'string' },
+          },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/assistants',
+        body: {
+          name: '{name}',
+          description: '{description}',
+          systemPrompt: '{systemPrompt}',
+          knowledgeBaseIds: '{knowledgeBaseIds}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'guide.update',
+      class: 'mutation',
+      description: 'Update an existing GuideLite guide (assistant).',
+      parameters: {
+        type: 'object',
+        properties: {
+          guideId: { type: 'string', description: 'Assistant id to update.' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          systemPrompt: { type: 'string' },
+          knowledgeBaseIds: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+        required: ['guideId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/assistants/{guideId}',
+        body: {
+          name: '{name}',
+          description: '{description}',
+          systemPrompt: '{systemPrompt}',
+          knowledgeBaseIds: '{knowledgeBaseIds}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'guide.delete',
+      class: 'mutation',
+      description: 'Delete a GuideLite guide (assistant) by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          guideId: { type: 'string', description: 'Assistant id to delete.' },
+        },
+        required: ['guideId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/assistants/{guideId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'assistants.list',
       class: 'read',
       description: 'List assistants configured in the GuideLite workspace.',

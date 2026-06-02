@@ -62,5 +62,54 @@ export const clearoutConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'bulk.verify.start',
+      class: 'mutation',
+      description:
+        'Start a bulk email verification job for a previously-uploaded list. Returns a list_id to poll for status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          list_id: {
+            type: 'string',
+            description: 'Clearout list_id returned by the file upload endpoint.',
+          },
+        },
+        required: ['list_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/email_verify/bulk',
+        body: {
+          list_id: '{list_id}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'bulk.verify.cancel',
+      class: 'mutation',
+      description: 'Cancel a running bulk email verification job by its list_id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          list_id: {
+            type: 'string',
+            description: 'Clearout list_id of the running bulk job to cancel.',
+          },
+        },
+        required: ['list_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/email_verify/bulk/cancel',
+        body: {
+          list_id: '{list_id}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

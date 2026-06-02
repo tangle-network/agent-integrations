@@ -53,7 +53,7 @@ describe('adobe creative cloud declarative adapter', () => {
     expect(auth.clientSecretEnv).toBe('ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_SECRET')
   })
 
-  it('declares the canonical Lightroom catalog action surface', () => {
+  it('declares the canonical Lightroom catalog action surface plus the file/folder write primitives', () => {
     const names = adobeCreativeCloudConnector.manifest.capabilities
       .map((cap) => cap.name)
       .sort()
@@ -69,8 +69,22 @@ describe('adobe creative cloud declarative adapter', () => {
       'assets.list_in_album',
       'catalogs.get',
       'catalogs.list',
+      'file.delete',
+      'file.upload',
+      'folder.create',
       'ims.userinfo',
     ])
+  })
+
+  it('exposes file.upload / file.delete / folder.create as native-idempotency external-effect mutations', () => {
+    for (const name of ['file.upload', 'file.delete', 'folder.create']) {
+      const cap = adobeCreativeCloudConnector.manifest.capabilities.find((c) => c.name === name)
+      expect(cap, `missing capability ${name}`).toBeDefined()
+      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
+      expect(cap.cas).toBe('native-idempotency')
+      expect(cap.externalEffect).toBe(true)
+      expect(cap.requiredScopes).toContain('lr_partner_apis')
+    }
   })
 
   it('marks every mutation with cas + externalEffect and requires the Lightroom scope', () => {

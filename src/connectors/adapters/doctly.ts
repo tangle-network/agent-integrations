@@ -82,5 +82,52 @@ export const doctlyConnector = declarativeRestConnector({
         path: '/documents/{documentId}',
       },
     },
+    {
+      name: 'documents.delete',
+      class: 'mutation',
+      description:
+        'Delete a processed document from Doctly. Removes the original upload, the parsed markdown output, and any associated job state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: {
+            type: 'string',
+            description: 'Document id returned by convert.pdf.to.text.',
+          },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/documents/{documentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      // In Doctly's resource model the parse job is a property of the document
+      // (one document => one job). Cancellation maps to deleting the in-flight
+      // document, which aborts any pending parsing and frees the document id.
+      name: 'jobs.cancel',
+      class: 'mutation',
+      description:
+        'Cancel an in-flight Doctly processing job. Doctly tracks one parse job per document; cancelling deletes the document handle and stops any pending OCR/markdown work.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: {
+            type: 'string',
+            description: 'Document id whose parse job should be cancelled.',
+          },
+        },
+        required: ['documentId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/documents/{documentId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

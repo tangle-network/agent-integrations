@@ -74,6 +74,50 @@ export const kustomerConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'customers.update',
+      class: 'mutation',
+      description: 'Update fields on an existing Kustomer customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', description: 'The Kustomer customer ID.' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          company: { type: 'string' },
+          locale: { type: 'string' },
+          timeZone: { type: 'string' },
+        },
+        required: ['customerId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/v1/customers/{customerId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'customers.delete',
+      class: 'mutation',
+      description: 'Delete a Kustomer customer by ID. Destructive — agent must surface confirmation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', description: 'The Kustomer customer ID to delete.' },
+        },
+        required: ['customerId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/customers/{customerId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'customers.search',
       class: 'read',
       description: 'Search for Kustomer customers.',
@@ -169,6 +213,29 @@ export const kustomerConnector = declarativeRestConnector({
         },
       },
       cas: 'optimistic-read-verify',
+    },
+    {
+      name: 'conversations.close',
+      class: 'mutation',
+      description: 'Close a Kustomer conversation by setting its status to "done".',
+      parameters: {
+        type: 'object',
+        properties: {
+          conversationId: { type: 'string', description: 'The Kustomer ID of the conversation to close.' },
+        },
+        required: ['conversationId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/v1/conversations/{conversationId}',
+        body: {
+          conversation: {
+            status: 'done',
+          },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'customObjects.get',

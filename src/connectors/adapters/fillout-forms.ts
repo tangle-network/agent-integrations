@@ -156,5 +156,50 @@ export const filloutFormsConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       externalEffect: true,
     },
+    {
+      name: 'submission.create',
+      class: 'mutation',
+      description:
+        'Create a form submission programmatically. `submissions` is an array of submission envelopes (questions[] + optional urlParameters[] / calculations[] / quiz). Mirrors POST /v1/api/forms/{formId}/submissions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          submissions: {
+            type: 'array',
+            description: 'Array of submission envelopes; each entry holds questions/answers and optional metadata.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['formId', 'submissions'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/api/forms/{formId}/submissions',
+        body: { submissions: '{submissions}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'submission.delete',
+      class: 'mutation',
+      description:
+        'Delete a single submission by id under a given form. Destructive; Fillout does not retain a soft-delete tombstone.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          submissionId: { type: 'string' },
+        },
+        required: ['formId', 'submissionId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/v1/api/forms/{formId}/submissions/{submissionId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

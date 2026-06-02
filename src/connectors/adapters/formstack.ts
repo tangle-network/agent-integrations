@@ -139,6 +139,49 @@ export const formstackConnector = declarativeRestConnector({
       requiredScopes: ['read'],
     },
     {
+      name: 'submissions.delete',
+      class: 'mutation',
+      description:
+        'Delete a Formstack submission by id. Destructive; not idempotent on the same submission id after success.',
+      parameters: {
+        type: 'object',
+        properties: {
+          submissionId: { type: 'string', description: 'Formstack submission id to delete.' },
+        },
+        required: ['submissionId'],
+      },
+      request: { method: 'DELETE', path: '/submission/{submissionId}.json' },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
+    {
+      name: 'forms.create',
+      class: 'mutation',
+      description:
+        'Create a new Formstack form. `name` is required; `folder` and `language` are optional placement/locale hints. Fields can be added in follow-up calls via the field-management endpoints.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Form display name.' },
+          folder: { type: 'string', description: 'Folder id to place the form in.' },
+          language: {
+            type: 'string',
+            description: 'ISO 639-1 language code for built-in form copy (defaults to account default).',
+          },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/form.json',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['write'],
+      externalEffect: true,
+    },
+    {
       name: 'submissions.search',
       class: 'read',
       description:

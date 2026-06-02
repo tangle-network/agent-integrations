@@ -66,6 +66,23 @@ const SCOPES = [
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API = 'https://docs.googleapis.com/v1'
+// Trash + export live on the Drive API, not the Docs API. drive.file scope
+// limits access to files created or opened by this app — sufficient for
+// docs the agent itself authored, and the only scope we already hold.
+const DRIVE_API = 'https://www.googleapis.com/drive/v3'
+
+const EXPORT_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  html: 'text/html',
+  text: 'text/plain',
+  txt: 'text/plain',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text',
+  rtf: 'application/rtf',
+  epub: 'application/epub+zip',
+  markdown: 'text/markdown',
+  md: 'text/markdown',
+}
 
 /** OAuth client config the factory closes over. */
 export interface GoogleDocsOptions {
@@ -150,21 +167,57 @@ export function googleDocs(opts: GoogleDocsOptions): ConnectorAdapter {
             required: ['documentId', 'text'],
           },
         },
+        {
+          name: 'delete_document',
+          class: 'mutation',
+          description:
+            'Trash a Google Doc via the Drive API (PATCH /drive/v3/files/{id} with trashed=true). Trashing is idempotent: repeating the call leaves the file in the trash and yields the same response. Requires drive.file scope on a file this app created or opened.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              documentId: { type: 'string', description: 'Docs document id (also the Drive file id).' },
+            },
+            required: ['documentId'],
+          },
+        },
+        {
+          name: 'export_document',
+          class: 'read',
+          description:
+            'Export a Google Doc to PDF, HTML, plaintext, DOCX, ODT, RTF, EPUB, or Markdown via the Drive API export endpoint. Returns the exported bytes as a base64 string + the resolved mime type. `format` is a friendly alias (pdf|html|text|docx|odt|rtf|epub|markdown); pass `mimeType` to use any other Drive-supported export mime.',
+          parameters: {
+            type: 'object',
+            properties: {
+              documentId: { type: 'string' },
+              format: {
+                type: 'string',
+                description: 'Friendly format alias: pdf, html, text, docx, odt, rtf, epub, markdown.',
+              },
+              mimeType: {
+                type: 'string',
+                description: 'Explicit export mime type (overrides `format`).',
+              },
+            },
+            required: ['documentId'],
+          },
+        },
       ],
     },
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
-      if (inv.capabilityName !== 'get_document') {
-        throw new Error(`google-docs: unknown read capability ${inv.capabilityName}`)
-      }
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
-      return getDocument(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'get_document') return getDocument(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'export_document') return exportDocument(inv, accessToken, timeoutMs)
+      throw new Error(`google-docs: unknown read capability ${inv.capabilityName}`)
     },
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
       if (inv.capabilityName === 'create_document') return createDocument(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'append_text') return appendText(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'delete_document') return deleteDocument(inv, accessToken, timeoutMs)
       throw new Error(`google-docs: unknown mutation capability ${inv.capabilityName}`)
     },
 
@@ -487,6 +540,97 @@ async function appendText(
     etagAfter: json.writeControl?.requiredRevisionId,
     committedAt: Date.now(),
     idempotentReplay: false,
+  }
+}
+
+async function deleteDocument(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { documentId } = (inv.args ?? {}) as { documentId: string }
+  if (!documentId) {
+    throw new Error('google-docs delete_document: documentId is required')
+  }
+  // Trash via the Drive API: PATCH /files/{id} body { trashed: true }.
+  // Repeating the request is a no-op (the file stays trashed and the
+  // response shape is identical) — that is the contract behind
+  // cas: 'native-idempotency' on this capability.
+  const res = await fetch(`${DRIVE_API}/files/${encodeURIComponent(documentId)}`, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ trashed: true }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 404) {
+    throw new Error(`google-docs delete_document: document ${documentId} not found`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-docs delete_document ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as { id?: string; trashed?: boolean }
+  return {
+    status: 'committed',
+    data: { documentId: json.id ?? documentId, trashed: json.trashed ?? true },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function exportDocument(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityReadResult> {
+  const { documentId, format, mimeType } = (inv.args ?? {}) as {
+    documentId: string
+    format?: string
+    mimeType?: string
+  }
+  if (!documentId) {
+    throw new Error('google-docs export_document: documentId is required')
+  }
+  const resolvedMime = mimeType ?? (format ? EXPORT_MIME[format.toLowerCase()] : undefined)
+  if (!resolvedMime) {
+    throw new Error(
+      'google-docs export_document: format must be one of pdf|html|text|docx|odt|rtf|epub|markdown, or pass mimeType explicitly',
+    )
+  }
+  const url = `${DRIVE_API}/files/${encodeURIComponent(documentId)}/export?mimeType=${encodeURIComponent(resolvedMime)}`
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 404) {
+    throw new Error(`google-docs export_document: document ${documentId} not found`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`google-docs export_document ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const buf = new Uint8Array(await res.arrayBuffer())
+  // base64 encode without a Buffer dependency (works in worker + node).
+  let binary = ''
+  for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i])
+  const base64 = typeof btoa === 'function' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64')
+  return {
+    data: {
+      documentId,
+      mimeType: resolvedMime,
+      byteLength: buf.length,
+      contentBase64: base64,
+    },
+    fetchedAt: Date.now(),
   }
 }
 

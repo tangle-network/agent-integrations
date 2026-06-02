@@ -188,5 +188,96 @@ export const googlechatConnector = declarativeRestConnector({
       },
       requiredScopes: [SCOPE_MEMBERSHIPS],
     },
+    {
+      name: 'message.update',
+      class: 'mutation',
+      description:
+        'Edit a previously sent message in a Google Chat space. Pass the full message resource name and an updateMask listing the fields being modified (e.g. "text" or "cardsV2"). Body is the partial Message resource holding the new values.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Full message resource name, e.g. "spaces/AAAA/messages/BBBB".',
+          },
+          updateMask: {
+            type: 'string',
+            description: 'Comma-separated list of fields to update, e.g. "text" or "cardsV2,attachment".',
+          },
+          message: {
+            type: 'object',
+            description: 'Partial Message resource carrying the new field values referenced by updateMask.',
+          },
+        },
+        required: ['name', 'updateMask', 'message'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/{name}',
+        query: { updateMask: '{updateMask}' },
+        body: '{message}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: [SCOPE_MESSAGES],
+    },
+    {
+      name: 'message.delete',
+      class: 'mutation',
+      description:
+        'Delete a message from a Google Chat space. Only the authenticated user\'s own messages can be deleted with user-token credentials; Chat apps can delete their own messages.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Full message resource name, e.g. "spaces/AAAA/messages/BBBB".',
+          },
+          force: {
+            type: 'boolean',
+            description: 'When true, also delete threaded replies; defaults to false.',
+          },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/{name}',
+        query: { force: '{force}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: [SCOPE_MESSAGES],
+    },
+    {
+      name: 'space.create',
+      class: 'mutation',
+      description:
+        'Create a named Google Chat space. Pass a Space resource with displayName and spaceType (e.g. "SPACE" for a named group space). For DM creation use spaces.setup; this capability covers the spaces.create endpoint for human-named spaces.',
+      parameters: {
+        type: 'object',
+        properties: {
+          space: {
+            type: 'object',
+            description:
+              'Space resource. Typically { displayName: "Engineering", spaceType: "SPACE" } or { spaceType: "GROUP_CHAT" }.',
+          },
+          requestId: {
+            type: 'string',
+            description: 'Optional client-supplied request ID; Chat uses it to deduplicate retries server-side.',
+          },
+        },
+        required: ['space'],
+      },
+      request: {
+        method: 'POST',
+        path: '/spaces',
+        query: { requestId: '{requestId}' },
+        body: '{space}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: [SCOPE_SPACES],
+    },
   ],
 })
