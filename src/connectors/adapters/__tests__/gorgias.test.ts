@@ -91,6 +91,7 @@ describe('gorgiasConnector', () => {
       'customers.create',
       'customers.search',
       'messages.create',
+      'tickets.close',
       'tickets.create',
       'tickets.get',
       'tickets.search',
