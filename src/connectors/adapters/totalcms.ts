@@ -176,5 +176,62 @@ export const totalcmsConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/depot/{key}', body: '{data}' },
       cas: 'native-idempotency',
     },
+    {
+      name: 'posts.delete',
+      class: 'mutation',
+      description: 'Delete a blog post by slug. Re-deleting an absent slug is treated as a no-op.',
+      parameters: {
+        type: 'object',
+        properties: { slug: { type: 'string' } },
+        required: ['slug'],
+      },
+      request: { method: 'DELETE', path: '/posts/{slug}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'content.delete',
+      class: 'mutation',
+      description: 'Delete a content block by permalink. Re-deleting an absent permalink is a no-op.',
+      parameters: {
+        type: 'object',
+        properties: { permalink: { type: 'string' } },
+        required: ['permalink'],
+      },
+      request: { method: 'DELETE', path: '/content/{permalink}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'media.delete',
+      class: 'mutation',
+      description: 'Delete a media asset by id. Re-deleting an absent id is a no-op.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      request: { method: 'DELETE', path: '/media/{id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'media.list',
+      class: 'read',
+      description: 'List uploaded media assets. Optional type filter (images, videos, galleries, files).',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', description: 'Optional filter: images | videos | galleries | files.' },
+          limit: { type: 'integer', minimum: 1, maximum: 200 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/media',
+        query: { type: '{type}', limit: '{limit}', offset: '{offset}' },
+      },
+    },
   ],
 })
