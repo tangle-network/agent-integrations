@@ -137,5 +137,101 @@ export const n8nConnector = declarativeRestConnector({
         body: '{payload}',
       },
     },
+    {
+      name: 'workflows.create',
+      class: 'mutation',
+      description:
+        'Create a new n8n workflow. `definition` must include the full workflow JSON shape n8n expects (name, nodes, connections, settings). Newly-created workflows start inactive.',
+      parameters: {
+        type: 'object',
+        properties: {
+          definition: {
+            type: 'object',
+            description: 'Full workflow definition (name, nodes, connections, settings, etc.).',
+          },
+        },
+        required: ['definition'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/workflows',
+        body: '{definition}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflows.update',
+      class: 'mutation',
+      description:
+        'Replace an n8n workflow definition. `definition` is the full workflow JSON (nodes, connections, settings) that overwrites the existing record.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string' },
+          definition: {
+            type: 'object',
+            description: 'Full workflow definition replacing the current one.',
+          },
+        },
+        required: ['workflowId', 'definition'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/api/v1/workflows/{workflowId}',
+        body: '{definition}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'workflows.delete',
+      class: 'mutation',
+      description: 'Permanently delete an n8n workflow by id.',
+      parameters: {
+        type: 'object',
+        properties: { workflowId: { type: 'string' } },
+        required: ['workflowId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/v1/workflows/{workflowId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'executions.delete',
+      class: 'mutation',
+      description: 'Delete a past n8n execution record by id.',
+      parameters: {
+        type: 'object',
+        properties: { executionId: { type: 'string' } },
+        required: ['executionId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/api/v1/executions/{executionId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'executions.stop',
+      class: 'mutation',
+      description:
+        'Stop a running n8n execution. Returns the final execution record once the runtime acknowledges the stop signal.',
+      parameters: {
+        type: 'object',
+        properties: { executionId: { type: 'string' } },
+        required: ['executionId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/executions/{executionId}/stop',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
