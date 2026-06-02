@@ -99,5 +99,65 @@ export const intercomConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
       requiredScopes: ['intercom.write'],
     },
+    {
+      name: 'contacts.create',
+      class: 'mutation',
+      description:
+        'Create an Intercom contact (user or lead). Top-level fields are sent as the POST /contacts body per Intercom REST docs.',
+      parameters: {
+        type: 'object',
+        properties: {
+          role: {
+            type: 'string',
+            enum: ['user', 'lead'],
+            description: 'Contact role. `user` for identified users, `lead` for anonymous visitors.',
+          },
+          email: { type: 'string', description: 'Primary email address for the contact.' },
+          name: { type: 'string' },
+          phone: { type: 'string' },
+          external_id: {
+            type: 'string',
+            description: 'Customer-side identifier used to dedupe/upsert on Intercom.',
+          },
+          custom_attributes: {
+            type: 'object',
+            description: 'Free-form custom attributes — must match attributes defined in your Intercom workspace.',
+          },
+        },
+        required: ['role', 'email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contacts',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['intercom.write'],
+    },
+    {
+      name: 'contacts.update',
+      class: 'mutation',
+      description:
+        'Update an existing Intercom contact by id. Pass updatable fields in `body` (any of email, name, phone, external_id, role, custom_attributes).',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Intercom contact id (the Intercom-side id, not external_id).' },
+          body: {
+            type: 'object',
+            description:
+              'Intercom contact update payload: { email?, name?, phone?, external_id?, role?, custom_attributes? }.',
+          },
+        },
+        required: ['id', 'body'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/contacts/{id}',
+        body: '{body}',
+      },
+      cas: 'optimistic-read-verify',
+      requiredScopes: ['intercom.write'],
+    },
   ],
 })
