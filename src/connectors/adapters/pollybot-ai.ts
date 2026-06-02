@@ -136,5 +136,97 @@ export const pollybotAiConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      name: 'leads.tag',
+      class: 'mutation',
+      description: 'Add a tag to a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The chatbot ID' },
+          leadId: { type: 'string', description: 'The lead ID' },
+          tag: { type: 'string', description: 'Tag value to attach to the lead' },
+        },
+        required: ['chatbotId', 'leadId', 'tag'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chatbots/{chatbotId}/leads/{leadId}/tags',
+        body: {
+          tag: '{tag}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'leads.bulk-import',
+      class: 'mutation',
+      description: 'Bulk import leads from a CSV/JSON payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The chatbot ID' },
+          leads: {
+            type: 'array',
+            description: 'Array of lead objects to import (name, email, phone, etc.).',
+          },
+          format: {
+            type: 'string',
+            description: 'Source format hint, e.g. csv or json.',
+          },
+        },
+        required: ['chatbotId', 'leads'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chatbots/{chatbotId}/leads/bulk',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.list',
+      class: 'read',
+      description: 'List outbound campaigns for a chatbot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The chatbot ID' },
+          page: { type: 'integer', description: 'Page number (0-indexed)' },
+          limit: { type: 'integer', description: 'Max results per page' },
+        },
+        required: ['chatbotId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/chatbots/{chatbotId}/campaigns',
+        query: {
+          page: '{page}',
+          limit: '{limit}',
+        },
+      },
+    },
+    {
+      name: 'campaigns.start',
+      class: 'mutation',
+      description: 'Start an outbound campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chatbotId: { type: 'string', description: 'The chatbot ID' },
+          campaignId: { type: 'string', description: 'The campaign ID to start' },
+        },
+        required: ['chatbotId', 'campaignId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/chatbots/{chatbotId}/campaigns/{campaignId}/start',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
