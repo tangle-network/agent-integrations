@@ -75,6 +75,17 @@ const UPLOAD_AUDIO_MUTATION = `
   }
 `
 
+const DELETE_TRANSCRIPT_MUTATION = `
+  mutation DeleteTranscript($transcriptId: String!) {
+    deleteTranscript(id: $transcriptId) {
+      id
+      title
+      date
+      duration
+    }
+  }
+`
+
 const GET_USER_DETAILS_QUERY = `
   query UserDetails($userId: String) {
     user(id: $userId) {${USER_FRAGMENT}}
@@ -252,6 +263,38 @@ export const firefliesAiConnector = declarativeRestConnector({
         path: '/graphql',
         body: {
           query: UPLOAD_AUDIO_MUTATION,
+          variables: '{variables}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'transcript.delete',
+      class: 'mutation',
+      description:
+        'Delete a Fireflies transcript (meeting recording) by id. Pass `{ variables: { transcriptId } }`. Irreversible.',
+      parameters: {
+        type: 'object',
+        properties: {
+          variables: {
+            type: 'object',
+            properties: {
+              transcriptId: {
+                type: 'string',
+                description: 'The Fireflies transcript id to delete.',
+              },
+            },
+            required: ['transcriptId'],
+          },
+        },
+        required: ['variables'],
+      },
+      request: {
+        method: 'POST',
+        path: '/graphql',
+        body: {
+          query: DELETE_TRANSCRIPT_MUTATION,
           variables: '{variables}',
         },
       },
