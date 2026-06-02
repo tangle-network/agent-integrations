@@ -43,11 +43,16 @@ describe('quickbooks adapter manifest', () => {
         'customers.get',
         'customers.create',
         'customers.update',
+        'customers.delete',
         'invoices.get',
         'invoices.create',
         'invoices.update',
+        'invoices.delete',
+        'invoices.send',
         'items.create',
         'payments.create',
+        'bills.create',
+        'vendors.create',
       ].sort(),
     )
     const reads = quickbooksConnector.manifest.capabilities
@@ -60,12 +65,17 @@ describe('quickbooks adapter manifest', () => {
       .sort()
     expect(reads).toEqual(['customers.get', 'entities.query', 'invoices.get'])
     expect(mutations).toEqual([
+      'bills.create',
       'customers.create',
+      'customers.delete',
       'customers.update',
       'invoices.create',
+      'invoices.delete',
+      'invoices.send',
       'invoices.update',
       'items.create',
       'payments.create',
+      'vendors.create',
     ])
   })
 
