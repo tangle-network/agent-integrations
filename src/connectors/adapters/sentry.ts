@@ -472,6 +472,130 @@ export const sentryConnector = declarativeRestConnector({
       requiredScopes: ['project:releases'],
     },
     {
+      name: 'issues.resolve',
+      class: 'mutation',
+      description:
+        'Resolve a Sentry issue. For conditional resolution ("inNextRelease", "inRelease", "inCommit"), use `issues.update` and pass `statusDetails` explicitly.',
+      parameters: {
+        type: 'object',
+        properties: {
+          issueId: { type: 'string' },
+        },
+        required: ['issueId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/issues/{issueId}/',
+        body: { status: 'resolved' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['event:write'],
+    },
+    {
+      name: 'issues.ignore',
+      class: 'mutation',
+      description:
+        'Ignore a Sentry issue. For duration- or count-based ignore (`ignoreDuration`, `ignoreCount`, `ignoreUserCount`, `ignoreWindow`, `ignoreUserWindow`), use `issues.update` with `statusDetails` instead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          issueId: { type: 'string' },
+        },
+        required: ['issueId'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/issues/{issueId}/',
+        body: { status: 'ignored' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['event:write'],
+    },
+    {
+      name: 'issues.assign',
+      class: 'mutation',
+      description:
+        'Assign a Sentry issue to a user or team. `assignedTo` accepts a username for users or `team:<slug>` for teams. To unassign, call `issues.update` with `assignedTo: null`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          issueId: { type: 'string' },
+          assignedTo: {
+            type: 'string',
+            description: 'Username or "team:<slug>". Use issues.update to unassign.',
+          },
+        },
+        required: ['issueId', 'assignedTo'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/issues/{issueId}/',
+        body: { assignedTo: '{assignedTo}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['event:write'],
+    },
+    {
+      name: 'alerts.list',
+      class: 'read',
+      description: 'List alert rules (issue alerts) configured on a Sentry project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organizationSlug: { type: 'string' },
+          projectSlug: { type: 'string' },
+          cursor: { type: 'string' },
+        },
+        required: ['organizationSlug', 'projectSlug'],
+      },
+      request: {
+        method: 'GET',
+        path: '/projects/{organizationSlug}/{projectSlug}/rules/',
+        query: { cursor: '{cursor}' },
+      },
+      requiredScopes: ['project:read'],
+    },
+    {
+      name: 'alerts.create',
+      class: 'mutation',
+      description:
+        'Create a new issue alert rule on a Sentry project. `fields` must include `name`, `conditions`, `actions`, `actionMatch`, and `frequency` per the Sentry alert rule schema.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organizationSlug: { type: 'string' },
+          projectSlug: { type: 'string' },
+          fields: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              conditions: { type: 'array', items: { type: 'object' } },
+              filters: { type: 'array', items: { type: 'object' } },
+              actions: { type: 'array', items: { type: 'object' } },
+              actionMatch: { type: 'string', enum: ['all', 'any', 'none'] },
+              filterMatch: { type: 'string', enum: ['all', 'any', 'none'] },
+              frequency: { type: 'integer', description: 'Cooldown in minutes between alert firings.' },
+              environment: { type: 'string' },
+              owner: { type: 'string', description: 'Owner actor id, e.g. "user:<id>" or "team:<id>".' },
+            },
+            required: ['name', 'conditions', 'actions', 'actionMatch', 'frequency'],
+          },
+        },
+        required: ['organizationSlug', 'projectSlug', 'fields'],
+      },
+      request: {
+        method: 'POST',
+        path: '/projects/{organizationSlug}/{projectSlug}/rules/',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['project:write'],
+    },
+    {
       name: 'releases.deploys.create',
       class: 'mutation',
       description: 'Record a deploy of a Sentry release into an environment.',
