@@ -115,5 +115,69 @@ export const featheryConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'user.create',
+      class: 'mutation',
+      description: 'Create a Feathery user record. The user id is supplied by the caller and is unique per workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Workspace-unique user id.' },
+          field_values: {
+            type: 'object',
+            description: 'Initial field values keyed by Feathery field key.',
+          },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/users',
+        // Pass args through so `field_values` is omitted when the caller
+        // omits it. Per-field templates throw on undefined; `'args'` keeps
+        // optional fields truly optional.
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'user.update',
+      class: 'mutation',
+      description: 'Patch a Feathery user record by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          field_values: { type: 'object' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/users/{id}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'user.delete',
+      class: 'mutation',
+      description: 'Delete a Feathery user record by id. Destructive.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/users/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
