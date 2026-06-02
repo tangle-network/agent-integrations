@@ -99,5 +99,111 @@ export const dittofeedConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      // Dittofeed treats identify with traits as upsert; this is the canonical
+      // "subscriber.create" entrypoint per the apps API (no separate POST
+      // /subscribers exists on the public surface). Forwards the full args
+      // object so optional fields (email, phone, subscriptionGroupId, traits,
+      // messageId, timestamp) are passed through verbatim when present and
+      // omitted when absent.
+      name: 'subscribers.create',
+      class: 'mutation',
+      description:
+        'Add or update a subscriber by identifying the user and persisting subscriber traits (email, phone, subscription groups).',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          traits: { type: 'object' },
+          subscriptionGroupId: { type: 'string' },
+          messageId: { type: 'string' },
+          timestamp: { type: 'string' },
+        },
+        required: ['userId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/public/apps/identify',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      // Dittofeed's public API has no DELETE subscriber endpoint; the
+      // documented removal path is a tracked Subscription Cancelled event,
+      // which the journey/segment engine consumes to remove the user from
+      // subscription groups. Caller passes the subscription group id so the
+      // event carries the membership being severed.
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description:
+        'Delete a subscriber by emitting a Subscription Cancelled event (Dittofeed has no public hard-delete; this is the documented removal path).',
+      parameters: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' },
+          subscriptionGroupId: { type: 'string' },
+        },
+        required: ['userId', 'subscriptionGroupId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/public/apps/track',
+        body: {
+          userId: '{userId}',
+          event: 'Subscription Cancelled',
+          properties: { subscriptionGroupId: '{subscriptionGroupId}' },
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'broadcast.send',
+      class: 'mutation',
+      description:
+        'Trigger a Dittofeed broadcast by id. The broadcast must already be defined in the workspace; this dispatches it to the configured audience.',
+      parameters: {
+        type: 'object',
+        properties: {
+          broadcastId: { type: 'string' },
+          workspaceId: { type: 'string' },
+        },
+        required: ['broadcastId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/admin/broadcasts/trigger',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'journey.trigger',
+      class: 'mutation',
+      description:
+        'Trigger a Dittofeed journey for a specific user. The journey id must reference a published journey in the workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          journeyId: { type: 'string' },
+          userId: { type: 'string' },
+          workspaceId: { type: 'string' },
+          context: { type: 'object' },
+        },
+        required: ['journeyId', 'userId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/admin/journeys/trigger',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
