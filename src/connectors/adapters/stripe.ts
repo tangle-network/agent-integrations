@@ -405,5 +405,155 @@ export const stripeConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'customers.delete',
+      class: 'mutation',
+      description: 'Delete a Stripe customer.',
+      parameters: {
+        type: 'object',
+        properties: { customerId: { type: 'string' } },
+        required: ['customerId'],
+      },
+      request: { method: 'DELETE', path: '/customers/{customerId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'invoices.send',
+      class: 'mutation',
+      description: 'Finalize and send a Stripe invoice to the customer.',
+      parameters: {
+        type: 'object',
+        properties: { invoiceId: { type: 'string' } },
+        required: ['invoiceId'],
+      },
+      request: { method: 'POST', path: '/invoices/{invoiceId}/send' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'invoices.void',
+      class: 'mutation',
+      description: 'Void a finalized Stripe invoice.',
+      parameters: {
+        type: 'object',
+        properties: { invoiceId: { type: 'string' } },
+        required: ['invoiceId'],
+      },
+      request: { method: 'POST', path: '/invoices/{invoiceId}/void' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'products.update',
+      class: 'mutation',
+      description: 'Update a Stripe product.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          active: { type: 'boolean' },
+          metadata: { type: 'object' },
+          url: { type: 'string' },
+          images: { type: 'array' },
+        },
+        required: ['productId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/products/{productId}',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'charges.capture',
+      class: 'mutation',
+      description: 'Capture a previously-authorized Stripe charge.',
+      parameters: {
+        type: 'object',
+        properties: {
+          chargeId: { type: 'string' },
+          amount: { type: 'integer' },
+          receiptEmail: { type: 'string' },
+          statementDescriptor: { type: 'string' },
+        },
+        required: ['chargeId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/charges/{chargeId}/capture',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'webhooks.subscribe',
+      class: 'mutation',
+      description:
+        'Create a Stripe webhook endpoint subscribed to one or more event types. Stripe pushes signed events at the supplied url; the returned secret is what the receiver verifies signatures against.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Destination URL Stripe should POST events to.' },
+          enabled_events: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'List of Stripe event types (or ["*"]) to subscribe to.',
+          },
+          description: { type: 'string' },
+          api_version: { type: 'string' },
+          connect: { type: 'boolean' },
+          metadata: { type: 'object' },
+        },
+        required: ['url', 'enabled_events'],
+      },
+      request: {
+        method: 'POST',
+        path: '/webhook_endpoints',
+        // Optional fields (description/api_version/connect/metadata) can't be
+        // bare {placeholder} body entries because readRequiredPath throws on
+        // undefined; pass args through directly so callers may omit them.
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'events.list',
+      class: 'read',
+      description:
+        'List recently delivered Stripe events. Supports filtering by event type, created timestamp range, and cursor pagination via starting_after / ending_before.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', description: 'Stripe event type to filter by (e.g. "invoice.payment_failed").' },
+          deliverySuccess: { type: 'boolean' },
+          createdGte: { type: 'integer', description: 'Unix timestamp lower bound (inclusive).' },
+          createdLte: { type: 'integer', description: 'Unix timestamp upper bound (inclusive).' },
+          startingAfter: { type: 'string' },
+          endingBefore: { type: 'string' },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/events',
+        query: {
+          type: '{type}',
+          delivery_success: '{deliverySuccess}',
+          'created[gte]': '{createdGte}',
+          'created[lte]': '{createdLte}',
+          starting_after: '{startingAfter}',
+          ending_before: '{endingBefore}',
+          limit: '{limit}',
+        },
+      },
+    },
   ],
 })
