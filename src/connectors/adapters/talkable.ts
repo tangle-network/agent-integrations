@@ -128,5 +128,90 @@ export const talkableConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/sites/{site}/campaigns/{campaignTag}/offers' },
     },
+    {
+      name: 'advocates.update',
+      class: 'mutation',
+      description: 'Update an advocate profile (e.g. name, custom properties).',
+      parameters: {
+        type: 'object',
+        properties: {
+          site: { type: 'string' },
+          email: { type: 'string' },
+          advocate: { type: 'object', description: 'Partial advocate fields to update.' },
+        },
+        required: ['site', 'email', 'advocate'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/sites/{site}/advocates/{email}',
+        body: { advocate: '{advocate}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'advocates.delete',
+      class: 'mutation',
+      description: 'Delete an advocate by email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          site: { type: 'string' },
+          email: { type: 'string' },
+        },
+        required: ['site', 'email'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/sites/{site}/advocates/{email}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'referrals.update',
+      class: 'mutation',
+      description: 'Update the state of a referral (approve, reject, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          site: { type: 'string' },
+          referralId: { type: 'string' },
+          state: { type: 'string', description: 'New state (e.g. approved, rejected, completed).' },
+        },
+        required: ['site', 'referralId', 'state'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/sites/{site}/referrals/{referralId}',
+        body: { state: '{state}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'rewards.issue',
+      class: 'mutation',
+      description: 'Issue a reward to an advocate.',
+      parameters: {
+        type: 'object',
+        properties: {
+          site: { type: 'string' },
+          email: { type: 'string', description: 'Advocate email to issue the reward to.' },
+          offerId: { type: 'string', description: 'Reward offer / campaign offer id.' },
+        },
+        required: ['site', 'email', 'offerId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/sites/{site}/rewards',
+        body: {
+          email: '{email}',
+          offer_id: '{offerId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
