@@ -17,6 +17,10 @@ function makeClient(verify: TangleIdentityClient['verifyToken']): TangleIdentity
     switchWorkspace: vi.fn(),
     revokeSession: vi.fn(),
     ping: vi.fn(),
+    createWorkspace: vi.fn(),
+    deleteWorkspace: vi.fn(),
+    inviteMember: vi.fn(),
+    removeMember: vi.fn(),
   }
 }
 
