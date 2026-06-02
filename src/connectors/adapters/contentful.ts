@@ -197,5 +197,51 @@ export const contentfulConnector = declarativeRestConnector({
       externalEffect: true,
       requiredScopes: ['content_management_manage'],
     },
+    {
+      name: 'entries.unpublish',
+      class: 'mutation',
+      description:
+        'Unpublish an entry, reverting it to draft. `version` must be the current `sys.version`; mismatched versions return 409.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...entryLocator,
+          entryId: { type: 'string' },
+          version: { type: 'integer', description: 'Current sys.version of the entry.' },
+        },
+        required: ['spaceId', 'environmentId', 'entryId', 'version'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/spaces/{spaceId}/environments/{environmentId}/entries/{entryId}/published',
+        headers: {
+          'x-contentful-version': '{version}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['content_management_manage'],
+    },
+    {
+      name: 'entries.delete',
+      class: 'mutation',
+      description:
+        'Permanently delete an entry. The entry must already be unpublished; publishing state is enforced upstream.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ...entryLocator,
+          entryId: { type: 'string' },
+        },
+        required: ['spaceId', 'environmentId', 'entryId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/spaces/{spaceId}/environments/{environmentId}/entries/{entryId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['content_management_manage'],
+    },
   ],
 })
