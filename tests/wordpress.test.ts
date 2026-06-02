@@ -41,7 +41,7 @@ describe('wordpress adapter manifest', () => {
     expect(auth.scopes).toEqual(expect.arrayContaining(['posts', 'media', 'comments']))
   })
 
-  it('exposes the documented posts + pages + media + comments surface', () => {
+  it('exposes the documented posts + pages + media + comments + taxonomies + users surface', () => {
     const names = wordpressConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
@@ -52,11 +52,36 @@ describe('wordpress adapter manifest', () => {
         'posts.delete',
         'pages.list',
         'pages.create',
+        'pages.update',
+        'pages.delete',
         'media.list',
+        'media.upload',
         'comments.list',
+        'comments.create',
         'comments.update',
+        'comments.delete',
+        'categories.create',
+        'tags.create',
+        'users.list',
       ].sort(),
     )
+  })
+
+  it('marks newly added write capabilities as native-idempotency with externalEffect=true', () => {
+    const newMutations = new Set([
+      'pages.update',
+      'pages.delete',
+      'comments.create',
+      'comments.delete',
+      'media.upload',
+    ])
+    for (const cap of wordpressConnector.manifest.capabilities) {
+      if (!newMutations.has(cap.name)) continue
+      expect(cap.class).toBe('mutation')
+      if (cap.class !== 'mutation') throw new Error('unreachable')
+      expect(cap.cas).toBe('native-idempotency')
+      expect(cap.externalEffect).toBe(true)
+    }
   })
 
   it('marks every mutation with a CAS strategy and externalEffect true', () => {
@@ -232,6 +257,202 @@ describe('wordpress adapter execution', () => {
     const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
     expect(body.status).toBe('approve')
     expect(body).not.toHaveProperty('content')
+  })
+
+  it('updates a page via POST on the page-id path with body: args', async () => {
+    const fetchMock = mockFetch({ id: 55, status: 'publish' })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'pages.update',
+      input: { site: 'example.wordpress.com', id: 55, title: 'New page title' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/pages/55',
+    )
+    expect((init as RequestInit).method).toBe('POST')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body.title).toBe('New page title')
+    expect(body).not.toHaveProperty('content')
+    expect(body).not.toHaveProperty('status')
+  })
+
+  it('deletes a page with the force=true query parameter when requested', async () => {
+    const fetchMock = mockFetch({ deleted: true })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'pages.delete',
+      input: { site: 'example.wordpress.com', id: 88, force: true },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/pages/88?force=true',
+    )
+    expect((init as RequestInit).method).toBe('DELETE')
+  })
+
+  it('creates a comment via POST on the site comments endpoint', async () => {
+    const fetchMock = mockFetch({ id: 9001 }, { status: 201 })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'comments.create',
+      input: {
+        site: 'example.wordpress.com',
+        post: 42,
+        content: '<p>nice post</p>',
+        author_name: 'Visitor',
+      },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/comments',
+    )
+    expect((init as RequestInit).method).toBe('POST')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body).toMatchObject({
+      post: 42,
+      content: '<p>nice post</p>',
+      author_name: 'Visitor',
+    })
+    expect(body).not.toHaveProperty('parent')
+    expect(body).not.toHaveProperty('author_email')
+  })
+
+  it('deletes a comment via DELETE with optional force flag', async () => {
+    const fetchMock = mockFetch({ deleted: true })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'comments.delete',
+      input: { site: 'example.wordpress.com', id: 17, force: true },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/comments/17?force=true',
+    )
+    expect((init as RequestInit).method).toBe('DELETE')
+  })
+
+  it('creates a category via POST on the site categories endpoint', async () => {
+    const fetchMock = mockFetch({ id: 51, name: 'Updates' }, { status: 201 })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'categories.create',
+      input: { site: 'example.wordpress.com', name: 'Updates' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/categories',
+    )
+    expect((init as RequestInit).method).toBe('POST')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body.name).toBe('Updates')
+    expect(body).not.toHaveProperty('parent')
+    expect(body).not.toHaveProperty('description')
+  })
+
+  it('creates a tag via POST on the site tags endpoint', async () => {
+    const fetchMock = mockFetch({ id: 7, name: 'launch' }, { status: 201 })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'tags.create',
+      input: { site: 'example.wordpress.com', name: 'launch', slug: 'launch' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/tags',
+    )
+    expect((init as RequestInit).method).toBe('POST')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body.name).toBe('launch')
+    expect(body.slug).toBe('launch')
+  })
+
+  it('lists users via GET on the site users endpoint', async () => {
+    const fetchMock = mockFetch([{ id: 1, name: 'Drew' }])
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    const result = await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'users.list',
+      input: { site: 'example.wordpress.com', per_page: 25 },
+    })
+
+    expect(result.ok).toBe(true)
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/users?per_page=25',
+    )
+    expect((init as RequestInit).method).toBe('GET')
+  })
+
+  it('uploads a media item by sideloading a source_url via /media/new', async () => {
+    const fetchMock = mockFetch({ id: 333, source_url: 'https://example.com/img.png' }, { status: 201 })
+    const provider = createConnectorAdapterProvider({
+      adapters: [wordpressConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'media.upload',
+      input: {
+        site: 'example.wordpress.com',
+        source_url: 'https://example.com/img.png',
+        title: 'Hero image',
+      },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe(
+      'https://public-api.wordpress.com/wp/v2/sites/example.wordpress.com/media',
+    )
+    expect((init as RequestInit).method).toBe('POST')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body).toMatchObject({
+      source_url: 'https://example.com/img.png',
+      title: 'Hero image',
+    })
+    expect(body).not.toHaveProperty('alt_text')
+    expect(body).not.toHaveProperty('caption')
   })
 })
 
