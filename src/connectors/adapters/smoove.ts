@@ -93,5 +93,66 @@ export const smooveConnector = declarativeRestConnector({
       request: { method: 'POST', path: '/lists', body: { name: '{name}', publicName: '{publicName}', publicDescription: '{publicDescription}', isPublic: '{isPublic}', allowsUsersToSubscribe: '{allowsUsersToSubscribe}', allowsUsersToUnsubscribe: '{allowsUsersToUnsubscribe}' } },
       cas: 'native-idempotency',
     },
+    {
+      name: 'subscribers.update',
+      class: 'mutation',
+      description: 'Update subscriber fields.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Contact ID' },
+          data: { type: 'object', description: 'Subscriber fields to update' },
+        },
+        required: ['id', 'data'],
+      },
+      request: { method: 'PUT', path: '/subscribers/{id}', body: '{data}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'subscribers.delete',
+      class: 'mutation',
+      description: 'Delete a subscriber.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Contact ID to delete' },
+        },
+        required: ['id'],
+      },
+      request: { method: 'DELETE', path: '/subscribers/{id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete a list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'List ID to delete' },
+        },
+        required: ['id'],
+      },
+      request: { method: 'DELETE', path: '/lists/{id}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'campaigns.send',
+      class: 'mutation',
+      description: 'Send or trigger a campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Campaign ID to send' },
+        },
+        required: ['id'],
+      },
+      request: { method: 'POST', path: '/campaigns/{id}/send' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
