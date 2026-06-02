@@ -113,5 +113,84 @@ export const vlmRunConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/files/{fileId}' },
     },
+    {
+      name: 'files.upload',
+      class: 'mutation',
+      description: 'Upload a file by URL or inline base64 payload for later analysis. Returns the stored file id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Public URL the API should fetch the file from.' },
+          contentBase64: { type: 'string', description: 'Inline base64-encoded file payload.' },
+          filename: { type: 'string', description: 'Filename to associate with the upload.' },
+          contentType: { type: 'string', description: 'MIME type of the upload.' },
+          purpose: { type: 'string', description: 'Optional purpose hint (e.g. analysis, training).' },
+        },
+        required: ['filename'],
+      },
+      request: {
+        method: 'POST',
+        path: '/files',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'files.delete',
+      class: 'mutation',
+      description: 'Delete a previously-uploaded file. Idempotent: 404 is treated as success upstream.',
+      parameters: {
+        type: 'object',
+        properties: { fileId: { type: 'string', description: 'ID of the file to delete.' } },
+        required: ['fileId'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/files/{fileId}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'jobs.list',
+      class: 'read',
+      description: 'List analysis jobs, optionally filtered by status and paginated by cursor.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['queued', 'running', 'succeeded', 'failed', 'cancelled'],
+            description: 'Filter jobs by status.',
+          },
+          limit: { type: 'integer', description: 'Maximum number of jobs to return (1-100).' },
+          cursor: { type: 'string', description: 'Pagination cursor returned by a prior call.' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/jobs',
+        query: { status: '{status}', limit: '{limit}', cursor: '{cursor}' },
+      },
+    },
+    {
+      name: 'jobs.cancel',
+      class: 'mutation',
+      description: 'Cancel a running analysis job. Idempotent for already-terminal jobs.',
+      parameters: {
+        type: 'object',
+        properties: { jobId: { type: 'string', description: 'ID of the job to cancel.' } },
+        required: ['jobId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/jobs/{jobId}/cancel',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
