@@ -228,5 +228,83 @@ export const timelinesAiConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'chats.assign',
+      class: 'mutation',
+      description: 'Assign a chat to a team member.',
+      parameters: {
+        type: 'object',
+        properties: {
+          jid: { type: 'string' },
+          responsible_id: { type: 'string' },
+        },
+        required: ['jid', 'responsible_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/chats/{jid}/assign',
+        body: { responsible_id: '{responsible_id}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'chats.tag',
+      class: 'mutation',
+      description: 'Tag a chat with a label.',
+      parameters: {
+        type: 'object',
+        properties: {
+          jid: { type: 'string' },
+          label: { type: 'string' },
+        },
+        required: ['jid', 'label'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/chats/{jid}/labels',
+        body: { label: '{label}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'messages.markRead',
+      class: 'mutation',
+      description: 'Mark a message as read.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message_uid: { type: 'string' },
+        },
+        required: ['message_uid'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/messages/{message_uid}/read',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'notes.create',
+      class: 'mutation',
+      description: 'Add an internal note to a chat.',
+      parameters: {
+        type: 'object',
+        properties: {
+          jid: { type: 'string' },
+          text: { type: 'string' },
+        },
+        required: ['jid', 'text'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/chats/{jid}/notes',
+        body: { text: '{text}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
