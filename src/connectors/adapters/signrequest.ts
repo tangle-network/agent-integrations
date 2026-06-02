@@ -95,5 +95,78 @@ export const signrequestConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/teams/' },
     },
+    {
+      name: 'requests.remind',
+      class: 'mutation',
+      description: 'Send a reminder email to pending signers on a signature request.',
+      parameters: {
+        type: 'object',
+        properties: {
+          requestId: { type: 'string', description: 'The signature request ID' },
+        },
+        required: ['requestId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/signrequests/{requestId}/resend_signrequest_email/',
+        body: {},
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'requests.delete',
+      class: 'mutation',
+      description: 'Delete a signature request.',
+      parameters: {
+        type: 'object',
+        properties: {
+          requestId: { type: 'string', description: 'The signature request ID' },
+        },
+        required: ['requestId'],
+      },
+      request: { method: 'DELETE', path: '/signrequests/{requestId}/' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'documents.upload',
+      class: 'mutation',
+      description: 'Upload a new document to sign. Provide either file_from_url or file_from_content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_from_url: { type: 'string', description: 'Public URL to fetch the document from.' },
+          file_from_content: { type: 'string', description: 'Base64-encoded document content.' },
+          file_from_content_name: { type: 'string', description: 'Filename for base64-uploaded content.' },
+          name: { type: 'string', description: 'Display name of the document.' },
+          external_id: { type: 'string', description: 'External identifier for the document.' },
+          template: { type: 'string', description: 'Template URL to clone from.' },
+          auto_delete_days: { type: 'integer', description: 'Delete the document after N days.' },
+        },
+        required: [],
+      },
+      request: { method: 'POST', path: '/documents/', body: 'args' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.list',
+      class: 'read',
+      description: 'List available document templates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', description: 'Maximum number of results' },
+          offset: { type: 'integer', description: 'Pagination offset' },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/templates/',
+        query: { limit: '{limit}', offset: '{offset}' },
+      },
+    },
   ],
 })
