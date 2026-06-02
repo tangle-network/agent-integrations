@@ -201,6 +201,22 @@ export const descriptConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
+      name: 'projects.delete',
+      class: 'mutation',
+      description: 'Delete a Descript project by ID. Removes the project, its compositions, and any imported media.',
+      parameters: {
+        type: 'object',
+        properties: { project_id: { type: 'string' } },
+        required: ['project_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/projects/{project_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'project.publish',
       class: 'mutation',
       description:
