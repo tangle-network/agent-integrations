@@ -129,5 +129,64 @@ export const lushaConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: true,
     },
+    {
+      name: 'lists.create',
+      class: 'mutation',
+      description: 'Create a prospect list. Returns the new list id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Name of the prospect list.' },
+          description: { type: 'string', description: 'Optional description.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/lists',
+        body: { name: '{name}', description: '{description}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.add',
+      class: 'mutation',
+      description: 'Add prospects to an existing list.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string', description: 'Id of the target prospect list.' },
+          contactIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Lusha contact ids to add to the list.',
+          },
+        },
+        required: ['listId', 'contactIds'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v2/lists/{listId}/contacts',
+        body: { contactIds: '{contactIds}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'lists.delete',
+      class: 'mutation',
+      description: 'Delete a prospect list by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+        },
+        required: ['listId'],
+      },
+      request: { method: 'DELETE', path: '/v2/lists/{listId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })

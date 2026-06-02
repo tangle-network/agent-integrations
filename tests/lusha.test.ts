@@ -16,7 +16,15 @@ describe('lusha adapter manifest', () => {
   it('covers the activepieces actions (search.companies, enrich.companies) plus the natural contact counterparts', () => {
     const names = lushaConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
-      ['search.companies', 'enrich.companies', 'search.contacts', 'enrich.contacts'].sort(),
+      [
+        'search.companies',
+        'enrich.companies',
+        'search.contacts',
+        'enrich.contacts',
+        'lists.create',
+        'lists.add',
+        'lists.delete',
+      ].sort(),
     )
 
     const reads = lushaConnector.manifest.capabilities
@@ -29,6 +37,8 @@ describe('lusha adapter manifest', () => {
       .sort()
 
     expect(reads).toEqual(['search.companies', 'search.contacts'].sort())
-    expect(mutations).toEqual(['enrich.companies', 'enrich.contacts'].sort())
+    expect(mutations).toEqual(
+      ['enrich.companies', 'enrich.contacts', 'lists.create', 'lists.add', 'lists.delete'].sort(),
+    )
   })
 })
