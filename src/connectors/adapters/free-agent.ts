@@ -91,6 +91,22 @@ export const freeAgentConnector = declarativeRestConnector({
       cas: 'optimistic-read-verify',
     },
     {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description:
+        'Delete a FreeAgent contact by id. Destructive; not idempotent after success on the same id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contactId: { type: 'string', description: 'FreeAgent contact id.' },
+        },
+        required: ['contactId'],
+      },
+      request: { method: 'DELETE', path: '/contacts/{contactId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'projects.search',
       class: 'read',
       description: 'List or filter FreeAgent projects.',
@@ -211,6 +227,51 @@ export const freeAgentConnector = declarativeRestConnector({
         required: ['invoiceId'],
       },
       request: { method: 'GET', path: '/invoices/{invoiceId}' },
+    },
+    {
+      name: 'invoices.create',
+      class: 'mutation',
+      description:
+        'Create a FreeAgent invoice. `invoice` accepts the FreeAgent invoice payload (contact URL, dated_on, payment_terms_in_days, invoice_items, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoice: {
+            type: 'object',
+            description:
+              'FreeAgent invoice attributes — `contact` URL is required; `dated_on`, `payment_terms_in_days`, `invoice_items`, `currency`, and `comments` are typical fields.',
+          },
+        },
+        required: ['invoice'],
+      },
+      request: { method: 'POST', path: '/invoices', body: { invoice: '{invoice}' } },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'invoices.send',
+      class: 'mutation',
+      description:
+        'Send a FreeAgent invoice to the contact via email. Maps to the `send_email` action on an existing invoice; `email` overrides the contact default recipient list when provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoiceId: { type: 'string', description: 'FreeAgent invoice id to send.' },
+          email: {
+            type: 'object',
+            description:
+              'Email override — accepts `recipient`, `subject`, `body`, `send_me_a_copy` per the FreeAgent send_email schema.',
+          },
+        },
+        required: ['invoiceId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/invoices/{invoiceId}/send_email',
+        body: 'args',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'users.search',
