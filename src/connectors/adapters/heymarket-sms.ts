@@ -139,5 +139,24 @@ export const heymarketSmsConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description:
+        'Delete a Heymarket contact by contact_id. Heymarket returns 200 on first delete, 404 on subsequent calls.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contact_id: { type: 'string', description: 'The Heymarket contact identifier to delete.' },
+        },
+        required: ['contact_id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contacts/{contact_id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
