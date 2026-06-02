@@ -11,6 +11,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * Surface covered:
  * - send.message (mirrors the upstream `sendMessage` action — POST a
  *   message into an existing conversation, optionally as a private note)
+ * - toggle_status (open / resolve / re-open / mark pending an existing
+ *   conversation via the upstream `toggle_status` action)
+ * - assign_conversation (assign or unassign a conversation to a teammate
+ *   via the upstream `assignments` action)
  */
 export const chatwootConnector = declarativeRestConnector({
   kind: 'chatwoot',
@@ -77,6 +81,76 @@ export const chatwootConnector = declarativeRestConnector({
       // key, so a retried POST will create a duplicate message. Callers must
       // dedupe before invoking.
       cas: 'none',
+      externalEffect: true,
+    },
+    {
+      name: 'toggle_status',
+      class: 'mutation',
+      description:
+        'Toggle the status of an existing Chatwoot conversation (open, resolved, or pending).',
+      parameters: {
+        type: 'object',
+        properties: {
+          account_id: {
+            type: 'number',
+            description:
+              'Numeric Chatwoot account ID (visible in the dashboard URL).',
+          },
+          conversation_id: {
+            type: 'number',
+            description: 'Numeric conversation display ID.',
+          },
+          status: {
+            type: 'string',
+            enum: ['open', 'resolved', 'pending'],
+            description: 'New conversation status to apply.',
+          },
+        },
+        required: ['account_id', 'conversation_id', 'status'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/accounts/{account_id}/conversations/{conversation_id}/toggle_status',
+        body: {
+          status: '{status}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'assign_conversation',
+      class: 'mutation',
+      description:
+        'Assign (or reassign) an existing Chatwoot conversation to a teammate by user id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          account_id: {
+            type: 'number',
+            description:
+              'Numeric Chatwoot account ID (visible in the dashboard URL).',
+          },
+          conversation_id: {
+            type: 'number',
+            description: 'Numeric conversation display ID.',
+          },
+          assignee_id: {
+            type: 'number',
+            description:
+              'Numeric user id of the Chatwoot teammate to assign the conversation to.',
+          },
+        },
+        required: ['account_id', 'conversation_id', 'assignee_id'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/accounts/{account_id}/conversations/{conversation_id}/assignments',
+        body: {
+          assignee_id: '{assignee_id}',
+        },
+      },
+      cas: 'native-idempotency',
       externalEffect: true,
     },
   ],
