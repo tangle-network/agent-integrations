@@ -142,5 +142,57 @@ export const blandAiConnector = declarativeRestConnector({
         },
       },
     },
+    {
+      // Bland exposes a dedicated cancel-before-dial endpoint; once a call has
+      // connected, callers should use calls.stop instead.
+      name: 'calls.cancel',
+      class: 'mutation',
+      description: 'Cancel a queued outbound call.',
+      parameters: {
+        type: 'object',
+        properties: { callId: { type: 'string', description: 'The Bland AI call identifier.' } },
+        required: ['callId'],
+      },
+      request: { method: 'POST', path: '/v1/calls/{callId}/cancel' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'calls.stop',
+      class: 'mutation',
+      description: 'Force-end an in-progress call.',
+      parameters: {
+        type: 'object',
+        properties: { callId: { type: 'string', description: 'The Bland AI call identifier.' } },
+        required: ['callId'],
+      },
+      request: { method: 'POST', path: '/v1/calls/{callId}/stop' },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'pathways.create',
+      class: 'mutation',
+      description: 'Create a conversational pathway.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Pathway display name.' },
+          description: { type: 'string', description: 'Free-form description.' },
+          nodes: { type: 'array', items: { type: 'object' }, description: 'Pathway state nodes.' },
+          edges: { type: 'array', items: { type: 'object' }, description: 'Transitions between nodes.' },
+        },
+        required: ['name'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/pathway/create',
+        body: {
+          name: '{name}',
+          description: '{description}',
+          nodes: '{nodes}',
+          edges: '{edges}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
