@@ -143,5 +143,63 @@ export const placidConnector = declarativeRestConnector({
       },
       request: { method: 'GET', path: '/templates', query: { limit: '{limit}', offset: '{offset}' } },
     },
+    {
+      name: 'images.delete',
+      class: 'mutation',
+      description: 'Delete a generated image.',
+      parameters: {
+        type: 'object',
+        properties: {
+          imageId: { type: 'string', description: 'The ID of the image to delete.' },
+        },
+        required: ['imageId'],
+      },
+      request: { method: 'DELETE', path: '/images/{imageId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'pdfs.delete',
+      class: 'mutation',
+      description: 'Delete a generated PDF.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pdfId: { type: 'string', description: 'The ID of the PDF to delete.' },
+        },
+        required: ['pdfId'],
+      },
+      request: { method: 'DELETE', path: '/pdfs/{pdfId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'videos.delete',
+      class: 'mutation',
+      description: 'Delete a generated video.',
+      parameters: {
+        type: 'object',
+        properties: {
+          videoId: { type: 'string', description: 'The ID of the video to delete.' },
+        },
+        required: ['videoId'],
+      },
+      request: { method: 'DELETE', path: '/videos/{videoId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'templates.get',
+      class: 'read',
+      description: 'Get details of a single template.',
+      parameters: {
+        type: 'object',
+        properties: {
+          templateId: { type: 'string', description: 'The ID of the template to retrieve.' },
+        },
+        required: ['templateId'],
+      },
+      request: { method: 'GET', path: '/templates/{templateId}' },
+    },
   ],
 })
