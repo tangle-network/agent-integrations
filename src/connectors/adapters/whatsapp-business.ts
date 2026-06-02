@@ -126,6 +126,72 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
           requiredScopes: ['whatsapp_business_management'],
           parameters: { type: 'object', properties: {} },
         },
+        {
+          name: 'media.upload',
+          class: 'mutation',
+          description: 'Upload media (image, audio, video, document) to the connected phone number for later use as a message attachment. Returns the Meta media ID.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: ['whatsapp_business_messaging'],
+          parameters: {
+            type: 'object',
+            properties: {
+              dataBase64: { type: 'string', description: 'Raw media bytes, base64-encoded.' },
+              mimeType: { type: 'string', description: 'MIME type of the media, e.g. image/jpeg, audio/ogg.' },
+              filename: { type: 'string', description: 'Optional filename hint (recommended for documents).' },
+            },
+            required: ['dataBase64', 'mimeType'],
+          },
+        },
+        {
+          name: 'templates.create',
+          class: 'mutation',
+          description: 'Submit a new message template for Meta approval. Components follow the Cloud API message_templates schema.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: ['whatsapp_business_management'],
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Template name (lowercase, snake_case, ≤512 chars).' },
+              language: { type: 'string', description: 'BCP-47 language code, e.g. en_US.' },
+              category: { type: 'string', description: 'Template category (MARKETING, UTILITY, AUTHENTICATION).' },
+              components: { type: 'array', description: 'Template components array (header/body/footer/buttons).' },
+            },
+            required: ['name', 'language', 'category', 'components'],
+          },
+        },
+        {
+          name: 'templates.delete',
+          class: 'mutation',
+          description: 'Delete a message template by name (and optional hsm_id to delete a specific language variant).',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: ['whatsapp_business_management'],
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Template name to delete.' },
+              hsmId: { type: 'string', description: 'Optional template ID to delete a specific language variant only.' },
+            },
+            required: ['name'],
+          },
+        },
+        {
+          name: 'messages.mark-read',
+          class: 'mutation',
+          description: 'Mark an incoming WhatsApp message as read (sends the blue tick to the sender).',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: ['whatsapp_business_messaging'],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'WAMID of the incoming message to mark as read.' },
+            },
+            required: ['messageId'],
+          },
+        },
       ],
     },
 
@@ -182,6 +248,17 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const accessToken = readAccessToken(inv.source.credentials)
+
+      if (inv.capabilityName === 'media.upload') {
+        return uploadMedia(inv, accessToken)
+      }
+      if (inv.capabilityName === 'templates.create') {
+        return createTemplate(inv, accessToken)
+      }
+      if (inv.capabilityName === 'templates.delete') {
+        return deleteTemplate(inv, accessToken)
+      }
+
       const phoneNumberId = readMetaString(inv.source.metadata, 'phoneNumberId')
       const url = `${API}/${encodeURIComponent(phoneNumberId)}/messages`
       let body: Record<string, unknown>
@@ -212,6 +289,16 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
             ...(Array.isArray(components) && components.length > 0 ? { components } : {}),
           },
         }
+      } else if (inv.capabilityName === 'messages.mark-read') {
+        const { messageId } = inv.args as { messageId: string }
+        if (typeof messageId !== 'string' || messageId.length === 0) {
+          throw new Error('whatsapp-business messages.mark-read: messageId is required')
+        }
+        body = {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId,
+        }
       } else {
         throw new Error(`whatsapp-business: unknown mutation capability ${inv.capabilityName}`)
       }
@@ -231,6 +318,15 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
         const text = await res.text().catch(() => '')
         // Meta returns errors as 4xx with a JSON body; surface fb-trace-id if present.
         throw new Error(`whatsapp-business ${inv.capabilityName} HTTP ${res.status}: ${text.slice(0, 300)}`)
+      }
+      if (inv.capabilityName === 'messages.mark-read') {
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean }
+        return {
+          status: 'committed',
+          data: { success: json.success === true },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
       }
       const json = (await res.json()) as {
         messaging_product?: string
@@ -330,4 +426,130 @@ async function graphGet(url: string, accessToken: string, dataSourceId: string):
     throw new Error(`whatsapp-business HTTP ${res.status}: ${t.slice(0, 200)}`)
   }
   return (await res.json()) as unknown
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const cleaned = value.replace(/\s+/g, '')
+  const binary = atob(cleaned)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+async function uploadMedia(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const phoneNumberId = readMetaString(inv.source.metadata, 'phoneNumberId')
+  const { dataBase64, mimeType, filename } = inv.args as {
+    dataBase64: string
+    mimeType: string
+    filename?: string
+  }
+  if (typeof dataBase64 !== 'string' || dataBase64.length === 0) {
+    throw new Error('whatsapp-business media.upload: dataBase64 is required')
+  }
+  if (typeof mimeType !== 'string' || mimeType.length === 0) {
+    throw new Error('whatsapp-business media.upload: mimeType is required')
+  }
+  const bytes = decodeBase64(dataBase64)
+  const form = new FormData()
+  form.set('messaging_product', 'whatsapp')
+  form.set('type', mimeType)
+  form.set('file', new Blob([bytes as BlobPart], { type: mimeType }), filename ?? 'upload')
+  const url = `${API}/${encodeURIComponent(phoneNumberId)}/media`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: form,
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('WhatsApp Business rejected token (401)', inv.source.id)
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`whatsapp-business media.upload HTTP ${res.status}: ${t.slice(0, 300)}`)
+  }
+  const json = (await res.json()) as { id?: string }
+  return {
+    status: 'committed',
+    data: { mediaId: json.id },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createTemplate(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const wabaId = readMetaString(inv.source.metadata, 'wabaId')
+  const { name, language, category, components } = inv.args as {
+    name: string
+    language: string
+    category: string
+    components: unknown[]
+  }
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new Error('whatsapp-business templates.create: name is required')
+  }
+  if (typeof language !== 'string' || language.length === 0) {
+    throw new Error('whatsapp-business templates.create: language is required')
+  }
+  if (typeof category !== 'string' || category.length === 0) {
+    throw new Error('whatsapp-business templates.create: category is required')
+  }
+  if (!Array.isArray(components)) {
+    throw new Error('whatsapp-business templates.create: components must be an array')
+  }
+  const url = `${API}/${encodeURIComponent(wabaId)}/message_templates`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ name, language, category, components }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('WhatsApp Business rejected token (401)', inv.source.id)
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`whatsapp-business templates.create HTTP ${res.status}: ${t.slice(0, 300)}`)
+  }
+  const json = (await res.json()) as { id?: string; status?: string; category?: string }
+  return {
+    status: 'committed',
+    data: { templateId: json.id, templateStatus: json.status, category: json.category },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function deleteTemplate(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityMutationResult> {
+  const wabaId = readMetaString(inv.source.metadata, 'wabaId')
+  const { name, hsmId } = inv.args as { name: string; hsmId?: string }
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new Error('whatsapp-business templates.delete: name is required')
+  }
+  const params = new URLSearchParams()
+  params.set('name', name)
+  if (typeof hsmId === 'string' && hsmId.length > 0) params.set('hsm_id', hsmId)
+  const url = `${API}/${encodeURIComponent(wabaId)}/message_templates?${params.toString()}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('WhatsApp Business rejected token (401)', inv.source.id)
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`whatsapp-business templates.delete HTTP ${res.status}: ${t.slice(0, 300)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as { success?: boolean }
+  return {
+    status: 'committed',
+    data: { success: json.success === true },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
 }
