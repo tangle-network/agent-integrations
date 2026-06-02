@@ -73,5 +73,31 @@ export const flowParserConnector = declarativeRestConnector({
       },
       request: { method: 'DELETE', path: '/documents/{documentId}' },
     },
+    {
+      name: 'flows.run',
+      class: 'mutation',
+      description:
+        'Trigger a FlowParser parsing flow against an uploaded document, returning the async run handle. Each invocation is billed and side-effecting; FlowParser dedupes on (flowId, documentId, idempotencyKey).',
+      parameters: {
+        type: 'object',
+        properties: {
+          flowId: { type: 'string', description: 'FlowParser flow id to execute.' },
+          documentId: {
+            type: 'string',
+            description: 'Document id (from documents.upload) the flow should parse.',
+          },
+        },
+        required: ['flowId', 'documentId'],
+      },
+      request: {
+        method: 'POST',
+        path: '/flows/{flowId}/run',
+        body: {
+          documentId: '{documentId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
