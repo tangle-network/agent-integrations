@@ -43,10 +43,11 @@ import {
 } from '../types.js'
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
 
-const SCOPES = [
-  'crm.objects.contacts.read',
-  'crm.objects.contacts.write',
-]
+const SCOPE_CONTACTS_READ = 'crm.objects.contacts.read'
+const SCOPE_CONTACTS_WRITE = 'crm.objects.contacts.write'
+const SCOPE_DEALS_WRITE = 'crm.objects.deals.write'
+const SCOPE_TICKETS_WRITE = 'tickets'
+const SCOPES_BASE = [SCOPE_CONTACTS_READ, SCOPE_CONTACTS_WRITE]
 const AUTH_URL = 'https://app.hubspot.com/oauth/authorize'
 const TOKEN_URL = 'https://api.hubapi.com/oauth/v1/token'
 const API = 'https://api.hubapi.com'
@@ -56,10 +57,18 @@ const API = 'https://api.hubapi.com'
 export interface HubSpotOptions {
   clientId: string
   clientSecret: string
+  /** When true, request the deals + tickets write scopes at connect-time
+   *  so the operator can use create_deal, update_deal_stage, create_ticket.
+   *  Default false — existing connections grant only contacts.read/write
+   *  and would be invalidated if these scopes were added unconditionally. */
+  includeWriteScope?: boolean
 }
 
 export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
   const { clientId, clientSecret } = opts
+  const scopes = opts.includeWriteScope
+    ? [...SCOPES_BASE, SCOPE_DEALS_WRITE, SCOPE_TICKETS_WRITE]
+    : SCOPES_BASE
   const adapter: ConnectorAdapter = {
   manifest: {
     kind: 'hubspot',
@@ -70,7 +79,7 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
       kind: 'oauth2',
       authorizationUrl: AUTH_URL,
       tokenUrl: TOKEN_URL,
-      scopes: SCOPES,
+      scopes,
       clientIdEnv: 'HUBSPOT_OAUTH_CLIENT_ID',
       clientSecretEnv: 'HUBSPOT_OAUTH_CLIENT_SECRET',
     },
@@ -121,6 +130,88 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
             body: { type: 'string', description: 'Note body (HTML or plain text).' },
           },
           required: ['contactId', 'body'],
+        },
+      },
+      {
+        name: 'create_deal',
+        class: 'mutation',
+        description:
+          'Create a new deal in the connected HubSpot account. Optionally associate the deal with one or more contacts at creation time via `associations.contactIds`.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_DEALS_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            properties: {
+              type: 'object',
+              properties: {
+                dealname: { type: 'string', description: 'Deal name shown in HubSpot.' },
+                amount: { type: 'string', description: 'Deal amount (HubSpot stores as string).' },
+                dealstage: { type: 'string', description: 'Deal stage id within the target pipeline.' },
+                pipeline: { type: 'string', description: 'Pipeline id; defaults to the portal default pipeline when omitted.' },
+                closedate: { type: 'string', description: 'RFC3339 / ISO8601 close date.' },
+              },
+              required: ['dealname'],
+            },
+            associations: {
+              type: 'object',
+              properties: {
+                contactIds: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Contact ids to associate with the new deal.',
+                },
+              },
+            },
+          },
+          required: ['properties'],
+        },
+      },
+      {
+        name: 'update_deal_stage',
+        class: 'mutation',
+        description:
+          "Move an existing deal to a different stage. Use update_deal_stage when only the stage changes — for richer property updates, use the generic HubSpot CRM batch APIs.",
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_DEALS_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            dealId: { type: 'string', description: 'HubSpot deal object id.' },
+            dealstage: { type: 'string', description: 'Target deal stage id.' },
+          },
+          required: ['dealId', 'dealstage'],
+        },
+      },
+      {
+        name: 'create_ticket',
+        class: 'mutation',
+        description:
+          'Create a support ticket. `subject` is the only required property; `hs_pipeline_stage` and `hs_ticket_priority` default to the portal defaults when omitted.',
+        cas: 'native-idempotency',
+        externalEffect: true,
+        requiredScopes: [SCOPE_TICKETS_WRITE],
+        parameters: {
+          type: 'object',
+          properties: {
+            properties: {
+              type: 'object',
+              properties: {
+                subject: { type: 'string', description: 'Ticket subject / title.' },
+                content: { type: 'string', description: 'Ticket body (HTML or plain text).' },
+                hs_pipeline_stage: { type: 'string', description: 'Stage id within the ticket pipeline.' },
+                hs_ticket_priority: {
+                  type: 'string',
+                  enum: ['LOW', 'MEDIUM', 'HIGH'],
+                  description: 'HubSpot ticket priority enum.',
+                },
+              },
+              required: ['subject'],
+            },
+          },
+          required: ['properties'],
         },
       },
     ],
@@ -176,6 +267,15 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
     if (inv.capabilityName === 'create_note') {
       return createNote(inv, accessToken)
     }
+    if (inv.capabilityName === 'create_deal') {
+      return createDeal(inv, accessToken, 15_000)
+    }
+    if (inv.capabilityName === 'update_deal_stage') {
+      return updateDealStage(inv, accessToken, 15_000)
+    }
+    if (inv.capabilityName === 'create_ticket') {
+      return createTicket(inv, accessToken, 15_000)
+    }
     throw new Error(`hubspot: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -198,7 +298,7 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
         refreshToken: tokens.refreshToken,
         expiresAt: tokens.expiresIn ? Date.now() + tokens.expiresIn * 1000 : undefined,
       },
-      scopes: tokens.scope?.split(/\s+/) ?? SCOPES,
+      scopes: tokens.scope?.split(/\s+/) ?? scopes,
       metadata: {},
     }
   },
@@ -344,6 +444,199 @@ async function createNote(inv: ConnectorInvocation, accessToken: string): Promis
   return {
     status: 'committed',
     data: { noteId: first.id },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createDeal(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    properties?: {
+      dealname?: string
+      amount?: string
+      dealstage?: string
+      pipeline?: string
+      closedate?: string
+    }
+    associations?: { contactIds?: string[] }
+  }
+  if (!args.properties || typeof args.properties !== 'object') {
+    throw new Error('hubspot create_deal: `properties` is required')
+  }
+  if (!args.properties.dealname) {
+    throw new Error('hubspot create_deal: `properties.dealname` is required')
+  }
+  const dealProperties: Record<string, string> = { dealname: args.properties.dealname }
+  if (args.properties.amount !== undefined) dealProperties.amount = args.properties.amount
+  if (args.properties.dealstage !== undefined) dealProperties.dealstage = args.properties.dealstage
+  if (args.properties.pipeline !== undefined) dealProperties.pipeline = args.properties.pipeline
+  if (args.properties.closedate !== undefined) dealProperties.closedate = args.properties.closedate
+
+  const payload: Record<string, unknown> = { properties: dealProperties }
+  const contactIds = args.associations?.contactIds ?? []
+  if (contactIds.length > 0) {
+    payload.associations = contactIds.map((id) => ({
+      to: { id },
+      // 3 = deal→contact association type id (standard HubSpot mapping)
+      types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
+    }))
+  }
+  const res = await fetch(`${API}/crm/v3/objects/deals`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'X-Tangle-Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`HubSpot rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    const text = await res.text().catch(() => '')
+    throw new ResourceContention(`hubspot create_deal conflict: ${text.slice(0, 200)}`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hubspot create_deal ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    properties?: Record<string, string>
+    createdAt?: string
+    updatedAt?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      dealId: json.id,
+      properties: json.properties ?? {},
+      createdAt: json.createdAt,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function updateDealStage(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as { dealId?: string; dealstage?: string }
+  if (!args.dealId) {
+    throw new Error('hubspot update_deal_stage: `dealId` is required')
+  }
+  if (!args.dealstage) {
+    throw new Error('hubspot update_deal_stage: `dealstage` is required')
+  }
+  const res = await fetch(
+    `${API}/crm/v3/objects/deals/${encodeURIComponent(args.dealId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        'X-Tangle-Idempotency-Key': inv.idempotencyKey,
+      },
+      body: JSON.stringify({ properties: { dealstage: args.dealstage } }),
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+  )
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`HubSpot rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    const text = await res.text().catch(() => '')
+    throw new ResourceContention(`hubspot update_deal_stage conflict: ${text.slice(0, 200)}`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hubspot update_deal_stage ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    properties?: Record<string, string>
+    updatedAt?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      dealId: json.id,
+      dealstage: json.properties?.dealstage ?? args.dealstage,
+      updatedAt: json.updatedAt,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function createTicket(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const args = (inv.args ?? {}) as {
+    properties?: {
+      subject?: string
+      content?: string
+      hs_pipeline_stage?: string
+      hs_ticket_priority?: string
+    }
+  }
+  if (!args.properties || typeof args.properties !== 'object') {
+    throw new Error('hubspot create_ticket: `properties` is required')
+  }
+  if (!args.properties.subject) {
+    throw new Error('hubspot create_ticket: `properties.subject` is required')
+  }
+  const ticketProperties: Record<string, string> = { subject: args.properties.subject }
+  if (args.properties.content !== undefined) ticketProperties.content = args.properties.content
+  if (args.properties.hs_pipeline_stage !== undefined) {
+    ticketProperties.hs_pipeline_stage = args.properties.hs_pipeline_stage
+  }
+  if (args.properties.hs_ticket_priority !== undefined) {
+    ticketProperties.hs_ticket_priority = args.properties.hs_ticket_priority
+  }
+  const res = await fetch(`${API}/crm/v3/objects/tickets`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      'X-Tangle-Idempotency-Key': inv.idempotencyKey,
+    },
+    body: JSON.stringify({ properties: ticketProperties }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`HubSpot rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 409) {
+    const text = await res.text().catch(() => '')
+    throw new ResourceContention(`hubspot create_ticket conflict: ${text.slice(0, 200)}`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hubspot create_ticket ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    id: string
+    properties?: Record<string, string>
+    createdAt?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      ticketId: json.id,
+      properties: json.properties ?? {},
+      createdAt: json.createdAt,
+    },
     committedAt: Date.now(),
     idempotentReplay: false,
   }
