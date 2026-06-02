@@ -201,6 +201,42 @@ export const apolloConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'sequences.add_contacts',
+      class: 'mutation',
+      description:
+        'Add one or more contacts to an Apollo emailer campaign (sequence). Optionally specify the sender mailbox to enroll under via send_email_from_email_address.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: {
+            type: 'string',
+            description: 'Apollo emailer_campaign (sequence) id to enroll contacts into.',
+          },
+          contact_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Apollo contact ids to add to the sequence.',
+          },
+          send_email_from_email_address: {
+            type: 'string',
+            description:
+              'Optional sender mailbox address (must already be connected to Apollo) to send the sequence from.',
+          },
+        },
+        required: ['campaign_id', 'contact_ids'],
+      },
+      request: {
+        method: 'POST',
+        path: '/v1/emailer_campaigns/{campaign_id}/add_contact_ids',
+        body: {
+          contact_ids: '{contact_ids}',
+          send_email_from_email_address: '{send_email_from_email_address}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
       name: 'people.search',
       class: 'read',
       description:
