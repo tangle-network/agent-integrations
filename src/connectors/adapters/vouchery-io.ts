@@ -73,5 +73,49 @@ export const voucheryIoConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
     },
+    {
+      name: 'vouchers.redeem',
+      class: 'mutation',
+      description: 'Redeem a voucher by code. Optional customer_id attributes the redemption; optional amount partially redeems a value-bearing voucher.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          customer_id: { type: 'string' },
+          amount: { type: 'number' },
+        },
+        required: ['code'],
+      },
+      request: {
+        method: 'POST',
+        path: '/vouchers/{code}/redeem',
+        body: {
+          customer_id: '{customer_id}',
+          amount: '{amount}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'vouchers.void',
+      class: 'mutation',
+      description: 'Void a voucher by code so it can no longer be redeemed. Optional reason is recorded with the void event.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['code'],
+      },
+      request: {
+        method: 'POST',
+        path: '/vouchers/{code}/void',
+        body: {
+          reason: '{reason}',
+        },
+      },
+      cas: 'native-idempotency',
+    },
   ],
 })
