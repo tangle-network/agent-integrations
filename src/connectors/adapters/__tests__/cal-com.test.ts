@@ -49,9 +49,13 @@ describe('cal-com adapter', () => {
       'bookings.get',
       'bookings.list',
       'bookings.reschedule',
+      'bookings.update',
+      'event-types.create',
+      'event-types.delete',
       'event-types.get',
       'event-types.list',
       'me.get',
+      'schedules.create',
       'schedules.list',
       'slots.list',
     ])
@@ -66,7 +70,15 @@ describe('cal-com adapter', () => {
       'schedules.list',
       'slots.list',
     ])
-    expect(mutators).toEqual(['bookings.cancel', 'bookings.create', 'bookings.reschedule'])
+    expect(mutators).toEqual([
+      'bookings.cancel',
+      'bookings.create',
+      'bookings.reschedule',
+      'bookings.update',
+      'event-types.create',
+      'event-types.delete',
+      'schedules.create',
+    ])
   })
 
   it('exposes both executeRead and executeMutation handlers', () => {
