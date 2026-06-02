@@ -37,9 +37,11 @@ describe('docusign declarative adapter', () => {
     expect(auth.clientSecretEnv).toBe('DOCUSIGN_OAUTH_CLIENT_SECRET')
   })
 
-  it('publishes the e-signature surface the catalog expects', () => {
+  it('publishes the e-signature surface the catalog expects plus the named write-side mutations', () => {
     const names = docusignConnector.manifest.capabilities.map((cap) => cap.name).sort()
     expect(names).toEqual([
+      'envelope.send',
+      'envelope.void',
       'envelopes.create',
       'envelopes.documents.list',
       'envelopes.get',
@@ -48,6 +50,7 @@ describe('docusign declarative adapter', () => {
       'envelopes.recipients.update',
       'envelopes.update',
       'envelopes.views.recipient',
+      'recipient.resendInvitation',
       'templates.get',
       'templates.list',
     ])
@@ -57,6 +60,86 @@ describe('docusign declarative adapter', () => {
       if (cap.class !== 'mutation') throw new Error('narrowing')
       expect(['native-idempotency', 'optimistic-read-verify', 'none']).toContain(cap.cas)
     }
+  })
+
+  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
+    const expected = ['envelope.send', 'envelope.void', 'recipient.resendInvitation']
+    for (const name of expected) {
+      const cap = docusignConnector.manifest.capabilities.find((c) => c.name === name)
+      expect(cap, `missing capability ${name}`).toBeDefined()
+      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
+      expect(cap.cas).toBe('native-idempotency')
+      expect(cap.externalEffect).toBe(true)
+    }
+  })
+
+  it('envelope.send PUTs the status=sent transition', async () => {
+    const fetchMock = mockFetch({ envelopeId: 'env_1', status: 'sent' })
+    const provider = createConnectorAdapterProvider({
+      adapters: [docusignConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'envelope.send',
+      input: { accountId: 'acc_42', envelopeId: 'env_1' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://na4.docusign.net/restapi/v2.1/accounts/acc_42/envelopes/env_1')
+    expect((init as RequestInit).method).toBe('PUT')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body).toMatchObject({ status: 'sent' })
+  })
+
+  it('envelope.void PUTs status=voided with voidedReason', async () => {
+    const fetchMock = mockFetch({ envelopeId: 'env_1', status: 'voided' })
+    const provider = createConnectorAdapterProvider({
+      adapters: [docusignConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'envelope.void',
+      input: { accountId: 'acc_42', envelopeId: 'env_1', voidedReason: 'customer cancelled' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://na4.docusign.net/restapi/v2.1/accounts/acc_42/envelopes/env_1')
+    expect((init as RequestInit).method).toBe('PUT')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body).toMatchObject({ status: 'voided', voidedReason: 'customer cancelled' })
+  })
+
+  it('recipient.resendInvitation forces resend_envelope=true on the query', async () => {
+    const fetchMock = mockFetch({ recipientUpdateResults: [] })
+    const provider = createConnectorAdapterProvider({
+      adapters: [docusignConnector],
+      resolveDataSource: sourceFor,
+    })
+
+    await provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'recipient.resendInvitation',
+      input: {
+        accountId: 'acc_42',
+        envelopeId: 'env_1',
+        signers: [{ recipientId: '1', email: 'signer@example.com', name: 'Ada' }],
+      },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toContain(
+      'https://na4.docusign.net/restapi/v2.1/accounts/acc_42/envelopes/env_1/recipients',
+    )
+    expect(String(url)).toContain('resend_envelope=true')
+    expect((init as RequestInit).method).toBe('PUT')
+    const body = JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>
+    expect(body).toMatchObject({
+      signers: [{ recipientId: '1', email: 'signer@example.com', name: 'Ada' }],
+    })
   })
 
   it('routes envelopes.list through the per-account base URI with bearer auth', async () => {
