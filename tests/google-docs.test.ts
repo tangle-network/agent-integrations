@@ -68,12 +68,19 @@ describe('google-docs adapter', () => {
     })
   })
 
-  it('manifest exposes get_document, create_document, append_text with the right classes + CAS', () => {
+  it('manifest exposes get_document, create_document, append_text, delete_document, export_document with the right classes + CAS', () => {
     const caps = adapter.manifest.capabilities
     const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-    expect(Object.keys(byName).sort()).toEqual(['append_text', 'create_document', 'get_document'])
+    expect(Object.keys(byName).sort()).toEqual([
+      'append_text',
+      'create_document',
+      'delete_document',
+      'export_document',
+      'get_document',
+    ])
 
     expect(byName.get_document.class).toBe('read')
+    expect(byName.export_document.class).toBe('read')
 
     const createCap = byName.create_document
     expect(createCap.class).toBe('mutation')
@@ -88,6 +95,89 @@ describe('google-docs adapter', () => {
       expect(appendCap.cas).toBe('etag-if-match')
       expect(appendCap.externalEffect).toBe(true)
     }
+
+    const deleteCap = byName.delete_document
+    expect(deleteCap.class).toBe('mutation')
+    if (deleteCap.class === 'mutation') {
+      expect(deleteCap.cas).toBe('native-idempotency')
+      expect(deleteCap.externalEffect).toBe(true)
+    }
+  })
+
+  it('delete_document PATCHes the Drive file with trashed=true and commits', async () => {
+    let observedUrl: string | undefined
+    let observedMethod: string | undefined
+    let observedBody: string | undefined
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method
+      observedBody = init?.body ? String(init.body) : undefined
+      return jsonResponse({ id: 'doc_trash', trashed: true })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'delete_document',
+      args: { documentId: 'doc_trash' },
+      idempotencyKey: 'k1',
+    })
+    expect(observedUrl).toBe('https://www.googleapis.com/drive/v3/files/doc_trash')
+    expect(observedMethod).toBe('PATCH')
+    expect(JSON.parse(observedBody ?? '{}')).toEqual({ trashed: true })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { trashed: boolean }).trashed).toBe(true)
+    }
+  })
+
+  it('delete_document surfaces CredentialsExpired on 401', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'delete_document',
+        args: { documentId: 'doc_q' },
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+
+  it('export_document maps friendly formats to Drive export mime types', async () => {
+    let observedUrl: string | undefined
+    const payload = new TextEncoder().encode('%PDF-1.4 fake pdf bytes')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      observedUrl = String(input)
+      return new Response(payload, { status: 200, headers: { 'content-type': 'application/pdf' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'export_document',
+      args: { documentId: 'doc_e', format: 'pdf' },
+      idempotencyKey: 'k1',
+    })
+    expect(observedUrl).toBe(
+      'https://www.googleapis.com/drive/v3/files/doc_e/export?mimeType=application%2Fpdf',
+    )
+    const data = result.data as { mimeType: string; byteLength: number; contentBase64: string }
+    expect(data.mimeType).toBe('application/pdf')
+    expect(data.byteLength).toBe(payload.length)
+    expect(typeof data.contentBase64).toBe('string')
+    expect(data.contentBase64.length).toBeGreaterThan(0)
+  })
+
+  it('export_document rejects when neither format nor mimeType is supplied', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'export_document',
+        args: { documentId: 'doc_e' },
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toThrowError(/format must be one of|mimeType/i)
   })
 
   it('get_document collapses paragraph textRuns into a single plaintext string', async () => {
