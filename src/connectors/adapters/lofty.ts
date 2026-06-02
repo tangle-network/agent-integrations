@@ -122,5 +122,41 @@ export const loftyConnector = declarativeRestConnector({
       request: { method: 'PUT', path: '/transactions/{transactionId}', body: '{properties}' },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'leads.delete',
+      class: 'mutation',
+      description: 'Delete a lead by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string' },
+        },
+        required: ['leadId'],
+      },
+      request: { method: 'DELETE', path: '/leads/{leadId}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'tasks.create',
+      class: 'mutation',
+      description: 'Create a task on a lead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          leadId: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          dueDate: { type: 'string' },
+          priority: { type: 'string' },
+          assigneeId: { type: 'string' },
+          status: { type: 'string' },
+        },
+        required: ['leadId', 'title'],
+      },
+      request: { method: 'POST', path: '/leads/{leadId}/tasks', body: '{properties}' },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
