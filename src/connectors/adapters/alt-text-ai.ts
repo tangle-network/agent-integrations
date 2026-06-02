@@ -81,5 +81,48 @@ export const altTextAiConnector = declarativeRestConnector({
       cas: 'native-idempotency',
       externalEffect: false,
     },
+    {
+      name: 'images.batchGenerateAltText',
+      class: 'mutation',
+      description:
+        'Generate alt text for a batch of images. Accepts an array of image entries; each entry mirrors the single-image action input.',
+      parameters: {
+        type: 'object',
+        properties: {
+          images: {
+            type: 'array',
+            description:
+              'Array of { image, keywords?, negative_keywords?, keyword_source? } entries. Required.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['images'],
+      },
+      request: {
+        method: 'POST',
+        path: '/images/bulk',
+        body: { images: '{images}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'images.deleteResult',
+      class: 'mutation',
+      description: 'Delete a stored alt-text result by its per-request id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'AltText.ai per-request id returned from generate.' },
+        },
+        required: ['id'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/images/{id}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
