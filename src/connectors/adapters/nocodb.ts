@@ -108,5 +108,94 @@ export const nocodbConnector = declarativeRestConnector({
       },
       cas: 'optimistic-read-verify',
     },
+    {
+      name: 'tables.list',
+      class: 'read',
+      description: 'List tables in a NocoDB base/project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string', description: 'The base/project ID to list tables for.' },
+        },
+        required: ['projectId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api/v1/db/meta/projects/{projectId}/tables',
+      },
+    },
+    {
+      name: 'tables.create',
+      class: 'mutation',
+      description:
+        'Create a new table inside a NocoDB base/project. `definition` carries the table schema (table_name, title, columns).',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string', description: 'The base/project ID to create the table in.' },
+          definition: {
+            type: 'object',
+            description: 'Table definition (table_name, title, columns, etc.).',
+          },
+        },
+        required: ['projectId', 'definition'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/db/meta/projects/{projectId}/tables',
+        body: '{definition}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'fields.create',
+      class: 'mutation',
+      description:
+        'Add a column/field to an existing NocoDB table. `column` describes the new field (column_name, title, uidt, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          tableId: { type: 'string', description: 'The table ID to add the column to.' },
+          column: {
+            type: 'object',
+            description: 'Column definition (column_name, title, uidt, etc.).',
+          },
+        },
+        required: ['tableId', 'column'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/db/meta/tables/{tableId}/columns',
+        body: '{column}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'records.bulk-create',
+      class: 'mutation',
+      description:
+        'Insert many records into a NocoDB table in one request. `records` is an array of field-value objects.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tableId: { type: 'string', description: 'The table ID to insert into.' },
+          records: {
+            type: 'array',
+            description: 'Array of record objects to insert.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['tableId', 'records'],
+      },
+      request: {
+        method: 'POST',
+        path: '/api/v1/db/data/bulk/noco/{tableId}',
+        body: '{records}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
   ],
 })
