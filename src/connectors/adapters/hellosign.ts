@@ -175,6 +175,30 @@ export function hellosign(opts: HelloSignOptions): ConnectorAdapter {
           },
           requiredScopes: ['request_signature'],
         },
+        {
+          name: 'remind_signature_request',
+          class: 'mutation',
+          description:
+            'Send a reminder email to a signer who has not yet signed. POST /signature_request/remind/:id with the signer email address; safe to retry — Dropbox Sign rate-limits reminders per signer per request, so a duplicate reminder is a no-op on its end.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              signatureRequestId: { type: 'string' },
+              emailAddress: {
+                type: 'string',
+                description: 'Email address of the signer to remind.',
+              },
+              name: {
+                type: 'string',
+                description: 'Optional display name of the signer (must match the original signer name on multi-signer requests).',
+              },
+            },
+            required: ['signatureRequestId', 'emailAddress'],
+          },
+          requiredScopes: ['request_signature'],
+        },
       ],
     },
 
@@ -219,6 +243,9 @@ export function hellosign(opts: HelloSignOptions): ConnectorAdapter {
       }
       if (inv.capabilityName === 'cancel_signature_request') {
         return cancelSignatureRequest(inv, accessToken, baseUrl, timeoutMs)
+      }
+      if (inv.capabilityName === 'remind_signature_request') {
+        return remindSignatureRequest(inv, accessToken, baseUrl, timeoutMs)
       }
       throw new Error(`hellosign: unknown mutation capability ${inv.capabilityName}`)
     },
@@ -534,6 +561,72 @@ async function cancelSignatureRequest(
       status: 'canceled',
       canceledAt: new Date().toISOString(),
     },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function remindSignatureRequest(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  baseUrl: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { signatureRequestId, emailAddress, name } = inv.args as {
+    signatureRequestId: string
+    emailAddress: string
+    name?: string
+  }
+  if (typeof signatureRequestId !== 'string' || signatureRequestId.length === 0) {
+    throw new Error('hellosign remind_signature_request: signatureRequestId is required')
+  }
+  if (typeof emailAddress !== 'string' || emailAddress.length === 0) {
+    throw new Error('hellosign remind_signature_request: emailAddress is required')
+  }
+  const body: Record<string, unknown> = { email_address: emailAddress }
+  if (name) body.name = name
+  const res = await fetch(`${baseUrl}/signature_request/remind/${encodeURIComponent(signatureRequestId)}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Dropbox Sign rejected token (401)', inv.source.id)
+  }
+  if (res.status === 404) {
+    throw new Error(`hellosign remind_signature_request: signature request ${signatureRequestId} not found`)
+  }
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get('retry-after') ?? '5')
+    return {
+      status: 'rate-limited',
+      retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : 5_000,
+      message: 'Dropbox Sign rate-limited remind_signature_request',
+    }
+  }
+  if (res.status === 409) {
+    // Dropbox Sign returns 409 when the request is already complete or the
+    // signer has already signed — surface as ResourceContention so callers
+    // can branch on the state rather than treat as a transport failure.
+    const text = await res.text().catch(() => '')
+    throw new ResourceContention(`hellosign remind_signature_request: cannot remind — ${text.slice(0, 200)}`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hellosign remind_signature_request ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as { signature_request?: HelloSignSignatureRequest }
+  const sr = json.signature_request
+  return {
+    status: 'committed',
+    data: sr
+      ? normalizeSignatureRequest(sr)
+      : { signatureRequestId, remindedEmail: emailAddress, remindedAt: new Date().toISOString() },
     committedAt: Date.now(),
     idempotentReplay: false,
   }
