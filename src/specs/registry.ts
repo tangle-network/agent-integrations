@@ -45,6 +45,7 @@ const EXECUTABLE_KINDS = new Set([
   'stripe-pack',
   'twilio',
   'twilio-sms',
+  'phony',
   'webhook',
 ])
 
@@ -198,7 +199,7 @@ function familyFor(spec: IntegrationCoverageSpec): IntegrationFamilyId {
   return 'standard-oauth2'
 }
 
-const apiKeyKinds = new Set(['github', 'gitlab', 'airtable', 'asana', 'stripe', 'twilio', 'sendgrid', 'postmark'])
+const apiKeyKinds = new Set(['github', 'gitlab', 'airtable', 'asana', 'stripe', 'twilio', 'sendgrid', 'postmark', 'phony'])
 const hmacKinds = new Set(['webhook'])
 
 function authFor(

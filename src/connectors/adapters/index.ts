@@ -36,6 +36,7 @@ export {
 } from './declarative-rest.js'
 
 export { twilioSmsConnector } from './twilio-sms.js'
+export { phonyConnector } from './phony.js'
 export { whatsappBusiness, type WhatsappBusinessOptions } from './whatsapp-business.js'
 export { stripePackConnector } from './stripe-pack.js'
 export { webhookConnector } from './webhook.js'

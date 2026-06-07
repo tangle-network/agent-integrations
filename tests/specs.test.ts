@@ -154,6 +154,29 @@ describe('integration overrides — per-kind setup richness', () => {
     expect(quirks.some((q) => q.id === 'subaccount-tokens')).toBe(true)
   })
 
+  it('phony is an executable api-key connector with a plabs_ key field', () => {
+    const spec = getIntegrationSpec('phony')
+    expect(spec).toBeDefined()
+    expect(spec!.status).toBe('executable')
+    expect(spec!.auth.mode).toBe('api_key')
+    expect(spec!.setup.credentialFields).toHaveLength(1)
+    const key = spec!.setup.credentialFields[0]
+    expect(key.secret).toBe(true)
+    expect(key.regex).toBe('^plabs_[A-Za-z0-9_-]{32}$')
+    // Real key shape: plabs_ + 32 url-safe nanoid chars.
+    expect(validateCredentialFormat(key, 'plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm').ok).toBe(true)
+    // The earlier-sketched phony_live_ prefix is wrong and must be rejected.
+    expect(validateCredentialFormat(key, 'phony_live_' + 'a'.repeat(32)).ok).toBe(false)
+    expect(validateCredentialFormat(key, 'plabs_short').ok).toBe(false)
+  })
+
+  it('phony surfaces the key-shown-once + rotate quirks via the override layer', () => {
+    const spec = getIntegrationSpec('phony')
+    const quirks = spec!.setup.knownQuirks ?? []
+    expect(quirks.some((q) => q.id === 'key-shown-once')).toBe(true)
+    expect(quirks.some((q) => q.id === 'rotate-endpoint')).toBe(true)
+  })
+
   it('kinds without overrides fall through to family defaults', () => {
     // gmail has no override; should use the google family's default fields
     // (Client ID + Client Secret) and the Google Cloud Console URL.
