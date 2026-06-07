@@ -24,6 +24,40 @@
  *     the request (400 CONSENT_REQUIRED) when it is false, even with valid
  *     auth. `dryRun: true` walks every gate but stops short of the carrier
  *     fetch and the row insert, returning a `dryRunReport`.
+ *
+ *   create_agent(name, …)
+ *     Mutation, external effect. POST /v1/agents. Creates a voice agent on
+ *     the developer account. Only `name` is required; every other column is
+ *     optional and passed through verbatim from the route's CreateAgentSchema.
+ *
+ *   provision_agent(name, collection?, initialContent?, …)
+ *     Mutation, external effect. POST /v1/agents/provision. One call that
+ *     creates the agent, optionally a fresh KB collection, and optionally
+ *     seeds that collection with initial content — atomic on the server.
+ *     Returns { agent, collection?, ingested? }.
+ *
+ *   kb_create_collection(name, description?, metadata?)
+ *     Mutation, external effect. POST /v1/collections. Creates a knowledge-
+ *     base collection the agent can search at call time.
+ *
+ *   kb_ingest(collectionId, content|sourceUrl, contentType, …)
+ *     Mutation, external effect. POST /v1/collections/:id/ingest. Chunks and
+ *     embeds content into a collection (≤1MB text). contentType 'url' returns
+ *     501 server-side; 'audio' requires a sourceUrl that ph0ny transcribes.
+ *
+ *   kb_search(collectionId, query, …)
+ *     Read. POST /v1/collections/:id/search. Hybrid vector+keyword search
+ *     over a collection. Returns { results, queryTokens, graphContext? }.
+ *
+ *   run_synthetic_test(agentId, persona, goal, …)
+ *     Mutation, external effect. POST /v1/agents/:id/tests/run-synthetic.
+ *     Drives a synthetic LLM caller against the agent — NO billing, NO real
+ *     dial. Creates a test-run row and returns its results + summary.
+ *
+ *   run_selfplay_test(agentId, …)
+ *     Mutation, external effect. POST /v1/agents/:id/tests/run-selfplay.
+ *     Runs two agents against each other in text or simulated audio — NO
+ *     billing, NO real dial. Returns { testRun }.
  */
 
 import {
@@ -140,6 +174,255 @@ export const phonyConnector: ConnectorAdapter = {
           required: ['agentId', 'toNumber', 'fromNumber', 'mission', 'userConsentRecorded'],
         },
       },
+      {
+        name: 'create_agent',
+        class: 'mutation',
+        description:
+          'Create a voice agent on your ph0ny developer account. Only name is required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
+            name: { type: 'string', description: 'Display name (1–100 chars).' },
+            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
+            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
+            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
+            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
+            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
+            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
+            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
+            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
+            llmModel: { type: 'string', description: 'Optional LLM model id.' },
+            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
+            collectionId: { type: 'string', description: 'Deprecated — KB collection id to attach. Prefer libraryId.' },
+            styleProfile: { type: 'object', description: 'Optional style profile object.' },
+            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
+            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
+            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
+            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
+            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
+            contactCaptureFields: {
+              type: 'array',
+              items: { type: 'string', enum: ['name', 'email', 'phone'] },
+              description: 'Which contact fields to capture when capture is enabled.',
+            },
+            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
+          },
+          required: ['name'],
+        },
+      },
+      {
+        name: 'provision_agent',
+        class: 'mutation',
+        description:
+          'Create an agent and, in the same atomic call, optionally a fresh knowledge-base collection and seed it with initial content. Returns the agent plus the created collection and ingestion results.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
+            name: { type: 'string', description: 'Display name (1–100 chars).' },
+            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
+            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
+            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
+            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
+            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
+            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
+            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
+            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
+            llmModel: { type: 'string', description: 'Optional LLM model id.' },
+            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
+            collectionId: { type: 'string', description: 'Existing KB collection id to attach instead of creating one.' },
+            styleProfile: { type: 'object', description: 'Optional style profile object.' },
+            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
+            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
+            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
+            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
+            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
+            contactCaptureFields: {
+              type: 'array',
+              items: { type: 'string', enum: ['name', 'email', 'phone'] },
+              description: 'Which contact fields to capture when capture is enabled.',
+            },
+            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
+            collection: {
+              type: 'object',
+              description: 'When present, create a fresh KB collection and attach it to the agent.',
+              properties: {
+                name: { type: 'string', description: 'Collection name (1–100 chars).' },
+                description: { type: 'string', description: 'Optional collection description (≤500 chars).' },
+              },
+              required: ['name'],
+            },
+            initialContent: {
+              type: 'array',
+              maxItems: 10,
+              description: 'Documents to ingest into the new/attached collection (≤10).',
+              items: {
+                type: 'object',
+                properties: {
+                  content: { type: 'string', description: 'Raw text or transcript content.' },
+                  contentType: { type: 'string', enum: ['text', 'transcript'], description: 'Defaults to "text".' },
+                  metadata: { type: 'object', description: 'Arbitrary metadata stored with the document.' },
+                },
+                required: ['content'],
+              },
+            },
+          },
+          required: ['name'],
+        },
+      },
+      {
+        name: 'kb_create_collection',
+        class: 'mutation',
+        description: 'Create a knowledge-base collection the agent can search at call time.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Collection name (1–100 chars).' },
+            description: { type: 'string', description: 'Optional description (≤500 chars).' },
+            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the collection.' },
+          },
+          required: ['name'],
+        },
+      },
+      {
+        name: 'kb_ingest',
+        class: 'mutation',
+        description:
+          'Chunk, embed, and store content into a KB collection. Provide content directly (≤1MB), or a sourceUrl for audio transcription. contentType "url" is not yet implemented server-side (501).',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            collectionId: { type: 'string', description: 'Target collection id.' },
+            content: { type: 'string', description: 'Raw text/transcript content (≤1,000,000 chars).' },
+            sourceUrl: { type: 'string', description: 'Public URL — required when contentType is "audio" (transcribed) or "url".' },
+            contentType: {
+              type: 'string',
+              enum: ['text', 'transcript', 'audio', 'url'],
+              description: 'Defaults to "text". "audio" transcribes sourceUrl; "url" returns 501.',
+            },
+            metadata: { type: 'object', description: 'Arbitrary metadata stored with the document.' },
+            chunkSize: { type: 'integer', minimum: 100, maximum: 4000, description: 'Chunk size in chars; defaults to 1000.' },
+            chunkOverlap: { type: 'integer', minimum: 0, maximum: 500, description: 'Chunk overlap in chars; defaults to 200. Must be < chunkSize.' },
+          },
+          required: ['collectionId'],
+        },
+      },
+      {
+        name: 'kb_search',
+        class: 'read',
+        description: 'Hybrid vector + keyword search over a KB collection. Returns ranked results with scores.',
+        parameters: {
+          type: 'object',
+          properties: {
+            collectionId: { type: 'string', description: 'Collection id to search.' },
+            query: { type: 'string', description: 'Search query (1–2000 chars).' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Max results; defaults to 10.' },
+            threshold: { type: 'number', minimum: 0, maximum: 1, description: 'Minimum similarity score; defaults to 0.7.' },
+            includeMetadata: { type: 'boolean', description: 'Include per-result metadata; defaults to true.' },
+          },
+          required: ['collectionId', 'query'],
+        },
+      },
+      {
+        name: 'run_synthetic_test',
+        class: 'mutation',
+        description:
+          'Run a synthetic LLM caller against the agent to validate behavior. No billing, no real phone call — creates a test-run row and returns its results and summary.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            agentId: { type: 'string', description: 'Agent under test.' },
+            persona: {
+              type: 'string',
+              enum: ['friendly', 'confused', 'impatient', 'adversarial', 'tangential', 'detailed', 'multiTopic'],
+              description: 'Synthetic caller persona.',
+            },
+            goal: { type: 'string', description: "The synthetic caller's objective (1–1000 chars)." },
+            maxTurns: { type: 'integer', minimum: 1, maximum: 20, description: 'Max conversation turns; defaults to 10.' },
+            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
+            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve an agent instance.' },
+            instanceId: { type: 'string', description: 'Optional explicit agent-instance id.' },
+            assertions: { type: 'array', items: { type: 'object' }, description: 'Per-turn assertions to evaluate.' },
+            sessionAssertions: { type: 'array', maxItems: 10, items: { type: 'object' }, description: 'Session-level assertions (≤10).' },
+            enableJudge: { type: 'boolean', description: 'Run the LLM judge over the transcript; defaults to false.' },
+            systemPromptOverride: { type: 'string', description: 'Override the agent system prompt for this run (≤8000 chars).' },
+            firstMessageOverride: { type: 'string', description: 'Override the agent first message for this run (≤1000 chars).' },
+            disableRag: { type: 'boolean', description: 'Disable KB retrieval for this run.' },
+            questions: { type: 'array', maxItems: 20, items: { type: 'object' }, description: 'Campaign questions to extract from the transcript (≤20).' },
+            expectedAnswers: { type: 'object', description: 'Expected answers keyed by question id for ground-truth comparison.' },
+            realism: {
+              type: 'string',
+              enum: ['clean', 'light', 'moderate', 'chaos'],
+              description: 'Inject STT artifacts/interrupts/silences to simulate real-call conditions.',
+            },
+          },
+          required: ['agentId', 'persona', 'goal'],
+        },
+      },
+      {
+        name: 'run_selfplay_test',
+        class: 'mutation',
+        description:
+          'Run two agents against each other in text or simulated audio to validate end-to-end behavior. No billing, no real phone call. Returns { testRun }.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            agentId: { type: 'string', description: 'Agent A (the agent under test).' },
+            agentBId: { type: 'string', description: 'Optional agent B; defaults to agent A (self-play against itself).' },
+            taskA: { type: 'string', description: "Optional task/goal for agent A (≤1000 chars)." },
+            taskB: { type: 'string', description: "Optional task/goal for agent B (≤1000 chars)." },
+            participants: {
+              type: 'array',
+              minItems: 2,
+              maxItems: 8,
+              description: 'Optional multi-party participant list (overrides A/B pairing).',
+              items: {
+                type: 'object',
+                properties: {
+                  agentId: { type: 'string' },
+                  speaker: { type: 'string', description: 'Speaker label (≤20 chars).' },
+                  task: { type: 'string', description: 'Per-participant task (≤1000 chars).' },
+                  instanceId: { type: 'string' },
+                },
+                required: ['agentId'],
+              },
+            },
+            maxExchanges: { type: 'integer', minimum: 1, maximum: 20, description: 'Max back-and-forth exchanges; defaults to 6.' },
+            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
+            initialSpeaker: { type: 'string', description: 'Speaker who opens; defaults to "A".' },
+            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve agent instances.' },
+            instanceIdA: { type: 'string', description: 'Optional explicit instance id for agent A.' },
+            instanceIdB: { type: 'string', description: 'Optional explicit instance id for agent B.' },
+            transportMode: { type: 'string', enum: ['text', 'audio'], description: 'Text or audio transport; defaults to text. Audio requires enableTts=true.' },
+            enableTts: { type: 'boolean', description: 'Synthesize speech each turn; required when transportMode is "audio".' },
+            overlapMode: { type: 'string', enum: ['none', 'simulated', 'duplex'], description: 'Turn-overlap model; "duplex" requires audio transport.' },
+            bargeInEnabled: { type: 'boolean', description: 'Allow barge-in interruptions; defaults to false.' },
+            bargeInSensitivity: { type: 'number', minimum: 0, maximum: 1, description: 'Barge-in sensitivity (0–1); defaults to 0.65.' },
+            ttsProviderOverride: { type: 'string', description: 'Override the TTS provider for all speakers.' },
+            speakerTtsOverrides: { type: 'object', description: 'Per-speaker TTS provider overrides (speaker → provider).' },
+            voiceIdOverride: { type: 'string', description: 'Override the voice id for all speakers.' },
+            speakerVoiceOverrides: { type: 'object', description: 'Per-speaker voice id overrides (speaker → voiceId).' },
+            ttsModelOverride: { type: 'string', description: 'Override the TTS model for all speakers.' },
+            speakerTtsModelOverrides: { type: 'object', description: 'Per-speaker TTS model overrides (speaker → model).' },
+            enableSttLoop: { type: 'boolean', description: 'Feed TTS output through STT to close the audio loop; defaults to false.' },
+            sttProvider: { type: 'string', enum: ['whisper', 'deepgram', 'groq'], description: 'STT provider for the audio loop; defaults to whisper.' },
+          },
+          required: ['agentId'],
+        },
+      },
     ],
   },
 
@@ -184,13 +467,49 @@ export const phonyConnector: ConnectorAdapter = {
       )
       return { data: { calls: json.calls ?? [] }, fetchedAt: Date.now() }
     }
+    if (inv.capabilityName === 'kb_search') {
+      const { collectionId, query, limit, threshold, includeMetadata } = inv.args as {
+        collectionId: string
+        query: string
+        limit?: number
+        threshold?: number
+        includeMetadata?: boolean
+      }
+      const payload: Record<string, unknown> = { query }
+      if (limit !== undefined) payload.limit = limit
+      if (threshold !== undefined) payload.threshold = threshold
+      if (includeMetadata !== undefined) payload.includeMetadata = includeMetadata
+      const res = await fetch(`${API}/v1/collections/${encodeURIComponent(collectionId)}/search`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`phony kb_search ${res.status}: ${text.slice(0, 200)}`)
+      }
+      const json = (await res.json()) as { results?: unknown[]; queryTokens?: number; graphContext?: unknown }
+      return {
+        data: {
+          results: json.results ?? [],
+          queryTokens: json.queryTokens ?? 0,
+          ...(json.graphContext !== undefined ? { graphContext: json.graphContext } : {}),
+        },
+        fetchedAt: Date.now(),
+      }
+    }
     throw new Error(`phony: unknown read capability ${inv.capabilityName}`)
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
+    const token = bearerToken(inv.source.credentials)
     if (inv.capabilityName === 'start_outbound_call') {
       const args = validateOutboundStartArgs(inv.args)
-      const token = bearerToken(inv.source.credentials)
       const payload: Record<string, unknown> = {
         agentId: args.agentId,
         toNumber: args.toNumber,
@@ -233,6 +552,111 @@ export const phonyConnector: ConnectorAdapter = {
           dryRun: json.dryRun ?? false,
           ...(json.dryRunReport !== undefined ? { dryRunReport: json.dryRunReport } : {}),
         },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'create_agent') {
+      const payload = pick(inv.args as Record<string, unknown>, AGENT_FIELDS)
+      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/agents`, payload, 'create_agent')
+      return {
+        status: 'committed',
+        data: { agent: json },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'provision_agent') {
+      const args = inv.args as Record<string, unknown>
+      const payload = pick(args, AGENT_FIELDS)
+      if (args.collection !== undefined) payload.collection = args.collection
+      if (args.initialContent !== undefined) payload.initialContent = args.initialContent
+      const json = await postJson<{ agent?: unknown; collection?: unknown; ingested?: unknown }>(
+        inv,
+        token,
+        `${API}/v1/agents/provision`,
+        payload,
+        'provision_agent',
+      )
+      return {
+        status: 'committed',
+        data: {
+          agent: json.agent ?? null,
+          ...(json.collection !== undefined ? { collection: json.collection } : {}),
+          ...(json.ingested !== undefined ? { ingested: json.ingested } : {}),
+        },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'kb_create_collection') {
+      const { name, description, metadata } = inv.args as {
+        name: string
+        description?: string
+        metadata?: Record<string, unknown>
+      }
+      const payload: Record<string, unknown> = { name }
+      if (description !== undefined) payload.description = description
+      if (metadata !== undefined) payload.metadata = metadata
+      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/collections`, payload, 'kb_create_collection')
+      return {
+        status: 'committed',
+        data: { collection: json },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'kb_ingest') {
+      const { collectionId, ...rest } = inv.args as { collectionId: string } & Record<string, unknown>
+      const payload = pick(rest, INGEST_FIELDS)
+      const json = await postJson<{ documentId?: string; chunksCreated?: number; tokensUsed?: number }>(
+        inv,
+        token,
+        `${API}/v1/collections/${encodeURIComponent(collectionId)}/ingest`,
+        payload,
+        'kb_ingest',
+      )
+      return {
+        status: 'committed',
+        data: {
+          documentId: json.documentId ?? null,
+          chunksCreated: json.chunksCreated ?? 0,
+          tokensUsed: json.tokensUsed ?? 0,
+        },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'run_synthetic_test') {
+      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
+      const payload = pick(rest, SYNTHETIC_FIELDS)
+      const json = await postJson<Record<string, unknown>>(
+        inv,
+        token,
+        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-synthetic`,
+        payload,
+        'run_synthetic_test',
+      )
+      return {
+        status: 'committed',
+        data: { run: json },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'run_selfplay_test') {
+      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
+      const payload = pick(rest, SELFPLAY_FIELDS)
+      const json = await postJson<{ testRun?: unknown }>(
+        inv,
+        token,
+        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-selfplay`,
+        payload,
+        'run_selfplay_test',
+      )
+      return {
+        status: 'committed',
+        data: { testRun: json.testRun ?? json },
         committedAt: Date.now(),
         idempotentReplay: false,
       }
@@ -365,3 +789,117 @@ async function getJson<T>(
   }
   return (await res.json()) as T
 }
+
+async function postJson<T>(
+  inv: ConnectorInvocation,
+  token: string,
+  url: string,
+  payload: Record<string, unknown>,
+  label: string,
+): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return (await res.json()) as T
+}
+
+/** Copy only the declared keys that are present (not undefined) into a fresh
+ *  payload. Keeps the connector from forwarding fields the route's zod schema
+ *  doesn't declare. */
+function pick(args: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const key of fields) {
+    if (args[key] !== undefined) out[key] = args[key]
+  }
+  return out
+}
+
+// Field allowlists — exactly the keys each route's zod schema declares. The
+// :id path params (agentId, collectionId) are routed via the URL and excluded.
+const AGENT_FIELDS = [
+  'id',
+  'name',
+  'description',
+  'systemPrompt',
+  'firstMessage',
+  'voiceId',
+  'ttsProvider',
+  'ttsModel',
+  'sttProvider',
+  'llmProvider',
+  'llmModel',
+  'libraryId',
+  'collectionId',
+  'styleProfile',
+  'promptByModel',
+  'language',
+  'temperature',
+  'maxTokens',
+  'contactCaptureEnabled',
+  'contactCaptureFields',
+  'metadata',
+] as const
+
+const INGEST_FIELDS = [
+  'content',
+  'sourceUrl',
+  'contentType',
+  'metadata',
+  'chunkSize',
+  'chunkOverlap',
+] as const
+
+const SYNTHETIC_FIELDS = [
+  'persona',
+  'goal',
+  'maxTurns',
+  'maxSteps',
+  'callerPhone',
+  'instanceId',
+  'assertions',
+  'sessionAssertions',
+  'enableJudge',
+  'systemPromptOverride',
+  'firstMessageOverride',
+  'disableRag',
+  'questions',
+  'expectedAnswers',
+  'realism',
+] as const
+
+const SELFPLAY_FIELDS = [
+  'agentBId',
+  'taskA',
+  'taskB',
+  'participants',
+  'maxExchanges',
+  'maxSteps',
+  'initialSpeaker',
+  'callerPhone',
+  'instanceIdA',
+  'instanceIdB',
+  'transportMode',
+  'enableTts',
+  'overlapMode',
+  'bargeInEnabled',
+  'bargeInSensitivity',
+  'ttsProviderOverride',
+  'speakerTtsOverrides',
+  'voiceIdOverride',
+  'speakerVoiceOverrides',
+  'ttsModelOverride',
+  'speakerTtsModelOverrides',
+  'enableSttLoop',
+  'sttProvider',
+] as const
