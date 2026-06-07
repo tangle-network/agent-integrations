@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 142 |
-| Executable setup specs | 14 |
+| Setup specs | 143 |
+| Executable setup specs | 15 |
 | Catalog/setup-only specs | 128 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 10 |
-| Native adapter surfaces shipped | 16 |
+| Native adapter surfaces shipped | 17 |
 | Package-runtime backends | 659 |
 | Runtime manifest dependencies | 670 |
 | Tangle catalog connectors exposable behind runtime | 669 |
@@ -74,6 +74,7 @@ These are direct in-repo implementations. They are not the only first-class cont
 - `slack`
 - `notion-database`
 - `twilio-sms`
+- `phony`
 - `stripe-pack`
 - `webhook`
 - `stripe`
@@ -95,6 +96,7 @@ Executable setup specs:
 - `hubspot`
 - `microsoft-calendar`
 - `notion-database`
+- `phony`
 - `salesforce`
 - `slack`
 - `stripe-pack`
@@ -107,7 +109,7 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 16 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
+| Native adapter execution | Done for listed native backends | 17 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
 | Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 659 contracts use package-runtime backends with package names and 3790 catalog upstream action names. |
 | Runtime dependency manifest | Done | `buildTangleCatalogRuntimePackageManifest()` emits 670 dependencies for a complete package-runtime worker install. |
@@ -186,7 +188,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 16 native adapter surfaces. 10 overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
+   This repo ships 17 native adapter surfaces. 10 overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
 
 ## Concrete Launch Interpretation
 

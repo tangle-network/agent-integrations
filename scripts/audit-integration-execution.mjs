@@ -26,6 +26,7 @@ const firstParty = [
   'slack',
   'notion-database',
   'twilio-sms',
+  'phony',
   'stripe-pack',
   'webhook',
   'stripe',

@@ -114,6 +114,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['sendgrid', 'SendGrid', 'email', 'email', 'tier_1', 'email,transactional'],
   ['postmark', 'Postmark', 'email', 'email', 'tier_1', 'email,transactional'],
   ['twilio', 'Twilio', 'chat', 'chat', 'tier_0', 'sms,voice,communications'],
+  ['phony', 'ph0ny', 'chat', 'chat', 'tier_1', 'voice,telephony,communications', 'api_key'],
   ['discord', 'Discord', 'chat', 'chat', 'tier_1', 'chat,community'],
   ['telegram', 'Telegram', 'chat', 'chat', 'tier_1', 'chat,community'],
   ['whatsapp-business', 'WhatsApp Business', 'chat', 'chat', 'tier_1', 'chat,meta,customer-comms'],

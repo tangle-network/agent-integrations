@@ -154,6 +154,67 @@ export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
       },
     ],
   },
+
+  // ── ph0ny ──────────────────────────────────────────────────────────
+  // ph0ny issues a single Bearer API key per developer. The key is a
+  // `plabs_` prefix followed by 32 url-safe nanoid chars. It is shown once
+  // at creation (POST /v1/keys in the developer portal); only its hash is
+  // stored server-side, so it cannot be retrieved later — rotate to replace.
+  phony: {
+    consoleUrl: 'https://api.ph0ny.com',
+    credentialFields: [
+      {
+        label: 'ph0ny API key',
+        description:
+          'Bearer key issued by ph0ny. Create one in the developer portal ' +
+          '(POST /v1/keys). Sent as `Authorization: Bearer <key>`.',
+        example: 'plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm',
+        regex: '^plabs_[A-Za-z0-9_-]{32}$',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      {
+        id: 'open-portal',
+        title: 'Open the ph0ny developer portal',
+        detail: 'Visit https://api.ph0ny.com and sign in to the developer portal.',
+        copyValue: 'https://api.ph0ny.com',
+      },
+      {
+        id: 'create-key',
+        title: 'Create an API key',
+        detail:
+          'In the portal, create a new API key (POST /v1/keys). Give it a ' +
+          'descriptive name (e.g. "tangle agent — prod"). ph0ny returns the ' +
+          'full key exactly once.',
+      },
+      {
+        id: 'paste',
+        title: 'Paste the key',
+        detail:
+          'Copy the plabs_… key ph0ny shows and paste it here. The key is ' +
+          'sealed before persistence.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'key-shown-once',
+        severity: 'warning',
+        message:
+          'ph0ny stores only a hash of the key — the full plabs_… value is ' +
+          'shown exactly once at creation and cannot be retrieved later. Save ' +
+          'it immediately; if lost, rotate to issue a replacement.',
+      },
+      {
+        id: 'rotate-endpoint',
+        severity: 'info',
+        message:
+          'Rotate a key with POST /v1/keys/:id/rotate. The old key is revoked ' +
+          'and a new plabs_… key is returned once — update this connection ' +
+          'with the new value.',
+      },
+    ],
+  },
 }
 
 /** Public read — undefined when no override exists for the kind. */
