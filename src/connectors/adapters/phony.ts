@@ -49,15 +49,9 @@
  *     Read. POST /v1/collections/:id/search. Hybrid vector+keyword search
  *     over a collection. Returns { results, queryTokens, graphContext? }.
  *
- *   run_synthetic_test(agentId, persona, goal, …)
- *     Mutation, external effect. POST /v1/agents/:id/tests/run-synthetic.
- *     Drives a synthetic LLM caller against the agent — NO billing, NO real
- *     dial. Creates a test-run row and returns its results + summary.
- *
- *   run_selfplay_test(agentId, …)
- *     Mutation, external effect. POST /v1/agents/:id/tests/run-selfplay.
- *     Runs two agents against each other in text or simulated audio — NO
- *     billing, NO real dial. Returns { testRun }.
+ * The agent test/eval routes (/v1/agents/:id/tests/*, benchmark, redteam) are
+ * deliberately NOT exposed here: they run platform-funded LLM/TTS inference with
+ * no usage metering, and are platform-admin tooling — not workspace-agent surface.
  */
 
 import {
@@ -332,97 +326,6 @@ export const phonyConnector: ConnectorAdapter = {
           required: ['collectionId', 'query'],
         },
       },
-      {
-        name: 'run_synthetic_test',
-        class: 'mutation',
-        description:
-          'Run a synthetic LLM caller against the agent to validate behavior. No billing, no real phone call — creates a test-run row and returns its results and summary.',
-        cas: 'none',
-        externalEffect: true,
-        parameters: {
-          type: 'object',
-          properties: {
-            agentId: { type: 'string', description: 'Agent under test.' },
-            persona: {
-              type: 'string',
-              enum: ['friendly', 'confused', 'impatient', 'adversarial', 'tangential', 'detailed', 'multiTopic'],
-              description: 'Synthetic caller persona.',
-            },
-            goal: { type: 'string', description: "The synthetic caller's objective (1–1000 chars)." },
-            maxTurns: { type: 'integer', minimum: 1, maximum: 20, description: 'Max conversation turns; defaults to 10.' },
-            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
-            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve an agent instance.' },
-            instanceId: { type: 'string', description: 'Optional explicit agent-instance id.' },
-            assertions: { type: 'array', items: { type: 'object' }, description: 'Per-turn assertions to evaluate.' },
-            sessionAssertions: { type: 'array', maxItems: 10, items: { type: 'object' }, description: 'Session-level assertions (≤10).' },
-            enableJudge: { type: 'boolean', description: 'Run the LLM judge over the transcript; defaults to false.' },
-            systemPromptOverride: { type: 'string', description: 'Override the agent system prompt for this run (≤8000 chars).' },
-            firstMessageOverride: { type: 'string', description: 'Override the agent first message for this run (≤1000 chars).' },
-            disableRag: { type: 'boolean', description: 'Disable KB retrieval for this run.' },
-            questions: { type: 'array', maxItems: 20, items: { type: 'object' }, description: 'Campaign questions to extract from the transcript (≤20).' },
-            expectedAnswers: { type: 'object', description: 'Expected answers keyed by question id for ground-truth comparison.' },
-            realism: {
-              type: 'string',
-              enum: ['clean', 'light', 'moderate', 'chaos'],
-              description: 'Inject STT artifacts/interrupts/silences to simulate real-call conditions.',
-            },
-          },
-          required: ['agentId', 'persona', 'goal'],
-        },
-      },
-      {
-        name: 'run_selfplay_test',
-        class: 'mutation',
-        description:
-          'Run two agents against each other in text or simulated audio to validate end-to-end behavior. No billing, no real phone call. Returns { testRun }.',
-        cas: 'none',
-        externalEffect: true,
-        parameters: {
-          type: 'object',
-          properties: {
-            agentId: { type: 'string', description: 'Agent A (the agent under test).' },
-            agentBId: { type: 'string', description: 'Optional agent B; defaults to agent A (self-play against itself).' },
-            taskA: { type: 'string', description: "Optional task/goal for agent A (≤1000 chars)." },
-            taskB: { type: 'string', description: "Optional task/goal for agent B (≤1000 chars)." },
-            participants: {
-              type: 'array',
-              minItems: 2,
-              maxItems: 8,
-              description: 'Optional multi-party participant list (overrides A/B pairing).',
-              items: {
-                type: 'object',
-                properties: {
-                  agentId: { type: 'string' },
-                  speaker: { type: 'string', description: 'Speaker label (≤20 chars).' },
-                  task: { type: 'string', description: 'Per-participant task (≤1000 chars).' },
-                  instanceId: { type: 'string' },
-                },
-                required: ['agentId'],
-              },
-            },
-            maxExchanges: { type: 'integer', minimum: 1, maximum: 20, description: 'Max back-and-forth exchanges; defaults to 6.' },
-            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
-            initialSpeaker: { type: 'string', description: 'Speaker who opens; defaults to "A".' },
-            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve agent instances.' },
-            instanceIdA: { type: 'string', description: 'Optional explicit instance id for agent A.' },
-            instanceIdB: { type: 'string', description: 'Optional explicit instance id for agent B.' },
-            transportMode: { type: 'string', enum: ['text', 'audio'], description: 'Text or audio transport; defaults to text. Audio requires enableTts=true.' },
-            enableTts: { type: 'boolean', description: 'Synthesize speech each turn; required when transportMode is "audio".' },
-            overlapMode: { type: 'string', enum: ['none', 'simulated', 'duplex'], description: 'Turn-overlap model; "duplex" requires audio transport.' },
-            bargeInEnabled: { type: 'boolean', description: 'Allow barge-in interruptions; defaults to false.' },
-            bargeInSensitivity: { type: 'number', minimum: 0, maximum: 1, description: 'Barge-in sensitivity (0–1); defaults to 0.65.' },
-            ttsProviderOverride: { type: 'string', description: 'Override the TTS provider for all speakers.' },
-            speakerTtsOverrides: { type: 'object', description: 'Per-speaker TTS provider overrides (speaker → provider).' },
-            voiceIdOverride: { type: 'string', description: 'Override the voice id for all speakers.' },
-            speakerVoiceOverrides: { type: 'object', description: 'Per-speaker voice id overrides (speaker → voiceId).' },
-            ttsModelOverride: { type: 'string', description: 'Override the TTS model for all speakers.' },
-            speakerTtsModelOverrides: { type: 'object', description: 'Per-speaker TTS model overrides (speaker → model).' },
-            enableSttLoop: { type: 'boolean', description: 'Feed TTS output through STT to close the audio loop; defaults to false.' },
-            sttProvider: { type: 'string', enum: ['whisper', 'deepgram', 'groq'], description: 'STT provider for the audio loop; defaults to whisper.' },
-          },
-          required: ['agentId'],
-        },
-      },
     ],
   },
 
@@ -627,40 +530,6 @@ export const phonyConnector: ConnectorAdapter = {
         idempotentReplay: false,
       }
     }
-    if (inv.capabilityName === 'run_synthetic_test') {
-      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
-      const payload = pick(rest, SYNTHETIC_FIELDS)
-      const json = await postJson<Record<string, unknown>>(
-        inv,
-        token,
-        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-synthetic`,
-        payload,
-        'run_synthetic_test',
-      )
-      return {
-        status: 'committed',
-        data: { run: json },
-        committedAt: Date.now(),
-        idempotentReplay: false,
-      }
-    }
-    if (inv.capabilityName === 'run_selfplay_test') {
-      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
-      const payload = pick(rest, SELFPLAY_FIELDS)
-      const json = await postJson<{ testRun?: unknown }>(
-        inv,
-        token,
-        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-selfplay`,
-        payload,
-        'run_selfplay_test',
-      )
-      return {
-        status: 'committed',
-        data: { testRun: json.testRun ?? json },
-        committedAt: Date.now(),
-        idempotentReplay: false,
-      }
-    }
     throw new Error(`phony: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -858,48 +727,4 @@ const INGEST_FIELDS = [
   'metadata',
   'chunkSize',
   'chunkOverlap',
-] as const
-
-const SYNTHETIC_FIELDS = [
-  'persona',
-  'goal',
-  'maxTurns',
-  'maxSteps',
-  'callerPhone',
-  'instanceId',
-  'assertions',
-  'sessionAssertions',
-  'enableJudge',
-  'systemPromptOverride',
-  'firstMessageOverride',
-  'disableRag',
-  'questions',
-  'expectedAnswers',
-  'realism',
-] as const
-
-const SELFPLAY_FIELDS = [
-  'agentBId',
-  'taskA',
-  'taskB',
-  'participants',
-  'maxExchanges',
-  'maxSteps',
-  'initialSpeaker',
-  'callerPhone',
-  'instanceIdA',
-  'instanceIdB',
-  'transportMode',
-  'enableTts',
-  'overlapMode',
-  'bargeInEnabled',
-  'bargeInSensitivity',
-  'ttsProviderOverride',
-  'speakerTtsOverrides',
-  'voiceIdOverride',
-  'speakerVoiceOverrides',
-  'ttsModelOverride',
-  'speakerTtsModelOverrides',
-  'enableSttLoop',
-  'sttProvider',
 ] as const

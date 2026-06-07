@@ -53,13 +53,11 @@ describe('phony adapter manifest', () => {
         'kb_create_collection',
         'kb_ingest',
         'kb_search',
-        'run_synthetic_test',
-        'run_selfplay_test',
       ].sort(),
     )
   })
 
-  it('classifies kb_search as a read and the agent/KB/test writes as mutations', () => {
+  it('classifies kb_search as a read and the agent/KB writes as mutations', () => {
     const byName = new Map(phonyConnector.manifest.capabilities.map((c) => [c.name, c]))
     expect(byName.get('kb_search')?.class).toBe('read')
     for (const name of [
@@ -67,8 +65,6 @@ describe('phony adapter manifest', () => {
       'provision_agent',
       'kb_create_collection',
       'kb_ingest',
-      'run_synthetic_test',
-      'run_selfplay_test',
     ]) {
       const cap = byName.get(name)
       expect(cap?.class).toBe('mutation')
@@ -569,66 +565,5 @@ describe('phony kb_search', () => {
         idempotencyKey: 'search-401',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
-
-describe('phony run_synthetic_test', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs /v1/agents/:id/tests/run-synthetic (no dial / no billing) with persona + goal', async () => {
-    const cap = captureFetch(
-      jsonResponse({
-        id: 'run_1',
-        agentId: 'agent_9',
-        status: 'completed',
-        summary: { total: 1, passed: 1, failed: 0 },
-      }),
-    )
-    const result = await phonyConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'run_synthetic_test',
-      args: {
-        agentId: 'agent_9',
-        persona: 'friendly',
-        goal: 'Confirm the booking time.',
-        maxTurns: 6,
-      },
-      idempotencyKey: 'synth-1',
-    })
-    expect(cap.method).toBe('POST')
-    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents/agent_9/tests/run-synthetic')
-    expect(cap.headers?.authorization).toBe(BEARER)
-    // agentId is a path param — body carries only the test config.
-    expect(cap.body).toEqual({ persona: 'friendly', goal: 'Confirm the booking time.', maxTurns: 6 })
-    expect(result.status).toBe('committed')
-    if (result.status !== 'committed') throw new Error('expected committed')
-    expect(result.data).toMatchObject({ run: { id: 'run_1', status: 'completed' } })
-  })
-})
-
-describe('phony run_selfplay_test', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs /v1/agents/:id/tests/run-selfplay (no dial / no billing) and unwraps testRun', async () => {
-    const cap = captureFetch(jsonResponse({ testRun: { id: 'run_2', status: 'completed' } }))
-    const result = await phonyConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'run_selfplay_test',
-      args: {
-        agentId: 'agent_9',
-        agentBId: 'agent_10',
-        maxExchanges: 4,
-        transportMode: 'text',
-      },
-      idempotencyKey: 'self-1',
-    })
-    expect(cap.method).toBe('POST')
-    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents/agent_9/tests/run-selfplay')
-    expect(cap.headers?.authorization).toBe(BEARER)
-    // agentId is a path param — body carries only the test config.
-    expect(cap.body).toEqual({ agentBId: 'agent_10', maxExchanges: 4, transportMode: 'text' })
-    expect(result.status).toBe('committed')
-    if (result.status !== 'committed') throw new Error('expected committed')
-    expect(result.data).toMatchObject({ testRun: { id: 'run_2', status: 'completed' } })
   })
 })
