@@ -220,6 +220,69 @@ describe('phony start_outbound_call', () => {
     expect(result.data).toMatchObject({ dryRun: true, callId: null, dryRunReport: { verdict: 'would_call' } })
   })
 
+  it('refuses missing consent before contacting ph0ny', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      phonyConnector.executeMutation!({
+        source: source(),
+        capabilityName: 'start_outbound_call',
+        args: {
+          agentId: 'agent_1',
+          toNumber: '+14155551234',
+          fromNumber: '+14155550001',
+          mission: { goal: 'Confirm the appointment time.' },
+          userConsentRecorded: false,
+        },
+        idempotencyKey: 'start-no-consent',
+      }),
+    ).rejects.toThrow('requires userConsentRecorded=true')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses malformed phone numbers before contacting ph0ny', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      phonyConnector.executeMutation!({
+        source: source(),
+        capabilityName: 'start_outbound_call',
+        args: {
+          agentId: 'agent_1',
+          toNumber: '555-1212',
+          fromNumber: '+14155550001',
+          mission: { goal: 'Confirm the appointment time.' },
+          userConsentRecorded: true,
+        },
+        idempotencyKey: 'start-bad-phone',
+      }),
+    ).rejects.toThrow('toNumber must be E.164')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses too-short mission goals before contacting ph0ny', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      phonyConnector.executeMutation!({
+        source: source(),
+        capabilityName: 'start_outbound_call',
+        args: {
+          agentId: 'agent_1',
+          toNumber: '+14155551234',
+          fromNumber: '+14155550001',
+          mission: { goal: 'hi' },
+          userConsentRecorded: true,
+        },
+        idempotencyKey: 'start-short-goal',
+      }),
+    ).rejects.toThrow('mission.goal must be at least 8 characters')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('surfaces CredentialsExpired on 401', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
     await expect(

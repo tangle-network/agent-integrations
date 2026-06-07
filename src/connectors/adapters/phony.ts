@@ -35,6 +35,7 @@ import {
 } from '../types.js'
 
 const API = 'https://api.ph0ny.com'
+const E164 = /^\+[1-9]\d{7,14}$/
 
 export const phonyConnector: ConnectorAdapter = {
   manifest: {
@@ -187,25 +188,9 @@ export const phonyConnector: ConnectorAdapter = {
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-    const token = bearerToken(inv.source.credentials)
     if (inv.capabilityName === 'start_outbound_call') {
-      const args = inv.args as {
-        agentId: string
-        toNumber: string
-        fromNumber: string
-        mission: {
-          goal: string
-          successSchema?: Record<string, unknown>
-          ivrHints?: string[]
-          maxTurns?: number
-          maxDurationMs?: number
-        }
-        missionId?: string
-        callerProfile?: { userName?: string; companyName?: string }
-        voiceCloneId?: string
-        userConsentRecorded: boolean
-        dryRun?: boolean
-      }
+      const args = validateOutboundStartArgs(inv.args)
+      const token = bearerToken(inv.source.credentials)
       const payload: Record<string, unknown> = {
         agentId: args.agentId,
         toNumber: args.toNumber,
@@ -278,6 +263,89 @@ function bearerToken(creds: { kind: string; apiKey?: string }): string {
     throw new Error('phony: expected api-key credentials')
   }
   return creds.apiKey
+}
+
+type OutboundStartArgs = {
+  agentId: string
+  toNumber: string
+  fromNumber: string
+  mission: {
+    goal: string
+    successSchema?: Record<string, unknown>
+    ivrHints?: string[]
+    maxTurns?: number
+    maxDurationMs?: number
+  }
+  missionId?: string
+  callerProfile?: { userName?: string; companyName?: string }
+  voiceCloneId?: string
+  userConsentRecorded: true
+  dryRun?: boolean
+}
+
+function validateOutboundStartArgs(args: Record<string, unknown>): OutboundStartArgs {
+  if (args.userConsentRecorded !== true) {
+    throw new Error(
+      'phony start_outbound_call requires userConsentRecorded=true after explicit user authorization; refusing before contacting ph0ny',
+    )
+  }
+
+  assertNonEmptyString(args.agentId, 'agentId', 128)
+  assertE164(args.toNumber, 'toNumber')
+  assertE164(args.fromNumber, 'fromNumber')
+
+  if (!isRecord(args.mission)) throw new Error('phony start_outbound_call requires mission')
+  const mission = args.mission
+  assertNonEmptyString(mission.goal, 'mission.goal', 2000)
+  if (mission.goal.trim().length < 8) throw new Error('phony start_outbound_call mission.goal must be at least 8 characters')
+  if (mission.successSchema !== undefined && !isRecord(mission.successSchema)) {
+    throw new Error('phony start_outbound_call mission.successSchema must be an object when supplied')
+  }
+  if (mission.ivrHints !== undefined) {
+    if (!Array.isArray(mission.ivrHints) || mission.ivrHints.length > 8) {
+      throw new Error('phony start_outbound_call mission.ivrHints must be an array with at most 8 entries')
+    }
+    for (const hint of mission.ivrHints) assertNonEmptyString(hint, 'mission.ivrHints[]', 200)
+  }
+  assertOptionalInteger(mission.maxTurns, 'mission.maxTurns', 1, 60)
+  assertOptionalInteger(mission.maxDurationMs, 'mission.maxDurationMs', 30_000, 20 * 60 * 1000)
+  if (args.missionId !== undefined) assertNonEmptyString(args.missionId, 'missionId', 128)
+  if (args.voiceCloneId !== undefined) assertNonEmptyString(args.voiceCloneId, 'voiceCloneId', 128)
+  if (args.callerProfile !== undefined) {
+    if (!isRecord(args.callerProfile)) throw new Error('phony start_outbound_call callerProfile must be an object')
+    if (args.callerProfile.userName !== undefined) assertNonEmptyString(args.callerProfile.userName, 'callerProfile.userName', 120)
+    if (args.callerProfile.companyName !== undefined) {
+      assertNonEmptyString(args.callerProfile.companyName, 'callerProfile.companyName', 120)
+    }
+  }
+  if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
+    throw new Error('phony start_outbound_call dryRun must be boolean when supplied')
+  }
+
+  return args as OutboundStartArgs
+}
+
+function assertNonEmptyString(value: unknown, field: string, maxLength: number): asserts value is string {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > maxLength) {
+    throw new Error(`phony start_outbound_call ${field} must be a non-empty string <= ${maxLength} chars`)
+  }
+}
+
+function assertE164(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !E164.test(value)) {
+    throw new Error(`phony start_outbound_call ${field} must be E.164 format, e.g. +14155550123`)
+  }
+}
+
+function assertOptionalInteger(value: unknown, field: string, min: number, max: number): asserts value is number | undefined {
+  if (value === undefined) return
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`phony start_outbound_call ${field} must be an integer between ${min} and ${max}`)
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 async function getJson<T>(
