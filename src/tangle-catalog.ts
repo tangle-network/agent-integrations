@@ -21,6 +21,8 @@ import {
   type StartAuthRequest,
   type StartAuthResult,
 } from './index.js'
+import * as bundledAdapters from './connectors/adapters/index.js'
+import type { ConnectorAdapter } from './connectors/types.js'
 
 export {
   TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
@@ -180,32 +182,34 @@ export interface TangleIntegrationCatalogFreshnessResult {
   warnings: string[]
 }
 
-const NATIVE_ADAPTER_IDS = new Set([
-  'google-calendar',
-  'google-sheets',
-  'microsoft-calendar',
-  'hubspot',
-  'slack',
-  'notion-database',
-  'twilio-sms',
-  'stripe-pack',
-  'webhook',
-  'stripe',
-  'slack-inbound',
-  'github',
-  'gitlab',
-  'airtable',
-  'asana',
-  'salesforce',
-])
+export function listTangleNativeAdapterIds(): string[] {
+  const ids = new Set<string>()
+  for (const value of Object.values(bundledAdapters)) {
+    if (isConnectorAdapter(value)) {
+      ids.add(value.manifest.kind)
+    }
+  }
+  return [...ids].sort()
+}
+
+function isConnectorAdapter(value: unknown): value is ConnectorAdapter {
+  return Boolean(
+    value
+      && typeof value === 'object'
+      && 'manifest' in value
+      && (value as { manifest?: unknown }).manifest
+      && typeof (value as { manifest: { kind?: unknown } }).manifest.kind === 'string',
+  )
+}
 
 export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogEntry[] {
   return listActivepiecesCatalogEntries().map((entry) => sanitizeEntry(entry))
 }
 
 export function listTangleIntegrationContracts(): TangleIntegrationContract[] {
+  const nativeAdapterIds = new Set(listTangleNativeAdapterIds())
   return listActivepiecesCatalogEntries().map((entry) => {
-    const nativeAdapter = NATIVE_ADAPTER_IDS.has(entry.id)
+    const nativeAdapter = nativeAdapterIds.has(entry.id)
     return {
       id: entry.id,
       title: entry.title,
@@ -247,8 +251,10 @@ export function listTangleIntegrationCatalogRuntimePackages(): Array<{
   packageName: string
   version?: string
 }> {
+  const nativeAdapterIds = new Set(listTangleNativeAdapterIds())
   return listActivepiecesCatalogEntries()
-    .filter((entry): entry is ActivepiecesCatalogEntry & { npmPackage: string } => Boolean(entry.npmPackage))
+    .filter((entry): entry is ActivepiecesCatalogEntry & { npmPackage: string } =>
+      Boolean(entry.npmPackage) && !nativeAdapterIds.has(entry.id))
     .map((entry) => ({
       connectorId: entry.id,
       packageName: entry.npmPackage,

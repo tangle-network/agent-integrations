@@ -3,6 +3,7 @@ import {
   buildTangleIntegrationCatalogConnectors,
   buildTangleCatalogRuntimePackageManifest,
   listTangleIntegrationContracts,
+  listTangleNativeAdapterIds,
   listIntegrationSpecs,
 } from '../dist/index.js'
 
@@ -14,29 +15,12 @@ const connectors = buildTangleIntegrationCatalogConnectors({
   executable: true,
 })
 const contracts = listTangleIntegrationContracts()
+const firstParty = listTangleNativeAdapterIds()
+const firstPartySet = new Set(firstParty)
+const catalogRuntimeConnectors = connectors.filter((connector) => !firstPartySet.has(connector.id))
 const runtimePackageManifest = buildTangleCatalogRuntimePackageManifest({
   agentIntegrationsVersion: pkg.version,
 })
-
-const firstParty = [
-  'google-calendar',
-  'google-sheets',
-  'microsoft-calendar',
-  'hubspot',
-  'slack',
-  'notion-database',
-  'twilio-sms',
-  'phony',
-  'stripe-pack',
-  'webhook',
-  'stripe',
-  'slack-inbound',
-  'github',
-  'gitlab',
-  'airtable',
-  'asana',
-  'salesforce',
-]
 
 const summary = {
   catalogConnectors: catalog.length,
@@ -68,15 +52,14 @@ const summary = {
   nativeBackedContracts: contracts.filter((contract) => contract.implementation.kind === 'native_adapter').length,
   packageRuntimeBackedContracts: contracts.filter((contract) => contract.implementation.kind === 'package_runtime').length,
   runtimeManifestDependencies: Object.keys(runtimePackageManifest.dependencies).length,
-  executableCatalogConnectors: connectors.length,
-  executableCatalogActions: connectors.reduce((sum, connector) => sum + connector.actions.length, 0),
+  executableCatalogConnectors: catalogRuntimeConnectors.length,
+  executableCatalogActions: catalogRuntimeConnectors.reduce((sum, connector) => sum + connector.actions.length, 0),
 }
 
 const byAuth = countBy(catalog, (entry) => entry.auth)
 const byCategory = countBy(catalog, (entry) => entry.category)
 const executableSpecs = specs.filter((spec) => spec.status === 'executable').map((spec) => spec.kind).sort()
 const specsByKind = new Map(specs.map((spec) => [spec.kind, spec]))
-const firstPartySet = new Set(firstParty)
 const contractsById = new Map(contracts.map((contract) => [contract.id, contract]))
 const matrix = [
   ...catalog.map((entry) => {
@@ -174,9 +157,9 @@ This audit separates product contracts from implementation backends:
 | Native adapter backends | ${summary.nativeBackedContracts} |
 | Native adapter surfaces shipped | ${summary.firstPartyAdapterSurfaces} |
 | Package-runtime backends | ${summary.packageRuntimeBackedContracts} |
-| Runtime manifest dependencies | ${summary.runtimeManifestDependencies} |
-| Tangle catalog connectors exposable behind runtime | ${summary.executableCatalogConnectors} |
-| Tangle catalog actions exposable behind runtime | ${summary.executableCatalogActions} |
+| Runtime manifest dependencies for catalog-only connectors | ${summary.runtimeManifestDependencies} |
+| Catalog-only connectors exposable behind runtime | ${summary.executableCatalogConnectors} |
+| Catalog-only actions exposable behind runtime | ${summary.executableCatalogActions} |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
 
@@ -190,9 +173,12 @@ ${table(Object.entries(byCategory).sort((a, b) => b[1] - a[1]), ['Category', 'Co
 
 ## Native Adapter Backends
 
-These are direct in-repo implementations. They are not the only first-class contracts:
+These are direct in-repo implementations. They are not the only first-class contracts.
+The full set is in the machine-readable matrix; representative native adapters:
 
-${firstParty.map((id) => `- \`${id}\``).join('\n')}
+${firstParty.slice(0, 80).map((id) => `- \`${id}\``).join('\n')}
+
+${firstParty.length > 80 ? `...and ${firstParty.length - 80} more native adapter surfaces.` : ''}
 
 Executable setup specs:
 
@@ -204,10 +190,10 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | --- | --- | --- |
 | Tangle first-class contracts | Done | ${summary.tangleContracts} connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | ${summary.catalogConnectors} catalog connectors, ${summary.catalogActions} actions, ${summary.catalogTriggers} triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | ${summary.firstPartyAdapterSurfaces} reviewed native adapter surfaces ship from this package; ${summary.nativeBackedContracts} overlap the 669 catalog contracts. |
+| Native adapter execution | Done for listed native backends | ${summary.firstPartyAdapterSurfaces} reviewed native adapter surfaces ship from this package; ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
 | Package-runtime action execution | Wiring done; runtime deployment/smoke pending | ${summary.packageRuntimeBackedContracts} contracts use package-runtime backends with package names and ${summary.catalogActionsWithCatalogUpstreamName} catalog upstream action names. |
-| Runtime dependency manifest | Done | \`buildTangleCatalogRuntimePackageManifest()\` emits ${summary.runtimeManifestDependencies} dependencies for a complete package-runtime worker install. |
+| Runtime dependency manifest | Done | \`buildTangleCatalogRuntimePackageManifest()\` emits ${summary.runtimeManifestDependencies} dependencies for the remaining package-runtime worker install. |
 | Runtime package coverage audit | Done | \`auditTangleCatalogRuntimePackages()\` and \`tangle-catalog-runtime --audit-packages\` verify installed packages, piece exports, exact action mappings, and trigger surfaces in a deployed worker. |
 | Long-tail credential mapping | Mostly mapped | ${summary.catalogConnectorsWithAuthFields} connectors have auth field metadata. ${customAuthWithoutFields.length} custom-auth connectors still need exact manual auth fields. |
 | Trigger provider flow | Done structurally | ${summary.catalogTriggers} triggers are cataloged, ${summary.catalogTriggersWithCatalogUpstreamName} have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
@@ -246,7 +232,7 @@ ${customAuthWithoutFields.length > 0
    There are ${summary.catalogTriggers} catalog triggers and ${summary.catalogTriggersWithCatalogUpstreamName} upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships ${summary.firstPartyAdapterSurfaces} native adapter surfaces. ${summary.nativeBackedContracts} overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
+   This repo ships ${summary.firstPartyAdapterSurfaces} native adapter surfaces. ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts; the remaining catalog contracts use package-runtime backends.
 
 ## Concrete Launch Interpretation
 
