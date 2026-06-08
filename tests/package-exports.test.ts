@@ -44,10 +44,11 @@ describe('package exports', () => {
         types: './dist/specs.d.ts',
         import: './dist/specs.js',
       },
-      './tangle-catalog-runtime': {
-        types: './dist/tangle-catalog-runtime.d.ts',
-        import: './dist/tangle-catalog-runtime.js',
+      './coverage-catalog': {
+        types: './dist/coverage-catalog.d.ts',
+        import: './dist/coverage-catalog.js',
       },
     })
+    expect(packageJson.exports).not.toHaveProperty('./tangle-catalog-runtime')
   })
 })

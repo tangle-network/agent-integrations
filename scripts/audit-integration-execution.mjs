@@ -117,7 +117,7 @@ const matrix = [
     })),
 ].sort((a, b) => a.id.localeCompare(b.id))
 const matrixPath = 'docs/integration-execution-matrix.json'
-const needsPackageRuntimeVerification = matrix.filter((row) => row.implementationKind === 'package_runtime')
+const nativeAdapterBacklog = matrix.filter((row) => row.implementationKind === 'package_runtime')
 const needsActionMapping = matrix.filter((row) => row.missing?.includes('catalog_action_mapping'))
 const customAuthWithoutFields = catalog.filter((entry) => entry.auth === 'custom' && (entry.authFields ?? []).length === 0)
 const triggerOnlyGap = catalog.filter((entry) => entry.triggers.length > 0)
@@ -131,7 +131,7 @@ This audit separates product contracts from implementation backends:
 - **Tangle contract**: the connector has a Tangle-owned action/trigger/auth contract.
 - **Setup-ready**: we have setup/auth/runbook metadata for product UI and admin configuration.
 - **Native adapter backend**: this repo ships a reviewed direct adapter implementation.
-- **Package runtime backend**: a Tangle runtime service executes the connector package behind the same Tangle contract.
+- **Native adapter backlog**: a connector contract exists, but product-grade direct execution still needs a reviewed adapter.
 
 ## Summary
 
@@ -192,26 +192,26 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | Connector discovery/catalog search | Done | ${summary.catalogConnectors} catalog connectors, ${summary.catalogActions} actions, ${summary.catalogTriggers} triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | ${summary.firstPartyAdapterSurfaces} reviewed native adapter surfaces ship from this package; ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | ${summary.packageRuntimeBackedContracts} contracts use package-runtime backends with package names and ${summary.catalogActionsWithCatalogUpstreamName} catalog upstream action names. |
-| Runtime dependency manifest | Done | \`buildTangleCatalogRuntimePackageManifest()\` emits ${summary.runtimeManifestDependencies} dependencies for the remaining package-runtime worker install. |
-| Runtime package coverage audit | Done | \`auditTangleCatalogRuntimePackages()\` and \`tangle-catalog-runtime --audit-packages\` verify installed packages, piece exports, exact action mappings, and trigger surfaces in a deployed worker. |
+| Direct adapter backlog | Tracked | ${summary.packageRuntimeBackedContracts} contracts still need native/direct adapters before they should be product-executable. |
+| Legacy runtime dependency manifest | Deprecated | \`buildTangleCatalogRuntimePackageManifest()\` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
+| Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
 | Long-tail credential mapping | Mostly mapped | ${summary.catalogConnectorsWithAuthFields} connectors have auth field metadata. ${customAuthWithoutFields.length} custom-auth connectors still need exact manual auth fields. |
 | Trigger provider flow | Done structurally | ${summary.catalogTriggers} triggers are cataloged, ${summary.catalogTriggersWithCatalogUpstreamName} have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
-| Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, signed catalog runtime HTTP calls, and generated-app client helpers. |
+| Sandbox/app invocation envelope | Done | The library has capability bundles, invocation envelopes, policy checks, guard hooks, and generated-app client helpers. |
 | Live provider smoke tests | Not globally done | First-party adapters can be tested by consumers with credentials; long-tail smoke matrix is not generated yet. |
 
 ## Concrete Not-Done Buckets
 
 | Bucket | Count | What it means |
 | --- | ---: | --- |
-| Package-runtime contracts needing deployed runtime smoke verification | ${needsPackageRuntimeVerification.length} | Connector has a Tangle contract and package backend; deployed runtime still needs package-load/live-smoke proof. |
+| Contracts needing native/direct adapters | ${nativeAdapterBacklog.length} | Connector has a Tangle contract but no reviewed direct adapter yet. |
 | Catalog connectors with zero upstream action names | ${needsActionMapping.length} | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | ${customAuthWithoutFields.length} | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | ${triggerOnlyGap.length} | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
-Examples needing deployed runtime smoke verification:
+Examples needing native/direct adapter ports:
 
-${needsPackageRuntimeVerification.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.runtimePackage}\``).join('\n')}
+${nativeAdapterBacklog.slice(0, 40).map((row) => `- \`${row.id}\` -> \`${row.runtimePackage}\``).join('\n')}
 
 ${customAuthWithoutFields.length > 0
   ? `Examples needing manual custom auth mapping:\n\n${customAuthWithoutFields.slice(0, 40).map((entry) => `- \`${entry.id}\` -> \`${entry.npmPackage}\``).join('\n')}`
@@ -220,10 +220,10 @@ ${customAuthWithoutFields.length > 0
 ## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
-   All ${summary.tangleContracts} catalog entries have Tangle-owned contracts. ${summary.nativeBackedContracts} use native adapter backends; ${summary.packageRuntimeBackedContracts} use package-runtime backends.
+   All ${summary.tangleContracts} catalog entries have Tangle-owned contracts. ${summary.nativeBackedContracts} use native adapter backends; ${summary.packageRuntimeBackedContracts} are backlog for native ports.
 
 2. **Action-name mapping exists for cataloged actions.**
-   Done for cataloged actions: the catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithCatalogUpstreamName} upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit \`actionAliases\` for overrides. Deployed smoke verification proves those names against the installed packages.
+   Done for cataloged actions: the catalog currently has ${summary.catalogActions} actions and ${summary.catalogActionsWithCatalogUpstreamName} upstream action-name mappings in the checked-in catalog. Direct adapters should preserve stable Tangle action ids when porting demanded backlog connectors.
 
 3. **Credential field mapping is complete for catalog auth setup.**
    Auth shapes are ${Object.entries(byAuth).map(([auth, count]) => `${auth}: ${count}`).join(', ')}. The catalog now includes auth field metadata for all ${summary.catalogConnectorsWithAuthFields} connectors that require credentials. ${customAuthWithoutFields.length} custom-auth connectors need manual auth-field mapping.
@@ -232,22 +232,20 @@ ${customAuthWithoutFields.length > 0
    There are ${summary.catalogTriggers} catalog triggers and ${summary.catalogTriggersWithCatalogUpstreamName} upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships ${summary.firstPartyAdapterSurfaces} native adapter surfaces. ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts; the remaining catalog contracts use package-runtime backends.
+   This repo ships ${summary.firstPartyAdapterSurfaces} native adapter surfaces. ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
 - It is accurate to say: **we have ${summary.tangleContracts} first-class Tangle integration contracts.**
-- It is accurate to say: **all product code can use one IntegrationHub/tool contract across native and package-runtime backends.**
-- It is accurate to say: **deployed runtime smoke verification is the remaining proof step for package-runtime connectors.**
+- It is accurate to say: **product execution should use direct/native adapters.**
+- It is accurate to say: **the remaining ${summary.packageRuntimeBackedContracts} catalog-only contracts are backlog, not runtime-ready product surface.**
 
-## Runtime Proof Gate
+## Native Port Gate
 
-Run \`tangle-catalog-runtime --audit-packages\` inside the deployed runtime image
-after installing the manifest from \`--print-package-json\` or
-\`--print-pnpm-add\`. That produces the concrete package-load/action-map/trigger
-surface matrix for the exact runtime image products will call. Live provider
-smoke tests still require real OAuth/API-key credentials from the product
-environment.
+Port high-demand backlog connectors into \`src/connectors/adapters/\`, export
+them from \`src/connectors/adapters/index.ts\`, add focused adapter tests, and
+rerun this audit. Live provider smoke tests still require real OAuth/API-key
+credentials from the product environment.
 `
 
 mkdirSync('docs', { recursive: true })

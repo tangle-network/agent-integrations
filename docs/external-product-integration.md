@@ -165,12 +165,11 @@ backend:
 
 - native adapter
 - hosted integration gateway
-- Tangle catalog runtime
 - product-specific provider
 
-Use `buildDefaultIntegrationRegistry({ tangleCatalogRuntimeExecutable: true })`
-only after the catalog runtime is deployed and audited with
-`auditTangleCatalogRuntimePackages()`.
+Imported catalog entries are backlog only. Do not expose them as callable tools
+until they are backed by a reviewed adapter or an intentionally owned hosted
+provider.
 
 ## Security Requirements
 

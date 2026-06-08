@@ -178,13 +178,8 @@ OAuth credentials.
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
 | `buildIntegrationCoverageConnectors` | Planning catalog for 100+ high-value integrations. |
-| `buildTangleIntegrationCatalogConnectors` | Broad normalized Tangle Integrations Catalog inventory for long-tail connection discovery. |
-| `listTangleIntegrationContracts` | First-class Tangle-owned action/trigger/auth/runtime contracts for every catalog connector, including package-runtime-backed entries. |
-| `createTangleCatalogExecutorProvider` | Routes catalog contracts through an explicitly supplied Tangle runtime executor. |
-| `createTangleCatalogHttpExecutor` | Signed HTTP executor client for Tangle-hosted catalog runtimes. |
-| `createTangleCatalogRuntimeHandler` | Server-side `/v1/integration-catalog/actions/invoke` handler with signature, connector, and action validation. |
-| `createTangleCatalogInstalledPackageExecutor` | Runtime-side dispatcher for installed long-tail connector packages with explicit action aliasing and credential resolution hooks. |
-| `auditTangleCatalogRuntimePackages` | Runtime-image audit for installed package loads, piece exports, exact action mappings, and trigger surfaces. |
+| `buildTangleIntegrationCatalogConnectors` | Normalized imported catalog inventory for coverage analysis and native-adapter backlog planning. |
+| `listTangleIntegrationContracts` | Tangle-owned action/trigger/auth contracts, with direct-adapter coverage marked from actual adapter exports. |
 | `auditTangleIntegrationCatalogFreshness` | Release gate for catalog breadth, executable promotion, registry conflicts, and stale external ingestion. |
 | `createGatewayCatalogProvider` | Normalizes 500+ gateway-backed connectors into the same provider contract. |
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |

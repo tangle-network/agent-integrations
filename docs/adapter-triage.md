@@ -49,48 +49,15 @@ Aliases matter when comparing coverage:
 - `stripe` maps to `stripe-pack` for outbound payment actions.
 - `twilio` maps to `twilio-sms`.
 
-## Tangle Catalog Execution Path
+## Direct Adapter Execution Path
 
-The repo does not need hundreds of hand-written adapter files. Long-tail
-execution uses one strict catalog executor:
+Product execution goes through native `ConnectorAdapter` implementations. The
+imported catalog is a coverage and backlog source, not an execution backend.
 
-```ts
-import {
-  createTangleCatalogExecutorProvider,
-  createTangleCatalogHttpExecutor,
-  IntegrationHub,
-} from '@tangle-network/agent-integrations'
-
-const provider = createTangleCatalogExecutorProvider({
-  executeAction: createTangleCatalogHttpExecutor({
-    endpoint: 'https://integrations.example.com/integration-runtime',
-    secret: process.env.TANGLE_CATALOG_RUNTIME_SECRET,
-  }),
-})
-
-const hub = new IntegrationHub({ providers: [provider], store, capabilitySecret })
-```
-
-This routes normalized Tangle Integrations Catalog contracts through a signed
-runtime executor. Without that executor, the same contracts remain useful for
-connection discovery, planning, and setup UI, but they are not exposed as
-callable tools.
-
-The execution boundary remains the Tangle boundary:
-
-- `IntegrationHub` checks connection status, scopes, capability tokens, policy,
-  approvals, and guard hooks.
-- The provider validates the connector and action before calling the executor.
-- The executor owns package loading, provider credentials, sandboxing, and
-  upstream runtime quirks.
-- Trigger contracts and provider hooks are present; runtime services still need
-  package-specific webhook or polling hosting for live trigger execution.
-
-Runtime images can prove their installed package coverage with:
-
-```sh
-tangle-catalog-runtime --audit-packages
-```
+When a connector matters, add or improve a file in `src/connectors/adapters/`,
+export it from `src/connectors/adapters/index.ts`, and cover the important
+actions with focused adapter tests. Keep action ids stable when porting from
+catalog metadata so agents and capability policies do not churn.
 
 ## Current Setup/Catalog Coverage
 
