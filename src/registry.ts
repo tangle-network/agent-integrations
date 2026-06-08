@@ -120,7 +120,7 @@ export function buildDefaultIntegrationRegistry(options: {
             source: 'tangle-integrations-catalog',
             providerId: 'tangle-catalog',
             executable: connector.metadata?.executable,
-            runtime: 'tangle-catalog-runtime',
+            runtime: 'native-adapter-backlog',
             catalogOnly: connector.metadata?.catalogOnly,
             supportTier: connector.metadata?.supportTier,
             catalogActionCount: connector.metadata?.catalogActionCount,

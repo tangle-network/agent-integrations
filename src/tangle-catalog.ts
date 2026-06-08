@@ -25,14 +25,8 @@ import * as bundledAdapters from './connectors/adapters/index.js'
 import type { ConnectorAdapter } from './connectors/types.js'
 
 export {
-  TANGLE_CATALOG_RUNTIME_SIGNATURE_HEADER,
-  buildTangleCatalogRuntimeRequest,
-  createTangleCatalogHttpExecutor,
-  signTangleCatalogRuntimeRequest,
-  verifyTangleCatalogRuntimeSignature,
-  type TangleCatalogHttpExecutorOptions,
-  type TangleCatalogRuntimeRequest,
-} from './activepieces-runtime.js'
+  type ActivepiecesCatalogEntry,
+} from './activepieces-catalog.js'
 
 export const TANGLE_INTEGRATIONS_CATALOG_PROVIDER_ID = 'tangle-catalog'
 export const TANGLE_INTEGRATIONS_CATALOG_SOURCE = 'tangle-integrations-catalog'
@@ -445,7 +439,7 @@ function sanitizeConnector(connector: IntegrationConnector, providerId: string):
       source: TANGLE_INTEGRATIONS_CATALOG_SOURCE,
       providerId,
       executable: metadata.executable,
-      runtime: 'tangle-catalog-runtime',
+      runtime: 'native-adapter-backlog',
       catalogOnly: metadata.catalogOnly,
       supportTier: metadata.supportTier,
       catalogActionCount: metadata.catalogActionCount,
