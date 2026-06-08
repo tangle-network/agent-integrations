@@ -35,11 +35,16 @@ describe('twitter adapter manifest', () => {
     expect(twitterConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('declares api-key auth with a Twitter-specific hint', () => {
+  it('declares OAuth as preferred auth while retaining API-key token support', () => {
     const auth = twitterConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Twitter/i)
+    expect(auth.kind).toBe('one_of')
+    if (auth.kind !== 'one_of') throw new Error('unreachable')
+    expect(auth.preferred).toBe('oauth2')
+    expect(auth.options.map((option) => option.kind)).toEqual(['oauth2', 'api-key'])
+    expect(auth.options[1]).toMatchObject({
+      kind: 'api-key',
+      hint: expect.stringMatching(/Twitter/i),
+    })
   })
 
   it('covers tweets create and reply capability surface', () => {

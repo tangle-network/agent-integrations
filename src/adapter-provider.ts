@@ -76,10 +76,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'connector_not_found',
         )
       }
-      const auth = adapter.manifest.auth
-      if (auth.kind !== 'oauth2') {
+      const auth = oauthManifestAuth(adapter.manifest.auth)
+      if (!auth) {
         throw new IntegrationError(
-          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${auth.kind}).`,
+          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${adapter.manifest.auth.kind}).`,
           'auth_not_supported',
         )
       }
@@ -130,10 +130,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'connector_not_found',
         )
       }
-      const auth = adapter.manifest.auth
-      if (auth.kind !== 'oauth2') {
+      const auth = oauthManifestAuth(adapter.manifest.auth)
+      if (!auth) {
         throw new IntegrationError(
-          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${auth.kind}).`,
+          `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${adapter.manifest.auth.kind}).`,
           'auth_not_supported',
         )
       }
@@ -305,13 +305,14 @@ export function createConnectorAdapterCatalogSource(options: {
 
 export function manifestToConnector(providerId: string, adapter: ConnectorAdapter): IntegrationConnector {
   const manifest = adapter.manifest
+  const primaryAuth = primaryManifestAuth(manifest.auth)
   return {
     id: manifest.kind,
     providerId,
     title: manifest.displayName,
     category: mapCategory(manifest.category),
-    auth: mapAuth(manifest.auth.kind),
-    scopes: manifest.auth.kind === 'oauth2' ? manifest.auth.scopes : [],
+    auth: mapAuth(primaryAuth.kind),
+    scopes: primaryAuth.kind === 'oauth2' ? primaryAuth.scopes : [],
     actions: manifest.capabilities
       .filter((capability) => capability.class === 'read' || capability.class === 'mutation')
       .map((capability) => ({
@@ -328,6 +329,8 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
       source: 'first-party-adapter',
       supportTier: 'firstPartyExecutable',
       executable: true,
+      authOptions: manifest.auth.kind === 'one_of' ? manifest.auth.options.map((auth) => auth.kind) : [manifest.auth.kind],
+      preferredAuth: manifest.auth.kind === 'one_of' ? manifest.auth.preferred : manifest.auth.kind,
     },
   }
 }
@@ -381,10 +384,22 @@ function mutationResultToAction(request: IntegrationActionRequest, result: Capab
 }
 
 function mapAuth(kind: ConnectorAdapter['manifest']['auth']['kind']): IntegrationConnector['auth'] {
+  if (kind === 'one_of') return 'custom'
   if (kind === 'oauth2') return 'oauth2'
   if (kind === 'api-key') return 'api_key'
   if (kind === 'none') return 'none'
   return 'custom'
+}
+
+function primaryManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Exclude<ConnectorAdapter['manifest']['auth'], { kind: 'one_of' }> {
+  if (auth.kind !== 'one_of') return auth
+  return auth.options.find((option) => option.kind === auth.preferred) ?? auth.options[0]
+}
+
+function oauthManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Extract<Exclude<ConnectorAdapter['manifest']['auth'], { kind: 'one_of' }>, { kind: 'oauth2' }> | undefined {
+  if (auth.kind === 'oauth2') return auth
+  if (auth.kind !== 'one_of') return undefined
+  return auth.options.find((option): option is Extract<typeof option, { kind: 'oauth2' }> => option.kind === 'oauth2')
 }
 
 function mapCategory(category: ConnectorAdapter['manifest']['category']): IntegrationConnector['category'] {

@@ -340,35 +340,43 @@ export interface RateLimitSpec {
   scope?: 'oauth-client' | 'data-source'
 }
 
+type OAuth2AuthSpec = {
+  kind: 'oauth2'
+  /** Authorization endpoint URL. */
+  authorizationUrl: string
+  /** Token endpoint URL. */
+  tokenUrl: string
+  /** Scopes requested in the authorization grant. The user UI shows
+   *  these so the customer knows what's being shared. */
+  scopes: string[]
+  /** Whether the connector supports incremental authorization (Google
+   *  does; many don't). */
+  incremental?: boolean
+  /** Env-var name holding the OAuth client_id. */
+  clientIdEnv: string
+  /** Env-var name holding the OAuth client_secret. */
+  clientSecretEnv: string
+  /** Optional extra params attached to the authorization URL (e.g.,
+   *  Google's `access_type=offline&prompt=consent` to obtain refresh
+   *  tokens). */
+  extraAuthParams?: Record<string, string>
+}
+type ApiKeyAuthSpec = {
+  kind: 'api-key'
+  /** UI hint shown when collecting the key. */
+  hint: string
+}
+type SingleAuthSpec = OAuth2AuthSpec | ApiKeyAuthSpec | { kind: 'hmac' } | { kind: 'none' }
+
 export type AuthSpec =
+  | SingleAuthSpec
   | {
-      kind: 'oauth2'
-      /** Authorization endpoint URL. */
-      authorizationUrl: string
-      /** Token endpoint URL. */
-      tokenUrl: string
-      /** Scopes requested in the authorization grant. The user UI shows
-       *  these so the customer knows what's being shared. */
-      scopes: string[]
-      /** Whether the connector supports incremental authorization (Google
-       *  does; many don't). */
-      incremental?: boolean
-      /** Env-var name holding the OAuth client_id. */
-      clientIdEnv: string
-      /** Env-var name holding the OAuth client_secret. */
-      clientSecretEnv: string
-      /** Optional extra params attached to the authorization URL (e.g.,
-       *  Google's `access_type=offline&prompt=consent` to obtain refresh
-       *  tokens). */
-      extraAuthParams?: Record<string, string>
+      kind: 'one_of'
+      /** Preferred auth kind for setup UI and OAuth-connect flows. */
+      preferred: 'oauth2' | 'api-key'
+      /** Explicit supported auth modes. Do not infer fallback modes. */
+      options: readonly [SingleAuthSpec, SingleAuthSpec, ...SingleAuthSpec[]]
     }
-  | {
-      kind: 'api-key'
-      /** UI hint shown when collecting the key. */
-      hint: string
-    }
-  | { kind: 'hmac' }
-  | { kind: 'none' }
 
 /** Thrown by `executeMutation` when upstream rejects on CAS — caught and
  *  rewrapped by MutationGuard. */
@@ -411,6 +419,7 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
   const issues: ConnectorManifestValidationIssue[] = []
   if (!manifest.kind.trim()) issues.push({ path: 'kind', message: 'kind is required' })
   if (!manifest.displayName.trim()) issues.push({ path: 'displayName', message: 'displayName is required' })
+  validateAuthSpec(manifest.auth, issues)
   const seen = new Set<string>()
   for (const [index, capability] of manifest.capabilities.entries()) {
     const path = `capabilities[${index}]`
@@ -433,6 +442,17 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
     }
   }
   return { ok: issues.length === 0, issues }
+}
+
+function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIssue[]): void {
+  if (auth.kind !== 'one_of') return
+  if (auth.options.length < 2) {
+    issues.push({ path: 'auth.options', message: 'one_of auth must declare at least two options' })
+  }
+  const optionKinds = new Set(auth.options.map((option) => option.kind))
+  if (!optionKinds.has(auth.preferred)) {
+    issues.push({ path: 'auth.preferred', message: 'one_of preferred auth must match an option kind' })
+  }
 }
 
 export function assertValidConnectorManifest(manifest: ConnectorManifest): void {
