@@ -30,12 +30,12 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped actions | 669 |
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
-| Native adapter backends | 10 |
-| Native adapter surfaces shipped | 17 |
-| Package-runtime backends | 659 |
-| Runtime manifest dependencies | 670 |
-| Tangle catalog connectors exposable behind runtime | 669 |
-| Tangle catalog actions exposable behind runtime | 3790 |
+| Native adapter backends | 432 |
+| Native adapter surfaces shipped | 466 |
+| Package-runtime backends | 237 |
+| Runtime manifest dependencies for catalog-only connectors | 238 |
+| Catalog-only connectors exposable behind runtime | 237 |
+| Catalog-only actions exposable behind runtime | 1081 |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
 
@@ -65,25 +65,91 @@ Full machine-readable matrix: [integration-execution-matrix.json](./integration-
 
 ## Native Adapter Backends
 
-These are direct in-repo implementations. They are not the only first-class contracts:
+These are direct in-repo implementations. They are not the only first-class contracts.
+The full set is in the machine-readable matrix; representative native adapters:
 
-- `google-calendar`
-- `google-sheets`
-- `microsoft-calendar`
-- `hubspot`
-- `slack`
-- `notion-database`
-- `twilio-sms`
-- `phony`
-- `stripe-pack`
-- `webhook`
-- `stripe`
-- `slack-inbound`
-- `github`
-- `gitlab`
+- `activecampaign`
+- `acumbamail`
+- `adobe-creative-cloud`
+- `afforai`
+- `agentx`
+- `aidbase`
+- `aiprise`
+- `air-ops`
+- `aircall`
 - `airtable`
+- `airtop`
+- `alai`
+- `alt-text-ai`
+- `alttextify`
+- `amazon-bedrock`
+- `amazon-secrets-manager`
+- `amazon-ses`
+- `amazon-sns`
+- `amazon-sqs`
+- `amazon-textract`
+- `aminos`
+- `ampeco`
+- `anthropic`
+- `apitable`
+- `apitemplate-io`
+- `apollo`
+- `appfollow`
 - `asana`
-- `salesforce`
+- `ashby`
+- `asknews`
+- `assemblyai`
+- `attio`
+- `auth0`
+- `autocalls`
+- `avian`
+- `avoma`
+- `azure-ad`
+- `azure-communication-services`
+- `azure-openai`
+- `backblaze`
+- `bamboohr`
+- `barcode-lookup`
+- `baremetrics`
+- `basecamp`
+- `beamer`
+- `bettermode`
+- `bexio`
+- `bigcommerce`
+- `bigin-by-zoho`
+- `billplz`
+- `bitly`
+- `bland-ai`
+- `bluesky`
+- `bolna`
+- `bonjoro`
+- `bookedin`
+- `box`
+- `brave-search`
+- `braze`
+- `brilliant-directories`
+- `browse-ai`
+- `cal-com`
+- `calendly`
+- `campaign-monitor`
+- `canny`
+- `canva`
+- `capsule-crm`
+- `captain-data`
+- `cashfree-payments`
+- `certopus`
+- `chainalysis-api`
+- `chargebee`
+- `chargekeep`
+- `chartly`
+- `chat-data`
+- `chatbase`
+- `chatling`
+- `chatnode`
+- `chatwoot`
+- `checkout`
+
+...and 386 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -109,10 +175,10 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 17 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
+| Native adapter execution | Done for listed native backends | 466 reviewed native adapter surfaces ship from this package; 432 overlap the 669 catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
-| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 659 contracts use package-runtime backends with package names and 3790 catalog upstream action names. |
-| Runtime dependency manifest | Done | `buildTangleCatalogRuntimePackageManifest()` emits 670 dependencies for a complete package-runtime worker install. |
+| Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 237 contracts use package-runtime backends with package names and 3790 catalog upstream action names. |
+| Runtime dependency manifest | Done | `buildTangleCatalogRuntimePackageManifest()` emits 238 dependencies for the remaining package-runtime worker install. |
 | Runtime package coverage audit | Done | `auditTangleCatalogRuntimePackages()` and `tangle-catalog-runtime --audit-packages` verify installed packages, piece exports, exact action mappings, and trigger surfaces in a deployed worker. |
 | Long-tail credential mapping | Mostly mapped | 648 connectors have auth field metadata. 0 custom-auth connectors still need exact manual auth fields. |
 | Trigger provider flow | Done structurally | 998 triggers are cataloged, 998 have upstream names, and catalog providers can route subscribe/unsubscribe/normalize hooks. Runtime services still need package-specific trigger hosting. |
@@ -123,60 +189,60 @@ Executable setup specs:
 
 | Bucket | Count | What it means |
 | --- | ---: | --- |
-| Package-runtime contracts needing deployed runtime smoke verification | 659 | Connector has a Tangle contract and package backend; deployed runtime still needs package-load/live-smoke proof. |
+| Package-runtime contracts needing deployed runtime smoke verification | 237 | Connector has a Tangle contract and package backend; deployed runtime still needs package-load/live-smoke proof. |
 | Catalog connectors with zero upstream action names | 0 | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | 288 | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
 
 Examples needing deployed runtime smoke verification:
 
-- `activecampaign` -> `@activepieces/piece-activecampaign`
 - `activepieces` -> `@activepieces/piece-activepieces`
 - `actualbudget` -> `@activepieces/piece-actualbudget`
 - `acuity-scheduling` -> `@activepieces/piece-acuity-scheduling`
-- `acumbamail` -> `@activepieces/piece-acumbamail`
-- `afforai` -> `@activepieces/piece-afforai`
-- `agentx` -> `@activepieces/piece-agentx`
 - `ai` -> `@activepieces/piece-ai`
 - `aianswer` -> `@activepieces/piece-aianswer`
-- `aidbase` -> `@activepieces/piece-aidbase`
-- `aiprise` -> `@activepieces/piece-aiprise`
-- `air-ops` -> `@activepieces/piece-air-ops`
-- `aircall` -> `@activepieces/piece-aircall`
 - `airparser` -> `@activepieces/piece-airparser`
-- `airtop` -> `@activepieces/piece-airtop`
-- `alai` -> `@activepieces/piece-alai`
 - `algolia` -> `@activepieces/piece-algolia`
-- `alt-text-ai` -> `@activepieces/piece-alt-text-ai`
-- `alttextify` -> `@activepieces/piece-alttextify`
-- `amazon-bedrock` -> `@activepieces/piece-amazon-bedrock`
 - `amazon-s3` -> `@activepieces/piece-amazon-s3`
-- `amazon-secrets-manager` -> `@activepieces/piece-amazon-secrets-manager`
-- `amazon-ses` -> `@activepieces/piece-amazon-ses`
-- `amazon-sns` -> `@activepieces/piece-amazon-sns`
-- `amazon-sqs` -> `@activepieces/piece-amazon-sqs`
-- `amazon-textract` -> `@activepieces/piece-amazon-textract`
-- `aminos` -> `@activepieces/piece-aminos`
-- `ampeco` -> `@activepieces/piece-ampeco`
 - `anyhook-graphql` -> `@activepieces/piece-anyhook-graphql`
 - `anyhook-websocket` -> `@activepieces/piece-anyhook-websocket`
 - `apify` -> `@activepieces/piece-apify`
-- `apitable` -> `@activepieces/piece-apitable`
-- `apitemplate-io` -> `@activepieces/piece-apitemplate-io`
-- `apollo` -> `@activepieces/piece-apollo`
-- `appfollow` -> `@activepieces/piece-appfollow`
-- `ashby` -> `@activepieces/piece-ashby`
 - `ask-handle` -> `@activepieces/piece-ask-handle`
-- `asknews` -> `@activepieces/piece-asknews`
 - `assembled` -> `@activepieces/piece-assembled`
-- `assemblyai` -> `@activepieces/piece-assemblyai`
+- `azure-blob-storage` -> `@activepieces/piece-azure-blob-storage`
+- `bannerbear` -> `@activepieces/piece-bannerbear`
+- `base44` -> `@activepieces/piece-base44`
+- `baserow` -> `@activepieces/piece-baserow`
+- `beehiiv` -> `@activepieces/piece-beehiiv`
+- `bika` -> `@activepieces/piece-bika`
+- `binance` -> `@activepieces/piece-binance`
+- `blockscout` -> `@activepieces/piece-blockscout`
+- `bokio` -> `@activepieces/piece-bokio`
+- `browserless` -> `@activepieces/piece-browserless`
+- `bubble` -> `@activepieces/piece-bubble`
+- `bumpups` -> `@activepieces/piece-bumpups`
+- `bursty-ai` -> `@activepieces/piece-bursty-ai`
+- `buttondown` -> `@activepieces/piece-buttondown`
+- `call-rounded` -> `@activepieces/piece-rounded-studio`
+- `camb-ai` -> `@activepieces/piece-camb-ai`
+- `carbone` -> `@activepieces/piece-carbone`
+- `cartloom` -> `@activepieces/piece-cartloom`
+- `chain-aware` -> `@activepieces/piece-chain-aware`
+- `chaindesk` -> `@activepieces/piece-chaindesk`
+- `chat-aid` -> `@activepieces/piece-chat-aid`
+- `chatfly` -> `@activepieces/piece-chatfly`
+- `chatsistant` -> `@activepieces/piece-chatsistant`
+- `chess-com` -> `@activepieces/piece-chess-com`
+- `clarifai` -> `@activepieces/piece-clarifai`
+- `claude` -> `@activepieces/piece-claude`
+- `clearoutphone` -> `@activepieces/piece-clearoutphone`
 
 Manual custom auth mapping gap: none.
 
 ## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
-   All 669 catalog entries have Tangle-owned contracts. 10 use native adapter backends; 659 use package-runtime backends.
+   All 669 catalog entries have Tangle-owned contracts. 432 use native adapter backends; 237 use package-runtime backends.
 
 2. **Action-name mapping exists for cataloged actions.**
    Done for cataloged actions: the catalog currently has 3790 actions and 3790 upstream action-name mappings in the checked-in catalog. The runtime executor uses those names automatically and still accepts explicit `actionAliases` for overrides. Deployed smoke verification proves those names against the installed packages.
@@ -188,7 +254,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 17 native adapter surfaces. 10 overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
+   This repo ships 466 native adapter surfaces. 432 overlap the 669 catalog contracts; the remaining catalog contracts use package-runtime backends.
 
 ## Concrete Launch Interpretation
 
