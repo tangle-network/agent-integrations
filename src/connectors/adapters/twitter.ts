@@ -4,7 +4,24 @@ export const twitterConnector = declarativeRestConnector({
   kind: 'twitter',
   displayName: 'Twitter',
   description: 'Post tweets and reply to tweets on Twitter.',
-  auth: { kind: 'api-key', hint: 'Twitter API key and access tokens.' },
+  auth: {
+    kind: 'one_of',
+    preferred: 'oauth2',
+    options: [
+      {
+        kind: 'oauth2',
+        authorizationUrl: 'https://twitter.com/i/oauth2/authorize',
+        tokenUrl: 'https://api.twitter.com/2/oauth2/token',
+        scopes: ['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access'],
+        clientIdEnv: 'TWITTER_OAUTH_CLIENT_ID',
+        clientSecretEnv: 'TWITTER_OAUTH_CLIENT_SECRET',
+      },
+      {
+        kind: 'api-key',
+        hint: 'Twitter/X OAuth 2.0 bearer token or app/user access token.',
+      },
+    ],
+  },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.twitter.com/2',
