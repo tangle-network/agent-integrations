@@ -56,11 +56,17 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # No registry-url here on purpose: actions/setup-node writes an
+      # .npmrc with a placeholder NODE_AUTH_TOKEN when registry-url is set,
+      # and a present-but-bogus token makes pnpm authenticate by token
+      # (rejected, masked as 404) instead of falling back to OIDC trusted
+      # publishing. Node 24 ships npm >= 11.5.1, which the OIDC handshake
+      # requires. Trust is established by the npm trusted-publisher entry
+      # (workflow=publish.yml, env=blank) + the id-token: write permission.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
