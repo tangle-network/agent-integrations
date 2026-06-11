@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { twitterConnector } from '../twitter.js'
+import { twitter, twitterConnector } from '../twitter.js'
 import { manifestToConnector } from '../../../adapter-provider.js'
 import { validateConnectorManifest } from '../../types.js'
 
@@ -20,6 +20,21 @@ describe('twitter adapter', () => {
     })
 
     const connector = manifestToConnector('twitter', twitterConnector)
+    expect(connector.auth).toBe('oauth2')
+    expect(connector.metadata).toMatchObject({
+      authOptions: ['oauth2', 'api-key'],
+      preferredAuth: 'oauth2',
+    })
+  })
+
+  it('twitter(opts) factory carries the same manifest and adds the OAuth client surface', () => {
+    const adapter = twitter({ clientId: 'cid', clientSecret: 'sec' })
+    expect(validateConnectorManifest(adapter.manifest)).toEqual({ ok: true, issues: [] })
+    expect(adapter.manifest).toEqual(twitterConnector.manifest)
+    expect(typeof adapter.exchangeOAuth).toBe('function')
+    expect(typeof adapter.refreshToken).toBe('function')
+
+    const connector = manifestToConnector('twitter', adapter)
     expect(connector.auth).toBe('oauth2')
     expect(connector.metadata).toMatchObject({
       authOptions: ['oauth2', 'api-key'],
