@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { twitterConnector } from '../src/connectors/adapters/twitter.js'
+import { twitter, twitterConnector } from '../src/connectors/adapters/twitter.js'
 import type { ResolvedDataSource } from '../src/connectors/index'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
@@ -316,5 +316,133 @@ describe('twitter write capabilities', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+})
+
+describe('twitter factory', () => {
+  const adapter = twitter({ clientId: 'cid', clientSecret: 'sec' })
+  const expectedBasic = `Basic ${Buffer.from('cid:sec').toString('base64')}`
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('carries the exact manifest of the const adapter (kind stays `twitter`)', () => {
+    expect(adapter.manifest).toEqual(twitterConnector.manifest)
+    expect(adapter.manifest.kind).toBe('twitter')
+  })
+
+  it('exchangeOAuth POSTs the code grant with Basic client auth and relays the broker codeVerifier', async () => {
+    let calledUrl = ''
+    let calledHeaders: Record<string, string> = {}
+    let calledBody: URLSearchParams | null = null
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledHeaders = init?.headers as Record<string, string>
+      calledBody = new URLSearchParams(String(init!.body))
+      return jsonResponse({
+        access_token: 'at_new',
+        refresh_token: 'rt_new',
+        expires_in: 7200,
+        token_type: 'bearer',
+        scope: 'tweet.read tweet.write users.read like.write offline.access',
+      })
+    }))
+
+    const result = await adapter.exchangeOAuth!({
+      code: 'auth_code_xyz',
+      state: 'state_xyz',
+      codeVerifier: 'cv_from_broker',
+      redirectUri: 'https://app.example.com/cb?provider=twitter',
+    })
+    expect(calledUrl).toBe('https://api.twitter.com/2/oauth2/token')
+    expect(calledHeaders.authorization).toBe(expectedBasic)
+    expect(calledBody!.get('grant_type')).toBe('authorization_code')
+    expect(calledBody!.get('code')).toBe('auth_code_xyz')
+    expect(calledBody!.get('redirect_uri')).toBe('https://app.example.com/cb?provider=twitter')
+    expect(calledBody!.get('code_verifier')).toBe('cv_from_broker')
+    expect(calledBody!.get('client_id')).toBe('cid')
+    expect(result.credentials.kind).toBe('oauth2')
+    if (result.credentials.kind === 'oauth2') {
+      expect(result.credentials.accessToken).toBe('at_new')
+      expect(result.credentials.refreshToken).toBe('rt_new')
+      expect(result.credentials.expiresAt).toBeGreaterThan(Date.now())
+    }
+    expect(result.scopes).toEqual(['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access'])
+  })
+
+  it('exchangeOAuth surfaces the upstream error body on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'invalid_request' }), {
+        status: 400,
+        statusText: 'Bad Request',
+        headers: { 'content-type': 'application/json' },
+      }),
+    ))
+    await expect(
+      adapter.exchangeOAuth!({
+        code: 'bad',
+        state: 's',
+        codeVerifier: 'cv',
+        redirectUri: 'https://app.example.com/cb',
+      }),
+    ).rejects.toThrow(/authorization_code token request failed: 400/)
+  })
+
+  it('refreshToken POSTs the refresh grant with Basic client auth and keeps the prior refresh token when omitted', async () => {
+    let calledHeaders: Record<string, string> = {}
+    let calledBody: URLSearchParams | null = null
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calledHeaders = init?.headers as Record<string, string>
+      calledBody = new URLSearchParams(String(init!.body))
+      return jsonResponse({ access_token: 'at_fresh', expires_in: 7200, token_type: 'bearer' })
+    }))
+
+    const refreshed = await adapter.refreshToken!({
+      kind: 'oauth2',
+      accessToken: 'at_old',
+      refreshToken: 'rt_old',
+      expiresAt: Date.now() - 1_000,
+    })
+    expect(calledHeaders.authorization).toBe(expectedBasic)
+    expect(calledBody!.get('grant_type')).toBe('refresh_token')
+    expect(calledBody!.get('refresh_token')).toBe('rt_old')
+    expect(calledBody!.get('client_id')).toBe('cid')
+    if (refreshed.kind !== 'oauth2') throw new Error('expected oauth2 credentials')
+    expect(refreshed.accessToken).toBe('at_fresh')
+    expect(refreshed.refreshToken).toBe('rt_old')
+  })
+
+  it('refreshToken rejects non-oauth2 credentials and missing refresh tokens', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+    await expect(
+      adapter.refreshToken!({ kind: 'api-key', apiKey: 'k' }),
+    ).rejects.toThrow(/missing refresh token/)
+    await expect(
+      adapter.refreshToken!({ kind: 'oauth2', accessToken: 'at' }),
+    ).rejects.toThrow(/missing refresh token/)
+  })
+
+  it('still executes the declarative twitter surface (tweets.create posts with the connection bearer)', async () => {
+    let calledUrl = ''
+    let calledHeaders: Record<string, string> = {}
+    let calledBody: unknown = null
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledHeaders = init?.headers as Record<string, string>
+      calledBody = JSON.parse(init!.body as string)
+      return jsonResponse({ data: { id: 'tw-1', text: 'hello' } })
+    }))
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'tweets.create',
+      args: { text: 'hello' },
+      idempotencyKey: 'idemp-create-1',
+    })
+    expect(calledUrl).toBe('https://api.twitter.com/2/tweets')
+    expect(calledHeaders.authorization).toBe('Bearer tw-api-key')
+    expect(calledBody).toEqual({ text: 'hello' })
+    expect(result.status).toBe('committed')
   })
 })
