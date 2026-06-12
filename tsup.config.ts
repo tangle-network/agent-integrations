@@ -16,6 +16,7 @@ export default defineConfig({
     'delegated-tools/index': 'src/delegated-tools/index.ts',
     'stripe/index': 'src/stripe/index.ts',
     'coverage-catalog': 'src/coverage-catalog.ts',
+    mcp: 'src/mcp.ts',
   },
   format: ['esm'],
   dts: true,

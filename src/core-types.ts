@@ -22,6 +22,7 @@ export type IntegrationProviderKind =
   | 'tangle_catalog'
   | 'executor'
   | 'custom'
+  | 'mcp'
 
 export type IntegrationConnectorCategory =
   | 'email'
