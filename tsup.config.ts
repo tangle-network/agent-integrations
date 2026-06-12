@@ -13,6 +13,7 @@ export default defineConfig({
     'connect/index': 'src/connect/index.ts',
     'middleware/index': 'src/middleware/index.ts',
     'webhooks/index': 'src/webhooks/index.ts',
+    'delegated-tools/index': 'src/delegated-tools/index.ts',
     'stripe/index': 'src/stripe/index.ts',
     'coverage-catalog': 'src/coverage-catalog.ts',
   },

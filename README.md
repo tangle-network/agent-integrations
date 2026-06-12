@@ -165,6 +165,9 @@ OAuth credentials.
 | `runIntegrationHealthchecks` | Checks connection status, registry executability, scope shape, and optional live provider tests. |
 | `receiveIntegrationWebhook` | Verifies inbound webhooks, dedupes provider events, and dispatches normalized trigger events. |
 | `buildIntegrationBridgeEnvironment` | Encodes scoped sandbox capabilities for sandbox processes or executor-style CLIs. |
+| `mintDelegatedToolToken` / `verifyDelegatedToolToken` | Signed-claims bearer (workspace + tool allow-list + TTL) for an external agent that calls back into the product's tools mid-session. |
+| `issueDelegatedToolLease` | Standardized lease (token + allow-list + expiry + callback URL) the product hands to its external agent. |
+| `handleDelegatedToolCall` / `handleDelegatedToolRequest` | Transport-agnostic JSON-RPC 2.0 callback handler with fail-closed gates (token fresh, tool allow-listed, integration connected) via product-supplied seams. |
 | `createTangleIntegrationsClient` | Tiny generated-app/sandbox client for platform `/v1/integrations/invoke`. |
 | `inferIntegrationManifestFromTools` / `validateIntegrationManifest` | Deterministic manifest helpers for Builder and platform APIs. |
 | `renderConsentSummary` / `renderApprovalCopy` | User-facing consent and approval copy from manifests/actions. |
