@@ -1,8 +1,11 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
 /**
- * Mailchimp Marketing API v3.0 — audience/list management, member upsert,
- * campaign send. Auth is OAuth2 with a per-account datacenter prefix; after
+ * Mailchimp Marketing API v3.0 — audience/list/segment management, member
+ * upsert, campaign create/content/send, and campaign performance reports
+ * (the open/click/unsubscribe/abuse rates plus ecommerce revenue that close a
+ * generate→send→measure→optimize loop). Auth is OAuth2 with a per-account
+ * datacenter prefix; after
  * the token exchange callers MUST hit `https://login.mailchimp.com/oauth2/metadata`
  * with the access token and persist `api_endpoint` (e.g. `https://us20.api.mailchimp.com`)
  * into the data source `metadata.apiEndpoint` field. The declarative REST
@@ -61,6 +64,26 @@ export const mailchimpConnector = declarativeRestConnector({
         required: ['listId'],
       },
       request: { method: 'GET', path: '/3.0/lists/{listId}' },
+    },
+    {
+      name: 'segments.list',
+      class: 'read',
+      description:
+        'List the segments of a Mailchimp audience. Use a segment id in `campaigns.create` recipients to target a slice — and to carve out a control/holdout slice for measuring true lift.',
+      parameters: {
+        type: 'object',
+        properties: {
+          listId: { type: 'string' },
+          count: { type: 'number' },
+          offset: { type: 'number' },
+        },
+        required: ['listId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/3.0/lists/{listId}/segments',
+        query: { count: '{count}', offset: '{offset}' },
+      },
     },
     {
       name: 'members.search',
@@ -218,6 +241,69 @@ export const mailchimpConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
+    },
+    {
+      name: 'campaigns.set-content',
+      class: 'mutation',
+      description:
+        'Set the content of a draft Mailchimp campaign. `campaigns.create` only makes an empty shell — this puts the generated email body in. Body matches the v3.0 campaign-content schema, e.g. `{ html }` or `{ plain_text }` or `{ template: { id, sections } }`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaignId: { type: 'string' },
+          fields: {
+            type: 'object',
+            description: 'Campaign content body; typically `{ html }`. PUT replaces the content wholesale.',
+          },
+        },
+        required: ['campaignId', 'fields'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/3.0/campaigns/{campaignId}/content',
+        body: '{fields}',
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'reports.list',
+      class: 'read',
+      description:
+        'List campaign performance reports. Each entry carries the open/click/unsubscribe/abuse rates and (when an ecommerce store is connected) revenue — the feedback signal the optimizer reads to learn what worked.',
+      parameters: {
+        type: 'object',
+        properties: {
+          count: { type: 'number' },
+          offset: { type: 'number' },
+          type: { type: 'string', description: 'Filter by campaign type, e.g. regular, plaintext, rss.' },
+          since_send_time: {
+            type: 'string',
+            description: 'ISO 8601 lower bound on send time, e.g. 2026-06-01T00:00:00Z — read only recent sends.',
+          },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/3.0/reports',
+        query: {
+          count: '{count}',
+          offset: '{offset}',
+          type: '{type}',
+          since_send_time: '{since_send_time}',
+        },
+      },
+    },
+    {
+      name: 'reports.get',
+      class: 'read',
+      description:
+        'Read the performance report for one sent campaign: opens, clicks, unsubscribes, abuse_reports (the complaint signal), bounces, list_stats, and ecommerce { total_orders, total_spent, total_revenue }. This is the reward+guardrail signal for the optimization loop.',
+      parameters: {
+        type: 'object',
+        properties: { campaignId: { type: 'string' } },
+        required: ['campaignId'],
+      },
+      request: { method: 'GET', path: '/3.0/reports/{campaignId}' },
     },
   ],
 })
