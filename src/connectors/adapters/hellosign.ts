@@ -100,6 +100,10 @@ export function hellosign(opts: HelloSignOptions): ConnectorAdapter {
         scopes: SCOPES,
         clientIdEnv: 'HELLOSIGN_OAUTH_CLIENT_ID',
         clientSecretEnv: 'HELLOSIGN_OAUTH_CLIENT_SECRET',
+        // Dropbox Sign rejects a per-request `scope` param ("Custom scopes
+        // are not supported yet") — scopes are pinned in the API app
+        // settings, so the authorization URL must omit scope.
+        sendScopeParam: false,
       },
       category: 'doc',
       defaultConsistencyModel: 'authoritative',

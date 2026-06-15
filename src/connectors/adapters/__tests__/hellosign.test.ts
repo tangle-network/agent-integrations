@@ -53,6 +53,9 @@ describe('hellosign (Dropbox Sign) adapter', () => {
       expect(adapter.manifest.auth.scopes).toEqual(
         expect.arrayContaining(['basic_account_info', 'request_signature', 'signature_request_access']),
       )
+      // Dropbox Sign rejects a per-request `scope` param, so the manifest
+      // opts out of sending it on the authorization URL.
+      expect(adapter.manifest.auth.sendScopeParam).toBe(false)
     }
   })
 

@@ -360,6 +360,10 @@ type OAuth2AuthSpec = {
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
   extraAuthParams?: Record<string, string>
+  /** Whether to send the `scope` query param on the authorization URL.
+   *  Defaults to true. Set false for providers that reject a per-request
+   *  scope and pin scopes app-side (e.g. HelloSign/Dropbox Sign). */
+  sendScopeParam?: boolean
 }
 type ApiKeyAuthSpec = {
   kind: 'api-key'
