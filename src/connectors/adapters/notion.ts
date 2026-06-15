@@ -6,7 +6,7 @@ export const notionConnector = declarativeRestConnector({
   description: 'Query and manipulate Notion databases, pages, and blocks.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://api.notion.com/oauth/authorize',
+    authorizationUrl: 'https://api.notion.com/v1/oauth/authorize',
     tokenUrl: 'https://api.notion.com/v1/oauth/token',
     scopes: ['read', 'write'],
     clientIdEnv: 'NOTION_OAUTH_CLIENT_ID',
