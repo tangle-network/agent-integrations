@@ -43,19 +43,39 @@ describe('mailchimp adapter', () => {
     expect(mailchimpConnector.manifest.category).toBe('crm')
     const names = mailchimpConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
+      'campaigns.create',
       'campaigns.list',
       'campaigns.send',
+      'campaigns.set-content',
       'lists.get',
       'lists.list',
       'members.get',
       'members.search',
       'members.update-tags',
       'members.upsert',
+      'reports.get',
+      'reports.list',
+      'segments.list',
     ])
     const readers = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
     const mutators = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual(['campaigns.list', 'lists.get', 'lists.list', 'members.get', 'members.search'])
-    expect(mutators).toEqual(['campaigns.send', 'members.update-tags', 'members.upsert'])
+    expect(readers).toEqual([
+      'campaigns.list',
+      'lists.get',
+      'lists.list',
+      'members.get',
+      'members.search',
+      'reports.get',
+      'reports.list',
+      'segments.list',
+    ])
+    expect(mutators).toEqual([
+      'campaigns.create',
+      'campaigns.send',
+      'campaigns.set-content',
+      'members.update-tags',
+      'members.upsert',
+    ])
   })
 
   it('exposes both executeRead and executeMutation handlers', () => {
@@ -126,6 +146,49 @@ describe('mailchimp adapter', () => {
     const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
     expect(url.pathname).toBe('/3.0/campaigns/camp_99/actions/send')
     expect(init.method).toBe('POST')
+  })
+
+  it('reads a campaign performance report (the loop feedback signal) by campaign id', async () => {
+    const fetchMock = mockFetch({
+      id: 'camp_99',
+      opens: { open_rate: 0.41 },
+      clicks: { click_rate: 0.12 },
+      unsubscribed: 3,
+      abuse_reports: 0,
+      ecommerce: { total_orders: 18, total_revenue: 2940.5 },
+    })
+    const invocation: ConnectorInvocation = {
+      source,
+      capabilityName: 'reports.get',
+      args: { campaignId: 'camp_99' },
+      idempotencyKey: 'report_1',
+    }
+
+    await mailchimpConnector.executeRead!(invocation)
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(url.origin).toBe('https://us20.api.mailchimp.com')
+    expect(url.pathname).toBe('/3.0/reports/camp_99')
+    expect((init as RequestInit).headers).toMatchObject({ authorization: 'Bearer mc_token_xyz' })
+  })
+
+  it('sets draft campaign content with PUT against the content endpoint and forwards the body verbatim', async () => {
+    const fetchMock = mockFetch({ html: '<h1>Hi</h1>' })
+    const contentBody = { html: '<h1>Hi {{FNAME}}</h1><p>New drop.</p>' }
+    const invocation: ConnectorInvocation = {
+      source,
+      capabilityName: 'campaigns.set-content',
+      args: { campaignId: 'camp_99', fields: contentBody },
+      idempotencyKey: 'content_1',
+    }
+
+    const result = await mailchimpConnector.executeMutation!(invocation)
+    expect(result.status).toBe('committed')
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(url.pathname).toBe('/3.0/campaigns/camp_99/content')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(String(init.body))).toEqual(contentBody)
   })
 })
 
