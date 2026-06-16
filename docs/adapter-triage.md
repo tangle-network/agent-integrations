@@ -30,7 +30,7 @@ behavior behind the `ConnectorAdapter` contract.
 | `microsoft-calendar` | OAuth2 | read/write | first-party executable |
 | `hubspot` | OAuth2 | read/write | first-party executable |
 | `slack` | OAuth2 | read/write | first-party executable |
-| `notion-database` | OAuth2 | read/write | first-party executable |
+| `notion` | OAuth2 | read/write | first-party executable |
 | `salesforce` | OAuth2 | read/write | first-party executable |
 | `twilio-sms` | API key | read/write | first-party executable |
 | `stripe-pack` | API key | read/write | first-party executable |
@@ -45,7 +45,7 @@ behavior behind the `ConnectorAdapter` contract.
 Aliases matter when comparing coverage:
 
 - `outlook-calendar` maps to `microsoft-calendar`.
-- `notion` maps to `notion-database`.
+- `notion-database` maps to `notion`.
 - `stripe` maps to `stripe-pack` for outbound payment actions.
 - `twilio` maps to `twilio-sms`.
 
@@ -75,7 +75,7 @@ lookups.
 Four Tier 0 entries are canonicalized aliases:
 
 - `outlook-calendar` should resolve to `microsoft-calendar`.
-- `notion` should resolve to `notion-database`.
+- `notion-database` should resolve to `notion`.
 - `stripe` should resolve to `stripe-pack` for outbound payment actions and
   `stripe` for inbound webhooks.
 - `twilio` should resolve to `twilio-sms`.

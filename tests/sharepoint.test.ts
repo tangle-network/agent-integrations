@@ -50,12 +50,19 @@ describe('sharepoint adapter', () => {
   it('manifest exposes the expected storage-pack capability set', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
+      'copy_item',
       'create_folder',
       'files.delete',
       'files.move',
       'get_item_content',
+      'get_site_info',
       'list_drive_items',
+      'lists.create',
       'lists.items.create',
+      'lists.items.delete',
+      'lists.items.find',
+      'lists.items.update',
+      'pages.publish',
       'permissions.grant',
       'permissions.revoke',
       'search_drive',
@@ -93,7 +100,7 @@ describe('sharepoint adapter', () => {
     })
     if (adapter.manifest.auth.kind === 'oauth2') {
       expect(adapter.manifest.auth.scopes).toContain('offline_access')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.Read.All')
+      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.ReadWrite.All')
       expect(adapter.manifest.auth.scopes).toContain(
         'https://graph.microsoft.com/Files.ReadWrite.All',
       )
@@ -685,5 +692,327 @@ describe('sharepoint adapter', () => {
         idempotencyKey: 'k1',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+
+  // --- newly-harvested capabilities ---------------------------------------
+
+  it('copy_item POSTs /copy and surfaces the 202-Accepted async monitor URL from Location', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    let observedBody: unknown = null
+    const monitor = 'https://graph.microsoft.com/v1.0/monitor/copy-job-123'
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      // Graph copy is async: 202 Accepted, no body, Location → monitor URL.
+      return new Response(null, { status: 202, headers: { location: monitor } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'copy_item',
+      args: {
+        siteId: 'site-A',
+        itemId: 'item-1',
+        targetParentId: 'folder-2',
+        name: 'copy.csv',
+      },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('POST')
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/drive/items/item-1/copy',
+    )
+    // targetParentId is collapsed into a parentReference { id }.
+    expect(observedBody).toEqual({
+      parentReference: { id: 'folder-2' },
+      name: 'copy.csv',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(false)
+      const data = result.data as {
+        id: string
+        accepted: boolean
+        async: boolean
+        monitorUrl?: string
+      }
+      expect(data.accepted).toBe(true)
+      expect(data.async).toBe(true)
+      expect(data.monitorUrl).toBe(monitor)
+    }
+  })
+
+  it('copy_item without parentReference or targetParentId throws a destination-required error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('should not be called when destination is missing')
+      }),
+    )
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'copy_item',
+        args: { siteId: 'site-A', itemId: 'item-1' },
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toThrow(/parentReference.*targetParentId/i)
+  })
+
+  it('lists.items.update PATCHes /fields with If-Match from inv.expectedEtag and surfaces etagAfter', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    let observedIfMatch: string | undefined
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      const headers = init?.headers as Record<string, string> | undefined
+      observedIfMatch = headers?.['if-match']
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({ '@odata.etag': '"li-new-etag"', Title: 'Q2 review' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'lists.items.update',
+      args: {
+        siteId: 'site-A',
+        listId: 'list-1',
+        itemId: 'li-1',
+        fields: { Title: 'Q2 review' },
+      },
+      idempotencyKey: 'k1',
+      expectedEtag: '"li-old-etag"',
+    })
+
+    expect(observedMethod).toBe('PATCH')
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/lists/list-1/items/li-1/fields',
+    )
+    expect(observedIfMatch).toBe('"li-old-etag"')
+    // The PATCH body is the raw field bag (no envelope).
+    expect(observedBody).toEqual({ Title: 'Q2 review' })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.etagAfter).toBe('"li-new-etag"')
+    }
+  })
+
+  it('lists.items.update maps a 412 If-Match mismatch to ResourceContention', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 412 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.executeMutation!({
+        source: source(),
+        capabilityName: 'lists.items.update',
+        args: {
+          siteId: 'site-A',
+          listId: 'list-1',
+          itemId: 'li-1',
+          fields: { Title: 'stale write' },
+        },
+        idempotencyKey: 'k1',
+        expectedEtag: '"li-stale-etag"',
+      }),
+    ).rejects.toMatchObject({ name: 'ResourceContention' })
+  })
+
+  it('lists.items.delete maps 404 to an idempotent tombstone commit (no throw)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'lists.items.delete',
+      args: { siteId: 'site-A', listId: 'list-1', itemId: 'li-gone' },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(true)
+      const data = result.data as { id: string; deleted: boolean; alreadyMissing: boolean }
+      expect(data).toMatchObject({ id: 'li-gone', deleted: true, alreadyMissing: true })
+    }
+  })
+
+  it('lists.items.delete DELETEs the list item and reports committed on 204', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      return new Response(null, { status: 204 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'lists.items.delete',
+      args: { siteId: 'site-A', listId: 'list-1', itemId: 'li-1' },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('DELETE')
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/lists/list-1/items/li-1',
+    )
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect(result.idempotentReplay).toBe(false)
+      expect((result.data as { deleted: boolean }).deleted).toBe(true)
+    }
+  })
+
+  it('get_site_info GETs /sites/{siteId} and maps displayName→name', async () => {
+    let observedUrl = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      observedUrl = String(input)
+      return jsonResponse({
+        id: 'site-A',
+        displayName: 'Acme HQ',
+        name: 'hq',
+        webUrl: 'https://acme.sharepoint.com/sites/HQ',
+        description: 'root',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'get_site_info',
+      args: { siteId: 'site-A' },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedUrl).toContain('https://graph.microsoft.com/v1.0/sites/site-A')
+    const data = result.data as { id: string; name?: string; webUrl?: string }
+    expect(data).toMatchObject({
+      id: 'site-A',
+      name: 'Acme HQ',
+      webUrl: 'https://acme.sharepoint.com/sites/HQ',
+    })
+  })
+
+  it('lists.create POSTs /sites/{siteId}/lists with displayName', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    let observedBody: unknown = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      observedBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({
+        id: 'list-9',
+        displayName: 'Roadmap',
+        webUrl: 'https://acme.sharepoint.com/.../Roadmap',
+        '@odata.etag': '"list-etag"',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'lists.create',
+      args: { siteId: 'site-A', displayName: 'Roadmap', list: { template: 'genericList' } },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('POST')
+    expect(observedUrl).toBe('https://graph.microsoft.com/v1.0/sites/site-A/lists')
+    expect(observedBody).toMatchObject({
+      displayName: 'Roadmap',
+      list: { template: 'genericList' },
+    })
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { id: string }).id).toBe('list-9')
+      expect((result.data as { displayName?: string }).displayName).toBe('Roadmap')
+      expect(result.etagAfter).toBe('"list-etag"')
+    }
+  })
+
+  it('lists.items.find GETs the list items endpoint with $filter and $expand', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      return jsonResponse({
+        value: [
+          {
+            id: 'li-1',
+            webUrl: 'https://acme.sharepoint.com/.../1',
+            eTag: '"e1"',
+            fields: { Title: 'Q1 review', Status: 'open' },
+          },
+        ],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'lists.items.find',
+      args: {
+        siteId: 'site-A',
+        listId: 'list-1',
+        filter: "fields/Status eq 'open'",
+        expand: 'fields($select=Title,Status)',
+      },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('GET')
+    expect(observedUrl).toContain(
+      'https://graph.microsoft.com/v1.0/sites/site-A/lists/list-1/items?',
+    )
+    // The adapter builds the query with URLSearchParams, which encodes
+    // spaces as '+' (not %20) and decodeURIComponent leaves '+' intact.
+    const decoded = decodeURIComponent(observedUrl)
+    expect(decoded).toContain("$filter=fields/Status+eq+'open'")
+    expect(decoded).toContain('$expand=fields($select=Title,Status)')
+    const data = result.data as {
+      items: Array<{ id: string; etag?: string; fields?: Record<string, unknown> }>
+    }
+    expect(data.items[0]).toMatchObject({
+      id: 'li-1',
+      etag: '"e1"',
+      fields: { Title: 'Q1 review', Status: 'open' },
+    })
+  })
+
+  it('pages.publish POSTs the microsoft.graph.sitePage/publish action', async () => {
+    let observedUrl = ''
+    let observedMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      observedUrl = String(input)
+      observedMethod = init?.method ?? 'GET'
+      return new Response(null, { status: 204 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'pages.publish',
+      args: { siteId: 'site-A', pageId: 'page-1' },
+      idempotencyKey: 'k1',
+    })
+
+    expect(observedMethod).toBe('POST')
+    expect(observedUrl).toBe(
+      'https://graph.microsoft.com/v1.0/sites/site-A/pages/page-1/microsoft.graph.sitePage/publish',
+    )
+    expect(result.status).toBe('committed')
+    if (result.status === 'committed') {
+      expect((result.data as { id: string; published: boolean })).toMatchObject({
+        id: 'page-1',
+        published: true,
+      })
+    }
   })
 })

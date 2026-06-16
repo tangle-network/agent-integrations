@@ -106,13 +106,13 @@ describe('integration registry', () => {
 
   it('resolves aliases to a canonical entry without losing lookup ergonomics', () => {
     const registry = buildDefaultIntegrationRegistry()
-    const canonical = registry.byId.get('notion-database')
-    const alias = registry.byId.get('notion')
+    const canonical = registry.byId.get('notion')
+    const alias = registry.byId.get('notion-database')
 
     expect(canonical).toBeDefined()
     expect(alias).toBe(canonical)
-    expect(canonical?.aliases).toContain('notion')
-    expect(canonical?.connector.id).toBe('notion-database')
+    expect(canonical?.aliases).toContain('notion-database')
+    expect(canonical?.connector.id).toBe('notion')
   })
 
   it('lets executable first-party connectors win without exposing catalog-only actions as tools', () => {
@@ -289,7 +289,7 @@ describe('integration registry', () => {
 
   it('normalizes common provider aliases deterministically', () => {
     expect(canonicalConnectorId('Outlook Calendar')).toBe('microsoft-calendar')
-    expect(canonicalConnectorId('notion')).toBe('notion-database')
+    expect(canonicalConnectorId('notion')).toBe('notion')
     expect(canonicalConnectorId('stripe')).toBe('stripe-pack')
   })
 

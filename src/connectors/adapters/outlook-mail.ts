@@ -177,6 +177,20 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
                 description:
                   'When true, set Graph body.contentType=HTML and send body as HTML; otherwise text. Graph does NOT auto-derive a plain alternative — set html only when the body is HTML.',
               },
+              attachments: {
+                type: 'array',
+                description:
+                  'Optional file attachments. Each item is { name, contentType?, contentBytes } where contentBytes is base64-encoded file data. Sent as Graph #microsoft.graph.fileAttachment entries.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    contentType: { type: 'string' },
+                    contentBytes: { type: 'string', description: 'Base64-encoded attachment bytes.' },
+                  },
+                  required: ['name', 'contentBytes'],
+                },
+              },
             },
             required: ['to', 'subject', 'body'],
           },
@@ -208,6 +222,20 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
                 default: false,
                 description: 'When true, set Graph body.contentType=HTML; otherwise text.',
               },
+              attachments: {
+                type: 'array',
+                description:
+                  'Optional file attachments. Each item is { name, contentType?, contentBytes } where contentBytes is base64-encoded file data. Stored as Graph #microsoft.graph.fileAttachment entries on the draft.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    contentType: { type: 'string' },
+                    contentBytes: { type: 'string', description: 'Base64-encoded attachment bytes.' },
+                  },
+                  required: ['name', 'contentBytes'],
+                },
+              },
             },
             required: ['to', 'subject', 'body'],
           },
@@ -231,6 +259,99 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
             required: ['notificationUrl'],
           },
         },
+        {
+          name: 'forward_message',
+          class: 'mutation',
+          description:
+            "Forward an existing message to one or more recipients with an optional comment. Graph POST /me/messages/{id}/forward.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_SEND],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Graph message id to forward.' },
+              to: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'array', items: { type: 'string' } },
+                ],
+                description: 'Recipient address(es). String OR array of strings.',
+              },
+              comment: { type: 'string', description: 'Optional comment prepended to the forwarded body.' },
+            },
+            required: ['messageId', 'to'],
+          },
+        },
+        {
+          name: 'move_message',
+          class: 'mutation',
+          description:
+            "Move a message to a destination mail folder by id (or well-known name like inbox/archive). Graph POST /me/messages/{id}/move; returns the relocated message (new id).",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_RW],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Graph message id to move.' },
+              destinationId: { type: 'string', description: 'Destination folder id or well-known name (inbox, archive, deleteditems, ...).' },
+            },
+            required: ['messageId', 'destinationId'],
+          },
+        },
+        {
+          name: 'set_labels',
+          class: 'mutation',
+          description:
+            "Set the full set of Outlook categories (labels) on a message. Graph PATCH /me/messages/{id} replaces the categories array, so supply the complete desired set (the caller computes adds/removes against the current set).",
+          cas: 'optimistic-read-verify',
+          externalEffect: false,
+          requiredScopes: [SCOPE_RW],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Graph message id to tag.' },
+              categories: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Full desired category set. Graph replaces (not merges) the categories array.',
+              },
+            },
+            required: ['messageId', 'categories'],
+          },
+        },
+        {
+          name: 'send_draft',
+          class: 'mutation',
+          description:
+            "Send a previously created draft message by id. Graph POST /me/messages/{id}/send. Pairs with create_draft.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          requiredScopes: [SCOPE_SEND],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Graph draft message id to send.' },
+            },
+            required: ['messageId'],
+          },
+        },
+        {
+          name: 'download_attachment',
+          class: 'read',
+          description:
+            "Read an attachment record for a message including base64 contentBytes for file attachments. Graph GET /me/messages/{messageId}/attachments/{attachmentId}. Fills the attachment-bytes gap that read_message defers.",
+          requiredScopes: [SCOPE_READ],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Graph message id owning the attachment.' },
+              attachmentId: { type: 'string', description: 'Graph attachment id (from read_message attachments[].id).' },
+            },
+            required: ['messageId', 'attachmentId'],
+          },
+        },
       ],
     },
 
@@ -238,6 +359,7 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
       if (inv.capabilityName === 'list_messages') return listMessages(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'read_message') return readMessage(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'download_attachment') return downloadAttachment(inv, accessToken, timeoutMs)
       throw new Error(`outlook-mail: unknown read capability ${inv.capabilityName}`)
     },
 
@@ -247,6 +369,10 @@ export function outlookMail(opts: OutlookMailOptions): ConnectorAdapter {
       if (inv.capabilityName === 'send_message') return sendMessage(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'create_draft') return createDraft(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'subscribe_folder') return subscribeFolder(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'forward_message') return forwardMessage(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'move_message') return moveMessage(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'set_labels') return setLabels(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'send_draft') return sendDraft(inv, accessToken, timeoutMs)
       throw new Error(`outlook-mail: unknown mutation capability ${inv.capabilityName}`)
     },
 
@@ -530,6 +656,21 @@ async function sendReply(
   }
 }
 
+/** Input shape for an outbound attachment: base64 file bytes + metadata. */
+interface OutlookAttachmentInput {
+  name: string
+  contentType?: string
+  contentBytes: string
+}
+
+/** Graph #microsoft.graph.fileAttachment wire shape. */
+interface GraphFileAttachment {
+  '@odata.type': '#microsoft.graph.fileAttachment'
+  name: string
+  contentType?: string
+  contentBytes: string
+}
+
 interface GraphMessagePayload {
   subject: string
   body: { contentType: 'Text' | 'HTML'; content: string }
@@ -537,6 +678,7 @@ interface GraphMessagePayload {
   ccRecipients?: Array<{ emailAddress: { address: string } }>
   bccRecipients?: Array<{ emailAddress: { address: string } }>
   internetMessageHeaders?: Array<{ name: string; value: string }>
+  attachments?: GraphFileAttachment[]
 }
 
 function buildMessagePayload(
@@ -547,6 +689,7 @@ function buildMessagePayload(
     cc?: string[]
     bcc?: string[]
     html?: boolean
+    attachments?: OutlookAttachmentInput[]
   },
   idempotencyKey: string,
   cap: 'send_message' | 'create_draft',
@@ -578,6 +721,19 @@ function buildMessagePayload(
   if (args.bcc?.length) {
     payload.bccRecipients = args.bcc.map((address) => ({ emailAddress: { address } }))
   }
+  if (args.attachments?.length) {
+    payload.attachments = args.attachments.map((a) => {
+      if (!a?.name) throw new Error(`outlook-mail ${cap}: attachment \`name\` is required`)
+      if (!a?.contentBytes) throw new Error(`outlook-mail ${cap}: attachment \`contentBytes\` (base64) is required`)
+      const att: GraphFileAttachment = {
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        name: a.name,
+        contentBytes: a.contentBytes,
+      }
+      if (a.contentType) att.contentType = a.contentType
+      return att
+    })
+  }
   return payload
 }
 
@@ -593,6 +749,7 @@ async function sendMessage(
     cc?: string[]
     bcc?: string[]
     html?: boolean
+    attachments?: OutlookAttachmentInput[]
   }
   const message = buildMessagePayload(args, inv.idempotencyKey, 'send_message')
   const res = await fetch(`${API}/me/sendMail`, {
@@ -636,6 +793,7 @@ async function createDraft(
     cc?: string[]
     bcc?: string[]
     html?: boolean
+    attachments?: OutlookAttachmentInput[]
   }
   const message = buildMessagePayload(args, inv.idempotencyKey, 'create_draft')
   // POST /me/messages creates a draft by default (isDraft=true is server-set).
@@ -727,6 +885,221 @@ async function subscribeFolder(
     },
     committedAt: Date.now(),
     idempotentReplay: false,
+  }
+}
+
+async function forwardMessage(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { messageId, to, comment } = inv.args as {
+    messageId: string
+    to: string | string[]
+    comment?: string
+  }
+  if (!messageId) throw new Error('outlook-mail forward_message: `messageId` is required')
+  if (!to || (Array.isArray(to) && to.length === 0)) {
+    throw new Error('outlook-mail forward_message: `to` is required')
+  }
+  const toList = Array.isArray(to) ? to : [to]
+  const toRecipients = toList.map((address) => ({ emailAddress: { address } }))
+  const fwdBody: { toRecipients: Array<{ emailAddress: { address: string } }>; comment?: string } = {
+    toRecipients,
+  }
+  if (comment !== undefined) fwdBody.comment = comment
+  // Graph /forward is fire-and-forget: 202 Accepted with empty body.
+  const res = await fetch(`${API}/me/messages/${encodeURIComponent(messageId)}/forward`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(fwdBody),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail forward_message ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: { forwarded: true, messageId, to: toList },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function moveMessage(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { messageId, destinationId } = inv.args as {
+    messageId: string
+    destinationId: string
+  }
+  if (!messageId) throw new Error('outlook-mail move_message: `messageId` is required')
+  if (!destinationId) throw new Error('outlook-mail move_message: `destinationId` is required')
+  // Graph /move returns the relocated message (with a NEW id, since a move
+  // re-keys the item) as 201 Created.
+  const res = await fetch(`${API}/me/messages/${encodeURIComponent(messageId)}/move`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ destinationId }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail move_message ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    id?: string
+    parentFolderId?: string
+  }
+  return {
+    status: 'committed',
+    data: {
+      moved: true,
+      messageId: json.id ?? messageId,
+      parentFolderId: json.parentFolderId ?? destinationId,
+      destinationId,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function setLabels(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { messageId, categories } = inv.args as {
+    messageId: string
+    categories: string[]
+  }
+  if (!messageId) throw new Error('outlook-mail set_labels: `messageId` is required')
+  if (!Array.isArray(categories)) {
+    throw new Error('outlook-mail set_labels: `categories` must be an array (the full desired set)')
+  }
+  // Graph PATCH replaces (not merges) the categories array, so the supplied
+  // set becomes the authoritative full label set.
+  const res = await fetch(`${API}/me/messages/${encodeURIComponent(messageId)}`, {
+    method: 'PATCH',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ categories }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail set_labels ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    id?: string
+    categories?: string[]
+  }
+  return {
+    status: 'committed',
+    data: {
+      messageId: json.id ?? messageId,
+      categories: json.categories ?? categories,
+    },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function sendDraft(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityMutationResult> {
+  const { messageId } = inv.args as { messageId: string }
+  if (!messageId) throw new Error('outlook-mail send_draft: `messageId` is required')
+  // Graph /send on a draft is fire-and-forget: 202 Accepted with empty body.
+  const res = await fetch(`${API}/me/messages/${encodeURIComponent(messageId)}/send`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail send_draft ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return {
+    status: 'committed',
+    data: { sent: true, messageId },
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+async function downloadAttachment(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityReadResult> {
+  const { messageId, attachmentId } = inv.args as {
+    messageId: string
+    attachmentId: string
+  }
+  const url = `${API}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new CredentialsExpired(`Outlook Mail rejected token (${res.status})`, inv.source.id)
+  }
+  if (res.status === 404) {
+    throw new Error(`outlook-mail download_attachment: attachment ${attachmentId} on message ${messageId} not found`)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`outlook-mail download_attachment ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const a = (await res.json()) as {
+    id?: string
+    name?: string
+    contentType?: string
+    size?: number
+    isInline?: boolean
+    '@odata.type'?: string
+    // Present on #microsoft.graph.fileAttachment; absent for item/reference attachments.
+    contentBytes?: string
+  }
+  return {
+    data: {
+      id: a.id ?? attachmentId,
+      name: a.name ?? '',
+      contentType: a.contentType ?? 'application/octet-stream',
+      size: a.size ?? 0,
+      isInline: a.isInline ?? false,
+      attachmentType: a['@odata.type'],
+      // Base64 bytes for file attachments; null for item/reference attachments
+      // which carry no inline contentBytes.
+      contentBytes: a.contentBytes ?? null,
+    },
+    fetchedAt: Date.now(),
   }
 }
 

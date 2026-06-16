@@ -107,104 +107,308 @@ export function microsoftCalendar(opts: MicrosoftCalendarOptions): ConnectorAdap
               type: 'array',
               items: { type: 'string', description: 'attendee email' },
             },
+            // Optional rich create fields (ported from microsoft-outlook-calendar
+            // create.event). All additive — the freebusy pre-flight and
+            // alternative-slot behavior below is unchanged when these are absent.
+            calendarId: {
+              type: 'string',
+              description: "Target calendar id; defaults to the user's primary calendar (/me/events) when omitted.",
+            },
+            location: {
+              type: 'object',
+              description: 'Graph location resource, e.g. { displayName: "Room 1" }.',
+            },
+            recurrence: {
+              type: 'object',
+              description: 'Graph patternedRecurrence resource ({ pattern, range }).',
+            },
+            isOnlineMeeting: { type: 'boolean', description: 'Provision an online meeting (Teams) for the event.' },
+            onlineMeetingProvider: {
+              type: 'string',
+              description: "Online meeting provider, e.g. 'teamsForBusiness'.",
+            },
+            reminderMinutesBeforeStart: {
+              type: 'integer',
+              description: 'Minutes before start to fire the reminder.',
+            },
+            isAllDay: { type: 'boolean', description: 'Mark the event as all-day (start/end must be midnight-aligned).' },
+            categories: {
+              type: 'array',
+              items: { type: 'string', description: 'Outlook category name' },
+            },
+            importance: { type: 'string', description: "Event importance: 'low' | 'normal' | 'high'." },
           },
           required: ['start', 'end', 'summary'],
+        },
+      },
+      {
+        name: 'delete_event',
+        class: 'mutation',
+        description:
+          "Delete an event by id from the connected Outlook calendar. Graph returns 204 on success; a re-delete of a missing event surfaces as 404 mapped to an idempotent tombstone. Honors If-Match against the event etag when the caller supplies expectedEtag.",
+        cas: 'native-idempotency',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            eventId: { type: 'string', description: 'Graph event id to delete.' },
+          },
+          required: ['eventId'],
+        },
+      },
+      {
+        name: 'list_events',
+        class: 'read',
+        description:
+          "List actual event objects on a calendar with OData paging/filtering ($top, $skip, $filter, $select, $orderby, $search). Targets the user's primary calendar (/me/events) unless calendarId is supplied. Distinct from list_availability, which returns busy windows.",
+        parameters: {
+          type: 'object',
+          properties: {
+            calendarId: { type: 'string', description: "Calendar id; defaults to the user's primary calendar when omitted." },
+            $top: { type: 'integer', description: 'Max events to return (OData page size).' },
+            $skip: { type: 'integer', description: 'Number of events to skip (OData paging offset).' },
+            $filter: { type: 'string', description: 'OData $filter expression.' },
+            $select: { type: 'string', description: 'Comma-separated event fields to project.' },
+            $orderby: { type: 'string', description: 'OData $orderby expression.' },
+            $search: { type: 'string', description: 'OData $search query.' },
+          },
         },
       },
     ],
   },
 
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
-    if (inv.capabilityName !== 'list_availability') {
-      throw new Error(`microsoft-calendar: unknown read capability ${inv.capabilityName}`)
-    }
-    const userPrincipal = readMetaString(inv.source.metadata, 'userPrincipal')
-    const { timeMin, timeMax } = inv.args as { timeMin: string; timeMax: string }
     const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
-    const busy = await getScheduleBusy({ accessToken, userPrincipal, timeMin, timeMax })
-    return {
-      data: { busy },
-      fetchedAt: Date.now(),
+    if (inv.capabilityName === 'list_availability') {
+      const userPrincipal = readMetaString(inv.source.metadata, 'userPrincipal')
+      const { timeMin, timeMax } = inv.args as { timeMin: string; timeMax: string }
+      const busy = await getScheduleBusy({ accessToken, userPrincipal, timeMin, timeMax })
+      return {
+        data: { busy },
+        fetchedAt: Date.now(),
+      }
     }
+    if (inv.capabilityName === 'list_events') {
+      const {
+        calendarId,
+        $top,
+        $skip,
+        $filter,
+        $select,
+        $orderby,
+        $search,
+      } = inv.args as {
+        calendarId?: string
+        $top?: number
+        $skip?: number
+        $filter?: string
+        $select?: string
+        $orderby?: string
+        $search?: string
+      }
+      // /me/calendars/{calendarId}/events when a calendar is pinned, else the
+      // primary-calendar shorthand /me/events. Mirrors the duplicate's
+      // list.events path with the calendarId omitted-segment collapse.
+      const base = calendarId
+        ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events`
+        : 'https://graph.microsoft.com/v1.0/me/events'
+      const qs = new URLSearchParams()
+      if ($top !== undefined) qs.set('$top', String($top))
+      if ($skip !== undefined) qs.set('$skip', String($skip))
+      if ($filter) qs.set('$filter', $filter)
+      if ($select) qs.set('$select', $select)
+      if ($orderby) qs.set('$orderby', $orderby)
+      if ($search) qs.set('$search', $search)
+      const query = qs.toString()
+      const url = query ? `${base}?${query}` : base
+      const res = await fetch(url, {
+        headers: { authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (res.status === 401 || res.status === 403) {
+        throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, inv.source.id)
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`microsoft-calendar list_events ${res.status}: ${text.slice(0, 200)}`)
+      }
+      const json = (await res.json()) as {
+        value?: unknown[]
+        '@odata.nextLink'?: string
+      }
+      return {
+        data: { events: json.value ?? [], nextLink: json['@odata.nextLink'] },
+        fetchedAt: Date.now(),
+      }
+    }
+    throw new Error(`microsoft-calendar: unknown read capability ${inv.capabilityName}`)
   },
 
   async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
-    if (inv.capabilityName !== 'book_slot') {
-      throw new Error(`microsoft-calendar: unknown mutation capability ${inv.capabilityName}`)
-    }
-    const userPrincipal = readMetaString(inv.source.metadata, 'userPrincipal')
-    const { start, end, summary, description, attendees } = inv.args as {
-      start: string
-      end: string
-      summary: string
-      description?: string
-      attendees?: string[]
-    }
     const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
 
-    // Pre-flight: getSchedule for [start, end] on this user.
-    const busy = await getScheduleBusy({ accessToken, userPrincipal, timeMin: start, timeMax: end })
-    if (busy.length > 0) {
-      const startMs = Date.parse(start)
-      const endMs = Date.parse(end)
-      const durMs = endMs - startMs
-      const alternatives = await findNextFreeSlots({
-        accessToken,
-        userPrincipal,
-        searchFromMs: endMs,
-        durationMs: durMs,
-        wanted: 3,
+    if (inv.capabilityName === 'book_slot') {
+      const userPrincipal = readMetaString(inv.source.metadata, 'userPrincipal')
+      const {
+        start,
+        end,
+        summary,
+        description,
+        attendees,
+        calendarId,
+        location,
+        recurrence,
+        isOnlineMeeting,
+        onlineMeetingProvider,
+        reminderMinutesBeforeStart,
+        isAllDay,
+        categories,
+        importance,
+      } = inv.args as {
+        start: string
+        end: string
+        summary: string
+        description?: string
+        attendees?: string[]
+        calendarId?: string
+        location?: unknown
+        recurrence?: unknown
+        isOnlineMeeting?: boolean
+        onlineMeetingProvider?: string
+        reminderMinutesBeforeStart?: number
+        isAllDay?: boolean
+        categories?: string[]
+        importance?: string
+      }
+
+      // Pre-flight: getSchedule for [start, end] on this user.
+      const busy = await getScheduleBusy({ accessToken, userPrincipal, timeMin: start, timeMax: end })
+      if (busy.length > 0) {
+        const startMs = Date.parse(start)
+        const endMs = Date.parse(end)
+        const durMs = endMs - startMs
+        const alternatives = await findNextFreeSlots({
+          accessToken,
+          userPrincipal,
+          searchFromMs: endMs,
+          durationMs: durMs,
+          wanted: 3,
+        })
+        throw new ResourceContention(
+          `requested slot ${start}–${end} is no longer free`,
+          alternatives,
+          { busy },
+        )
+      }
+
+      // Base event body (unchanged); rich fields are attached below only when
+      // supplied so the wire shape stays minimal for the common booking case.
+      const event: Record<string, unknown> = {
+        subject: summary,
+        body: description ? { contentType: 'text', content: description } : undefined,
+        start: { dateTime: start, timeZone: 'UTC' },
+        end: { dateTime: end, timeZone: 'UTC' },
+        attendees: attendees?.map(email => ({
+          emailAddress: { address: email },
+          type: 'required',
+        })),
+      }
+      if (location !== undefined) event.location = location
+      if (recurrence !== undefined) event.recurrence = recurrence
+      if (isOnlineMeeting !== undefined) event.isOnlineMeeting = isOnlineMeeting
+      if (onlineMeetingProvider !== undefined) event.onlineMeetingProvider = onlineMeetingProvider
+      if (reminderMinutesBeforeStart !== undefined) event.reminderMinutesBeforeStart = reminderMinutesBeforeStart
+      if (isAllDay !== undefined) event.isAllDay = isAllDay
+      if (categories !== undefined) event.categories = categories
+      if (importance !== undefined) event.importance = importance
+
+      // /me/calendars/{calendarId}/events when a calendar is pinned, else the
+      // primary-calendar shorthand /me/events.
+      const url = calendarId
+        ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events`
+        : 'https://graph.microsoft.com/v1.0/me/events'
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(event),
+        signal: AbortSignal.timeout(15_000),
       })
-      throw new ResourceContention(
-        `requested slot ${start}–${end} is no longer free`,
-        alternatives,
-        { busy },
-      )
+      if (res.status === 401 || res.status === 403) {
+        throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, inv.source.id)
+      }
+      if (res.status === 412 || res.status === 409) {
+        // 412 = If-Match precondition failed (not used on insert but Graph
+        // can return it under specific concurrent-update races). 409 covers
+        // duplicate resourceId on rare retries.
+        throw new ResourceContention(
+          `Microsoft Graph reported conflict on book_slot (${res.status})`,
+          [],
+        )
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`microsoft-calendar book_slot ${res.status}: ${text.slice(0, 200)}`)
+      }
+      const created = (await res.json()) as { id: string; '@odata.etag'?: string; webLink?: string }
+      return {
+        status: 'committed',
+        data: { eventId: created.id, webLink: created.webLink },
+        etagAfter: created['@odata.etag'],
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
     }
 
-    const event = {
-      subject: summary,
-      body: description ? { contentType: 'text', content: description } : undefined,
-      start: { dateTime: start, timeZone: 'UTC' },
-      end: { dateTime: end, timeZone: 'UTC' },
-      attendees: attendees?.map(email => ({
-        emailAddress: { address: email },
-        type: 'required',
-      })),
-    }
-    const res = await fetch('https://graph.microsoft.com/v1.0/me/events', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(event),
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (res.status === 401 || res.status === 403) {
-      throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, inv.source.id)
-    }
-    if (res.status === 412 || res.status === 409) {
-      // 412 = If-Match precondition failed (not used on insert but Graph
-      // can return it under specific concurrent-update races). 409 covers
-      // duplicate resourceId on rare retries.
-      throw new ResourceContention(
-        `Microsoft Graph reported conflict on book_slot (${res.status})`,
-        [],
+    if (inv.capabilityName === 'delete_event') {
+      const { eventId } = inv.args as { eventId: string }
+      // Graph honors If-Match on events.delete; wire the caller's expectedEtag
+      // when present so a stale-state delete is rejected with 412.
+      const headers: Record<string, string> = { authorization: `Bearer ${accessToken}` }
+      if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
+      const res = await fetch(
+        `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(eventId)}`,
+        {
+          method: 'DELETE',
+          headers,
+          signal: AbortSignal.timeout(15_000),
+        },
       )
+      if (res.status === 401 || res.status === 403) {
+        throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, inv.source.id)
+      }
+      if (res.status === 412 || res.status === 409) {
+        throw new ResourceContention(
+          `Microsoft Graph reported conflict on delete_event (${res.status})`,
+          [],
+        )
+      }
+      if (res.status === 404) {
+        // Tombstone: subsequent retries (or a delete of an already-gone event)
+        // land here; report idempotent success so MutationGuard's replay path
+        // stays honest.
+        return {
+          status: 'committed',
+          data: { eventId, deleted: true, alreadyMissing: true },
+          committedAt: Date.now(),
+          idempotentReplay: true,
+        }
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`microsoft-calendar delete_event ${res.status}: ${text.slice(0, 200)}`)
+      }
+      return {
+        status: 'committed',
+        data: { eventId, deleted: true },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
     }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`microsoft-calendar book_slot ${res.status}: ${text.slice(0, 200)}`)
-    }
-    const created = (await res.json()) as { id: string; '@odata.etag'?: string; webLink?: string }
-    return {
-      status: 'committed',
-      data: { eventId: created.id, webLink: created.webLink },
-      etagAfter: created['@odata.etag'],
-      committedAt: Date.now(),
-      idempotentReplay: false,
-    }
+
+    throw new Error(`microsoft-calendar: unknown mutation capability ${inv.capabilityName}`)
   },
 
   async exchangeOAuth(input) {

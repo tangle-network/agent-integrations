@@ -93,8 +93,8 @@ describe('integration specs', () => {
   })
 
   it('resolves auth specs through kind aliases', () => {
-    // 'notion' aliases to 'notion-database'; 'stripe' to 'stripe-pack'.
-    expect(resolveConnectorAuthSpec('notion')?.kind).toBe('notion-database')
+    // 'notion-database' aliases to 'notion'; 'stripe' to 'stripe-pack'.
+    expect(resolveConnectorAuthSpec('notion')?.kind).toBe('notion')
     expect(resolveConnectorAuthSpec('stripe')?.authKind).toBe('api_key')
   })
 

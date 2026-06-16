@@ -35,7 +35,6 @@ const EXECUTABLE_KINDS = new Set([
   'slack',
   'hubspot',
   'notion',
-  'notion-database',
   'salesforce',
   'github',
   'gitlab',
@@ -51,7 +50,7 @@ const EXECUTABLE_KINDS = new Set([
 
 const KIND_ALIASES: Record<string, string> = {
   'outlook-calendar': 'microsoft-calendar',
-  notion: 'notion-database',
+  'notion-database': 'notion',
   stripe: 'stripe-pack',
   twilio: 'twilio-sms',
 }
@@ -151,7 +150,7 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
   const status = statusFor(kind)
   // Per-kind overrides layer in here — see specs/overrides.ts. The override
   // is consulted under the canonical kind AND the original coverage id so
-  // alias-collapsed kinds (e.g. notion → notion-database) can carry an
+  // alias-collapsed kinds (e.g. notion-database → notion) can carry an
   // override under either name.
   const override =
     getIntegrationOverride(kind) ?? getIntegrationOverride(coverage.id)

@@ -64,7 +64,7 @@ import {
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
 
 const SCOPES = [
-  'https://graph.microsoft.com/Sites.Read.All',
+  'https://graph.microsoft.com/Sites.ReadWrite.All',
   'https://graph.microsoft.com/Files.ReadWrite.All',
   // offline_access is required on v2.0 to receive a refresh_token.
   'offline_access',
@@ -311,6 +311,142 @@ export function sharepoint(opts: SharePointOptions): ConnectorAdapter {
             required: ['siteId', 'listId', 'fields'],
           },
         },
+        {
+          name: 'get_site_info',
+          class: 'read',
+          description:
+            'Read the metadata for a SharePoint site by site id (id, name, displayName, webUrl, description).',
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id (composite "host,site-id,web-id").' },
+            },
+            required: ['siteId'],
+          },
+        },
+        {
+          name: 'lists.items.find',
+          class: 'read',
+          description:
+            'List items in a SharePoint list, optionally filtered with $filter and shaped with $expand (e.g. fields($select=...)).',
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              listId: { type: 'string', description: 'SharePoint list id (or list display name resolved by the caller).' },
+              filter: { type: 'string', description: 'Optional OData $filter expression.' },
+              expand: { type: 'string', description: 'Optional OData $expand, e.g. fields($select=Title,Status).' },
+              top: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
+            },
+            required: ['siteId', 'listId'],
+          },
+        },
+        {
+          name: 'copy_item',
+          class: 'mutation',
+          description:
+            "Copy a file or folder DriveItem. Graph copy is asynchronous — it returns 202 Accepted with a Location monitor URL rather than the new DriveItem. Supply either a cross-drive parentReference (driveId + id) or a same-site target parent id via targetParentId; optionally rename via name.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              itemId: { type: 'string', description: 'DriveItem id of the file or folder to copy.' },
+              parentReference: {
+                type: 'object',
+                description: 'Cross-drive destination reference (driveId + id). Provide this OR targetParentId.',
+                additionalProperties: true,
+              },
+              targetParentId: {
+                type: 'string',
+                description: 'Same-site destination parent folder DriveItem id. Provide this OR parentReference.',
+              },
+              name: { type: 'string', description: 'Optional new name for the copied item.' },
+            },
+            required: ['siteId', 'itemId'],
+          },
+        },
+        {
+          name: 'lists.create',
+          class: 'mutation',
+          description:
+            "Create a SharePoint list on the site. displayName is required; columns and list (e.g. { template }) are optional.",
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              displayName: { type: 'string', description: 'Display name of the new list.' },
+              columns: {
+                type: 'array',
+                description: 'Optional column definitions for the list.',
+                items: { type: 'object', additionalProperties: true },
+              },
+              list: {
+                type: 'object',
+                description: 'Optional list facet, e.g. { template: "genericList" }.',
+                additionalProperties: true,
+              },
+            },
+            required: ['siteId', 'displayName'],
+          },
+        },
+        {
+          name: 'lists.items.update',
+          class: 'mutation',
+          description:
+            "Patch the fields on an existing list item. Supports etag-CAS via If-Match — pass the item's etag to guard against concurrent writes; a mismatch surfaces as ResourceContention.",
+          cas: 'etag-if-match',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              listId: { type: 'string', description: 'SharePoint list id.' },
+              itemId: { type: 'string', description: 'List item id to update.' },
+              fields: {
+                type: 'object',
+                description: 'Map of column internal-name → new value.',
+                additionalProperties: true,
+              },
+            },
+            required: ['siteId', 'listId', 'itemId', 'fields'],
+          },
+        },
+        {
+          name: 'lists.items.delete',
+          class: 'mutation',
+          description:
+            'Delete a list item by id. Graph returns 204 on success. (siteId, listId, itemId) is the natural idempotency tuple — a re-delete of a missing item surfaces as 404 mapped to a tombstone result.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              listId: { type: 'string', description: 'SharePoint list id.' },
+              itemId: { type: 'string', description: 'List item id to delete.' },
+            },
+            required: ['siteId', 'listId', 'itemId'],
+          },
+        },
+        {
+          name: 'pages.publish',
+          class: 'mutation',
+          description: 'Publish a SharePoint site page by page id.',
+          cas: 'native-idempotency',
+          externalEffect: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              siteId: { type: 'string', description: 'Graph site id.' },
+              pageId: { type: 'string', description: 'Site page id to publish.' },
+            },
+            required: ['siteId', 'pageId'],
+          },
+        },
       ],
     },
 
@@ -509,6 +645,62 @@ export function sharepoint(opts: SharePointOptions): ConnectorAdapter {
             content: text,
           },
           etag: meta.eTag,
+          fetchedAt: Date.now(),
+        }
+      }
+      if (inv.capabilityName === 'get_site_info') {
+        const { siteId } = inv.args as { siteId: string }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}?$select=id,name,displayName,webUrl,description`
+        const site = await graphGet<{
+          id: string
+          name?: string
+          displayName?: string
+          webUrl?: string
+          description?: string
+        }>(url, accessToken, inv.source.id)
+        return {
+          data: {
+            id: site.id,
+            name: site.displayName ?? site.name,
+            webUrl: site.webUrl,
+            description: site.description,
+          },
+          fetchedAt: Date.now(),
+        }
+      }
+      if (inv.capabilityName === 'lists.items.find') {
+        const { siteId, listId, filter, expand, top } = inv.args as {
+          siteId: string
+          listId: string
+          filter?: string
+          expand?: string
+          top?: number
+        }
+        const t = clamp(top ?? 50, 1, 200)
+        const params = new URLSearchParams()
+        params.set('$top', String(t))
+        if (typeof filter === 'string' && filter.length > 0) params.set('$filter', filter)
+        if (typeof expand === 'string' && expand.length > 0) params.set('$expand', expand)
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/lists/${encodeURIComponent(listId)}/items?${params.toString()}`
+        const json = await graphGet<{
+          value?: Array<{
+            id: string
+            webUrl?: string
+            eTag?: string
+            lastModifiedDateTime?: string
+            fields?: Record<string, unknown>
+          }>
+          '@odata.nextLink'?: string
+        }>(url, accessToken, inv.source.id)
+        const items = (json.value ?? []).map((it) => ({
+          id: it.id,
+          webUrl: it.webUrl,
+          etag: it.eTag,
+          lastModifiedAt: it.lastModifiedDateTime,
+          fields: it.fields,
+        }))
+        return {
+          data: { items, nextLink: json['@odata.nextLink'] },
           fetchedAt: Date.now(),
         }
       }
@@ -882,6 +1074,256 @@ export function sharepoint(opts: SharePointOptions): ConnectorAdapter {
           status: 'committed',
           data: { id: created.id, webUrl: created.webUrl, fields: created.fields },
           etagAfter: created['@odata.etag'] ?? created.eTag,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'copy_item') {
+        const { siteId, itemId, parentReference, targetParentId, name } = inv.args as {
+          siteId: string
+          itemId: string
+          parentReference?: Record<string, unknown>
+          targetParentId?: string
+          name?: string
+        }
+        // Collapse the two source copy variants: a cross-drive
+        // parentReference (driveId + id) OR a same-site target parent id.
+        const ref: Record<string, unknown> | undefined =
+          parentReference && Object.keys(parentReference).length > 0
+            ? parentReference
+            : typeof targetParentId === 'string' && targetParentId.length > 0
+              ? { id: targetParentId }
+              : undefined
+        if (!ref) {
+          throw new Error(
+            'sharepoint copy_item: provide either parentReference (cross-drive) or targetParentId (same-site)',
+          )
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/drive/items/${encodeURIComponent(itemId)}/copy`
+        const body: Record<string, unknown> = { parentReference: ref }
+        if (typeof name === 'string' && name.length > 0) body.name = name
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on copy_item (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok && res.status !== 202) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint copy_item ${res.status}: ${text.slice(0, 200)}`)
+        }
+        // Graph copy is asynchronous: 202 Accepted returns a Location header
+        // pointing at a monitor URL (NOT a DriveItem). The new item id only
+        // becomes available by polling that monitor — we surface the monitor
+        // URL so the caller can track completion out-of-band.
+        const monitorUrl = res.headers.get('location') ?? undefined
+        return {
+          status: 'committed',
+          data: { id: itemId, accepted: true, async: true, monitorUrl },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'lists.create') {
+        const { siteId, displayName, columns, list } = inv.args as {
+          siteId: string
+          displayName: string
+          columns?: unknown[]
+          list?: Record<string, unknown>
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/lists`
+        const body: Record<string, unknown> = { displayName }
+        if (Array.isArray(columns)) body.columns = columns
+        if (list && typeof list === 'object') body.list = list
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on lists.create (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint lists.create ${res.status}: ${text.slice(0, 200)}`)
+        }
+        const created = (await res.json()) as {
+          id: string
+          displayName?: string
+          name?: string
+          webUrl?: string
+          eTag?: string
+          '@odata.etag'?: string
+        }
+        return {
+          status: 'committed',
+          data: {
+            id: created.id,
+            displayName: created.displayName ?? created.name,
+            webUrl: created.webUrl,
+          },
+          etagAfter: created['@odata.etag'] ?? created.eTag,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'lists.items.update') {
+        const { siteId, listId, itemId, fields } = inv.args as {
+          siteId: string
+          listId: string
+          itemId: string
+          fields: Record<string, unknown>
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}/fields`
+        const headers: Record<string, string> = {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+        }
+        // etag-CAS: caller-supplied etag is sent as If-Match so a concurrent
+        // write that moved the item surfaces as 412 → ResourceContention.
+        if (typeof inv.expectedEtag === 'string' && inv.expectedEtag.length > 0) {
+          headers['if-match'] = inv.expectedEtag
+        }
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(fields),
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on lists.items.update (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint lists.items.update ${res.status}: ${text.slice(0, 200)}`)
+        }
+        const updated = (await res.json()) as Record<string, unknown> & {
+          '@odata.etag'?: string
+          eTag?: string
+        }
+        return {
+          status: 'committed',
+          data: { id: itemId, fields: updated },
+          etagAfter: updated['@odata.etag'] ?? updated.eTag,
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'lists.items.delete') {
+        const { siteId, listId, itemId } = inv.args as {
+          siteId: string
+          listId: string
+          itemId: string
+        }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 412 || res.status === 409) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on lists.items.delete (${res.status})`,
+            [],
+          )
+        }
+        if (res.status === 404) {
+          // Tombstone: subsequent retries should land here; report idempotent
+          // success so MutationGuard's replay path stays honest.
+          return {
+            status: 'committed',
+            data: { id: itemId, deleted: true, alreadyMissing: true },
+            committedAt: Date.now(),
+            idempotentReplay: true,
+          }
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint lists.items.delete ${res.status}: ${text.slice(0, 200)}`)
+        }
+        return {
+          status: 'committed',
+          data: { id: itemId, deleted: true },
+          committedAt: Date.now(),
+          idempotentReplay: false,
+        }
+      }
+      if (inv.capabilityName === 'pages.publish') {
+        const { siteId, pageId } = inv.args as { siteId: string; pageId: string }
+        const url = `${GRAPH}/sites/${encodeURIComponent(siteId)}/pages/${encodeURIComponent(pageId)}/microsoft.graph.sitePage/publish`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: 'application/json',
+          },
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (res.status === 401 || res.status === 403) {
+          throw new CredentialsExpired(
+            `Microsoft Graph rejected token (${res.status})`,
+            inv.source.id,
+          )
+        }
+        if (res.status === 409 || res.status === 412) {
+          throw new ResourceContention(
+            `Microsoft Graph reported conflict on pages.publish (${res.status})`,
+            [],
+          )
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          throw new Error(`sharepoint pages.publish ${res.status}: ${text.slice(0, 200)}`)
+        }
+        return {
+          status: 'committed',
+          data: { id: pageId, published: true },
           committedAt: Date.now(),
           idempotentReplay: false,
         }
