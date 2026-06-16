@@ -14,9 +14,18 @@
  * Notion adapter (the former `notion-database` duplicate was retired into it).
  */
 
-import { type ConnectorAdapter, type ConnectorCredentials } from '../types.js'
+import {
+  type CapabilityMutationResult,
+  type ConnectorAdapter,
+  type ConnectorCredentials,
+  type ConnectorInvocation,
+} from '../types.js'
 import { refreshAccessToken } from '../oauth.js'
-import { declarativeRestConnector, type RestConnectorSpec } from './declarative-rest.js'
+import {
+  declarativeRestConnector,
+  executeRestRequest,
+  type RestConnectorSpec,
+} from './declarative-rest.js'
 
 const TOKEN_URL = 'https://api.notion.com/v1/oauth/token'
 const NOTION_VERSION = '2022-06-28'
@@ -40,6 +49,10 @@ const NOTION_SPEC: RestConnectorSpec = {
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.notion.com/v1',
+  // Notion rejects any request without a Notion-Version header (400
+  // invalid_request). The declarative executor merges defaultHeaders into
+  // every read/mutation, so the whole surface carries it.
+  defaultHeaders: { 'Notion-Version': NOTION_VERSION },
   test: { method: 'GET', path: '/users/me' },
   capabilities: [
     {
@@ -327,7 +340,46 @@ const NOTION_SPEC: RestConnectorSpec = {
   ],
 }
 
-export const notionConnector = declarativeRestConnector(NOTION_SPEC)
+/**
+ * `databases.update` supports partial updates (title-only or schema-only), but
+ * the declarative body renderer resolves exact-match placeholders via
+ * readRequiredPath, which throws when an optional field is absent. Build the
+ * PATCH body from only the provided fields and reuse the shared executor (so
+ * auth, Notion-Version, and error mapping stay identical to the declarative
+ * path).
+ */
+async function databasesUpdate(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
+  const { title, properties } = inv.args as { title?: unknown; properties?: unknown }
+  const body: Record<string, unknown> = {}
+  if (title !== undefined) body.title = '{title}'
+  if (properties !== undefined) body.properties = '{properties}'
+  const response = await executeRestRequest(
+    NOTION_SPEC,
+    { method: 'PATCH', path: '/databases/{databaseId}', body },
+    inv,
+  )
+  return {
+    status: 'committed',
+    data: response.data,
+    etagAfter: response.etag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
+
+/** Wrap the declarative adapter to hand-roll the one capability the
+ *  declarative body renderer can't express (optional partial update). */
+function withNotionOverrides(base: ConnectorAdapter): ConnectorAdapter {
+  return {
+    ...base,
+    async executeMutation(inv) {
+      if (inv.capabilityName === 'databases.update') return databasesUpdate(inv)
+      return base.executeMutation!(inv)
+    },
+  }
+}
+
+export const notionConnector = withNotionOverrides(declarativeRestConnector(NOTION_SPEC))
 
 /** OAuth client config the factory closes over. Caller resolves these at
  *  construction time (env, DB, secret manager — package doesn't care). */
@@ -339,7 +391,7 @@ export interface NotionOptions {
 export function notion(opts: NotionOptions): ConnectorAdapter {
   const { clientId, clientSecret } = opts
   return {
-    ...declarativeRestConnector(NOTION_SPEC),
+    ...withNotionOverrides(declarativeRestConnector(NOTION_SPEC)),
 
     /**
      * Notion's token endpoint follows RFC 6749 with one twist — it REQUIRES

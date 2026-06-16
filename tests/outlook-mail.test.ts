@@ -464,4 +464,202 @@ describe('outlook-mail adapter', () => {
     const result = await adapter.test!(source())
     expect(result.ok).toBe(true)
   })
+
+  it('download_attachment GETs the attachment and returns base64 contentBytes', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? 'GET'
+      return jsonResponse({
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        id: 'att1',
+        name: 'invoice.pdf',
+        contentType: 'application/pdf',
+        size: 1024,
+        isInline: false,
+        contentBytes: 'JVBERi0xLjQK',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'msg1', attachmentId: 'att1' },
+      idempotencyKey: 'k1',
+    })
+    expect(calledUrl).toContain('/me/messages/msg1/attachments/att1')
+    expect(calledMethod).toBe('GET')
+    const data = result.data as {
+      id: string
+      name: string
+      contentType: string
+      size: number
+      isInline: boolean
+      attachmentType?: string
+      contentBytes: string | null
+    }
+    expect(data).toMatchObject({
+      id: 'att1',
+      name: 'invoice.pdf',
+      contentType: 'application/pdf',
+      size: 1024,
+      isInline: false,
+      attachmentType: '#microsoft.graph.fileAttachment',
+      contentBytes: 'JVBERi0xLjQK',
+    })
+  })
+
+  it('download_attachment returns null contentBytes for item/reference attachments', async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        '@odata.type': '#microsoft.graph.itemAttachment',
+        id: 'att9',
+        name: 'forwarded.eml',
+        contentType: 'message/rfc822',
+        size: 4096,
+        isInline: false,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'msg1', attachmentId: 'att9' },
+      idempotencyKey: 'k1',
+    })
+    const data = result.data as { contentBytes: string | null; attachmentType?: string }
+    expect(data.contentBytes).toBeNull()
+    expect(data.attachmentType).toBe('#microsoft.graph.itemAttachment')
+  })
+
+  it('set_labels PATCHes /me/messages/{id} with the full categories set and commits the result', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    let patchBody: { categories?: string[] } | null = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      patchBody = JSON.parse(init!.body as string)
+      return jsonResponse({ id: 'msg1', categories: ['Red category', 'Invoices'] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'set_labels',
+      args: { messageId: 'msg1', categories: ['Red category', 'Invoices'] },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/messages/msg1')
+    expect(calledMethod).toBe('PATCH')
+    expect(patchBody).toEqual({ categories: ['Red category', 'Invoices'] })
+    if (result.status === 'committed') {
+      const data = result.data as { messageId: string; categories: string[] }
+      expect(data.messageId).toBe('msg1')
+      expect(data.categories).toEqual(['Red category', 'Invoices'])
+    }
+  })
+
+  it('forward_message POSTs /me/messages/{id}/forward with toRecipients + comment', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    let postedBody: {
+      toRecipients?: Array<{ emailAddress: { address: string } }>
+      comment?: string
+    } | null = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      postedBody = JSON.parse(init!.body as string)
+      return new Response(null, { status: 202 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'forward_message',
+      args: { messageId: 'msg1', to: 'fwd@example.com', comment: 'FYI' },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/messages/msg1/forward')
+    expect(calledMethod).toBe('POST')
+    expect(postedBody!.toRecipients).toEqual([
+      { emailAddress: { address: 'fwd@example.com' } },
+    ])
+    expect(postedBody!.comment).toBe('FYI')
+    if (result.status === 'committed') {
+      const data = result.data as { forwarded: boolean; messageId: string; to: string[] }
+      expect(data.forwarded).toBe(true)
+      expect(data.messageId).toBe('msg1')
+      expect(data.to).toEqual(['fwd@example.com'])
+    }
+  })
+
+  it('move_message POSTs /me/messages/{id}/move with destinationId and commits the relocated id', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    let postedBody: { destinationId?: string } | null = null
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      postedBody = JSON.parse(init!.body as string)
+      // Graph re-keys the item on move: returns a NEW id.
+      return jsonResponse({ id: 'msg1-moved', parentFolderId: 'archive' }, { status: 201 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'move_message',
+      args: { messageId: 'msg1', destinationId: 'archive' },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/messages/msg1/move')
+    expect(calledMethod).toBe('POST')
+    expect(postedBody).toEqual({ destinationId: 'archive' })
+    if (result.status === 'committed') {
+      const data = result.data as {
+        moved: boolean
+        messageId: string
+        parentFolderId: string
+        destinationId: string
+      }
+      expect(data.moved).toBe(true)
+      expect(data.messageId).toBe('msg1-moved')
+      expect(data.parentFolderId).toBe('archive')
+      expect(data.destinationId).toBe('archive')
+    }
+  })
+
+  it('send_draft POSTs /me/messages/{id}/send and commits', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      return new Response(null, { status: 202 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'send_draft',
+      args: { messageId: 'draft-xyz' },
+      idempotencyKey: 'k1',
+    })
+    expect(result.status).toBe('committed')
+    expect(calledUrl).toContain('/me/messages/draft-xyz/send')
+    expect(calledMethod).toBe('POST')
+    if (result.status === 'committed') {
+      const data = result.data as { sent: boolean; messageId: string }
+      expect(data.sent).toBe(true)
+      expect(data.messageId).toBe('draft-xyz')
+    }
+  })
 })

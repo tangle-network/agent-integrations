@@ -125,7 +125,7 @@ function readOperation(spec: RestConnectorSpec, name: string, expected: 'read' |
   return op
 }
 
-async function executeRestRequest(
+export async function executeRestRequest(
   spec: RestConnectorSpec,
   request: RestRequestSpec,
   inv: ConnectorInvocation,
