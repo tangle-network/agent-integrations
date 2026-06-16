@@ -59,6 +59,8 @@ describe('notion adapter manifest', () => {
         'blocks.append',
         'blocks.update',
         'blocks.delete',
+        'databases.create',
+        'databases.update',
         'comments.create',
         'comments.retrieve',
         'users.list',

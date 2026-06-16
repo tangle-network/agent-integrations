@@ -14,7 +14,8 @@ describe('notionConnector', () => {
     // `400 invalid_request_url`, so the connect flow never reaches consent.
     expect(auth.authorizationUrl).toBe('https://api.notion.com/v1/oauth/authorize')
     expect(auth.tokenUrl).toBe('https://api.notion.com/v1/oauth/token')
-    expect(auth.scopes).toEqual(['read', 'write'])
+    expect(auth.scopes).toEqual([])
+    expect(auth.extraAuthParams).toEqual({ owner: 'user' })
     expect(auth.clientIdEnv).toBe('NOTION_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('NOTION_OAUTH_CLIENT_SECRET')
   })

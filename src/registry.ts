@@ -62,7 +62,9 @@ export interface ComposeIntegrationRegistryOptions {
 }
 
 const DEFAULT_ALIASES: Record<string, string> = {
-  notion: 'notion-database',
+  'notion-database': 'notion',
+  'microsoft-onedrive': 'onedrive',
+  'microsoft-sharepoint': 'sharepoint',
   'outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook': 'outlook-mail',

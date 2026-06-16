@@ -57,6 +57,6 @@ const matches = searchIntegrationTools(tools, 'send a slack message', {
 })
 ```
 
-Aliases such as `notion -> notion-database`, `stripe -> stripe-pack`,
+Aliases such as `notion-database -> notion`, `stripe -> stripe-pack`,
 `twilio -> twilio-sms`, and `outlook-calendar -> microsoft-calendar` resolve to
 one canonical entry while preserving lookup by either name.

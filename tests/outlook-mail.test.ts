@@ -54,10 +54,15 @@ describe('outlook-mail adapter', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
       'create_draft',
+      'download_attachment',
+      'forward_message',
       'list_messages',
+      'move_message',
       'read_message',
+      'send_draft',
       'send_message',
       'send_reply',
+      'set_labels',
       'subscribe_folder',
     ])
   })

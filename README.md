@@ -202,7 +202,7 @@ code should route through `IntegrationHub` either way.
 
 Use `buildDefaultIntegrationRegistry()` before creating tool catalogs or
 connection pickers. It produces one canonical connector per integration,
-dedupes aliases such as `notion -> notion-database`, keeps source provenance in
+dedupes aliases such as `notion-database -> notion`, keeps source provenance in
 metadata, and marks the configured execution state for each connector:
 
 ```txt

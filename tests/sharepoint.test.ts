@@ -50,12 +50,19 @@ describe('sharepoint adapter', () => {
   it('manifest exposes the expected storage-pack capability set', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([
+      'copy_item',
       'create_folder',
       'files.delete',
       'files.move',
       'get_item_content',
+      'get_site_info',
       'list_drive_items',
+      'lists.create',
       'lists.items.create',
+      'lists.items.delete',
+      'lists.items.find',
+      'lists.items.update',
+      'pages.publish',
       'permissions.grant',
       'permissions.revoke',
       'search_drive',
@@ -93,7 +100,7 @@ describe('sharepoint adapter', () => {
     })
     if (adapter.manifest.auth.kind === 'oauth2') {
       expect(adapter.manifest.auth.scopes).toContain('offline_access')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.Read.All')
+      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.ReadWrite.All')
       expect(adapter.manifest.auth.scopes).toContain(
         'https://graph.microsoft.com/Files.ReadWrite.All',
       )
