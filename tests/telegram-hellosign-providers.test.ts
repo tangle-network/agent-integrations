@@ -196,4 +196,21 @@ describe('hellosignWebhookProvider', () => {
     const [a2] = await hellosignWebhookProvider.parse({ rawBody: mk('req_A'), headers: {} })
     expect(a2.providerEventId).toBe(a.providerEventId)
   })
+
+  it('prefers the canonical event.event_id for providerEventId when present', async () => {
+    const eventType = 'signature_request_signed'
+    const eventTime = '1700000030'
+    const event_hash = createHmac('sha256', apiKey)
+      .update(`${eventTime}${eventType}`)
+      .digest('hex')
+    const body = JSON.stringify({
+      event: { event_time: eventTime, event_type: eventType, event_hash, event_id: 'evt_canonical_1' },
+    })
+    const [env] = await hellosignWebhookProvider.parse({ rawBody: body, headers: {} })
+    expect(env.providerEventId).toBe('evt_canonical_1')
+  })
+
+  it('exposes the literal Dropbox Sign ACK body', () => {
+    expect(hellosignWebhookProvider.successResponse?.body).toBe('Hello API Event Received')
+  })
 })

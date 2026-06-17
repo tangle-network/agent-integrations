@@ -255,6 +255,9 @@ export const telegramWebhookProvider: WebhookProvider = {
  *  `json=`/multipart `name="json"` form field on older apps. */
 export const hellosignWebhookProvider: WebhookProvider = {
   id: 'hellosign',
+  // Dropbox Sign acknowledges a delivery only when the response body is exactly
+  // 'Hello API Event Received'; any other body makes it retry the event.
+  successResponse: { body: 'Hello API Event Received', headers: { 'content-type': 'text/plain' } },
   verifySignature({ rawBody, secret }): SignatureVerification {
     const body = parseHelloSignBody(rawBody)
     const event = body?.event
@@ -281,12 +284,16 @@ export const hellosignWebhookProvider: WebhookProvider = {
     return [{
       provider: 'hellosign',
       eventType: `hellosign.${event.event_type ?? 'unknown'}`,
-      // `event_hash` = HMAC(apiKey, event_time + event_type), so two distinct
-      // same-type events in the same second share it — keying idempotency on it
-      // would drop the second. Key on a digest of the parsed body instead:
-      // identical across byte-or-encoding-equivalent redeliveries of one event,
-      // distinct across events that differ in content.
-      providerEventId: createHash('sha256').update(JSON.stringify(body)).digest('hex'),
+      // Prefer Dropbox Sign's canonical `event.event_id` (stable across
+      // redeliveries, correlates with the provider). Fall back to a digest of
+      // the parsed body when it's absent: `event_hash` = HMAC(apiKey,
+      // event_time + event_type), so two distinct same-type events in the same
+      // second share it — the body digest stays distinct across differing
+      // events and identical across redeliveries of one event.
+      providerEventId:
+        typeof event.event_id === 'string' && event.event_id.length > 0
+          ? event.event_id
+          : createHash('sha256').update(JSON.stringify(body)).digest('hex'),
       receivedAt: now ?? Date.now(),
       payload: body,
       headers: normalizeHeaders(headers),
@@ -299,6 +306,7 @@ interface HelloSignInboundBody {
     event_time?: string
     event_type?: string
     event_hash?: string
+    event_id?: string
   }
 }
 

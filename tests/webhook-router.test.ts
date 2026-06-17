@@ -8,6 +8,7 @@ import {
   gmailWebhookProvider,
   gdriveWebhookProvider,
   genericHmacWebhookProvider,
+  hellosignWebhookProvider,
   type WebhookEnvelope,
   type WebhookIdempotencyStore,
 } from '../src/webhooks/index'
@@ -65,6 +66,24 @@ describe('WebhookRouter', () => {
     expect(delivered).toHaveLength(1)
     expect(delivered[0].eventType).toBe('customer.created')
     expect(delivered[0].providerEventId).toBe('evt_1')
+  })
+
+  it('returns the literal Dropbox Sign ACK body on a verified HelloSign delivery', async () => {
+    const apiKey = 'hs_api_key'
+    const eventType = 'signature_request_sent'
+    const eventTime = '1700000040'
+    const event_hash = createHmac('sha256', apiKey).update(`${eventTime}${eventType}`).digest('hex')
+    const body = JSON.stringify({ event: { event_time: eventTime, event_type: eventType, event_hash } })
+    const router = new WebhookRouter({
+      providers: [hellosignWebhookProvider],
+      deliver: async () => undefined,
+      resolveSecret: async () => apiKey,
+    })
+    const r = await router.handle({ providerId: 'hellosign', rawBody: body, headers: {} })
+    expect(r.status).toBe(200)
+    // Dropbox Sign treats anything but this exact body as a failed delivery.
+    expect(r.body).toBe('Hello API Event Received')
+    expect(r.headers?.['content-type']).toBe('text/plain')
   })
 
   it('returns 401 on a Stripe signature mismatch', async () => {
