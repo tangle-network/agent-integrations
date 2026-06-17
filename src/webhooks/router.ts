@@ -84,6 +84,13 @@ export interface WebhookProvider {
     headers: WebhookHeaders
     now?: number
   }): WebhookEnvelope[] | Promise<WebhookEnvelope[]>
+  /** Optional provider-specific 200 ACK the router returns on a verified
+   *  delivery, in place of the default `{ received, total }` JSON. Dropbox Sign
+   *  acknowledges a delivery only when the body is exactly
+   *  'Hello API Event Received' and retries otherwise; this lets such a
+   *  provider declare the body/headers it needs. The frozen status contract is
+   *  unchanged — only the 200 body/headers are customized. */
+  successResponse?: { body: string; headers?: Record<string, string> }
 }
 
 export interface WebhookIdempotencyStore {
@@ -196,6 +203,13 @@ export class WebhookRouter {
       void this.deliverEach(accepted)
     })
 
+    if (provider.successResponse) {
+      return {
+        status: 200,
+        body: provider.successResponse.body,
+        headers: provider.successResponse.headers,
+      }
+    }
     return { status: 200, body: { received: accepted.length, total: events.length } }
   }
 

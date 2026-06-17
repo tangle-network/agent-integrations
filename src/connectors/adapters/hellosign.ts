@@ -648,26 +648,33 @@ function parseInboundBody(rawBody: string): HelloSignInboundBody | null {
   } catch {
     // fall through to form-data extraction
   }
-  // crude multipart extraction: look for a `json=` value (form-urlencoded
-  // fallback some Dropbox Sign apps still emit)
-  const match = /(?:^|&)json=([^&]+)/.exec(rawBody)
-  if (match) {
+  // form-urlencoded `json=` fallback some Dropbox Sign apps still emit.
+  // URLSearchParams decodes `+` as a space (decodeURIComponent leaves it
+  // literal) and resolves percent-escapes, so space-bearing fields survive.
+  const formJson = new URLSearchParams(rawBody).get('json')
+  if (formJson) {
     try {
-      return JSON.parse(decodeURIComponent(match[1])) as HelloSignInboundBody
+      return JSON.parse(formJson) as HelloSignInboundBody
     } catch {
       return null
     }
   }
-  // multipart/form-data with a `name="json"` part
-  const partMatch = /name="json"[^]*?\r?\n\r?\n([\s\S]*?)\r?\n--/m.exec(rawBody)
-  if (partMatch) {
-    try {
-      return JSON.parse(partMatch[1]) as HelloSignInboundBody
-    } catch {
-      return null
-    }
+  // multipart/form-data with a `name="json"` part. Extract linearly (indexOf +
+  // fixed-shape separator probes, no unbounded lazy regex) so a hostile body
+  // can't drive quadratic backtracking on this public ingress.
+  const nameIdx = rawBody.indexOf('name="json"')
+  if (nameIdx === -1) return null
+  const afterName = rawBody.slice(nameIdx)
+  const sep = /\r?\n\r?\n/.exec(afterName)
+  if (!sep) return null
+  const partBody = afterName.slice(sep.index + sep[0].length)
+  const end = /\r?\n--/.exec(partBody)
+  if (!end) return null
+  try {
+    return JSON.parse(partBody.slice(0, end.index)) as HelloSignInboundBody
+  } catch {
+    return null
   }
-  return null
 }
 
 async function ensureFreshAccessToken(
