@@ -176,7 +176,7 @@ OAuth credentials.
 | `validateProviderPassthroughRequest` | Policy-gated provider-native HTTP escape hatch validation. |
 | `buildIntegrationToolCatalog` | Converts connector actions into agent/tool definitions. |
 | `discoverWorkspaceCapabilities` | Per-workspace capability discovery: scope-gated, MCP-shape tool descriptors for agent runtime binding. |
-| `WebhookRouter` (+ `stripeWebhookProvider`, `docusealWebhookProvider`, `slackWebhookProvider`, `gmailWebhookProvider`, `gdriveWebhookProvider`, `genericHmacWebhookProvider`) | Inbound webhook router: verify signature, parse, idempotency dedup, async deliver. |
+| `WebhookRouter` (+ `stripeWebhookProvider`, `docusealWebhookProvider`, `slackWebhookProvider`, `gmailWebhookProvider`, `gdriveWebhookProvider`, `telegramWebhookProvider`, `hellosignWebhookProvider`, `genericHmacWebhookProvider`) | Inbound webhook router: verify signature, parse, idempotency dedup, async deliver. |
 | `searchIntegrationTools` | Intent search over normalized integration tools. |
 | `buildDefaultIntegrationRegistry` | Composes setup specs and vendored catalog metadata into one deduplicated connector registry. |
 | `composeIntegrationRegistry` | Merges arbitrary catalog sources with explicit aliases, precedence, support tiers, and conflict diagnostics. |
