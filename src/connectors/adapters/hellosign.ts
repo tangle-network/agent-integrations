@@ -648,12 +648,13 @@ function parseInboundBody(rawBody: string): HelloSignInboundBody | null {
   } catch {
     // fall through to form-data extraction
   }
-  // crude multipart extraction: look for a `json=` value (form-urlencoded
-  // fallback some Dropbox Sign apps still emit)
-  const match = /(?:^|&)json=([^&]+)/.exec(rawBody)
-  if (match) {
+  // form-urlencoded `json=` fallback some Dropbox Sign apps still emit.
+  // URLSearchParams decodes `+` as a space (decodeURIComponent leaves it
+  // literal) and resolves percent-escapes, so space-bearing fields survive.
+  const formJson = new URLSearchParams(rawBody).get('json')
+  if (formJson) {
     try {
-      return JSON.parse(decodeURIComponent(match[1])) as HelloSignInboundBody
+      return JSON.parse(formJson) as HelloSignInboundBody
     } catch {
       return null
     }

@@ -312,10 +312,13 @@ function parseHelloSignBody(rawBody: string): HelloSignInboundBody | null {
   } catch {
     // fall through to form-data extraction
   }
-  const formMatch = /(?:^|&)json=([^&]+)/.exec(rawBody)
-  if (formMatch) {
+  // application/x-www-form-urlencoded `json=` field. URLSearchParams decodes
+  // `+` as a space (decodeURIComponent leaves it literal) and resolves
+  // percent-escapes, so space-bearing string fields aren't corrupted.
+  const formJson = new URLSearchParams(rawBody).get('json')
+  if (formJson) {
     try {
-      return JSON.parse(decodeURIComponent(formMatch[1])) as HelloSignInboundBody
+      return JSON.parse(formJson) as HelloSignInboundBody
     } catch {
       return null
     }

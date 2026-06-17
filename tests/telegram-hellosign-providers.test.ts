@@ -119,6 +119,28 @@ describe('hellosignWebhookProvider', () => {
     expect(res.valid).toBe(true)
   })
 
+  it('decodes + as space in a form-urlencoded json= body', async () => {
+    const eventType = 'signature_request_sent'
+    const eventTime = '1700000020'
+    const event_hash = createHmac('sha256', apiKey)
+      .update(`${eventTime}${eventType}`)
+      .digest('hex')
+    const inner = JSON.stringify({
+      event: { event_time: eventTime, event_type: eventType, event_hash },
+      signature_request: { title: 'Master Service Agreement' },
+    })
+    // URLSearchParams.toString() encodes spaces as `+`, exactly as a real
+    // application/x-www-form-urlencoded post does.
+    const raw = new URLSearchParams({ json: inner }).toString()
+    expect(raw).toContain('+')
+    const res = hellosignWebhookProvider.verifySignature({ rawBody: raw, headers: {}, secret: apiKey })
+    expect(res.valid).toBe(true)
+    const [env] = await hellosignWebhookProvider.parse({ rawBody: raw, headers: {} })
+    const payload = env.payload as { signature_request?: { title?: string } }
+    // `+` must round-trip to a real space, not a literal plus.
+    expect(payload.signature_request?.title).toBe('Master Service Agreement')
+  })
+
   /** A multipart/form-data delivery carrying the event JSON in the `json`
    *  part — Dropbox Sign's default callback encoding. */
   function multipartBody(inner: string, boundary = '----testboundary') {
