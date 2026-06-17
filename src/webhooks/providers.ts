@@ -331,15 +331,30 @@ function parseHelloSignBody(rawBody: string): HelloSignInboundBody | null {
       return null
     }
   }
-  const partMatch = /name="json"[^]*?\r?\n\r?\n([\s\S]*?)\r?\n--/m.exec(rawBody)
-  if (partMatch) {
-    try {
-      return JSON.parse(partMatch[1]) as HelloSignInboundBody
-    } catch {
-      return null
-    }
+  // multipart/form-data with a `name="json"` part. Extract linearly (indexOf +
+  // fixed-shape separator probes, no unbounded lazy regex) so a hostile body
+  // can't drive quadratic backtracking on this public ingress.
+  return extractMultipartJsonField(rawBody)
+}
+
+/** Pull the `json` part out of a multipart/form-data body without an
+ *  unbounded backtracking regex. Returns null if the part isn't present or
+ *  isn't valid JSON. The separator probes (`\r?\n\r?\n`, `\r?\n--`) are
+ *  fixed-shape (no `*`/`+`), so each runs in a single linear scan. */
+function extractMultipartJsonField(rawBody: string): HelloSignInboundBody | null {
+  const nameIdx = rawBody.indexOf('name="json"')
+  if (nameIdx === -1) return null
+  const afterName = rawBody.slice(nameIdx)
+  const sep = /\r?\n\r?\n/.exec(afterName)
+  if (!sep) return null
+  const partBody = afterName.slice(sep.index + sep[0].length)
+  const end = /\r?\n--/.exec(partBody)
+  if (!end) return null
+  try {
+    return JSON.parse(partBody.slice(0, end.index)) as HelloSignInboundBody
+  } catch {
+    return null
   }
-  return null
 }
 
 /** Generic HMAC provider — for the long-tail webhook source where the

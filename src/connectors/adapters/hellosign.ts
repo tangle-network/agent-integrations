@@ -659,16 +659,22 @@ function parseInboundBody(rawBody: string): HelloSignInboundBody | null {
       return null
     }
   }
-  // multipart/form-data with a `name="json"` part
-  const partMatch = /name="json"[^]*?\r?\n\r?\n([\s\S]*?)\r?\n--/m.exec(rawBody)
-  if (partMatch) {
-    try {
-      return JSON.parse(partMatch[1]) as HelloSignInboundBody
-    } catch {
-      return null
-    }
+  // multipart/form-data with a `name="json"` part. Extract linearly (indexOf +
+  // fixed-shape separator probes, no unbounded lazy regex) so a hostile body
+  // can't drive quadratic backtracking on this public ingress.
+  const nameIdx = rawBody.indexOf('name="json"')
+  if (nameIdx === -1) return null
+  const afterName = rawBody.slice(nameIdx)
+  const sep = /\r?\n\r?\n/.exec(afterName)
+  if (!sep) return null
+  const partBody = afterName.slice(sep.index + sep[0].length)
+  const end = /\r?\n--/.exec(partBody)
+  if (!end) return null
+  try {
+    return JSON.parse(partBody.slice(0, end.index)) as HelloSignInboundBody
+  } catch {
+    return null
   }
-  return null
 }
 
 async function ensureFreshAccessToken(

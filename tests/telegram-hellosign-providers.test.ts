@@ -168,6 +168,13 @@ describe('hellosignWebhookProvider', () => {
     expect(typeof env.providerEventId).toBe('string')
   })
 
+  it('returns [] for a multipart body with no closing boundary', async () => {
+    // name="json" part present but never terminated by a `\r\n--` boundary —
+    // extraction yields nothing rather than parsing a truncated fragment.
+    const raw = '------b\r\nContent-Disposition: form-data; name="json"\r\n\r\n{"event":{"event_type":"x"}'
+    expect(await hellosignWebhookProvider.parse({ rawBody: raw, headers: {} })).toEqual([])
+  })
+
   it('parses the event into an envelope keyed on a body digest', async () => {
     const eventType = 'signature_request_all_signed'
     const body = signedBody(eventType, '1700000002')
