@@ -191,6 +191,134 @@ export const gdriveWebhookProvider: WebhookProvider = {
   },
 }
 
+/** The Telegram update keys, in resolution order — the first present key names
+ *  the update kind (`telegram.message`, `telegram.callback_query`, …). */
+const TELEGRAM_UPDATE_KEYS = [
+  'message',
+  'edited_message',
+  'channel_post',
+  'edited_channel_post',
+  'business_message',
+  'callback_query',
+  'inline_query',
+  'chosen_inline_result',
+  'shipping_query',
+  'pre_checkout_query',
+  'poll',
+  'poll_answer',
+  'my_chat_member',
+  'chat_member',
+  'chat_join_request',
+] as const
+
+/** Telegram Bot API webhook provider. Telegram does NOT sign the body — it
+ *  authenticates by echoing the `secret_token` set at `setWebhook` time in the
+ *  `X-Telegram-Bot-Api-Secret-Token` header. We compare it constant-time to the
+ *  per-connection secret. `update_id` is the idempotency anchor. */
+export const telegramWebhookProvider: WebhookProvider = {
+  id: 'telegram',
+  verifySignature({ headers, secret }): SignatureVerification {
+    const token = firstHeader(headers, 'x-telegram-bot-api-secret-token')
+    if (!token) return { valid: false, reason: 'missing_telegram_secret_token' }
+    const a = Buffer.from(token, 'utf-8')
+    const b = Buffer.from(secret, 'utf-8')
+    if (a.length !== b.length) return { valid: false, reason: 'invalid_secret_token' }
+    return timingSafeEqual(a, b) ? { valid: true } : { valid: false, reason: 'invalid_secret_token' }
+  },
+  parse({ rawBody, headers, now }): WebhookEnvelope[] {
+    const evt = safeJson(rawBody) as ({ update_id?: number } & Record<string, unknown>) | null
+    if (!evt || typeof evt !== 'object') return []
+    const kind = TELEGRAM_UPDATE_KEYS.find((k) => k in evt) ?? 'unknown'
+    return [{
+      provider: 'telegram',
+      eventType: `telegram.${kind}`,
+      providerEventId: typeof evt.update_id === 'number' ? String(evt.update_id) : undefined,
+      receivedAt: now ?? Date.now(),
+      payload: evt,
+      headers: normalizeHeaders(headers),
+    }]
+  },
+}
+
+/** Dropbox Sign (HelloSign) webhook provider. There is NO signature header:
+ *  the body carries `event.event_hash = HMAC_SHA256(apiKey, event_time +
+ *  event_type)` (hex), so the `secret` here is the account's API key (the
+ *  caller resolves it from the connection credential). The body is JSON, or a
+ *  `json=`/multipart `name="json"` form field on older apps. */
+export const hellosignWebhookProvider: WebhookProvider = {
+  id: 'hellosign',
+  verifySignature({ rawBody, secret }): SignatureVerification {
+    const body = parseHelloSignBody(rawBody)
+    const event = body?.event
+    if (
+      !event ||
+      typeof event.event_time !== 'string' ||
+      typeof event.event_type !== 'string' ||
+      typeof event.event_hash !== 'string'
+    ) {
+      return { valid: false, reason: 'missing_event_fields' }
+    }
+    const expected = createHmac('sha256', secret)
+      .update(`${event.event_time}${event.event_type}`)
+      .digest('hex')
+    const a = Buffer.from(event.event_hash.toLowerCase(), 'utf-8')
+    const b = Buffer.from(expected.toLowerCase(), 'utf-8')
+    if (a.length !== b.length) return { valid: false, reason: 'invalid_signature' }
+    return timingSafeEqual(a, b) ? { valid: true } : { valid: false, reason: 'invalid_signature' }
+  },
+  parse({ rawBody, headers, now }): WebhookEnvelope[] {
+    const body = parseHelloSignBody(rawBody)
+    const event = body?.event
+    if (!event) return []
+    return [{
+      provider: 'hellosign',
+      eventType: `hellosign.${event.event_type ?? 'unknown'}`,
+      // Dropbox Sign has no separate event id; the hash is unique per event.
+      providerEventId: typeof event.event_hash === 'string' ? event.event_hash : undefined,
+      receivedAt: now ?? Date.now(),
+      payload: body,
+      headers: normalizeHeaders(headers),
+    }]
+  },
+}
+
+interface HelloSignInboundBody {
+  event?: {
+    event_time?: string
+    event_type?: string
+    event_hash?: string
+  }
+}
+
+/** Dropbox Sign posts JSON, a form-urlencoded `json=` field, or a
+ *  multipart `name="json"` part depending on app vintage. Mirrors the
+ *  connector adapter's body extraction. */
+function parseHelloSignBody(rawBody: string): HelloSignInboundBody | null {
+  try {
+    const json = JSON.parse(rawBody) as HelloSignInboundBody
+    if (json && typeof json === 'object') return json
+  } catch {
+    // fall through to form-data extraction
+  }
+  const formMatch = /(?:^|&)json=([^&]+)/.exec(rawBody)
+  if (formMatch) {
+    try {
+      return JSON.parse(decodeURIComponent(formMatch[1])) as HelloSignInboundBody
+    } catch {
+      return null
+    }
+  }
+  const partMatch = /name="json"[^]*?\r?\n\r?\n([\s\S]*?)\r?\n--/m.exec(rawBody)
+  if (partMatch) {
+    try {
+      return JSON.parse(partMatch[1]) as HelloSignInboundBody
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 /** Generic HMAC provider — for the long-tail webhook source where the
  *  caller has standardised on a single sha256-of-body scheme. Header
  *  `X-Signature` by default; override at provider-build time if needed. */
