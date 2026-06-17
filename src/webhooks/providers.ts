@@ -18,7 +18,7 @@ import {
   verifyStripeSignature,
 } from '../connectors/webhooks.js'
 import type { WebhookEnvelope, WebhookHeaders, WebhookProvider, SignatureVerification } from './router.js'
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 /** Stripe webhook provider. Signature header `Stripe-Signature`. */
 export const stripeWebhookProvider: WebhookProvider = {
@@ -198,17 +198,25 @@ const TELEGRAM_UPDATE_KEYS = [
   'edited_message',
   'channel_post',
   'edited_channel_post',
+  'business_connection',
   'business_message',
-  'callback_query',
+  'edited_business_message',
+  'deleted_business_messages',
+  'message_reaction',
+  'message_reaction_count',
   'inline_query',
   'chosen_inline_result',
+  'callback_query',
   'shipping_query',
   'pre_checkout_query',
+  'purchased_paid_media',
   'poll',
   'poll_answer',
   'my_chat_member',
   'chat_member',
   'chat_join_request',
+  'chat_boost',
+  'removed_chat_boost',
 ] as const
 
 /** Telegram Bot API webhook provider. Telegram does NOT sign the body — it
@@ -273,8 +281,12 @@ export const hellosignWebhookProvider: WebhookProvider = {
     return [{
       provider: 'hellosign',
       eventType: `hellosign.${event.event_type ?? 'unknown'}`,
-      // Dropbox Sign has no separate event id; the hash is unique per event.
-      providerEventId: typeof event.event_hash === 'string' ? event.event_hash : undefined,
+      // `event_hash` = HMAC(apiKey, event_time + event_type), so two distinct
+      // same-type events in the same second share it — keying idempotency on it
+      // would drop the second. Key on a digest of the parsed body instead:
+      // identical across byte-or-encoding-equivalent redeliveries of one event,
+      // distinct across events that differ in content.
+      providerEventId: createHash('sha256').update(JSON.stringify(body)).digest('hex'),
       receivedAt: now ?? Date.now(),
       payload: body,
       headers: normalizeHeaders(headers),

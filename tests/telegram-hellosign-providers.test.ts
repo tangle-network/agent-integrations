@@ -55,6 +55,15 @@ describe('telegramWebhookProvider', () => {
     expect(env.eventType).toBe('telegram.callback_query')
   })
 
+  it('classifies a message_reaction update (extended Bot API types)', async () => {
+    const body = JSON.stringify({
+      update_id: 44,
+      message_reaction: { chat: { id: 7 }, message_id: 1 },
+    })
+    const [env] = await telegramWebhookProvider.parse({ rawBody: body, headers: {} })
+    expect(env.eventType).toBe('telegram.message_reaction')
+  })
+
   it('returns [] for a non-JSON body', async () => {
     expect(await telegramWebhookProvider.parse({ rawBody: 'not json', headers: {} })).toEqual([])
   })
@@ -110,12 +119,59 @@ describe('hellosignWebhookProvider', () => {
     expect(res.valid).toBe(true)
   })
 
-  it('parses the event into an envelope keyed on event_hash', async () => {
+  /** A multipart/form-data delivery carrying the event JSON in the `json`
+   *  part — Dropbox Sign's default callback encoding. */
+  function multipartBody(inner: string, boundary = '----testboundary') {
+    return [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="json"',
+      '',
+      inner,
+      `--${boundary}--`,
+      '',
+    ].join('\r\n')
+  }
+
+  it('verifies and parses a multipart name="json" body', async () => {
+    const eventType = 'signature_request_sent'
+    const raw = multipartBody(signedBody(eventType, '1700000010'))
+    const res = hellosignWebhookProvider.verifySignature({
+      rawBody: raw,
+      headers: {},
+      secret: apiKey,
+    })
+    expect(res.valid).toBe(true)
+    const [env] = await hellosignWebhookProvider.parse({ rawBody: raw, headers: {} })
+    expect(env.eventType).toBe(`hellosign.${eventType}`)
+    expect(typeof env.providerEventId).toBe('string')
+  })
+
+  it('parses the event into an envelope keyed on a body digest', async () => {
     const eventType = 'signature_request_all_signed'
     const body = signedBody(eventType, '1700000002')
     const [env] = await hellosignWebhookProvider.parse({ rawBody: body, headers: {} })
     expect(env.provider).toBe('hellosign')
     expect(env.eventType).toBe(`hellosign.${eventType}`)
-    expect(typeof env.providerEventId).toBe('string')
+    // sha256 hex of the parsed body.
+    expect(env.providerEventId).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('keys distinct same-second, same-type events to distinct providerEventIds', async () => {
+    // event_hash is identical for these (same event_time + event_type), which
+    // is exactly the collision the body-digest key avoids.
+    const t = '1700000005'
+    const type = 'signature_request_signed'
+    const event_hash = createHmac('sha256', apiKey).update(`${t}${type}`).digest('hex')
+    const mk = (id: string) =>
+      JSON.stringify({
+        event: { event_time: t, event_type: type, event_hash },
+        signature_request: { signature_request_id: id },
+      })
+    const [a] = await hellosignWebhookProvider.parse({ rawBody: mk('req_A'), headers: {} })
+    const [b] = await hellosignWebhookProvider.parse({ rawBody: mk('req_B'), headers: {} })
+    expect(a.providerEventId).not.toBe(b.providerEventId)
+    // A byte-identical redelivery of one event dedups to the same id.
+    const [a2] = await hellosignWebhookProvider.parse({ rawBody: mk('req_A'), headers: {} })
+    expect(a2.providerEventId).toBe(a.providerEventId)
   })
 })
