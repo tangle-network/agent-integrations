@@ -22,7 +22,11 @@ export const apolloConnector = declarativeRestConnector({
     'content-type': 'application/json',
     'cache-control': 'no-cache',
   },
-  test: { method: 'GET', path: '/api/v1/auth/health' },
+  test: {
+    method: 'GET',
+    path: '/api/v1/auth/health',
+    expectResponse: { path: 'is_logged_in', equals: true },
+  },
   capabilities: [
     {
       name: 'match.person',
