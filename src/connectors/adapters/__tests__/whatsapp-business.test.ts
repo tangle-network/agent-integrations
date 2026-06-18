@@ -87,6 +87,7 @@ describe('whatsappBusiness adapter', () => {
     const adapter = whatsappBusiness(opts)
     const auth = adapter.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('expected oauth2')
+    if (!auth.authorizationUrl) throw new Error('expected authorizationUrl')
     // The hub constructs the authorize URL by appending standard OAuth2 params; assert the
     // adapter exposes everything the constructor needs to build a correct URL.
     const url = new URL(auth.authorizationUrl)
