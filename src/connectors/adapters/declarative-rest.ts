@@ -24,7 +24,7 @@ export interface RestConnectorSpec {
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
-  test?: RestRequestSpec
+  test?: RestTestSpec
 }
 
 export interface RestOperationSpec {
@@ -44,6 +44,15 @@ export interface RestRequestSpec {
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
   body?: 'args' | string | Record<string, unknown>
+}
+
+export interface RestTestSpec extends RestRequestSpec {
+  expectResponse?: RestResponseExpectation | RestResponseExpectation[]
+}
+
+export interface RestResponseExpectation {
+  path: string
+  equals: unknown
 }
 
 export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdapter {
@@ -84,12 +93,13 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async test(source) {
       if (!spec.test) return { ok: true }
       try {
-        await executeRestRequest(spec, spec.test, {
+        const response = await executeRestRequest(spec, spec.test, {
           source,
           capabilityName: '__test__',
           args: {},
           idempotencyKey: 'test',
         })
+        validateTestResponse(spec, spec.test, response.data)
         return { ok: true }
       } catch (error) {
         return { ok: false, reason: error instanceof Error ? error.message : 'unknown error' }
@@ -97,6 +107,32 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     },
   }
   return adapter
+}
+
+function validateTestResponse(spec: RestConnectorSpec, test: RestTestSpec, data: unknown): void {
+  const expectations = Array.isArray(test.expectResponse)
+    ? test.expectResponse
+    : test.expectResponse
+      ? [test.expectResponse]
+      : []
+  for (const expectation of expectations) {
+    const actual = readPathFromUnknown(data, expectation.path)
+    if (!isJsonEqual(actual, expectation.equals)) {
+      throw new Error(
+        `${spec.displayName} test response expected ${expectation.path}=${formatValue(expectation.equals)}, got ${formatValue(actual)}`,
+      )
+    }
+  }
+}
+
+function isJsonEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function formatValue(value: unknown): string {
+  if (value === undefined) return 'undefined'
+  return JSON.stringify(value)
 }
 
 function operationToCapability(op: RestOperationSpec): Capability {
@@ -274,6 +310,15 @@ function readRequiredPath(input: Record<string, unknown>, path: string): unknown
 }
 
 function readPath(input: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((value, part) => {
+    if (value && typeof value === 'object' && part in value) {
+      return (value as Record<string, unknown>)[part]
+    }
+    return undefined
+  }, input)
+}
+
+function readPathFromUnknown(input: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((value, part) => {
     if (value && typeof value === 'object' && part in value) {
       return (value as Record<string, unknown>)[part]
