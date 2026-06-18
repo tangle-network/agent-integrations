@@ -89,6 +89,43 @@ describe('apollo adapter manifest', () => {
   })
 })
 
+describe('apollo connect-time validation', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('accepts the auth health probe only when Apollo reports the key is logged in', async () => {
+    let capturedUrl = ''
+    let capturedHeaders: Record<string, string> = {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedUrl = String(input)
+        capturedHeaders = Object.fromEntries(
+          Object.entries((init?.headers ?? {}) as Record<string, string>),
+        )
+        return jsonResponse({ healthy: true, is_logged_in: true })
+      }),
+    )
+
+    await expect(apolloConnector.test(source())).resolves.toEqual({ ok: true })
+    expect(capturedUrl).toBe('https://api.apollo.io/api/v1/auth/health')
+    expect(capturedHeaders['X-Api-Key']).toBe('apollo-test-key')
+  })
+
+  it('rejects the auth health probe when Apollo returns HTTP 200 but is_logged_in is false', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ healthy: true, is_logged_in: false })),
+    )
+
+    await expect(apolloConnector.test(source())).resolves.toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('is_logged_in=true'),
+    })
+  })
+})
+
 describe('apollo sequences.add_contacts', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
