@@ -1,0 +1,147 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+// UserGems — Job-change and relationship tracking ingestion API. Add or remove contacts and accounts on watchlists so UserGems surfaces job-change and buying signals for them.
+// Auth: api-key. Base: https://api.usergems.com/v1. Docs: https://app.usergems.com/api/documentation
+export const usergemsConnector = declarativeRestConnector({
+  kind: 'usergems',
+  displayName: 'UserGems',
+  description: 'Job-change and relationship tracking ingestion API. Add or remove contacts and accounts on watchlists so UserGems surfaces job-change and buying signals for them.',
+  auth: {
+    kind: 'api-key',
+    hint: 'API key requested via support@usergems.com. Sent as the X-Api-Key header.',
+  },
+  category: 'sales-intelligence',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://api.usergems.com/v1',
+  credentialPlacement: { kind: 'header', header: 'X-Api-Key' },
+  defaultHeaders: { 'content-type': 'application/json' },
+  test: { method: 'DELETE', path: '/contact' },
+  capabilities: [
+    {
+      name: 'contacts.add',
+      class: 'mutation',
+      description: 'Add a contact to your UserGems tracking list so job changes and signals are monitored. Email is required; many profile and custom signal fields are optional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          fullName: { type: 'string' },
+          company: { type: 'string' },
+          relationshipType: { type: 'string' },
+          linkedinUrl: { type: 'string' },
+          signal: { type: 'string' },
+          custom: { type: 'object' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'POST',
+        path: '/contact',
+        body: {
+          email: '{email}',
+          firstName: '{firstName}',
+          lastName: '{lastName}',
+          fullName: '{fullName}',
+          company: '{company}',
+          relationshipType: '{relationshipType}',
+          linkedinUrl: '{linkedinUrl}',
+          signal: '{signal}',
+          custom: '{custom}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'contacts.delete',
+      class: 'mutation',
+      description: 'Remove a contact from your UserGems tracking list by email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          relationshipType: { type: 'string' },
+          signal: { type: 'string' },
+        },
+        required: ['email'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/contact',
+        body: {
+          email: '{email}',
+          relationshipType: '{relationshipType}',
+          signal: '{signal}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'accounts.add',
+      class: 'mutation',
+      description: 'Add an account (company) for which you want to receive new-prospect and signal reports. Name and domain are required.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          domain: { type: 'string' },
+          reportName: { type: 'string' },
+          signal: { type: 'string' },
+          salesforceId: { type: 'string' },
+          customId: { type: 'string' },
+          custom: { type: 'object' },
+        },
+        required: ['name', 'domain'],
+      },
+      request: {
+        method: 'POST',
+        path: '/account',
+        body: {
+          name: '{name}',
+          domain: '{domain}',
+          reportName: '{reportName}',
+          signal: '{signal}',
+          salesforceId: '{salesforceId}',
+          customId: '{customId}',
+          custom: '{custom}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'accounts.delete',
+      class: 'mutation',
+      description: 'Remove a previously added account by name and domain.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          domain: { type: 'string' },
+          reportName: { type: 'string' },
+          signal: { type: 'string' },
+          salesforceId: { type: 'string' },
+          customId: { type: 'string' },
+        },
+        required: ['name', 'domain'],
+      },
+      request: {
+        method: 'DELETE',
+        path: '/account',
+        body: {
+          name: '{name}',
+          domain: '{domain}',
+          reportName: '{reportName}',
+          signal: '{signal}',
+          salesforceId: '{salesforceId}',
+          customId: '{customId}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+  ],
+})
