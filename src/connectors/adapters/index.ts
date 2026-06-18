@@ -205,6 +205,16 @@ export { appfollowConnector } from './appfollow.js'
 export { apitableConnector } from './apitable.js'
 export { aminosConnector } from './aminos.js'
 export { apolloConnector } from './apollo.js'
+export { similarwebConnector } from './similarweb.js'
+export { semrushConnector } from './semrush.js'
+export { cognismConnector } from './cognism.js'
+export { clayConnector } from './clay.js'
+export { zoominfoConnector } from './zoominfo.js'
+export { paychexConnector } from './paychex.js'
+// ADP ships manifest + isolation tests only: ADP mandates mutual-TLS client
+// certs the shared declarative-REST runtime cannot present, so live execution
+// is gated on follow-up cert plumbing. See ./adp.ts header.
+export { adpConnector } from './adp.js'
 export { ashbyConnector } from './ashby.js'
 export { assemblyaiConnector } from './assemblyai.js'
 export { avianConnector } from './avian.js'

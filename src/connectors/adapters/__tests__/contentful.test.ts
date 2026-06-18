@@ -85,6 +85,7 @@ describe('contentful startAuth URL construction', () => {
   it('builds an OAuth2 authorize URL via startOAuthFlow with the manifest endpoint and scopes', () => {
     const m = contentfulConnector.manifest
     if (m.auth.kind !== 'oauth2') throw new Error('contentful auth must be oauth2')
+    if (!m.auth.authorizationUrl) throw new Error('contentful authorization_code auth must expose authorizationUrl')
 
     const { authorizationUrl, state } = startOAuthFlow({
       projectId: 'project_1',

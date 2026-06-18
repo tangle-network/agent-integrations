@@ -316,6 +316,9 @@ export interface ConnectorManifest {
     | 'comms'
     | 'commerce'
     | 'database'
+    | 'sales-intelligence'
+    | 'market-intelligence'
+    | 'hr'
     | 'other'
   /** Optional icon URL or named icon. */
   icon?: string
@@ -342,8 +345,15 @@ export interface RateLimitSpec {
 
 type OAuth2AuthSpec = {
   kind: 'oauth2'
-  /** Authorization endpoint URL. */
-  authorizationUrl: string
+  /** OAuth2 grant type. Defaults to `'authorization_code'` (the interactive
+   *  3-legged flow). Set `'client_credentials'` for machine-to-machine
+   *  providers (e.g. Paychex) that issue tokens directly from client
+   *  id/secret with no user-facing authorization step — `authorizationUrl`
+   *  is then omitted. */
+  grantType?: 'authorization_code' | 'client_credentials'
+  /** Authorization endpoint URL. Required for the `authorization_code`
+   *  grant; omitted for `client_credentials` (there is no authorize step). */
+  authorizationUrl?: string
   /** Token endpoint URL. */
   tokenUrl: string
   /** Scopes requested in the authorization grant. The user UI shows
@@ -449,6 +459,12 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
 }
 
 function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIssue[]): void {
+  if (auth.kind === 'oauth2') {
+    if ((auth.grantType ?? 'authorization_code') === 'authorization_code' && !auth.authorizationUrl?.trim()) {
+      issues.push({ path: 'auth.authorizationUrl', message: 'authorization_code grant requires authorizationUrl' })
+    }
+    return
+  }
   if (auth.kind !== 'one_of') return
   if (auth.options.length < 2) {
     issues.push({ path: 'auth.options', message: 'one_of auth must declare at least two options' })

@@ -96,6 +96,12 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'config_missing',
         )
       }
+      if (!auth.authorizationUrl) {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} uses the ${auth.grantType ?? 'authorization_code'} grant and has no authorization URL to redirect to.`,
+          'auth_not_supported',
+        )
+      }
       const scopes =
         request.requestedScopes && request.requestedScopes.length > 0
           ? request.requestedScopes
@@ -407,6 +413,11 @@ function mapCategory(category: ConnectorAdapter['manifest']['category']): Integr
   if (category === 'spreadsheet') return 'database'
   if (category === 'doc') return 'docs'
   if (category === 'commerce') return 'workflow'
+  // The manifest taxonomy is richer than the hub-facade taxonomy. Sales/market
+  // intelligence and HR/payroll connectors collapse to the nearest hub bucket:
+  // contact/company intelligence reads like CRM; the rest have no closer fit.
+  if (category === 'sales-intelligence') return 'crm'
+  if (category === 'market-intelligence' || category === 'hr') return 'other'
   return category === 'other' ? 'other' : category
 }
 

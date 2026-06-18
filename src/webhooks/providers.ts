@@ -301,6 +301,57 @@ export const hellosignWebhookProvider: WebhookProvider = {
   },
 }
 
+/** Keys Clay HTTP-API-action payloads commonly carry that can anchor
+ *  idempotency, in resolution order. Clay bodies are operator-defined, so we
+ *  fall back to a digest of the raw body when none is present. */
+const CLAY_EVENT_ID_KEYS = ['id', 'rowId', 'recordId', 'clayRowId', 'eventId'] as const
+
+/** Clay webhook provider — receives rows Clay delivers via its outbound "HTTP
+ *  API" action. Clay does NOT sign its requests and adds no proprietary
+ *  headers (the `x-clay-signature: sha256=...` header seen in some third-party
+ *  code is unverified inference, not in Clay's docs). Authentication is
+ *  therefore a pre-shared secret the operator adds as a header on the Clay
+ *  action; we compare it constant-time against the per-connection secret.
+ *  Header: `x-clay-webhook-secret`. The body is whatever columns the operator
+ *  mapped (free-form JSON with no canonical event id), so idempotency anchors
+ *  on a common id field when present, else a sha256 of the raw body. */
+export const clayWebhookProvider: WebhookProvider = {
+  id: 'clay',
+  verifySignature({ headers, secret }): SignatureVerification {
+    const token = firstHeader(headers, 'x-clay-webhook-secret')
+    if (!token) return { valid: false, reason: 'missing_clay_webhook_secret' }
+    const a = Buffer.from(token, 'utf-8')
+    const b = Buffer.from(secret, 'utf-8')
+    if (a.length !== b.length) return { valid: false, reason: 'invalid_signature' }
+    return timingSafeEqual(a, b) ? { valid: true } : { valid: false, reason: 'invalid_signature' }
+  },
+  parse({ rawBody, headers, now }): WebhookEnvelope[] {
+    const evt = safeJson(rawBody)
+    if (!evt || typeof evt !== 'object') return []
+    const record = evt as Record<string, unknown>
+    const idKey = CLAY_EVENT_ID_KEYS.find(
+      (k) => typeof record[k] === 'string' || typeof record[k] === 'number',
+    )
+    const providerEventId = idKey
+      ? String(record[idKey])
+      : createHash('sha256').update(rawBody).digest('hex')
+    const eventType =
+      typeof record.event === 'string'
+        ? `clay.${record.event}`
+        : typeof record.type === 'string'
+          ? `clay.${record.type}`
+          : 'clay.row'
+    return [{
+      provider: 'clay',
+      eventType,
+      providerEventId,
+      receivedAt: now ?? Date.now(),
+      payload: evt,
+      headers: normalizeHeaders(headers),
+    }]
+  },
+}
+
 interface HelloSignInboundBody {
   event?: {
     event_time?: string
