@@ -14,7 +14,6 @@ export const zenrowsConnector = declarativeRestConnector({
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.zenrows.com/v1/',
   credentialPlacement: { kind: 'query', parameter: 'apikey' },
-  test: { method: 'GET', path: '/' },
   capabilities: [
     {
       name: 'page.scrape',

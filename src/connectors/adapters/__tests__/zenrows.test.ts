@@ -66,6 +66,15 @@ describe('zenrows adapter', () => {
     expect(url.searchParams.get('js_render')).toBe('true')
   })
 
+  it('returns the raw payload (not a thrown SyntaxError) when the response is not JSON', async () => {
+    const html = '<!DOCTYPE html><html><body>scraped</body></html>'
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } })))
+    const result = await zenrowsConnector.executeRead!({ source, capabilityName: 'page.scrape', args: { url: 'https://example.com' }, idempotencyKey: 'raw_1' })
+    // Scrapers return HTML/markdown/PDF; a successful 200 must surface the body
+    // under `{ raw }` rather than blowing up on JSON.parse.
+    expect(result.data).toEqual({ raw: html })
+  })
+
   it('throws CredentialsExpired when ZenRows rejects the key', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
     await expect(

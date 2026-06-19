@@ -572,7 +572,6 @@ export { pipedreamConnector } from './pipedream.js'
 
 // --- Toolverse api-key GTM connectors (tangle-network/agent-dev-container#2330) ---
 export { amplemarketConnector } from './amplemarket.js'
-export { expandiConnector } from './expandi.js'
 export { heyreachConnector } from './heyreach.js'
 export { lagrowthmachineConnector } from './lagrowthmachine.js'
 export { saleshandyConnector } from './saleshandy.js'

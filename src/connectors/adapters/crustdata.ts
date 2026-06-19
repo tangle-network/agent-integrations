@@ -15,7 +15,6 @@ export const crustdataConnector = declarativeRestConnector({
   baseUrl: 'https://api.crustdata.com',
   credentialPlacement: { kind: 'bearer' },
   defaultHeaders: { 'content-type': 'application/json', 'x-api-version': '2025-11-01' },
-  test: { method: 'POST', path: '/company/identify' },
   capabilities: [
     {
       name: 'company.identify',

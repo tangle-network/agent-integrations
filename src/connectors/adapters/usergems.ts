@@ -15,7 +15,6 @@ export const usergemsConnector = declarativeRestConnector({
   baseUrl: 'https://api.usergems.com/v1',
   credentialPlacement: { kind: 'header', header: 'X-Api-Key' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'DELETE', path: '/contact' },
   capabilities: [
     {
       name: 'contacts.add',

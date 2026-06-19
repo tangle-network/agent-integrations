@@ -15,7 +15,6 @@ export const bettercontactConnector = declarativeRestConnector({
   baseUrl: 'https://app.bettercontact.rocks/api/v2',
   credentialPlacement: { kind: 'header', header: 'X-API-Key' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'GET', path: '/async/0' },
   capabilities: [
     {
       name: 'enrichment.create',

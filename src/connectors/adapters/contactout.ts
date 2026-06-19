@@ -15,7 +15,6 @@ export const contactoutConnector = declarativeRestConnector({
   baseUrl: 'https://api.contactout.com',
   credentialPlacement: { kind: 'header', header: 'token' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'GET', path: '/v1/email/verify' },
   capabilities: [
     {
       name: 'people.search',

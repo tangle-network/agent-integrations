@@ -15,7 +15,6 @@ export const oceanIoConnector = declarativeRestConnector({
   baseUrl: 'https://api.ocean.io',
   credentialPlacement: { kind: 'header', header: 'X-Api-Token' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'POST', path: '/v2/autocomplete/companies' },
   capabilities: [
     {
       name: 'companies.search',

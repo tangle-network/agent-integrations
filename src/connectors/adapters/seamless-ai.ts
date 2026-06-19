@@ -15,7 +15,6 @@ export const seamlessAiConnector = declarativeRestConnector({
   baseUrl: 'https://api.seamless.ai/api/client/v1',
   credentialPlacement: { kind: 'header', header: 'Token' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'POST', path: '/search/companies' },
   capabilities: [
     {
       name: 'contacts.search',

@@ -70,7 +70,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const op = readOperation(spec, inv.capabilityName, 'read')
-      const response = await executeRestRequest(spec, op.request, inv)
+      const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
       return {
         data: response.data,
         etag: response.etag,
@@ -80,7 +80,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
-      const response = await executeRestRequest(spec, op.request, inv)
+      const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
       return {
         status: 'committed',
         data: response.data,
@@ -161,10 +161,19 @@ function readOperation(spec: RestConnectorSpec, name: string, expected: 'read' |
   return op
 }
 
+// The JSON-Schema `required` array names the arguments a caller MUST supply.
+// Body rendering uses it to decide which standalone `{placeholder}` body fields
+// throw on absence (required) versus get omitted (optional).
+function requiredArgsOf(parameters: Record<string, unknown>): readonly string[] | undefined {
+  const required = (parameters as { required?: unknown }).required
+  return Array.isArray(required) ? required.filter((entry): entry is string => typeof entry === 'string') : undefined
+}
+
 export async function executeRestRequest(
   spec: RestConnectorSpec,
   request: RestRequestSpec,
   inv: ConnectorInvocation,
+  requiredArgs?: readonly string[],
 ): Promise<{ data: unknown; etag?: string }> {
   const baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
   // Make the operation path RELATIVE to the base URL so a base like
@@ -185,13 +194,17 @@ export async function executeRestRequest(
   }
   applyCredentials(headers, url, spec.credentialPlacement ?? { kind: 'bearer' }, inv.source.credentials)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
-  if (request.method !== 'GET' && request.method !== 'DELETE') {
+  // POST/PUT/PATCH always carry a body. DELETE carries one ONLY when the
+  // operation explicitly declares `request.body` — some APIs (e.g. UserGems)
+  // take the record identifier in a DELETE body. GET never carries a body.
+  const sendsBody = request.method !== 'GET' && (request.method !== 'DELETE' || request.body !== undefined)
+  if (sendsBody) {
     headers['content-type'] = headers['content-type'] ?? 'application/json'
   }
   const res = await fetch(url, {
     method: request.method,
     headers,
-    body: request.method === 'GET' || request.method === 'DELETE' ? undefined : JSON.stringify(resolveBody(request.body, inv.args)),
+    body: sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, requiredArgs)) : undefined,
     signal: AbortSignal.timeout(20_000),
   })
   if (res.status === 401 || res.status === 403) {
@@ -219,7 +232,18 @@ export async function executeRestRequest(
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${(await safeErrorText(res)).slice(0, 300)}`)
   }
   const text = await res.text()
-  const data = text ? JSON.parse(text) as unknown : null
+  // Most upstreams return JSON, but some return raw payloads — scrapers
+  // (ZenRows, Bright Data Web Unlocker) return HTML/markdown/PDF, a few APIs
+  // return plain text. Parse JSON when we can; otherwise surface the raw text
+  // under `{ raw }` rather than throwing a SyntaxError on a successful 200.
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown
+    } catch {
+      data = { raw: text }
+    }
+  }
   return { data, etag: res.headers.get('etag') ?? undefined }
 }
 
@@ -249,21 +273,54 @@ function credentialToken(credentials: ConnectorCredentials): string {
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
 }
 
-function resolveBody(body: RestRequestSpec['body'], args: Record<string, unknown>): unknown {
+function resolveBody(
+  body: RestRequestSpec['body'],
+  args: Record<string, unknown>,
+  requiredArgs?: readonly string[],
+): unknown {
   if (!body || body === 'args') return args
-  if (typeof body === 'string') return renderValue(body, args)
-  return renderObject(body, args)
+  if (typeof body === 'string') return renderValue(body, args, requiredArgs)
+  return renderObject(body, args, requiredArgs)
 }
 
 function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {
   return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, interpolate(value, args)]))
 }
 
-function renderObject(input: Record<string, unknown>, args: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(input).map(([key, value]) => [key, renderValue(value, args)]))
+function renderObject(
+  input: Record<string, unknown>,
+  args: Record<string, unknown>,
+  requiredArgs?: readonly string[],
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(input)) {
+    // A body field whose value is exactly `{placeholder}` is OPTIONAL unless the
+    // placeholder is named in the capability's JSON-Schema `required` list:
+    //   required → throw on absence (fail fast, preserves existing behavior),
+    //   optional → drop the key (mirrors how query params already behave).
+    // This stops every enumerated optional body field from becoming de-facto
+    // mandatory just because it appears as a `{field}` placeholder.
+    if (typeof value === 'string') {
+      const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
+      if (exact) {
+        const name = exact[1]
+        const resolved = readPath(args, name)
+        if (resolved === undefined || resolved === null) {
+          if (requiredArgs?.includes(name)) {
+            throw new Error(`missing required argument: ${name}`)
+          }
+          continue
+        }
+        out[key] = resolved
+        continue
+      }
+    }
+    out[key] = renderValue(value, args, requiredArgs)
+  }
+  return out
 }
 
-function renderValue(value: unknown, args: Record<string, unknown>): unknown {
+function renderValue(value: unknown, args: Record<string, unknown>, requiredArgs?: readonly string[]): unknown {
   if (typeof value === 'string') {
     const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
     if (exact) return readRequiredPath(args, exact[1])
@@ -274,10 +331,10 @@ function renderValue(value: unknown, args: Record<string, unknown>): unknown {
   // payloads) get their placeholders interpolated, not left as literal
   // "{amount}" strings. Required by billplz/emailit/lemon-squeezy adds.
   if (Array.isArray(value)) {
-    return value.map((entry) => renderValue(entry, args))
+    return value.map((entry) => renderValue(entry, args, requiredArgs))
   }
   if (value && typeof value === 'object') {
-    return renderObject(value as Record<string, unknown>, args)
+    return renderObject(value as Record<string, unknown>, args, requiredArgs)
   }
   return value
 }

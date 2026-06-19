@@ -15,7 +15,6 @@ export const brightdataConnector = declarativeRestConnector({
   baseUrl: 'https://api.brightdata.com',
   credentialPlacement: { kind: 'bearer' },
   defaultHeaders: { 'content-type': 'application/json' },
-  test: { method: 'POST', path: '/request' },
   capabilities: [
     {
       name: 'unlocker.request',
