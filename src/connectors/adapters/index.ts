@@ -605,3 +605,12 @@ export { modjoConnector } from './modjo.js'
 export { factorsAiConnector } from './factors-ai.js'
 export { getresponseConnector } from './getresponse.js'
 // --- end Toolverse api-key GTM connectors ---
+
+// --- Toolverse OAuth2 GTM connectors (tangle-network/agent-dev-container#2330) ---
+export { outreachConnector } from './outreach.js'
+export { salesloftConnector } from './salesloft.js'
+export { gongConnector } from './gong.js'
+export { ringcentralConnector } from './ringcentral.js'
+export { dialpadConnector } from './dialpad.js'
+export { demandbaseConnector } from './demandbase.js'
+// --- end Toolverse OAuth2 GTM connectors ---
