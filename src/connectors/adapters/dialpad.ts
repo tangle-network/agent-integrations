@@ -6,8 +6,14 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * Standard 3-legged OAuth2 authorization_code flow (authorize at
  * dialpad.com/oauth2/authorize, token at dialpad.com/oauth2/token). The
  * access token is sent as a Bearer token. Dialpad scopes are pre-approved
- * per OAuth app; we list the ones the capabilities here use plus
- * offline_access for refresh tokens.
+ * per OAuth app and passed per-request. Of the REST endpoints here only
+ * Call--List/Get require a documented scope (`calls:list`); contacts, users,
+ * and sms-send are reachable with base bearer access (no extra scope). We
+ * therefore request just `calls:list` plus `offline_access` (refresh tokens).
+ * The `message_content_export` / `recordings_export` scopes are deliberately
+ * NOT requested — they gate webhook event-payload enrichment (SMS body in SMS
+ * events; recording URLs in call events), not these REST calls, and this
+ * connector subscribes to no webhooks.
  *
  * Note the calls endpoints are singular (`/call`, `/call/{id}`) while
  * users/contacts/sms are their own top-level resources.
@@ -20,7 +26,7 @@ export const dialpadConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://dialpad.com/oauth2/authorize',
     tokenUrl: 'https://dialpad.com/oauth2/token',
-    scopes: ['calls:list', 'message_content_export', 'recordings_export', 'offline_access'],
+    scopes: ['calls:list', 'offline_access'],
     clientIdEnv: 'DIALPAD_OAUTH_CLIENT_ID',
     clientSecretEnv: 'DIALPAD_OAUTH_CLIENT_SECRET',
   },

@@ -8,12 +8,14 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * app.gong.io/oauth2/generate-customer-token. The token response carries an
  * `api_base_url_for_customer` (e.g. https://company-17.api.gong.io) that ALL
  * subsequent API calls must target — the generic api.gong.io host is only
- * valid for the legacy access-key (Basic) auth, not for OAuth apps. The hub
- * connect flow persists that per-customer host into
- * `metadata.apiBaseUrlForCustomer`; we resolve `baseUrl` from it and fall
- * back to api.gong.io so the manifest is still valid pre-connection. Because
- * the resolved base is a bare host (no version), each capability path carries
- * its own `/v2` prefix.
+ * valid for the legacy access-key (Basic) auth, NOT for OAuth apps. The hub
+ * connect flow MUST persist that per-customer host (returned at token
+ * exchange) into `metadata.apiBaseUrlForCustomer`; we resolve `baseUrl`
+ * strictly from it with NO fallback. If the metadata is absent every call
+ * fails loud (`missing metadata.apiBaseUrlForCustomer base URL`) rather than
+ * silently routing to the OAuth-invalid generic host and looking active while
+ * every request fails. Because the resolved base is a bare host (no version),
+ * each capability path carries its own `/v2` prefix.
  *
  * Scopes are selected when registering the OAuth app in Gong's admin center
  * and echoed back on the token; we request the read+create scopes that back
@@ -41,7 +43,7 @@ export const gongConnector = declarativeRestConnector({
   },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: { metadataKey: 'apiBaseUrlForCustomer', fallback: 'https://api.gong.io' },
+  baseUrl: { metadataKey: 'apiBaseUrlForCustomer' },
   test: { method: 'GET', path: '/v2/users' },
   capabilities: [
     {

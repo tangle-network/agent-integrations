@@ -43,6 +43,10 @@ describe('dialpad adapter', () => {
     expect(auth.tokenUrl).toBe('https://dialpad.com/oauth2/token')
     expect(auth.clientIdEnv).toBe('DIALPAD_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('DIALPAD_OAUTH_CLIENT_SECRET')
+    // Least-privilege: only Call--List/Get need a documented scope (calls:list);
+    // contacts/users/sms use base bearer access. Webhook-export scopes are not
+    // requested because this connector exposes no webhook subscriptions.
+    expect(auth.scopes).toEqual(['calls:list', 'offline_access'])
     expect(dialpadConnector.manifest.category).toBe('comms')
   })
 

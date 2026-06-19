@@ -3,8 +3,12 @@ import { gongConnector } from '../gong.js'
 import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
 
 const ACCESS_TOKEN = 'gong_at_test'
+// A normally-connected Gong source carries the per-customer host the hub
+// persisted from the token exchange; tests that exercise real calls default
+// to it. The fail-loud test below passes `source({})` to drop it.
+const PER_CUSTOMER_BASE = 'https://company-17.api.gong.io'
 
-function source(metadata: Record<string, unknown> = {}): ResolvedDataSource {
+function source(metadata: Record<string, unknown> = { apiBaseUrlForCustomer: PER_CUSTOMER_BASE }): ResolvedDataSource {
   return {
     id: 'src_gong',
     projectId: 'project_1',
@@ -74,13 +78,15 @@ describe('gong adapter', () => {
     }
   })
 
-  it('falls back to api.gong.io and prefixes /v2 when no per-customer base URL is present', async () => {
+  it('fails loud (no silent fallback host) when the per-customer base URL is absent', async () => {
+    // The generic api.gong.io host is invalid for OAuth apps, so a missing
+    // metadata.apiBaseUrlForCustomer must throw rather than route to a host
+    // where every call would fail while the connection looks active.
     const fetchMock = mockFetch({ users: [] })
-    await gongConnector.executeRead!({ source: source(), capabilityName: 'users.list', args: {}, idempotencyKey: 'op_0' })
-    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
-    expect(url.origin).toBe('https://api.gong.io')
-    expect(url.pathname).toBe('/v2/users')
-    expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${ACCESS_TOKEN}`)
+    await expect(
+      gongConnector.executeRead!({ source: source({}), capabilityName: 'users.list', args: {}, idempotencyKey: 'op_0' }),
+    ).rejects.toThrow(/missing metadata\.apiBaseUrlForCustomer/)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('targets the per-customer base URL from metadata.apiBaseUrlForCustomer when present', async () => {
