@@ -52,6 +52,18 @@ describe('gong adapter', () => {
     expect(gongConnector.manifest.category).toBe('comms')
   })
 
+  it('declares a required tokenMetadata capture for the per-customer base URL', () => {
+    // The contract that completeAuth honors: persist the token-exchange
+    // `api_base_url_for_customer` into metadata.apiBaseUrlForCustomer (required).
+    // The companion test below proves call-time `baseUrl` resolution reads that
+    // same metadata key, closing the loop from token exchange to first call.
+    const auth = gongConnector.manifest.auth
+    if (auth.kind !== 'oauth2') throw new Error('auth narrowing failed')
+    expect(auth.tokenMetadata).toEqual({
+      apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true },
+    })
+  })
+
   it('exposes the expected capability surface and read/mutation split', () => {
     const names = gongConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual([

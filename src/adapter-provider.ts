@@ -5,6 +5,7 @@ import type {
   ConnectorCredentials,
   ConnectorInvocation,
   ResolvedDataSource,
+  TokenMetadataSource,
 } from './connectors/types.js'
 import type {
   CompleteAuthRequest,
@@ -204,7 +205,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         expires_in?: number
         scope?: string
         token_type?: string
-      }
+      } & Record<string, unknown>
       try {
         json = await res.json()
       } catch {
@@ -227,6 +228,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const expiresAt = typeof json.expires_in === 'number' && json.expires_in > 0
         ? new Date(issued.getTime() + json.expires_in * 1000).toISOString()
         : undefined
+      // Persist provider-specific token-response fields the connector declared
+      // via `auth.tokenMetadata` into the connection metadata (e.g. Gong's
+      // per-customer `api_base_url_for_customer`). The captured values win over
+      // any same-key request.metadata — the token exchange is authoritative.
+      const capturedMetadata = captureTokenMetadata(auth.tokenMetadata, json, request.connectorId)
       return {
         id: randomConnectionId(),
         owner: request.owner,
@@ -237,7 +243,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         createdAt: issuedIso,
         updatedAt: issuedIso,
         expiresAt,
-        metadata: request.metadata,
+        metadata: { ...request.metadata, ...capturedMetadata },
       }
     },
     async invokeAction(connection, request) {
@@ -406,6 +412,42 @@ function oauthManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Extract<
   if (auth.kind === 'oauth2') return auth
   if (auth.kind !== 'one_of') return undefined
   return auth.options.find((option): option is Extract<typeof option, { kind: 'oauth2' }> => option.kind === 'oauth2')
+}
+
+/** Project the declared `auth.tokenMetadata` mappings out of an OAuth
+ *  token-response body into connection metadata. Each entry maps a
+ *  connection-metadata key → the token-response field to read (string
+ *  shorthand) or `{ field, required }`. Required fields that are absent/empty
+ *  throw `provider_failure` so the break surfaces at connect; non-required
+ *  fields are captured if present and otherwise skipped. */
+function captureTokenMetadata(
+  tokenMetadata: Record<string, TokenMetadataSource> | undefined,
+  json: Record<string, unknown>,
+  connectorId: string,
+): Record<string, string> {
+  if (!tokenMetadata) return {}
+  const captured: Record<string, string> = {}
+  for (const [metaKey, source] of Object.entries(tokenMetadata)) {
+    const field = typeof source === 'string' ? source : source.field
+    const required = typeof source === 'string' ? false : source.required === true
+    const raw = json[field]
+    // Trim string values so capture-side emptiness matches the consumer's
+    // emptiness check (e.g. resolveBaseUrl's `.trim()` guard). A whitespace-only
+    // value must fail loud here at connect for a required field, not defer the
+    // break to first call where the host already looks active.
+    const value = typeof raw === 'string' ? raw.trim() : raw
+    if (value === undefined || value === null || value === '') {
+      if (required) {
+        throw new IntegrationError(
+          `OAuth token exchange for ${connectorId} did not return required field "${field}" for metadata.${metaKey}.`,
+          'provider_failure',
+        )
+      }
+      continue
+    }
+    captured[metaKey] = String(value)
+  }
+  return captured
 }
 
 function mapCategory(category: ConnectorAdapter['manifest']['category']): IntegrationConnector['category'] {

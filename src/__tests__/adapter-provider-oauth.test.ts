@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createConnectorAdapterProvider } from '../adapter-provider.js'
 import { IntegrationError } from '../index.js'
-import type { ConnectorAdapter } from '../connectors/types.js'
+import type { ConnectorAdapter, TokenMetadataSource } from '../connectors/types.js'
 
 const OWNER = { type: 'user' as const, id: 'user_42' }
 const REDIRECT = 'https://app.example/oauth/callback'
 
-function oauthAdapter(): ConnectorAdapter {
+function oauthAdapter(tokenMetadata?: Record<string, TokenMetadataSource>): ConnectorAdapter {
   return {
     manifest: {
       kind: 'demo-oauth',
@@ -20,6 +20,7 @@ function oauthAdapter(): ConnectorAdapter {
         clientIdEnv: 'DEMO_CLIENT_ID',
         clientSecretEnv: 'DEMO_CLIENT_SECRET',
         extraAuthParams: { access_type: 'offline' },
+        ...(tokenMetadata ? { tokenMetadata } : {}),
       },
       capabilities: [],
       defaultConsistencyModel: 'authoritative',
@@ -222,5 +223,151 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
         redirectUri: REDIRECT,
       }),
     ).rejects.toMatchObject({ code: 'provider_failure' })
+  })
+
+  it('completeAuth captures declared tokenMetadata fields (string + object form), merging with — and overriding same-key — request.metadata', async () => {
+    const fetchImpl = vi.fn(async () =>
+      tokenResponse({
+        access_token: 'acc_xyz',
+        token_type: 'Bearer',
+        // Provider-specific fields the standard parser would otherwise drop.
+        api_base_url_for_customer: 'https://company-17.api.gong.io',
+        instance_url: 'https://eu.example.com',
+      }),
+    ) as unknown as typeof fetch
+
+    const provider = createConnectorAdapterProvider({
+      adapters: [
+        oauthAdapter({
+          // object form (required) + string shorthand
+          apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true },
+          instanceUrl: 'instance_url',
+        }),
+      ],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    const conn = await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+      // `tenant` is a non-colliding key → preserved (merge, not replace).
+      // `apiBaseUrlForCustomer` collides → the token-exchange value is
+      // authoritative and MUST win over the stale request.metadata value.
+      metadata: { tenant: 'acme', apiBaseUrlForCustomer: 'https://stale.example' },
+    })
+
+    expect(conn.metadata).toEqual({
+      tenant: 'acme',
+      apiBaseUrlForCustomer: 'https://company-17.api.gong.io',
+      instanceUrl: 'https://eu.example.com',
+    })
+  })
+
+  it('completeAuth omits a non-required tokenMetadata field that is absent (capture-if-present)', async () => {
+    const fetchImpl = vi.fn(async () =>
+      tokenResponse({ access_token: 'acc_xyz', token_type: 'Bearer' }),
+    ) as unknown as typeof fetch
+
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter({ instanceUrl: 'instance_url' })],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    const conn = await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })
+
+    expect(conn.metadata).toEqual({})
+    expect('instanceUrl' in (conn.metadata ?? {})).toBe(false)
+  })
+
+  it('completeAuth fails loud (provider_failure) when a required tokenMetadata field is absent', async () => {
+    const fetchImpl = vi.fn(async () =>
+      tokenResponse({ access_token: 'acc_xyz', token_type: 'Bearer' }),
+    ) as unknown as typeof fetch
+
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter({ apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true } })],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: 'the_code',
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+      })
+    } catch (e) {
+      caught = e
+    }
+    expect(caught).toBeInstanceOf(IntegrationError)
+    expect((caught as IntegrationError).code).toBe('provider_failure')
+    expect((caught as Error).message).toMatch(/api_base_url_for_customer/)
+  })
+
+  it('completeAuth treats a present-but-empty required tokenMetadata field as absent and fails loud', async () => {
+    // Locks the `=== ''` (post-trim) emptiness guard against a regression to a
+    // null-only check that would mint an active connection whose every call 404s.
+    for (const emptyish of ['', '   ', '\n\t']) {
+      const fetchImpl = vi.fn(async () =>
+        tokenResponse({ access_token: 'acc_xyz', token_type: 'Bearer', api_base_url_for_customer: emptyish }),
+      ) as unknown as typeof fetch
+
+      const provider = createConnectorAdapterProvider({
+        adapters: [oauthAdapter({ apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true } })],
+        resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+        resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+        fetchImpl,
+      })
+
+      await expect(
+        provider.completeAuth!({
+          connectorId: 'demo-oauth',
+          owner: OWNER,
+          code: 'the_code',
+          state: 'state_xyz',
+          redirectUri: REDIRECT,
+        }),
+      ).rejects.toMatchObject({ code: 'provider_failure' })
+    }
+  })
+
+  it('completeAuth omits a non-required tokenMetadata field that is present but empty/whitespace', async () => {
+    const fetchImpl = vi.fn(async () =>
+      tokenResponse({ access_token: 'acc_xyz', token_type: 'Bearer', instance_url: '   ' }),
+    ) as unknown as typeof fetch
+
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter({ instanceUrl: 'instance_url' })],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    const conn = await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })
+
+    expect('instanceUrl' in (conn.metadata ?? {})).toBe(false)
   })
 })

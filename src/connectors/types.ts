@@ -343,6 +343,12 @@ export interface RateLimitSpec {
   scope?: 'oauth-client' | 'data-source'
 }
 
+/** Source mapping for `OAuth2AuthSpec.tokenMetadata`. A bare string names the
+ *  token-response field to capture (capture-if-present). The object form marks
+ *  the field `required` so a missing/empty value fails the token exchange loud
+ *  rather than silently capturing nothing. */
+export type TokenMetadataSource = string | { field: string; required?: boolean }
+
 type OAuth2AuthSpec = {
   kind: 'oauth2'
   /** OAuth2 grant type. Defaults to `'authorization_code'` (the interactive
@@ -374,6 +380,18 @@ type OAuth2AuthSpec = {
    *  Defaults to true. Set false for providers that reject a per-request
    *  scope and pin scopes app-side (e.g. HelloSign/Dropbox Sign). */
   sendScopeParam?: boolean
+  /** Declarative capture of provider-specific fields from the OAuth token
+   *  response into the connection's `metadata`, keyed by the connection-metadata
+   *  key to write → the token-response field to read. The counterpart to
+   *  `baseUrl.metadataKey`: providers like Gong return a per-customer host
+   *  (`api_base_url_for_customer`) at token exchange that every later call must
+   *  target, but the standard token parser keeps only the canonical OAuth
+   *  fields and drops the rest. Declaring the mapping here makes `completeAuth`
+   *  persist the value into `metadata` so `baseUrl` resolution finds it. Mark a
+   *  field `required` to fail the exchange loud when it is absent (surfacing the
+   *  break at connect, not first call). Optional and backward-compatible —
+   *  connectors that omit it are unaffected. */
+  tokenMetadata?: Record<string, TokenMetadataSource>
 }
 type ApiKeyAuthSpec = {
   kind: 'api-key'
