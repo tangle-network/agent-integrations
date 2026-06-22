@@ -8,14 +8,15 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * app.gong.io/oauth2/generate-customer-token. The token response carries an
  * `api_base_url_for_customer` (e.g. https://company-17.api.gong.io) that ALL
  * subsequent API calls must target — the generic api.gong.io host is only
- * valid for the legacy access-key (Basic) auth, NOT for OAuth apps. The hub
- * connect flow MUST persist that per-customer host (returned at token
- * exchange) into `metadata.apiBaseUrlForCustomer`; we resolve `baseUrl`
- * strictly from it with NO fallback. If the metadata is absent every call
- * fails loud (`missing metadata.apiBaseUrlForCustomer base URL`) rather than
- * silently routing to the OAuth-invalid generic host and looking active while
- * every request fails. Because the resolved base is a bare host (no version),
- * each capability path carries its own `/v2` prefix.
+ * valid for the legacy access-key (Basic) auth, NOT for OAuth apps. We capture
+ * that per-customer host into `metadata.apiBaseUrlForCustomer` declaratively
+ * via `auth.tokenMetadata` (required), so the token-exchange path persists it;
+ * we then resolve `baseUrl` strictly from that metadata key with NO fallback.
+ * If the metadata is absent every call fails loud (`missing
+ * metadata.apiBaseUrlForCustomer base URL`) rather than silently routing to
+ * the OAuth-invalid generic host and looking active while every request fails.
+ * Because the resolved base is a bare host (no version), each capability path
+ * carries its own `/v2` prefix.
  *
  * Scopes are selected when registering the OAuth app in Gong's admin center
  * and echoed back on the token; we request the read+create scopes that back
@@ -40,6 +41,12 @@ export const gongConnector = declarativeRestConnector({
     ],
     clientIdEnv: 'GONG_OAUTH_CLIENT_ID',
     clientSecretEnv: 'GONG_OAUTH_CLIENT_SECRET',
+    // Gong returns the per-customer API host on the token response; capture it
+    // into metadata.apiBaseUrlForCustomer so `baseUrl` resolution below finds
+    // it. Required: the generic api.gong.io host is invalid for OAuth apps, so
+    // a missing value fails the exchange loud rather than minting a connection
+    // that looks active while every call 404s.
+    tokenMetadata: { apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true } },
   },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
