@@ -270,7 +270,7 @@ describe('google-drive adapter', () => {
       ).rejects.toMatchObject({ name: 'CredentialsExpired' })
     })
 
-    it('throws CredentialsExpired on 403', async () => {
+    it('throws ProviderConfigError on a bare 403 (not a reconnect)', async () => {
       vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
       await expect(
         adapter.executeMutation!({
@@ -279,7 +279,7 @@ describe('google-drive adapter', () => {
           args: { name: 'a.txt', content: 'b' },
           idempotencyKey: 'k',
         }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+      ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
     })
   })
 
@@ -379,7 +379,7 @@ describe('google-drive adapter', () => {
       ).rejects.toThrow(/`fileId` is required/)
     })
 
-    it('throws CredentialsExpired on 403', async () => {
+    it('throws ProviderConfigError on a bare 403 (not a reconnect)', async () => {
       vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
       await expect(
         adapter.executeMutation!({
@@ -388,7 +388,7 @@ describe('google-drive adapter', () => {
           args: { fileId: 'f1' },
           idempotencyKey: 'k',
         }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+      ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
     })
   })
 

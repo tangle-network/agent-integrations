@@ -68,6 +68,7 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 // `forms.body` is a Google "restricted" scope: requesting it forces the
 // OAuth client through Google's security review. Required for create_form
@@ -309,10 +310,10 @@ export function googleForms(opts: GoogleFormsOptions): ConnectorAdapter {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })
-        if (res.status === 401 || res.status === 403) {
-          return { ok: false, reason: `Google rejected Forms token (${res.status}) — reconnect required` }
+        if (!res.ok) {
+          const body = await res.json().catch(() => undefined)
+          return { ok: false, reason: googleTestFailureReason(res.status, body, 'Google Forms') }
         }
-        if (!res.ok) return { ok: false, reason: `Google userinfo returned ${res.status}` }
         return { ok: true }
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -380,15 +381,11 @@ async function getForm(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-forms get_form: form ${formId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-forms get_form ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-forms get_form', inv.source.id)
   }
   const form = (await res.json()) as FormsForm
   return {
@@ -428,15 +425,11 @@ async function listResponses(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-forms list_responses: form ${formId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-forms list_responses ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-forms list_responses', inv.source.id)
   }
   const envelope = (await res.json()) as FormsListResponsesEnvelope
   const responses = (envelope.responses ?? []).map((r) => ({
@@ -472,15 +465,11 @@ async function getResponse(
       signal: AbortSignal.timeout(timeoutMs),
     },
   )
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-forms get_response: response ${responseId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-forms get_response ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-forms get_response', inv.source.id)
   }
   const r = (await res.json()) as FormsResponse
   return {
@@ -519,12 +508,8 @@ async function createForm(
     body: JSON.stringify({ info }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-forms create_form ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-forms create_form', inv.source.id)
   }
   const form = (await res.json()) as FormsForm
   return {
@@ -570,12 +555,8 @@ async function batchUpdate(
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Forms rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-forms batch_update ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-forms batch_update', inv.source.id)
   }
   const json = (await res.json()) as {
     form?: FormsForm
