@@ -1,8 +1,10 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-// AWS Secrets Manager Query Protocol endpoint. Region is bound into the
-// host at credential-mint time; the metadataKey indirection lets callers
-// override per-tenant without touching the manifest.
+// AWS Secrets Manager JSON 1.1 protocol endpoint. Each request is signed with
+// AWS Signature V4 (`credentialPlacement: aws-sigv4`) from the credential
+// bundle in the api-key field; the bundle's region is substituted into the
+// `{region}` host template, and the metadataKey indirection still lets callers
+// override the host per-tenant without touching the manifest.
 export const amazonSecretsManagerConnector = declarativeRestConnector({
   kind: 'amazon-secrets-manager',
   displayName: 'AWS Secrets Manager',
@@ -10,13 +12,14 @@ export const amazonSecretsManagerConnector = declarativeRestConnector({
     'Create, read, update, find, and delete secrets in AWS Secrets Manager, or generate a random password.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS access key id + secret access key + region (api-key field carries the SigV4 credential bundle).',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. Optional "sessionToken" and "endpoint". Requests are signed with AWS Signature V4; the region selects the secretsmanager.<region>.amazonaws.com endpoint.',
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
+  credentialPlacement: { kind: 'aws-sigv4', service: 'secretsmanager' },
   baseUrl: {
     metadataKey: 'endpoint',
-    fallback: 'https://secretsmanager.us-east-1.amazonaws.com',
+    fallback: 'https://secretsmanager.{region}.amazonaws.com',
   },
   defaultHeaders: {
     'Content-Type': 'application/x-amz-json-1.1',

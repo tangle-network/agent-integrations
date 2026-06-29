@@ -2,9 +2,11 @@ import { declarativeRestConnector } from './declarative-rest.js'
 
 // AWS Textract is exposed via the JSON 1.1 query protocol: a single POST to /
 // with the X-Amz-Target header naming the operation
-// (Textract.AnalyzeDocument, Textract.DetectDocumentText, etc.). Region binds
-// into the host at credential-mint time; metadataKey 'endpoint' allows
-// per-tenant override (textract.<region>.amazonaws.com).
+// (Textract.AnalyzeDocument, Textract.DetectDocumentText, etc.). Each request is
+// signed with AWS Signature V4 (`credentialPlacement: aws-sigv4`) from the
+// credential bundle in the api-key field; the bundle's region is substituted
+// into the `{region}` host template, and metadataKey 'endpoint' still allows a
+// per-tenant host override (textract.<region>.amazonaws.com).
 //
 // The catalog enumerates 5 actions (AnalyzeDocument, DetectDocumentText,
 // AnalyzeExpense, AnalyzeId, AnalyzeDocumentAsync). The async path returns a
@@ -24,13 +26,14 @@ export const amazonTextractConnector = declarativeRestConnector({
     'Extract text, forms, tables, signatures, and structured data (expense, identity) from documents using AWS Textract.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS access key id + secret access key + region (api-key field carries the SigV4 credential bundle; the gateway signs each request).',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. Optional "sessionToken" and "endpoint". Requests are signed with AWS Signature V4; the region selects the textract.<region>.amazonaws.com endpoint.',
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
+  credentialPlacement: { kind: 'aws-sigv4', service: 'textract' },
   baseUrl: {
     metadataKey: 'endpoint',
-    fallback: 'https://textract.us-east-1.amazonaws.com',
+    fallback: 'https://textract.{region}.amazonaws.com',
   },
   defaultHeaders: {
     'Content-Type': 'application/x-amz-json-1.1',

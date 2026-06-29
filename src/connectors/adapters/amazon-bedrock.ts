@@ -10,23 +10,27 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // per-prompt action wrappers) because that's what an agent needs to compose
 // arbitrary generation flows on top of.
 //
-// Region is supplied through connection metadata (metadata.region, e.g. us-east-1)
-// so the same connector can target any AWS region without rebuilding the manifest.
+// Region comes from the credential bundle in the api-key field (falling back to
+// metadata.region, then us-east-1) and is substituted into the {region} host
+// templates below, so the same connector targets any AWS region. Each request is
+// signed with AWS Signature V4 (`credentialPlacement: aws-sigv4`, service
+// `bedrock`).
 
 export const amazonBedrockConnector = declarativeRestConnector({
   kind: 'amazon-bedrock',
   displayName: 'Amazon Bedrock',
   description: 'Invoke AWS Bedrock foundation models for text generation, image analysis, image generation, and embeddings; list available foundation models.',
-  auth: { kind: 'api-key', hint: 'AWS access key id / secret access key pair (the connection should also carry metadata.region; requests are signed with AWS Signature V4 at the gateway).' },
+  auth: { kind: 'api-key', hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. Optional "sessionToken" and "endpoint". Requests are signed with AWS Signature V4; the region selects the bedrock-runtime.<region>.amazonaws.com endpoint.' },
   category: 'other',
   // Bedrock model invocations are non-idempotent generative calls; the manifest
   // surfaces are advisory (best-effort), not authoritative state.
   defaultConsistencyModel: 'advisory',
   // bedrock-runtime is the workhorse endpoint for invoke/converse. Control-plane
   // listing operations override the host on a per-capability basis below.
-  baseUrl: { metadataKey: 'runtimeEndpoint', fallback: 'https://bedrock-runtime.us-east-1.amazonaws.com' },
+  credentialPlacement: { kind: 'aws-sigv4', service: 'bedrock' },
+  baseUrl: { metadataKey: 'runtimeEndpoint', fallback: 'https://bedrock-runtime.{region}.amazonaws.com' },
   defaultHeaders: { 'content-type': 'application/json', accept: 'application/json' },
-  test: { method: 'GET', path: '/foundation-models', headers: { host: 'bedrock.us-east-1.amazonaws.com' } },
+  test: { method: 'GET', path: '/foundation-models', headers: { host: 'bedrock.{region}.amazonaws.com' } },
   capabilities: [
     {
       name: 'models.list',
@@ -48,9 +52,10 @@ export const amazonBedrockConnector = declarativeRestConnector({
           byOutputModality: '{byOutputModality}',
           byInferenceType: '{byInferenceType}',
         },
-        // Control-plane host override; declarative-rest forwards the header to
-        // the gateway, which rewrites the upstream Host for SigV4.
-        headers: { host: 'bedrock.us-east-1.amazonaws.com' },
+        // Control-plane host override: the runtime folds this `host` header into
+        // the request URL (region substituted) so SigV4 signs the bedrock.<region>
+        // control-plane host, not the bedrock-runtime base host.
+        headers: { host: 'bedrock.{region}.amazonaws.com' },
       },
     },
     {
@@ -67,7 +72,7 @@ export const amazonBedrockConnector = declarativeRestConnector({
       request: {
         method: 'GET',
         path: '/foundation-models/{modelIdentifier}',
-        headers: { host: 'bedrock.us-east-1.amazonaws.com' },
+        headers: { host: 'bedrock.{region}.amazonaws.com' },
       },
     },
     {

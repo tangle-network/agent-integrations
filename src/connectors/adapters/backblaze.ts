@@ -10,10 +10,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  *   https://s3.{region}.backblazeb2.com
  * (e.g. s3.us-west-001.backblazeb2.com) and accepts AWS SigV4-signed
  * requests against the bucket as a virtual-hosted-style or path-style
- * resource. Because the declarative-REST adapter carries one base URL per
- * connector and does not own request-time signing, the manifest here
- * captures the action surface; SigV4 signing is layered on by the runtime
- * once it sees the api-key credential bundle (accessKeyId + secretAccessKey).
+ * resource. The declarative-REST adapter signs each request with AWS Signature
+ * V4 (`credentialPlacement: aws-sigv4`, service `s3`) from the credential bundle
+ * in the api-key field (accessKeyId + secretAccessKey + region); the region is
+ * substituted into the `{region}` host template.
  *
  * Action surface mirrors the activepieces catalog 1:1:
  *   - files.read         Read object bytes / metadata from a key in the bucket.
@@ -43,15 +43,14 @@ export const backblazeConnector = declarativeRestConnector({
     'Read and upload objects on a Backblaze B2 bucket via the S3-compatible REST API at s3.{region}.backblazeb2.com.',
   auth: {
     kind: 'api-key',
-    hint: 'Backblaze B2 application key pair (accessKeyId + secretAccessKey) scoped to the target bucket. Region selects the s3.{region}.backblazeb2.com endpoint.',
+    hint: 'Backblaze B2 application key pair as JSON: {"accessKeyId":"…","secretAccessKey":"…","region":"us-west-001"} scoped to the target bucket. Optional "endpoint" overrides the host. Requests are signed with AWS Signature V4 (S3-compatible); the region selects the s3.<region>.backblazeb2.com endpoint.',
   },
   category: 'storage',
   defaultConsistencyModel: 'authoritative',
-  // Endpoint is region-derived in the activepieces piece; the runtime
-  // resolves {region} from the credential bundle when constructing the
-  // request URL. The declarative-REST adapter takes a string baseUrl, so
-  // we keep the template here and rely on the runtime's URL resolver to
-  // substitute the region placeholder from the credential metadata.
+  // Backblaze B2 speaks the S3 API, so it signs with AWS SigV4 under the `s3`
+  // service. The runtime substitutes {region} from the credential bundle into
+  // the host template below (or honors an explicit bundle `endpoint`).
+  credentialPlacement: { kind: 'aws-sigv4', service: 's3' },
   baseUrl: 'https://s3.{region}.backblazeb2.com',
   test: { method: 'GET', path: '/{bucket}?list-type=2&max-keys=1' },
   capabilities: [
