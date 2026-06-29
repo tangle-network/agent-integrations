@@ -202,6 +202,23 @@ const TWITTER_SPEC: RestConnectorSpec = {
       },
     },
     {
+      name: 'users.by.username',
+      class: 'read',
+      description:
+        'Resolve a handle to its numeric user id (and name) — for followed_by (resolve target → list users.following) and mentioned-with-target (resolve target → filter users.mentions by author_id). Returns { id, name, username }.',
+      parameters: {
+        type: 'object',
+        properties: {
+          username: {
+            type: 'string',
+            description: 'Twitter/X handle WITHOUT a leading @; resolves to a numeric user id.',
+          },
+        },
+        required: ['username'],
+      },
+      request: { method: 'GET', path: '/users/by/username/{username}' },
+    },
+    {
       name: 'users.tweets',
       class: 'read',
       description:

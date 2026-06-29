@@ -70,7 +70,7 @@ describe('twitter adapter manifest', () => {
     expect(names).toContain('dms.send')
   })
 
-  it('exposes the six quest-verification read capabilities classified as reads', () => {
+  it('exposes the seven quest-verification read capabilities classified as reads', () => {
     const reads = twitterConnector.manifest.capabilities
       .filter((c) => c.class === 'read')
       .map((c) => c.name)
@@ -78,6 +78,7 @@ describe('twitter adapter manifest', () => {
     expect(reads).toEqual([
       'tweets.likingUsers',
       'tweets.retweetedBy',
+      'users.by.username',
       'users.following',
       'users.me',
       'users.mentions',
@@ -163,6 +164,33 @@ describe('twitter read capabilities', () => {
     expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/u-1/following')
     expect(url.searchParams.get('max_results')).toBe('1000')
     expect(url.searchParams.get('pagination_token')).toBe('CURSOR')
+  })
+
+  it('users.by.username GETs /users/by/username/{username} with no query params', async () => {
+    const captured = captureGet({ data: { id: 'u-7', name: 'Drew', username: 'drew' } })
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.by.username',
+      args: { username: 'drew' },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(captured.method).toBe('GET')
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/by/username/drew')
+    expect([...url.searchParams.keys()]).toEqual([])
+    expect(result.data).toEqual({ data: { id: 'u-7', name: 'Drew', username: 'drew' } })
+  })
+
+  it('users.by.username requires the username', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'users.by.username',
+        args: {},
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/missing required argument: username/)
   })
 
   it('users.following requires the user id', async () => {
