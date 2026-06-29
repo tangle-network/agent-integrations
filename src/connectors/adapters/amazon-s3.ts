@@ -6,11 +6,15 @@ export const amazonS3Connector = declarativeRestConnector({
   description: 'Scalable storage in the cloud. Read, upload, delete, and manage files in S3 buckets.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS Access Key ID and Secret Access Key. Provide credentials for IAM user with S3 permissions.',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"} for an IAM principal with S3 permissions. Optional "sessionToken" and "endpoint" (S3-compatible stores). Requests are signed with AWS Signature V4; the region selects the s3.<region>.amazonaws.com endpoint.',
   },
   category: 'storage',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://s3.amazonaws.com',
+  // S3 REST API, path-style. Each request is signed with AWS Signature V4
+  // (service `s3`, which signs the request path verbatim); the bundle's region
+  // is substituted into the `{region}` host template.
+  credentialPlacement: { kind: 'aws-sigv4', service: 's3' },
+  baseUrl: 'https://s3.{region}.amazonaws.com',
   test: { method: 'GET', path: '/' },
   capabilities: [
     {

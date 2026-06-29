@@ -1,10 +1,11 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
 // AWS SQS JSON protocol (sqs.<region>.amazonaws.com). All actions are POST to
-// the service root with X-Amz-Target: AmazonSQS.<Action> and JSON body; the
-// gateway signs requests with SigV4 using the credential bundle in the api-key
-// field. Region is bound into the host via metadata.endpoint at credential-mint
-// time so the same manifest targets any AWS region.
+// the service root with X-Amz-Target: AmazonSQS.<Action> and a JSON body. Each
+// request is signed with AWS Signature V4 (`credentialPlacement: aws-sigv4`)
+// from the credential bundle in the api-key field; the bundle's region is
+// substituted into the `{region}` host template so one manifest targets any
+// AWS region.
 //
 // The activepieces catalog surfaces only send.message, but a usable SQS adapter
 // for an agent must cover the full messaging primitive: send / receive / delete
@@ -19,16 +20,17 @@ export const amazonSqsConnector = declarativeRestConnector({
     'Send, receive, and delete messages on AWS SQS queues, and discover queue URLs and attributes.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS access key id + secret access key + region (api-key field carries the SigV4 credential bundle; metadata.endpoint may override the regional host).',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. Optional "sessionToken" (STS temp creds) and "endpoint" (override host). Requests are signed with AWS Signature V4; the region selects the sqs.<region>.amazonaws.com endpoint.',
   },
   category: 'other',
   // SQS is an at-least-once durable queue: sends, deletes, and queue-attribute
   // reads are authoritative against the service. Receive returns a transient
   // visibility-locked view, but the queue state itself is authoritative.
   defaultConsistencyModel: 'authoritative',
+  credentialPlacement: { kind: 'aws-sigv4', service: 'sqs' },
   baseUrl: {
     metadataKey: 'endpoint',
-    fallback: 'https://sqs.us-east-1.amazonaws.com',
+    fallback: 'https://sqs.{region}.amazonaws.com',
   },
   defaultHeaders: {
     'Content-Type': 'application/x-amz-json-1.0',

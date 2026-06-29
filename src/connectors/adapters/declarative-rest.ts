@@ -7,11 +7,26 @@ import {
   type ConnectorInvocation,
   CredentialsExpired,
 } from '../types.js'
+import {
+  type AwsCredentialBundle,
+  amzDateNow,
+  canonicalizeAwsQuery,
+  hashSha256Hex,
+  parseAwsCredentialBundle,
+  signSigV4,
+} from './aws-sigv4.js'
 
 export type RestCredentialPlacement =
   | { kind: 'bearer' }
   | { kind: 'header'; header: string; prefix?: string }
   | { kind: 'query'; parameter: string }
+  /** AWS Signature Version 4. The api-key credential field carries a JSON
+   *  bundle (accessKeyId + secretAccessKey + region [+ sessionToken, endpoint]);
+   *  the runtime signs each request at fetch time. `service` is the SigV4
+   *  signing name (e.g. `sqs`, `s3`); `defaultRegion` is used only when neither
+   *  the bundle nor connection metadata supplies a region. The target host is
+   *  derived from the region via the adapter's `{region}`-templated baseUrl. */
+  | { kind: 'aws-sigv4'; service: string; defaultRegion?: string }
 
 export interface RestConnectorSpec {
   kind: string
@@ -181,7 +196,17 @@ export async function executeRestRequest(
   inv: ConnectorInvocation,
   requiredArgs?: readonly string[],
 ): Promise<{ data: unknown; etag?: string }> {
-  const baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
+  const placement = spec.credentialPlacement ?? { kind: 'bearer' }
+
+  // AWS SigV4 binds the target region into the HOST and signs the request body,
+  // so the credential bundle has to be resolved up front: the region selects
+  // the host before the URL is built, and the serialized body must exist before
+  // the signature is computed. Non-AWS placements are unaffected.
+  const aws = placement.kind === 'aws-sigv4' ? parseAwsCredentialBundle(inv.source.credentials) : undefined
+  const awsRegion = aws ? resolveAwsRegion(aws, inv.source.metadata, placement as { defaultRegion?: string }) : undefined
+
+  let baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
+  if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Make the operation path RELATIVE to the base URL so a base like
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
@@ -193,24 +218,57 @@ export async function executeRestRequest(
     const rendered = renderQueryValue(value, inv.args)
     if (rendered !== undefined && rendered !== '') url.searchParams.set(key, String(rendered))
   }
+  // Some AWS capabilities (Bedrock control-plane) target a different host than
+  // the connector's base URL and express it as a `host` request header. `fetch`
+  // cannot send a custom Host, so fold it into the URL itself. The header value
+  // carries a `{region}` token resolved HERE (not a capability argument), so it
+  // must bypass `renderHeaders`/`interpolate` — which would throw on the unknown
+  // `{region}` placeholder before we ever get to substitute it.
+  const requestHeaders = request.headers ?? {}
+  const hostOverride = aws
+    ? Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === 'host')?.[1]
+    : undefined
+  const renderableHeaders = hostOverride
+    ? Object.fromEntries(Object.entries(requestHeaders).filter(([key]) => key.toLowerCase() !== 'host'))
+    : requestHeaders
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...spec.defaultHeaders,
-    ...renderHeaders(request.headers ?? {}, inv.args),
+    ...renderHeaders(renderableHeaders, inv.args),
   }
-  applyCredentials(headers, url, spec.credentialPlacement ?? { kind: 'bearer' }, inv.source.credentials)
+  if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
   // POST/PUT/PATCH always carry a body. DELETE carries one ONLY when the
   // operation explicitly declares `request.body` — some APIs (e.g. UserGems)
   // take the record identifier in a DELETE body. GET never carries a body.
   const sendsBody = request.method !== 'GET' && (request.method !== 'DELETE' || request.body !== undefined)
-  if (sendsBody) {
-    headers['content-type'] = headers['content-type'] ?? 'application/json'
+  // Default content-type case-insensitively: AWS adapters declare a capitalized
+  // `Content-Type` in defaultHeaders, and a blind `headers['content-type']`
+  // default would add a SECOND, conflicting content-type entry (and corrupt the
+  // SigV4 signed-header set).
+  if (sendsBody && getHeaderCI(headers, 'content-type') === undefined) {
+    headers['content-type'] = 'application/json'
   }
+  // Serialize the body before signing — SigV4 hashes the payload into the
+  // canonical request.
+  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, requiredArgs)) : undefined
+
+  if (placement.kind === 'aws-sigv4') {
+    signAwsRequest(headers, url, {
+      method: request.method,
+      body: bodyString ?? '',
+      service: placement.service,
+      region: awsRegion!,
+      bundle: aws!,
+    })
+  } else {
+    applyCredentials(headers, url, placement, inv.source.credentials)
+  }
+
   const res = await fetch(url, {
     method: request.method,
     headers,
-    body: sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, requiredArgs)) : undefined,
+    body: bodyString,
     signal: AbortSignal.timeout(20_000),
   })
   if (res.status === 401 || res.status === 403) {
@@ -286,6 +344,68 @@ function credentialToken(credentials: ConnectorCredentials): string {
   if (credentials.kind === 'oauth2') return credentials.accessToken
   if (credentials.kind === 'api-key') return credentials.apiKey
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
+}
+
+/** Region precedence for an AWS connection: the credential bundle wins, then
+ *  connection `metadata.region`, then the adapter's declared default, then the
+ *  AWS global default `us-east-1`. */
+function resolveAwsRegion(
+  bundle: AwsCredentialBundle,
+  metadata: Record<string, unknown>,
+  placement: { defaultRegion?: string },
+): string {
+  if (bundle.region) return bundle.region
+  if (typeof metadata.region === 'string' && metadata.region.trim()) return metadata.region
+  return placement.defaultRegion ?? 'us-east-1'
+}
+
+/** Resolve the effective AWS host: an explicit bundle `endpoint` (S3-compatible
+ *  / LocalStack / custom partition) wins outright; otherwise substitute the
+ *  region into the adapter's `{region}` host template. */
+function applyRegionTemplate(baseUrl: string, region: string, endpoint?: string): string {
+  if (endpoint) return endpoint
+  return baseUrl.replace(/\{region\}/g, region)
+}
+
+/** Case-insensitive header lookup (header names are case-insensitive but the
+ *  plain object we build is not). */
+function getHeaderCI(headers: Record<string, string>, name: string): string | undefined {
+  const lower = name.toLowerCase()
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === lower) return value
+  }
+  return undefined
+}
+
+/** Sign the request in place with SigV4 and attach the resulting AWS headers. */
+function signAwsRequest(
+  headers: Record<string, string>,
+  url: URL,
+  opts: { method: string; body: string; service: string; region: string; bundle: AwsCredentialBundle },
+): void {
+  // Re-serialize the query in AWS canonical form so the bytes on the wire match
+  // what we sign. URLSearchParams uses form-encoding (space→'+'), which AWS would
+  // canonicalize to %2B and reject; the canonical form emits %20 consistently.
+  const canonicalSearch = canonicalizeAwsQuery(url.searchParams)
+  url.search = canonicalSearch ? `?${canonicalSearch}` : ''
+  // x-amz-content-sha256 is mandatory for S3 and signed by the AWS SDK for every
+  // service, so always send + sign it. STS temp creds add x-amz-security-token.
+  headers['x-amz-content-sha256'] = hashSha256Hex(opts.body)
+  if (opts.bundle.sessionToken) headers['x-amz-security-token'] = opts.bundle.sessionToken
+  const signed = signSigV4({
+    method: opts.method,
+    url,
+    headers,
+    body: opts.body,
+    service: opts.service,
+    region: opts.region,
+    accessKeyId: opts.bundle.accessKeyId,
+    secretAccessKey: opts.bundle.secretAccessKey,
+    sessionToken: opts.bundle.sessionToken,
+    amzDate: amzDateNow(),
+  })
+  headers['x-amz-date'] = signed.amzDate
+  headers.authorization = signed.authorization
 }
 
 function resolveBody(

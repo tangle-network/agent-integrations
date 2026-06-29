@@ -20,11 +20,15 @@ export const amazonSesConnector = declarativeRestConnector({
   description: 'Send transactional and templated email and manage SES email templates via the Amazon SES v2 REST API.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS access key ID + secret access key with ses:SendEmail / ses:SendTemplatedEmail / template-management permissions. The region selects the SES endpoint (e.g. us-east-1).',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"} (the key needs ses:SendEmail / ses:SendTemplatedEmail / template-management permissions). Optional "sessionToken" and "endpoint". Requests are signed with AWS Signature V4; the region selects the email.<region>.amazonaws.com (SES v2) endpoint.',
   },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: { metadataKey: 'endpoint' },
+  // SES v2 REST API: the SigV4 signing name is `ses`, but the regional host is
+  // the `email.` subdomain. metadata.endpoint still overrides when a tenant
+  // pins a host.
+  credentialPlacement: { kind: 'aws-sigv4', service: 'ses' },
+  baseUrl: { metadataKey: 'endpoint', fallback: 'https://email.{region}.amazonaws.com' },
   test: { method: 'GET', path: '/v2/email/identities' },
   capabilities: [
     {

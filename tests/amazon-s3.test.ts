@@ -12,7 +12,10 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     consistencyModel: 'authoritative',
     scopes: [],
     metadata: {},
-    credentials: { kind: 'api-key', apiKey: 'aws_test_bundle' },
+    credentials: {
+      kind: 'api-key',
+      apiKey: JSON.stringify({ accessKeyId: 'AKIAEXAMPLE', secretAccessKey: 'secret-key', region: 'us-east-1' }),
+    },
     status: 'active',
     ...overrides,
   }
@@ -106,9 +109,13 @@ describe('amazon-s3 files.copyFile', () => {
     })
 
     expect(capturedMethod).toBe('PUT')
-    expect(capturedUrl).toContain('https://s3.amazonaws.com/')
+    expect(capturedUrl).toContain('https://s3.us-east-1.amazonaws.com/')
     expect(capturedUrl).toContain('new.txt')
     expect(capturedHeaders['x-amz-copy-source']).toBe('bucket-a%2Fpath%2Fold.txt')
+    // request is SigV4-signed, not Bearer
+    expect(capturedHeaders.authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\/\d{8}\/us-east-1\/s3\/aws4_request,/)
+    expect(capturedHeaders['x-amz-date']).toMatch(/^\d{8}T\d{6}Z$/)
+    expect(capturedHeaders['x-amz-content-sha256']).toMatch(/^[0-9a-f]{64}$/)
     expect(result.status).toBe('committed')
   })
 
@@ -162,6 +169,34 @@ describe('amazon-s3 files.setMetadata', () => {
   })
 })
 
+describe('amazon-s3 files.list SigV4 query encoding', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('encodes a space in prefix as %20 on the wire so it matches the signed query', async () => {
+    let capturedUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        capturedUrl = String(input)
+        return jsonResponse({ contents: [] })
+      }),
+    )
+
+    await amazonS3Connector.executeRead!({
+      source: source(),
+      capabilityName: 'files.list',
+      args: { prefix: 'my folder/' },
+      idempotencyKey: 't',
+    })
+
+    // URLSearchParams form-encoding would send 'my+folder' (a space as '+'), which
+    // AWS canonicalizes to %2B and rejects. The wire must carry %20, matching the
+    // signed canonical query.
+    expect(capturedUrl).toContain('prefix=my%20folder')
+    expect(capturedUrl).not.toContain('prefix=my+folder')
+  })
+})
+
 describe('amazon-s3 files.createBucket', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -187,7 +222,9 @@ describe('amazon-s3 files.createBucket', () => {
     })
 
     expect(capturedMethod).toBe('PUT')
-    expect(capturedUrl).toBe('https://s3.amazonaws.com/drew-bucket')
+    // host is region-derived from the credential bundle (us-east-1); the
+    // us-west-2 arg only sets the x-amz-bucket-region header.
+    expect(capturedUrl).toBe('https://s3.us-east-1.amazonaws.com/drew-bucket')
     expect(capturedHeaders['x-amz-bucket-region']).toBe('us-west-2')
     expect(result.status).toBe('committed')
   })

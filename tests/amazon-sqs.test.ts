@@ -8,7 +8,7 @@ describe('amazon-sqs adapter manifest', () => {
     expect(amazonSqsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('uses api-key auth (mirrors the activepieces piece auth shape; AWS keys signed at the gateway)', () => {
+  it('uses api-key auth (mirrors the activepieces piece auth shape; AWS keys signed with SigV4)', () => {
     const auth = amazonSqsConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
     if (auth.kind !== 'api-key') throw new Error('unreachable')

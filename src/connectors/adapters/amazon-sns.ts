@@ -1,11 +1,11 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
 // Amazon SNS uses the AWS Query Protocol (form/query string parameters with
-// Action=<Op>&Version=2010-03-31). Region is bound into the host at
-// credential-mint time; the `metadataKey: 'endpoint'` indirection lets a
-// caller pin region per tenant without rewriting the manifest. SigV4 is
-// performed by the credential layer; the api-key field carries the
-// SigV4 credential bundle (accessKeyId + secretAccessKey + region).
+// Action=<Op>&Version=2010-03-31). Each request is signed with AWS Signature V4
+// (`credentialPlacement: aws-sigv4`) from the credential bundle in the api-key
+// field; the bundle's region is substituted into the `{region}` host template,
+// and the `metadataKey: 'endpoint'` indirection still lets a caller pin a host
+// per tenant without rewriting the manifest.
 export const amazonSnsConnector = declarativeRestConnector({
   kind: 'amazon-sns',
   displayName: 'Amazon SNS',
@@ -13,13 +13,14 @@ export const amazonSnsConnector = declarativeRestConnector({
     'Publish messages to Amazon Simple Notification Service topics, manage topics, and manage subscriptions.',
   auth: {
     kind: 'api-key',
-    hint: 'AWS access key id + secret access key + region (api-key field carries the SigV4 credential bundle).',
+    hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. Optional "sessionToken" and "endpoint". Requests are signed with AWS Signature V4; the region selects the sns.<region>.amazonaws.com endpoint.',
   },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
+  credentialPlacement: { kind: 'aws-sigv4', service: 'sns' },
   baseUrl: {
     metadataKey: 'endpoint',
-    fallback: 'https://sns.us-east-1.amazonaws.com',
+    fallback: 'https://sns.{region}.amazonaws.com',
   },
   defaultHeaders: {
     'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',

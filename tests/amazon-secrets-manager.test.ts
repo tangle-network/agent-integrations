@@ -12,7 +12,10 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     consistencyModel: 'authoritative',
     scopes: [],
     metadata: {},
-    credentials: { kind: 'api-key', apiKey: 'aws_test_bundle' },
+    credentials: {
+      kind: 'api-key',
+      apiKey: JSON.stringify({ accessKeyId: 'AKIAEXAMPLE', secretAccessKey: 'secret-key', region: 'us-east-1' }),
+    },
     status: 'active',
     ...overrides,
   }
@@ -113,6 +116,11 @@ describe('amazon-secrets-manager secrets.rotate', () => {
     })
 
     expect(capturedHeaders['X-Amz-Target']).toBe('secretsmanager.RotateSecret')
+    // request is SigV4-signed against the secretsmanager service, not Bearer
+    expect(capturedHeaders.authorization).toMatch(
+      /^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\/\d{8}\/us-east-1\/secretsmanager\/aws4_request,/,
+    )
+    expect(capturedHeaders['x-amz-date']).toMatch(/^\d{8}T\d{6}Z$/)
     expect(capturedBody).toMatchObject({
       SecretId: 'foo',
       RotationLambdaARN: 'arn:aws:lambda:rotator',
