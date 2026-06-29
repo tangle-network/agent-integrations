@@ -44,6 +44,12 @@ export interface RestRequestSpec {
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
   body?: 'args' | string | Record<string, unknown>
+  /** Existence-probe operations (e.g. GitHub star/follow/membership checks)
+   *  encode the answer in the HTTP status: 204 = present, 404 = absent. Set
+   *  this so the adapter maps both to an explicit `{ exists: boolean }` instead
+   *  of returning a null body on 204 and THROWING on 404. Any other non-2xx
+   *  status still fails loud through the normal error path. */
+  existenceCheck?: boolean
 }
 
 export interface RestTestSpec extends RestRequestSpec {
@@ -227,6 +233,15 @@ export async function executeRestRequest(
         message: await safeErrorText(res),
       },
     }
+  }
+  // Existence-probe semantics: 204 = present, 404 = absent. Resolve to an
+  // explicit boolean BEFORE the generic success path (which would return a
+  // null body for the 204) and BEFORE the `!res.ok` throw (which would surface
+  // the 404 as an error). Only 204/404 are special-cased here; every other
+  // status falls through to its normal handling, so a real failure (500, 422,
+  // an auth 401/403 caught above) still fails loud.
+  if (request.existenceCheck && (res.status === 204 || res.status === 404)) {
+    return { data: { exists: res.status === 204 } }
   }
   if (!res.ok) {
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${(await safeErrorText(res)).slice(0, 300)}`)

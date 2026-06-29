@@ -37,18 +37,27 @@ describe('github adapter', () => {
     expect(result.ok).toBe(true)
   })
 
-  it('manifest exposes the new write capabilities', () => {
+  it('manifest exposes the full capability set (reads + mutations)', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
+        // reads
+        'activity.checkStarred',
+        'issues.search',
+        'orgs.checkMembership',
+        'repos.getReadme',
+        'repos.listCommits',
+        'repositories.get',
+        'search.code',
+        'users.checkFollowing',
+        'users.getAuthenticated',
+        // mutations
         'issues.create',
         'issues.createComment',
-        'issues.search',
         'issues.update',
         'pulls.create',
         'pulls.merge',
         'pulls.reviews.create',
-        'repositories.get',
       ].sort(),
     )
     const mutations = adapter.manifest.capabilities.filter((c) => c.class === 'mutation')
@@ -56,6 +65,250 @@ describe('github adapter', () => {
       expect((m as { cas: string }).cas).toBeDefined()
       expect((m as { externalEffect: boolean }).externalEffect).toBe(true)
     }
+  })
+
+  // ---------- read capabilities (quest verification) ----------
+
+  it('users.getAuthenticated GETs /user and returns the token owner', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      return jsonResponse({ login: 'octocat', id: 583231 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.getAuthenticated',
+      args: {},
+      idempotencyKey: 'k',
+    })
+    expect(calledMethod).toBe('GET')
+    expect(calledUrl).toMatch(/\/user$/)
+    expect((result.data as { login: string }).login).toBe('octocat')
+    expect(result.fetchedAt).toBeTypeOf('number')
+  })
+
+  it('activity.checkStarred maps 204 to { exists: true } without throwing', async () => {
+    let calledUrl = ''
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      calledUrl = String(input)
+      return new Response(null, { status: 204 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'activity.checkStarred',
+      args: { owner: 'octo', repo: 'hello' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/user/starred/octo/hello')
+    expect(result.data).toEqual({ exists: true })
+  })
+
+  it('activity.checkStarred maps 404 to { exists: false } without throwing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 })),
+    )
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'activity.checkStarred',
+      args: { owner: 'octo', repo: 'hello' },
+      idempotencyKey: 'k',
+    })
+    expect(result.data).toEqual({ exists: false })
+  })
+
+  it('activity.checkStarred still fails loud on a non-204/404 error (500)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('boom', { status: 500 })),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'activity.checkStarred',
+        args: { owner: 'octo', repo: 'hello' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/HTTP 500/)
+  })
+
+  it('users.checkFollowing probes /user/following/{target} with 204/404 semantics', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return new Response(null, { status: 204 })
+      }),
+    )
+    const following = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.checkFollowing',
+      args: { target: 'defunkt' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/user/following/defunkt')
+    expect(following.data).toEqual({ exists: true })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 })),
+    )
+    const notFollowing = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.checkFollowing',
+      args: { target: 'defunkt' },
+      idempotencyKey: 'k',
+    })
+    expect(notFollowing.data).toEqual({ exists: false })
+  })
+
+  it('users.checkFollowing rejects a missing required target arg', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'users.checkFollowing',
+        args: {},
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/missing required argument: target/)
+  })
+
+  it('repos.listCommits templates the author + per_page query params', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calledUrl = String(input)
+        calledMethod = init?.method ?? ''
+        return jsonResponse([{ sha: 'abc', commit: { message: 'init' } }])
+      }),
+    )
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.listCommits',
+      args: { owner: 'octo', repo: 'hello', author: 'octocat', per_page: 5 },
+      idempotencyKey: 'k',
+    })
+    expect(calledMethod).toBe('GET')
+    expect(calledUrl).toContain('/repos/octo/hello/commits')
+    expect(calledUrl).toContain('author=octocat')
+    expect(calledUrl).toContain('per_page=5')
+    expect(Array.isArray(result.data)).toBe(true)
+  })
+
+  it('repos.listCommits omits the author query param when not provided', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([])
+      }),
+    )
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.listCommits',
+      args: { owner: 'octo', repo: 'hello' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/octo/hello/commits')
+    expect(calledUrl).not.toContain('author=')
+  })
+
+  it('repos.getReadme GETs the readme endpoint', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse({ name: 'README.md', encoding: 'base64', content: 'aGk=' })
+      }),
+    )
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getReadme',
+      args: { owner: 'octo', repo: 'hello' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/octo/hello/readme')
+    expect((result.data as { encoding: string }).encoding).toBe('base64')
+  })
+
+  it('search.code templates the q + per_page query params', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse({ total_count: 1, items: [{ path: 'src/index.ts' }] })
+      }),
+    )
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'search.code',
+      args: { q: 'addClass in:file language:js repo:octo/hello', per_page: 10 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/search/code?')
+    expect(calledUrl).toContain('per_page=10')
+    // URLSearchParams encodes spaces as `+` and reserved chars (`:`, `/`) percent-escaped.
+    expect(calledUrl).toContain('q=addClass+in%3Afile+language%3Ajs+repo%3Aocto%2Fhello')
+    expect((result.data as { total_count: number }).total_count).toBe(1)
+  })
+
+  it('orgs.checkMembership probes /orgs/{org}/members/{user} with 204/404 semantics', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return new Response(null, { status: 204 })
+      }),
+    )
+    const member = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'orgs.checkMembership',
+      args: { org: 'tangle-network', user: 'octocat' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/orgs/tangle-network/members/octocat')
+    expect(member.data).toEqual({ exists: true })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 })),
+    )
+    const notMember = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'orgs.checkMembership',
+      args: { org: 'tangle-network', user: 'octocat' },
+      idempotencyKey: 'k',
+    })
+    expect(notMember.data).toEqual({ exists: false })
+  })
+
+  it('read existence checks still surface CredentialsExpired on 401/403', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('forbidden', { status: 403 })),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'activity.checkStarred',
+        args: { owner: 'octo', repo: 'hello' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   // ---------- pulls.create ----------
