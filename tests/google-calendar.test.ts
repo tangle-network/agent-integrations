@@ -178,7 +178,7 @@ describe('google-calendar adapter — event CRUD', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
-  it('create_event surfaces CredentialsExpired on 403', async () => {
+  it('create_event surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
     await expect(
       adapter.executeMutation!({
@@ -191,7 +191,7 @@ describe('google-calendar adapter — event CRUD', () => {
         },
         idempotencyKey: 'k',
       }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
   })
 
   // ---------- update_event ----------
@@ -378,7 +378,7 @@ describe('google-calendar adapter — event CRUD', () => {
     ).rejects.toThrow(/`eventId` is required/)
   })
 
-  it('get_event surfaces CredentialsExpired on 403', async () => {
+  it('get_event surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 403 })))
     await expect(
       adapter.executeRead!({
@@ -387,7 +387,39 @@ describe('google-calendar adapter — event CRUD', () => {
         args: { eventId: 'evt_1' },
         idempotencyKey: 'k',
       }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
+  })
+
+  it('list_events surfaces ProviderConfigError on a 403 accessNotConfigured (no reconnect)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({
+        error: {
+          code: 403,
+          status: 'PERMISSION_DENIED',
+          errors: [{ reason: 'accessNotConfigured', message: 'Calendar API has not been used in project …' }],
+        },
+      }),
+      { status: 403, headers: { 'content-type': 'application/json' } },
+    )))
+    await expect(
+      adapter.executeRead!({ source: source(), capabilityName: 'list_events', args: {}, idempotencyKey: 'k' }),
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403, reason: 'accessNotConfigured' })
+  })
+
+  it('list_events surfaces ProviderRateLimited on a 403 dailyLimitExceeded (quota, not auth)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({
+        error: {
+          code: 403,
+          status: 'RESOURCE_EXHAUSTED',
+          errors: [{ reason: 'dailyLimitExceeded', message: 'Daily Limit Exceeded' }],
+        },
+      }),
+      { status: 403, headers: { 'content-type': 'application/json' } },
+    )))
+    await expect(
+      adapter.executeRead!({ source: source(), capabilityName: 'list_events', args: {}, idempotencyKey: 'k' }),
+    ).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 403, reason: 'dailyLimitExceeded' })
   })
 
   // ---------- list_events ----------

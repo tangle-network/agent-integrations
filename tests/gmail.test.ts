@@ -315,6 +315,38 @@ describe('gmail adapter', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
+  it('list_messages surfaces ProviderConfigError on a 403 accessNotConfigured (no reconnect)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({
+        error: {
+          code: 403,
+          status: 'PERMISSION_DENIED',
+          errors: [{ reason: 'accessNotConfigured', message: 'Gmail API has not been used in project …' }],
+        },
+      }),
+      { status: 403, headers: { 'content-type': 'application/json' } },
+    )))
+    await expect(
+      adapter.executeRead!({ source: source(), capabilityName: 'list_messages', args: {}, idempotencyKey: 'k' }),
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403, reason: 'accessNotConfigured' })
+  })
+
+  it('list_messages surfaces ProviderRateLimited on a 403 dailyLimitExceeded (quota, not auth)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({
+        error: {
+          code: 403,
+          status: 'RESOURCE_EXHAUSTED',
+          errors: [{ reason: 'dailyLimitExceeded', message: 'Daily Limit Exceeded' }],
+        },
+      }),
+      { status: 403, headers: { 'content-type': 'application/json' } },
+    )))
+    await expect(
+      adapter.executeRead!({ source: source(), capabilityName: 'list_messages', args: {}, idempotencyKey: 'k' }),
+    ).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 403, reason: 'dailyLimitExceeded' })
+  })
+
   it('watch_label forwards topicName and historyId back', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ historyId: 'h1', expiration: '1700000000000' }))
     vi.stubGlobal('fetch', fetchMock)

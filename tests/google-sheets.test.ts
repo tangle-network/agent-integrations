@@ -193,7 +193,7 @@ describe('google-sheets adapter — write capabilities', () => {
       ).rejects.toMatchObject({ name: 'CredentialsExpired' })
     })
 
-    it('surfaces CredentialsExpired on 403', async () => {
+    it('surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
       vi.stubGlobal('fetch', vi.fn(async () => ({
         ok: false,
         status: 403,
@@ -208,7 +208,7 @@ describe('google-sheets adapter — write capabilities', () => {
           args: { spreadsheetId: 's', range: 'Sheet1!A1', values: [['x']] },
           idempotencyKey: 'k',
         }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+      ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
     })
   })
 
@@ -336,7 +336,7 @@ describe('google-sheets adapter — write capabilities', () => {
       ).rejects.toThrow(/google-sheets create_sheet: `title` is required/)
     })
 
-    it('surfaces CredentialsExpired on 403', async () => {
+    it('surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
       vi.stubGlobal('fetch', vi.fn(async () => ({
         ok: false,
         status: 403,
@@ -351,7 +351,7 @@ describe('google-sheets adapter — write capabilities', () => {
           args: { title: 'T' },
           idempotencyKey: 'k',
         }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+      ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
     })
 
     it('reports the upstream status + trimmed body on other non-OK responses', async () => {
