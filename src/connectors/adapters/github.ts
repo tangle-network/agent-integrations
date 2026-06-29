@@ -41,6 +41,88 @@ export const githubConnector = declarativeRestConnector({
       request: { method: 'GET', path: '/search/issues', query: { q: '{q}', per_page: '{per_page}' } },
     },
     {
+      name: 'users.getAuthenticated',
+      class: 'read',
+      description:
+        'Resolve the authenticated user (the token owner). Quest verification anchors author:/owner: filters to this login, so it must be resolved first.',
+      parameters: { type: 'object', properties: {}, required: [] },
+      request: { method: 'GET', path: '/user' },
+    },
+    {
+      name: 'activity.checkStarred',
+      class: 'read',
+      description:
+        'Check whether the authenticated user has starred a repository. Returns { exists: true } when starred, { exists: false } when not.',
+      parameters: repoParams,
+      request: { method: 'GET', path: '/user/starred/{owner}/{repo}', existenceCheck: true },
+    },
+    {
+      name: 'users.checkFollowing',
+      class: 'read',
+      description:
+        'Check whether the authenticated user follows another user. Returns { exists: true } when following, { exists: false } when not.',
+      parameters: {
+        type: 'object',
+        properties: { target: { type: 'string', description: 'Login of the user to check the follow against.' } },
+        required: ['target'],
+      },
+      request: { method: 'GET', path: '/user/following/{target}', existenceCheck: true },
+    },
+    {
+      name: 'repos.listCommits',
+      class: 'read',
+      description:
+        'List commits on a repository, optionally filtered to a single author login/email. Used to verify a user contributed to the repo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          author: { type: 'string', description: 'Restrict to commits authored by this GitHub login or email.' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/commits',
+        query: { author: '{author}', per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'repos.getReadme',
+      class: 'read',
+      description: "Read a repository's README (returns base64-encoded content). Used to verify README mentions.",
+      parameters: repoParams,
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/readme' },
+    },
+    {
+      name: 'search.code',
+      class: 'read',
+      description: 'Search code across GitHub. Used to verify code usage of a symbol or string.',
+      parameters: {
+        type: 'object',
+        properties: { q: { type: 'string' }, per_page: { type: 'integer', minimum: 1, maximum: 100 } },
+        required: ['q'],
+      },
+      request: { method: 'GET', path: '/search/code', query: { q: '{q}', per_page: '{per_page}' } },
+    },
+    {
+      name: 'orgs.checkMembership',
+      class: 'read',
+      description:
+        'Check whether a user is a member of an organization. Returns { exists: true } when a member, { exists: false } when not.',
+      parameters: {
+        type: 'object',
+        properties: {
+          org: { type: 'string' },
+          user: { type: 'string', description: 'Login of the user to check membership for.' },
+        },
+        required: ['org', 'user'],
+      },
+      request: { method: 'GET', path: '/orgs/{org}/members/{user}', existenceCheck: true },
+    },
+    {
       name: 'issues.create',
       class: 'mutation',
       description: 'Create an issue in a repository.',

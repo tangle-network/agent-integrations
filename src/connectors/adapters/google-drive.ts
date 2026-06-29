@@ -51,6 +51,7 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 const SCOPES_READONLY = ['https://www.googleapis.com/auth/drive.readonly']
 const SCOPE_WATCH = 'https://www.googleapis.com/auth/drive'
@@ -292,10 +293,10 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })
-        if (res.status === 401 || res.status === 403) {
-          return { ok: false, reason: `Google rejected Drive token (${res.status}) — reconnect required` }
+        if (!res.ok) {
+          const body = await res.json().catch(() => undefined)
+          return { ok: false, reason: googleTestFailureReason(res.status, body, 'Google Drive') }
         }
-        if (!res.ok) return { ok: false, reason: `Google Drive returned ${res.status}` }
         return { ok: true }
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -330,12 +331,8 @@ async function listFiles(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive list_files ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive list_files', inv.source.id)
   }
   const json = (await res.json()) as {
     nextPageToken?: string
@@ -363,15 +360,11 @@ async function readFile(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (metaRes.status === 401 || metaRes.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${metaRes.status})`, inv.source.id)
-  }
   if (metaRes.status === 404) {
     throw new Error(`google-drive read_file: file ${fileId} not found`)
   }
   if (!metaRes.ok) {
-    const text = await metaRes.text().catch(() => '')
-    throw new Error(`google-drive read_file meta ${metaRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(metaRes, 'google-drive read_file meta', inv.source.id)
   }
   const meta = (await metaRes.json()) as { id: string; name: string; mimeType: string; modifiedTime?: string }
 
@@ -384,8 +377,7 @@ async function readFile(
       signal: AbortSignal.timeout(timeoutMs),
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`google-drive read_file export ${res.status}: ${text.slice(0, 200)}`)
+      throw await googleApiError(res, 'google-drive read_file export', inv.source.id)
     }
     const isTextLike = /^text\/|application\/(json|xml|csv|javascript)/.test(targetMime)
     if (isTextLike) {
@@ -407,8 +399,7 @@ async function readFile(
     signal: AbortSignal.timeout(timeoutMs),
   })
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive read_file media ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive read_file media', inv.source.id)
   }
   const isTextLike = /^text\/|application\/(json|xml|csv|javascript)/.test(meta.mimeType)
   if (isTextLike) {
@@ -451,9 +442,6 @@ async function watchFolder(
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 409) {
     // Channel id collision — Drive returns the existing record info via
     // the metadata bag on our side. We surface it as an idempotent replay
@@ -467,8 +455,7 @@ async function watchFolder(
     }
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive watch_folder ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive watch_folder', inv.source.id)
   }
   const json = (await res.json()) as { id: string; resourceId: string; expiration?: string }
   return {
@@ -528,12 +515,8 @@ async function uploadFile(
     body,
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive upload_file ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive upload_file', inv.source.id)
   }
   const json = (await res.json()) as {
     id: string
@@ -581,12 +564,8 @@ async function createFolder(
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive create_folder ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive create_folder', inv.source.id)
   }
   const json = (await res.json()) as {
     id: string
@@ -621,13 +600,9 @@ async function deleteFile(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   // Drive returns 204 No Content on success.
   if (!res.ok && res.status !== 204) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive delete_file ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive delete_file', inv.source.id)
   }
   return {
     status: 'committed',
@@ -666,12 +641,8 @@ async function moveFile(
     body: '{}',
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Drive rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-drive move_file ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-drive move_file', inv.source.id)
   }
   const json = (await res.json()) as {
     id: string

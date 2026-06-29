@@ -40,6 +40,7 @@ import {
   CredentialsExpired,
 } from '../types.js'
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -269,10 +270,10 @@ export function googleSheets(opts: GoogleSheetsOptions): ConnectorAdapter {
         headers: { authorization: `Bearer ${accessToken}` },
         signal: AbortSignal.timeout(8_000),
       })
-      if (res.status === 401 || res.status === 403) {
-        return { ok: false, reason: `Google rejected token (${res.status}) — reconnect required` }
+      if (!res.ok) {
+        const body = await res.json().catch(() => undefined)
+        return { ok: false, reason: googleTestFailureReason(res.status, body, 'Google Sheets') }
       }
-      if (!res.ok) return { ok: false, reason: `Google returned ${res.status}` }
       return { ok: true }
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -327,12 +328,8 @@ async function fetchAllRows(accessToken: string, meta: SheetMeta): Promise<Resol
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(15_000),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, '')
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-sheets values.get ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-sheets values.get', '')
   }
   const json = (await res.json()) as { values?: string[][] }
   const grid = json.values ?? []
@@ -472,12 +469,8 @@ async function updateRow(
     body: JSON.stringify({ values: [updatedValues] }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-sheets update_row ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-sheets update_row', inv.source.id)
   }
   const updatedValuesByHeader = Object.fromEntries(
     meta.headers.map((h, i) => [h, updatedValues[i] ?? '']),
@@ -525,12 +518,8 @@ async function appendRow(
     body: JSON.stringify({ values: args.values }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-sheets append_row ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-sheets append_row', inv.source.id)
   }
   const json = (await res.json()) as {
     spreadsheetId?: string
@@ -577,12 +566,8 @@ async function clearRange(
     body: '{}',
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-sheets clear_range ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-sheets clear_range', inv.source.id)
   }
   const json = (await res.json().catch(() => ({}))) as {
     spreadsheetId?: string
@@ -616,12 +601,8 @@ async function createSheet(
     body: JSON.stringify({ properties: { title: args.title } }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Sheets rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-sheets create_sheet ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-sheets create_sheet', inv.source.id)
   }
   const json = (await res.json()) as {
     spreadsheetId: string

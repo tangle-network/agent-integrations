@@ -51,6 +51,7 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 // `/auth/calendar` is the legacy broad scope (covers calendars + events).
 // `/auth/calendar.events` is the fine-grained equivalent for the event-CRUD
@@ -256,7 +257,7 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
     if (inv.capabilityName === 'list_availability') {
       const calendarId = readMetaString(inv.source.metadata, 'calendarId')
       const { timeMin, timeMax } = inv.args as { timeMin: string; timeMax: string }
-      const fb = await freebusyQuery({ accessToken, calendarId, timeMin, timeMax })
+      const fb = await freebusyQuery({ accessToken, calendarId, timeMin, timeMax, sourceId: inv.source.id })
       return {
         data: { busy: fb.busy },
         fetchedAt: Date.now(),
@@ -285,7 +286,7 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
     }
 
     // Pre-flight: is the requested window busy?
-    const fb = await freebusyQuery({ accessToken, calendarId, timeMin: start, timeMax: end })
+    const fb = await freebusyQuery({ accessToken, calendarId, timeMin: start, timeMax: end, sourceId: inv.source.id })
     if (fb.busy.length > 0) {
       const startMs = Date.parse(start)
       const endMs = Date.parse(end)
@@ -296,6 +297,7 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
         searchFromMs: endMs,
         durationMs: durMs,
         wanted: 3,
+        sourceId: inv.source.id,
       })
       throw new ResourceContention(
         `requested slot ${start}–${end} is no longer free`,
@@ -338,12 +340,8 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
         idempotentReplay: true,
       }
     }
-    if (res.status === 401 || res.status === 403) {
-      throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-    }
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`google-calendar book_slot ${res.status}: ${text.slice(0, 200)}`)
+      throw await googleApiError(res, 'google-calendar book_slot', inv.source.id)
     }
     const created = (await res.json()) as { id: string; etag: string; htmlLink?: string }
     return {
@@ -406,10 +404,10 @@ export function googleCalendar(opts: GoogleCalendarOptions): ConnectorAdapter {
         headers: { authorization: `Bearer ${accessToken}` },
         signal: AbortSignal.timeout(8_000),
       })
-      if (res.status === 401 || res.status === 403) {
-        return { ok: false, reason: `Google rejected token (${res.status}) — reconnect required` }
+      if (!res.ok) {
+        const body = await res.json().catch(() => undefined)
+        return { ok: false, reason: googleTestFailureReason(res.status, body, 'Google Calendar') }
       }
-      if (!res.ok) return { ok: false, reason: `Google returned ${res.status}` }
       return { ok: true }
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -475,12 +473,8 @@ async function createEvent(
     body: JSON.stringify(event),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-calendar create_event ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar create_event', inv.source.id)
   }
   const created = (await res.json()) as {
     id: string
@@ -544,12 +538,8 @@ async function updateEvent(
     body: JSON.stringify(patch),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-calendar update_event ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar update_event', inv.source.id)
   }
   const updated = (await res.json()) as {
     id: string
@@ -589,15 +579,11 @@ async function deleteEvent(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-  }
   // 404 = already gone, 410 = "resource has been deleted" — both are
   // idempotent success from the caller's perspective.
   const idempotent = res.status === 404 || res.status === 410
   if (!res.ok && !idempotent) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-calendar delete_event ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar delete_event', inv.source.id)
   }
   return {
     status: 'committed',
@@ -621,12 +607,8 @@ async function getEvent(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-calendar get_event ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar get_event', inv.source.id)
   }
   const event = (await res.json()) as Record<string, unknown>
   return {
@@ -667,12 +649,8 @@ async function listEvents(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Calendar rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-calendar list_events ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar list_events', inv.source.id)
   }
   const json = (await res.json()) as {
     items?: Array<Record<string, unknown>>
@@ -698,6 +676,7 @@ async function freebusyQuery(input: {
   calendarId: string
   timeMin: string
   timeMax: string
+  sourceId: string
 }): Promise<FreeBusyResult> {
   const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     method: 'POST',
@@ -713,8 +692,7 @@ async function freebusyQuery(input: {
     signal: AbortSignal.timeout(10_000),
   })
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`freebusy ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-calendar freebusy', input.sourceId)
   }
   const json = (await res.json()) as {
     calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }>
@@ -732,6 +710,7 @@ async function findNextFreeSlots(input: {
   searchFromMs: number
   durationMs: number
   wanted: number
+  sourceId: string
 }): Promise<Array<{ start: string; end: string }>> {
   const horizonMs = input.searchFromMs + 14 * 24 * 60 * 60 * 1000
   const out: Array<{ start: string; end: string }> = []
@@ -744,6 +723,7 @@ async function findNextFreeSlots(input: {
       calendarId: input.calendarId,
       timeMin: new Date(cursor).toISOString(),
       timeMax: new Date(windowEnd).toISOString(),
+      sourceId: input.sourceId,
     })
     // Walk through free intervals between busy spans inside this window.
     const busy = fb.busy

@@ -64,6 +64,7 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 const SCOPE_READ = 'https://www.googleapis.com/auth/gmail.readonly'
 const SCOPE_SEND = 'https://www.googleapis.com/auth/gmail.send'
@@ -268,10 +269,10 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })
-        if (res.status === 401 || res.status === 403) {
-          return { ok: false, reason: `Google rejected Gmail token (${res.status}) — reconnect required` }
+        if (!res.ok) {
+          const body = await res.json().catch(() => undefined)
+          return { ok: false, reason: googleTestFailureReason(res.status, body, 'Gmail') }
         }
-        if (!res.ok) return { ok: false, reason: `Gmail returned ${res.status}` }
         return { ok: true }
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -311,12 +312,8 @@ async function listMessages(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (listRes.status === 401 || listRes.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${listRes.status})`, inv.source.id)
-  }
   if (!listRes.ok) {
-    const text = await listRes.text().catch(() => '')
-    throw new Error(`gmail list_messages ${listRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(listRes, 'gmail list_messages', inv.source.id)
   }
   const listJson = (await listRes.json()) as {
     messages?: Array<{ id: string; threadId: string }>
@@ -382,15 +379,11 @@ async function readMessage(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`gmail read_message: message ${id} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`gmail read_message ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'gmail read_message', inv.source.id)
   }
   const full = (await res.json()) as FullMessage
   const headers = new Map((full.payload?.headers ?? []).map((h) => [h.name.toLowerCase(), h.value]))
@@ -488,12 +481,8 @@ async function send(
     body: JSON.stringify({ raw: encodeBase64Url(raw) }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (sendRes.status === 401 || sendRes.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${sendRes.status})`, inv.source.id)
-  }
   if (!sendRes.ok) {
-    const text = await sendRes.text().catch(() => '')
-    throw new Error(`gmail send ${sendRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(sendRes, 'gmail send', inv.source.id)
   }
   const sent = (await sendRes.json()) as { id: string; threadId: string; labelIds?: string[] }
   return {
@@ -519,12 +508,8 @@ async function sendReply(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (threadRes.status === 401 || threadRes.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${threadRes.status})`, inv.source.id)
-  }
   if (!threadRes.ok) {
-    const text = await threadRes.text().catch(() => '')
-    throw new Error(`gmail send_reply thread fetch ${threadRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(threadRes, 'gmail send_reply thread fetch', inv.source.id)
   }
   const thread = (await threadRes.json()) as { messages?: FullMessage[] }
   const last = thread.messages?.[thread.messages.length - 1]
@@ -567,12 +552,8 @@ async function sendReply(
     body: JSON.stringify(sendBody),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (sendRes.status === 401 || sendRes.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${sendRes.status})`, inv.source.id)
-  }
   if (!sendRes.ok) {
-    const text = await sendRes.text().catch(() => '')
-    throw new Error(`gmail send_reply ${sendRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(sendRes, 'gmail send_reply', inv.source.id)
   }
   const sent = (await sendRes.json()) as { id: string; threadId: string; labelIds?: string[] }
   return {
@@ -607,12 +588,8 @@ async function watchLabel(
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Gmail rejected token (${res.status})`, inv.source.id)
-  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`gmail watch_label ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'gmail watch_label', inv.source.id)
   }
   const json = (await res.json()) as { historyId: string; expiration: string }
   return {

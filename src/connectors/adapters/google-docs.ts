@@ -58,6 +58,7 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from '../oauth.js'
+import { googleApiError, googleTestFailureReason } from './google-errors.js'
 
 const SCOPES = [
   'https://www.googleapis.com/auth/documents',
@@ -273,10 +274,10 @@ export function googleDocs(opts: GoogleDocsOptions): ConnectorAdapter {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })
-        if (res.status === 401 || res.status === 403) {
-          return { ok: false, reason: `Google rejected Docs token (${res.status}) — reconnect required` }
+        if (!res.ok) {
+          const body = await res.json().catch(() => undefined)
+          return { ok: false, reason: googleTestFailureReason(res.status, body, 'Google Docs') }
         }
-        if (!res.ok) return { ok: false, reason: `Google userinfo returned ${res.status}` }
         return { ok: true }
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : String(err) }
@@ -354,15 +355,11 @@ async function getDocument(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-docs get_document: document ${documentId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-docs get_document ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-docs get_document', inv.source.id)
   }
   const doc = (await res.json()) as DocsDocument
   return {
@@ -398,12 +395,8 @@ async function createDocument(
     body: JSON.stringify({ title }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (createRes.status === 401 || createRes.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${createRes.status})`, inv.source.id)
-  }
   if (!createRes.ok) {
-    const text = await createRes.text().catch(() => '')
-    throw new Error(`google-docs create_document ${createRes.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(createRes, 'google-docs create_document', inv.source.id)
   }
   const created = (await createRes.json()) as DocsDocument
   let revisionId = created.revisionId
@@ -430,12 +423,8 @@ async function createDocument(
         signal: AbortSignal.timeout(timeoutMs),
       },
     )
-    if (insertRes.status === 401 || insertRes.status === 403) {
-      throw new CredentialsExpired(`Google Docs rejected token (${insertRes.status})`, inv.source.id)
-    }
     if (!insertRes.ok) {
-      const text = await insertRes.text().catch(() => '')
-      throw new Error(`google-docs create_document insertText ${insertRes.status}: ${text.slice(0, 200)}`)
+      throw await googleApiError(insertRes, 'google-docs create_document insertText', inv.source.id)
     }
     const insertJson = (await insertRes.json()) as { documentId?: string; writeControl?: { requiredRevisionId?: string } }
     // batchUpdate returns the post-update revision in writeControl on
@@ -473,15 +462,11 @@ async function appendText(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (docRes.status === 401 || docRes.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${docRes.status})`, inv.source.id)
-  }
   if (docRes.status === 404) {
     throw new Error(`google-docs append_text: document ${documentId} not found`)
   }
   if (!docRes.ok) {
-    const errText = await docRes.text().catch(() => '')
-    throw new Error(`google-docs append_text fetch ${docRes.status}: ${errText.slice(0, 200)}`)
+    throw await googleApiError(docRes, 'google-docs append_text fetch', inv.source.id)
   }
   const doc = (await docRes.json()) as DocsDocument
   const insertIndex = findAppendIndex(doc)
@@ -512,9 +497,6 @@ async function appendText(
       signal: AbortSignal.timeout(timeoutMs),
     },
   )
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 400 && requiredRevisionId) {
     // Docs returns 400 with status code FAILED_PRECONDITION when
     // requiredRevisionId is stale. Best-effort parse — surface the
@@ -530,8 +512,7 @@ async function appendText(
     throw new Error(`google-docs append_text ${res.status}: ${errBody.slice(0, 200)}`)
   }
   if (!res.ok) {
-    const errBody = await res.text().catch(() => '')
-    throw new Error(`google-docs append_text ${res.status}: ${errBody.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-docs append_text', inv.source.id)
   }
   const json = (await res.json()) as { writeControl?: { requiredRevisionId?: string } }
   return {
@@ -565,15 +546,11 @@ async function deleteDocument(
     body: JSON.stringify({ trashed: true }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-docs delete_document: document ${documentId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-docs delete_document ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-docs delete_document', inv.source.id)
   }
   const json = (await res.json().catch(() => ({}))) as { id?: string; trashed?: boolean }
   return {
@@ -608,15 +585,11 @@ async function exportDocument(
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Google Docs rejected token (${res.status})`, inv.source.id)
-  }
   if (res.status === 404) {
     throw new Error(`google-docs export_document: document ${documentId} not found`)
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`google-docs export_document ${res.status}: ${text.slice(0, 200)}`)
+    throw await googleApiError(res, 'google-docs export_document', inv.source.id)
   }
   const buf = new Uint8Array(await res.arrayBuffer())
   // base64 encode without a Buffer dependency (works in worker + node).

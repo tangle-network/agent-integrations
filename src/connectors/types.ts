@@ -423,13 +423,86 @@ export class ResourceContention extends Error {
   }
 }
 
-/** Thrown when the connector finds the user's grant has been revoked or
- *  the access token is no longer valid AND refresh failed. Surfaces to
- *  the UI as "Reconnect required". */
+/** Structured HTTP failure detail attached to the typed provider errors below.
+ *  The platform classifier reads `status`/`reason` off the thrown instance to
+ *  route a 403 by WHY it failed (credential vs config/permission vs quota)
+ *  instead of regexing a flattened message. */
+export interface ProviderHttpErrorInit {
+  /** Upstream HTTP status (e.g. 401, 403, 429). */
+  status: number
+  /** Provider-specific machine reason (e.g. Google's `accessNotConfigured`,
+   *  `dailyLimitExceeded`, `invalid_grant`) — the actionable signal. */
+  reason?: string
+  /** Parsed upstream error body, kept for diagnostics/audit. */
+  body?: unknown
+}
+
+/** Thrown when the connector finds the user's grant has been revoked or the
+ *  access token is no longer valid AND refresh failed — reconnecting fixes it.
+ *  Surfaces to the UI as "Reconnect required". Carries optional structured
+ *  `{status, reason, body}` so the platform can confirm a 401/403 really is a
+ *  credential reason before flipping the connection to reconnect_required. */
 export class CredentialsExpired extends Error {
   override readonly name = 'CredentialsExpired'
-  constructor(message: string, public readonly dataSourceId: string) {
+  readonly status?: number
+  readonly reason?: string
+  readonly body?: unknown
+  constructor(
+    message: string,
+    public readonly dataSourceId: string,
+    init?: ProviderHttpErrorInit,
+  ) {
     super(message)
+    this.status = init?.status
+    this.reason = init?.reason
+    this.body = init?.body
+  }
+}
+
+/** Thrown when the provider rejects the call for a configuration or permission
+ *  reason that reconnecting the credential CANNOT fix — the API isn't enabled
+ *  for the project (`accessNotConfigured`), a required scope is missing
+ *  (`insufficientPermissions`), or the resource is forbidden
+ *  (`PERMISSION_DENIED`). Distinct from CredentialsExpired so the platform
+ *  surfaces "fix the project/scope" instead of sending the user into an
+ *  unresolvable reconnect loop. */
+export class ProviderConfigError extends Error {
+  override readonly name = 'ProviderConfigError'
+  readonly status: number
+  readonly reason?: string
+  readonly body?: unknown
+  constructor(
+    message: string,
+    public readonly dataSourceId: string,
+    init: ProviderHttpErrorInit,
+  ) {
+    super(message)
+    this.status = init.status
+    this.reason = init.reason
+    this.body = init.body
+  }
+}
+
+/** Thrown when the provider throttles the call (quota / rate limit). Gmail and
+ *  Calendar surface daily/per-user limits as HTTP 403 with a quota `reason`
+ *  (`rateLimitExceeded`/`dailyLimitExceeded`/`userRateLimitExceeded`), NOT 429
+ *  — so it is classified by reason, not status, and must never read as a
+ *  credential failure. The message includes "rate limit" so a platform that
+ *  only inspects the message still routes it to rate-limited. */
+export class ProviderRateLimited extends Error {
+  override readonly name = 'ProviderRateLimited'
+  readonly status: number
+  readonly reason?: string
+  readonly body?: unknown
+  constructor(
+    message: string,
+    public readonly dataSourceId: string,
+    init: ProviderHttpErrorInit,
+  ) {
+    super(message)
+    this.status = init.status
+    this.reason = init.reason
+    this.body = init.body
   }
 }
 

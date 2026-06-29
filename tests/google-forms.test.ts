@@ -364,7 +364,7 @@ describe('google-forms adapter', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
-  it('create_form surfaces CredentialsExpired on 403', async () => {
+  it('create_form surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('forbidden', { status: 403 })),
@@ -376,7 +376,7 @@ describe('google-forms adapter', () => {
         args: { title: 'X' },
         idempotencyKey: 'k',
       }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
   })
 
   it('batch_update POSTs to /v1/forms/{formId}:batchUpdate with the requests array', async () => {
@@ -504,7 +504,7 @@ describe('google-forms adapter', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
-  it('batch_update surfaces CredentialsExpired on 403', async () => {
+  it('batch_update surfaces ProviderConfigError on a bare 403 (not a reconnect)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('forbidden', { status: 403 })),
@@ -516,7 +516,7 @@ describe('google-forms adapter', () => {
         args: { formId: 'f', requests: [{}] },
         idempotencyKey: 'k',
       }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    ).rejects.toMatchObject({ name: 'ProviderConfigError', status: 403 })
   })
 
   it('executeMutation throws on unknown capability', async () => {

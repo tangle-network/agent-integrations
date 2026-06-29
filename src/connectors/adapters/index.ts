@@ -22,6 +22,14 @@ export { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 export { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
 export { googleSlidesConnector } from './google-slides.js'
 export { gmail, type GmailOptions } from './gmail.js'
+export {
+  classifyGoogleError,
+  classifyGoogleReason,
+  googleApiError,
+  googleErrorReason,
+  googleTestFailureReason,
+  type GoogleErrorClass,
+} from './google-errors.js'
 export { microsoftCalendar, type MicrosoftCalendarOptions } from './microsoft-calendar.js'
 export { hubspot, type HubSpotOptions } from './hubspot.js'
 export { slack, type SlackOptions } from './slack.js'

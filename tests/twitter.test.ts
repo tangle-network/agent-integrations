@@ -69,6 +69,197 @@ describe('twitter adapter manifest', () => {
     expect(names).toContain('tweets.retweet')
     expect(names).toContain('dms.send')
   })
+
+  it('exposes the six quest-verification read capabilities classified as reads', () => {
+    const reads = twitterConnector.manifest.capabilities
+      .filter((c) => c.class === 'read')
+      .map((c) => c.name)
+      .sort()
+    expect(reads).toEqual([
+      'tweets.likingUsers',
+      'tweets.retweetedBy',
+      'users.following',
+      'users.me',
+      'users.mentions',
+      'users.tweets',
+    ])
+  })
+
+  it('requests the official like.read + follows.read scopes the reads need while keeping the existing scopes', () => {
+    const auth = twitterConnector.manifest.auth
+    if (auth.kind !== 'one_of') throw new Error('unreachable')
+    const oauth = auth.options.find((option) => option.kind === 'oauth2')
+    if (!oauth || oauth.kind !== 'oauth2') throw new Error('expected an oauth2 option')
+    // Singular `like.read` (NOT the plural `likes.read` the issue text used) —
+    // matches X's scope catalog and the connector's existing `like.write`.
+    expect(oauth.scopes).toContain('like.read')
+    expect(oauth.scopes).not.toContain('likes.read')
+    expect(oauth.scopes).toContain('follows.read')
+    expect(oauth.scopes).toEqual(
+      expect.arrayContaining(['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access']),
+    )
+  })
+})
+
+describe('twitter read capabilities', () => {
+  const adapter = twitterConnector
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function captureGet(body: unknown): { url: string; method: string; headers: Record<string, string> } {
+    const captured = { url: '', method: '', headers: {} as Record<string, string> }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        captured.url = String(input)
+        captured.method = init?.method ?? ''
+        captured.headers = (init?.headers as Record<string, string>) ?? {}
+        return jsonResponse(body)
+      }),
+    )
+    return captured
+  }
+
+  it('users.me GETs /users/me with the connection bearer and no field selector by default', async () => {
+    const captured = captureGet({ data: { id: 'u-1', username: 'drew' } })
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.me',
+      args: {},
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(captured.method).toBe('GET')
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/me')
+    expect(url.searchParams.has('user.fields')).toBe(false)
+    expect(captured.headers.authorization).toBe('Bearer tw-api-key')
+    expect(result.data).toEqual({ data: { id: 'u-1', username: 'drew' } })
+    expect(result.fetchedAt).toBeGreaterThan(0)
+  })
+
+  it('users.me forwards user_fields as the X user.fields query param', async () => {
+    const captured = captureGet({ data: { id: 'u-1' } })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.me',
+      args: { user_fields: 'public_metrics,created_at' },
+      idempotencyKey: 'k',
+    })
+    expect(new URL(captured.url).searchParams.get('user.fields')).toBe('public_metrics,created_at')
+  })
+
+  it('users.following GETs /users/{id}/following with the pagination query', async () => {
+    const captured = captureGet({ data: [{ id: 'f-1' }], meta: { next_token: 'NT' } })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.following',
+      args: { id: 'u-1', max_results: 1000, pagination_token: 'CURSOR' },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(captured.method).toBe('GET')
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/u-1/following')
+    expect(url.searchParams.get('max_results')).toBe('1000')
+    expect(url.searchParams.get('pagination_token')).toBe('CURSOR')
+  })
+
+  it('users.following requires the user id', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'users.following',
+        args: {},
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/missing required argument: id/)
+  })
+
+  it('users.tweets GETs /users/{id}/tweets pinning tweet.fields and dropping absent pagination', async () => {
+    const captured = captureGet({ data: [] })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.tweets',
+      args: { id: 'u-1', max_results: 100 },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/u-1/tweets')
+    expect(url.searchParams.get('tweet.fields')).toBe('text,created_at')
+    expect(url.searchParams.get('max_results')).toBe('100')
+    expect(url.searchParams.has('pagination_token')).toBe(false)
+  })
+
+  it('tweets.retweetedBy GETs /tweets/{id}/retweeted_by', async () => {
+    const captured = captureGet({ data: [] })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'tweets.retweetedBy',
+      args: { id: 'tw-9' },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(captured.method).toBe('GET')
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/tweets/tw-9/retweeted_by')
+  })
+
+  it('tweets.likingUsers GETs /tweets/{id}/liking_users', async () => {
+    const captured = captureGet({ data: [] })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'tweets.likingUsers',
+      args: { id: 'tw-9' },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(captured.method).toBe('GET')
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/tweets/tw-9/liking_users')
+  })
+
+  it('users.mentions GETs /users/{id}/mentions pinning tweet.fields=author_id,text', async () => {
+    const captured = captureGet({ data: [] })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'users.mentions',
+      args: { id: 'u-1' },
+      idempotencyKey: 'k',
+    })
+    const url = new URL(captured.url)
+    expect(url.origin + url.pathname).toBe('https://api.twitter.com/2/users/u-1/mentions')
+    expect(url.searchParams.get('tweet.fields')).toBe('author_id,text')
+  })
+
+  it.each(['users.tweets', 'tweets.retweetedBy', 'tweets.likingUsers', 'users.mentions'])(
+    '%s rejects a missing required id',
+    async (capabilityName) => {
+      vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
+      await expect(
+        adapter.executeRead!({
+          source: source(),
+          capabilityName,
+          args: {},
+          idempotencyKey: 'k',
+        }),
+      ).rejects.toThrow(/missing required argument: id/)
+    },
+  )
+
+  it('surfaces CredentialsExpired when a read hits 401', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'users.me',
+        args: {},
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
 })
 
 describe('twitter write capabilities', () => {
