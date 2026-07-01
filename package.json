@@ -119,5 +119,10 @@
     "node": ">=20"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.28.0"
+  "packageManager": "pnpm@10.28.0",
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.28.1"
+    }
+  }
 }
