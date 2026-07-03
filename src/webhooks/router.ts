@@ -62,6 +62,37 @@ export type SignatureVerification =
   | { valid: true }
   | { valid: false; reason: string }
 
+/** One declared triggerable event, in the runtime `eventType` namespace a
+ *  provider's `parse` emits. */
+export interface TriggerEventDescriptor {
+  /** The `eventType` a workflow `provider_event` trigger matches on
+   *  (`slack.app_mention`, `charge.succeeded`). */
+  id: string
+  /** Short human label for authoring surfaces; optional. */
+  title?: string
+}
+
+/** The set of events a provider can deliver, for author-time validation of
+ *  workflow `provider_event` triggers. Co-located with the provider's `parse`
+ *  (the source of the runtime namespace) so the two cannot drift — see the
+ *  per-provider drift tests. Consumers validate an authored event with two
+ *  checks: it must carry `namespace` (a prefix-less event on a namespaced
+ *  provider can never be delivered), and — only when `closed` — be one of
+ *  `events` (an exhaustive set makes an unlisted event an authoring error). */
+export interface TriggerEventCatalog {
+  /** Required prefix every `parse`-emitted `eventType` carries (`slack.`,
+   *  `telegram.`), or `null` when the provider emits raw event names (stripe). */
+  namespace: string | null
+  /** Declared events. Exhaustive iff `closed`; otherwise authoring hints for an
+   *  open, provider-owned vocabulary. */
+  events: readonly TriggerEventDescriptor[]
+  /** True when `events` is the COMPLETE deliverable set, so an event outside it
+   *  is rejected. False when the provider owns an open-ended vocabulary it keeps
+   *  adding to (Stripe's ~250 types, Slack's Events API) and only `namespace`
+   *  can be authoritatively enforced. */
+  closed: boolean
+}
+
 /** Per-provider plug-in. Stateless — the router calls `verifySignature`
  *  then `parse` on every request. The provider's HTTP-shape concerns
  *  (e.g., raw body required) are documented per provider. */
@@ -91,6 +122,10 @@ export interface WebhookProvider {
    *  provider declare the body/headers it needs. The frozen status contract is
    *  unchanged — only the 200 body/headers are customized. */
   successResponse?: { body: string; headers?: Record<string, string> }
+  /** Declared triggerable-event catalog, for author-time validation of workflow
+   *  `provider_event` triggers. Optional: a provider without one is left
+   *  unvalidated by consumers (the trigger still installs). */
+  eventCatalog?: TriggerEventCatalog
 }
 
 export interface WebhookIdempotencyStore {
