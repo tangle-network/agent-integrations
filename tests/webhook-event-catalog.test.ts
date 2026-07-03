@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import * as webhooks from '../src/webhooks/index'
 import {
   docusealWebhookProvider,
   hellosignWebhookProvider,
@@ -17,20 +18,35 @@ import {
   type WebhookProvider,
 } from '../src/webhooks/index'
 
-const PROVIDERS: WebhookProvider[] = [
-  stripeWebhookProvider,
-  slackWebhookProvider,
-  docusealWebhookProvider,
-  telegramWebhookProvider,
-  hellosignWebhookProvider,
-]
+/** A value from the webhooks barrel that is a WebhookProvider. */
+function isWebhookProvider(v: unknown): v is WebhookProvider {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as { id?: unknown }).id === 'string' &&
+    typeof (v as { verifySignature?: unknown }).verifySignature === 'function' &&
+    typeof (v as { parse?: unknown }).parse === 'function'
+  )
+}
+
+// EVERY exported webhook provider, discovered dynamically so a new provider is
+// covered by the invariants below without editing this test.
+const ALL_PROVIDERS: WebhookProvider[] = Object.values(webhooks).filter(isWebhookProvider)
+
+// Providers the platform wires as workflow `provider_event` sources. These MUST
+// declare a catalog — without one their triggers can never be author-time
+// validated. Kept explicit so dropping a catalog from a wired provider fails
+// here loudly, while a non-event provider (gmail/gdrive push, generic HMAC) may
+// legitimately have none.
+const EVENT_SOURCE_PROVIDER_IDS = ['stripe', 'slack', 'docuseal', 'telegram', 'hellosign']
 
 describe('event catalog — shape invariants', () => {
-  for (const provider of PROVIDERS) {
+  // Assert every provider that DECLARES a catalog declares a well-formed one —
+  // catalog is optional, so a provider without one is skipped, not failed.
+  for (const provider of ALL_PROVIDERS) {
+    const catalog = provider.eventCatalog
+    if (!catalog) continue
     it(`${provider.id}: declares a well-formed catalog`, () => {
-      const catalog = provider.eventCatalog
-      expect(catalog, `${provider.id} must declare an eventCatalog`).toBeDefined()
-      if (!catalog) return
       expect(catalog.events.length).toBeGreaterThan(0)
       // No duplicate ids.
       const ids = catalog.events.map((e) => e.id)
@@ -41,6 +57,19 @@ describe('event catalog — shape invariants', () => {
           expect(id.startsWith(catalog.namespace)).toBe(true)
         }
       }
+    })
+  }
+
+  // Coverage guard: a provider the platform routes workflow events through must
+  // carry a catalog, or its triggers silently skip validation.
+  for (const id of EVENT_SOURCE_PROVIDER_IDS) {
+    it(`${id}: is a wired event source and declares a catalog`, () => {
+      const provider = ALL_PROVIDERS.find((p) => p.id === id)
+      expect(provider, `no exported webhook provider with id "${id}"`).toBeDefined()
+      expect(
+        provider?.eventCatalog,
+        `wired event-source provider "${id}" must declare an eventCatalog`,
+      ).toBeDefined()
     })
   }
 })
