@@ -45,6 +45,26 @@ export const stripeWebhookProvider: WebhookProvider = {
       },
     ]
   },
+  eventCatalog: {
+    // Stripe emits the raw event `type` (`charge.succeeded`) — no namespace, and
+    // an OPEN, versioned vocabulary (~250 types), so these are authoring hints,
+    // not a gate.
+    namespace: null,
+    closed: false,
+    events: [
+      { id: 'checkout.session.completed' },
+      { id: 'checkout.session.expired' },
+      { id: 'customer.subscription.created' },
+      { id: 'customer.subscription.updated' },
+      { id: 'customer.subscription.deleted' },
+      { id: 'invoice.paid' },
+      { id: 'invoice.payment_failed' },
+      { id: 'payment_intent.succeeded' },
+      { id: 'payment_intent.payment_failed' },
+      { id: 'charge.succeeded' },
+      { id: 'charge.refunded' },
+    ],
+  },
 }
 
 /** Slack Events API provider. Handles the `url_verification` handshake
@@ -81,6 +101,26 @@ export const slackWebhookProvider: WebhookProvider = {
       headers: normalizeHeaders(headers),
     }]
   },
+  eventCatalog: {
+    // Slack namespaces every event `slack.<events-api-type>`, so a prefix-less
+    // event is provably dead. The Events API vocabulary is open (Slack adds
+    // types), so `events` are hints, not a gate. `slack.url_verification` (the
+    // config handshake) is intentionally excluded — it carries no workflow
+    // meaning and is answered before dispatch.
+    namespace: 'slack.',
+    closed: false,
+    events: [
+      { id: 'slack.message' },
+      { id: 'slack.app_mention' },
+      { id: 'slack.reaction_added' },
+      { id: 'slack.reaction_removed' },
+      { id: 'slack.channel_created' },
+      { id: 'slack.member_joined_channel' },
+      { id: 'slack.team_join' },
+      { id: 'slack.app_home_opened' },
+      { id: 'slack.file_shared' },
+    ],
+  },
 }
 
 /** DocuSeal webhook provider. Signature header `X-Docuseal-Signature`. */
@@ -106,6 +146,23 @@ export const docusealWebhookProvider: WebhookProvider = {
       payload: evt,
       headers: normalizeHeaders(headers),
     }]
+  },
+  eventCatalog: {
+    // DocuSeal namespaces every event `docuseal.<event_type>`. The documented
+    // set is small but not derivable from `parse`, so it stays open (namespace
+    // is the authoritative gate) with the documented types as hints.
+    namespace: 'docuseal.',
+    closed: false,
+    events: [
+      { id: 'docuseal.form.viewed' },
+      { id: 'docuseal.form.started' },
+      { id: 'docuseal.form.completed' },
+      { id: 'docuseal.form.declined' },
+      { id: 'docuseal.submission.created' },
+      { id: 'docuseal.submission.completed' },
+      { id: 'docuseal.submission.expired' },
+      { id: 'docuseal.submission.archived' },
+    ],
   },
 }
 
@@ -246,6 +303,15 @@ export const telegramWebhookProvider: WebhookProvider = {
       headers: normalizeHeaders(headers),
     }]
   },
+  eventCatalog: {
+    // Derived from the SAME TELEGRAM_UPDATE_KEYS `parse` matches on, so the
+    // catalog is exhaustive and cannot drift — hence `closed`. (`telegram.unknown`,
+    // parse's fallback for an update with no recognized key, is intentionally
+    // excluded: it is not a triggerable event.)
+    namespace: 'telegram.',
+    closed: true,
+    events: TELEGRAM_UPDATE_KEYS.map((k) => ({ id: `telegram.${k}` })),
+  },
 }
 
 /** Dropbox Sign (HelloSign) webhook provider. There is NO signature header:
@@ -298,6 +364,24 @@ export const hellosignWebhookProvider: WebhookProvider = {
       payload: body,
       headers: normalizeHeaders(headers),
     }]
+  },
+  eventCatalog: {
+    // Dropbox Sign namespaces every event `hellosign.<event_type>`. Documented
+    // set as hints; namespace is the authoritative gate. `callback_test` (the
+    // app-config ping) is intentionally excluded — it is not a workflow event.
+    namespace: 'hellosign.',
+    closed: false,
+    events: [
+      { id: 'hellosign.signature_request_sent' },
+      { id: 'hellosign.signature_request_viewed' },
+      { id: 'hellosign.signature_request_signed' },
+      { id: 'hellosign.signature_request_all_signed' },
+      { id: 'hellosign.signature_request_declined' },
+      { id: 'hellosign.signature_request_reassigned' },
+      { id: 'hellosign.signature_request_remind' },
+      { id: 'hellosign.signature_request_canceled' },
+      { id: 'hellosign.signature_request_expired' },
+    ],
   },
 }
 
