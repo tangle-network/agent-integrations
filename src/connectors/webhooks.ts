@@ -220,6 +220,45 @@ export function verifyTwilioSignature(
   return timingSafeEqual(expectedBuf, sigBuf)
 }
 
+// ─── Inbound email ──────────────────────────────────────────────────────
+//
+// Tangle's own inbound-email edge (a Cloudflare Email Routing worker) receives
+// a message, serializes the parsed MIME to a JSON body, and signs it with the
+// connection's per-connection secret before POSTing it to the hub. There is no
+// upstream mail-vendor signature to trust — WE are both signer and verifier —
+// so the scheme is a timestamped HMAC (Slack/Stripe-style) to get replay
+// protection on the captured webhook:
+//
+//   X-Tangle-Email-Signature: <HMAC-SHA256(secret, "<ts>.<rawBody>") hex>
+//   X-Tangle-Email-Timestamp: <unix seconds>
+
+export interface EmailVerifyOptions {
+  /** Replay-protection window in seconds. Default 300. */
+  toleranceSeconds?: number
+  /** Override `now()` for tests. UTC seconds. */
+  now?: number
+}
+
+/** Verify a Tangle inbound-email signature against the raw request body. */
+export function verifyEmailSignature(
+  rawBody: string,
+  signatureHeader: string,
+  timestampHeader: string,
+  secret: string,
+  options: EmailVerifyOptions = {},
+): boolean {
+  const ts = Number(timestampHeader)
+  if (!Number.isFinite(ts)) return false
+  const tolerance = options.toleranceSeconds ?? DEFAULT_SIGNATURE_TOLERANCE_SECONDS
+  const now = options.now ?? Math.floor(Date.now() / 1000)
+  if (Math.abs(now - ts) > tolerance) return false
+  const expected = createHmac('sha256', secret).update(`${ts}.${rawBody}`).digest('hex')
+  const expectedBuf = Buffer.from(expected, 'utf8')
+  const sigBuf = Buffer.from(signatureHeader.toLowerCase(), 'utf8')
+  if (sigBuf.length !== expectedBuf.length) return false
+  return timingSafeEqual(sigBuf, expectedBuf)
+}
+
 // ─── Header helper ──────────────────────────────────────────────────────
 //
 // Most fastify/express adapters expose request headers as

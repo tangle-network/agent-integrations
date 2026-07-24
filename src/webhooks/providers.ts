@@ -13,6 +13,7 @@
 
 import {
   firstHeader,
+  verifyEmailSignature,
   verifyHmacSignature,
   verifySlackSignature,
   verifyStripeSignature,
@@ -163,6 +164,74 @@ export const docusealWebhookProvider: WebhookProvider = {
       { id: 'docuseal.submission.expired' },
       { id: 'docuseal.submission.archived' },
     ],
+  },
+}
+
+/** The normalized inbound-email payload the Tangle email edge posts and this
+ *  provider surfaces on `WebhookEnvelope.payload`. `to` is the owner-resolution
+ *  key — the platform matches it to a connection's provisioned inbound address;
+ *  `messageId` is the idempotency key. */
+export interface InboundEmailPayload {
+  /** RFC5322 Message-ID. */
+  messageId?: string
+  /** Envelope sender — the firm/customer that emailed in. */
+  from: string
+  /** The provisioned inbound address the message was delivered to (owner key). */
+  to: string
+  subject?: string
+  text?: string
+  html?: string
+  /** Selected headers the edge forwards (Reply-To, In-Reply-To, References…). */
+  headers?: Record<string, string>
+  attachments?: Array<{
+    filename?: string
+    contentType?: string
+    /** Bytes as base64, OR a `url`/path the edge staged them at (large files). */
+    contentBase64?: string
+    url?: string
+    size?: number
+  }>
+  /** Epoch ms the edge received the message. */
+  receivedAt?: number
+}
+
+/** Tangle inbound-email provider. Our own Cloudflare Email Routing worker parses
+ *  the MIME, JSON-serializes it, timestamped-HMAC signs it with the
+ *  per-connection secret, and POSTs it here — there is no upstream mail-vendor
+ *  signature, we are both signer and verifier. One inbound message → one
+ *  `email.received` envelope; `payload.to` carries the owner-resolution address. */
+export const emailWebhookProvider: WebhookProvider = {
+  id: 'email',
+  verifySignature({ rawBody, headers, secret }): SignatureVerification {
+    const sig = firstHeader(headers, 'x-tangle-email-signature')
+    if (!sig) return { valid: false, reason: 'missing_email_signature' }
+    const ts = firstHeader(headers, 'x-tangle-email-timestamp')
+    if (!ts) return { valid: false, reason: 'missing_email_timestamp' }
+    return verifyEmailSignature(rawBody, sig, ts, secret)
+      ? { valid: true }
+      : { valid: false, reason: 'invalid_signature' }
+  },
+  parse({ rawBody, headers, now }): WebhookEnvelope[] {
+    const msg = safeJson(rawBody) as Partial<InboundEmailPayload> | null
+    if (!msg || typeof msg !== 'object') return []
+    // `from` + `to` are load-bearing (owner resolution keys off `to`); a body
+    // missing either is a malformed edge post — ack as a no-op rather than
+    // dispatch an unroutable event.
+    if (typeof msg.from !== 'string' || typeof msg.to !== 'string') return []
+    return [{
+      provider: 'email',
+      eventType: 'email.received',
+      providerEventId: typeof msg.messageId === 'string' ? msg.messageId : undefined,
+      receivedAt: now ?? Date.now(),
+      payload: msg as InboundEmailPayload,
+      headers: normalizeHeaders(headers),
+    }]
+  },
+  eventCatalog: {
+    // We own the edge, so the inbound surface is exactly one closed event.
+    namespace: 'email.',
+    closed: true,
+    events: [{ id: 'email.received' }],
   },
 }
 
