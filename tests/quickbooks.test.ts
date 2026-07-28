@@ -65,6 +65,8 @@ describe('quickbooks adapter manifest', () => {
         'payments.create',
         'bills.create',
         'vendors.create',
+        'reports.get',
+        'companyinfo.get',
       ].sort(),
     )
   })

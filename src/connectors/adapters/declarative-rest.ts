@@ -102,6 +102,27 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
+      // A CAS conflict (409/412) and a throttle (429) are NOT commits. The
+      // transport surfaces them as a tagged payload rather than an exception;
+      // reporting them under `status: 'committed'` told the caller a write
+      // landed when nothing was written — the caller then skips its retry and
+      // the record silently never exists.
+      const outcome = mutationOutcome(response.data)
+      if (outcome === 'conflict') {
+        return {
+          status: 'conflict',
+          alternatives: [],
+          currentState: response.data,
+          message: messageOf(response.data) ?? `${spec.displayName} rejected the write on a state conflict`,
+        }
+      }
+      if (outcome === 'rate-limited') {
+        return {
+          status: 'rate-limited',
+          retryAfterMs: retryAfterMsOf(response.data),
+          message: messageOf(response.data) ?? `${spec.displayName} throttled the write`,
+        }
+      }
       return {
         status: 'committed',
         data: response.data,
@@ -207,15 +228,24 @@ export async function executeRestRequest(
 
   let baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
+  // Placeholder scope = the capability's arguments PLUS a reserved
+  // `connection.*` namespace reading the connection's own metadata. Some
+  // providers pin a tenant/realm/company identifier at connect time and then
+  // require it on every request (QuickBooks `realmId` in the path, Xero
+  // `xero-tenant-id` as a header). Before this, such a value could only reach
+  // the request through `baseUrl.metadataKey` — which cannot serve a header, a
+  // query param, or `test`, whose invocation has no arguments at all. Args win
+  // on a name clash, so no existing adapter changes behavior.
+  const scope = renderScope(inv)
   // Make the operation path RELATIVE to the base URL so a base like
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
   // every path segment the base URL carries.
-  const renderedPath = interpolate(request.path, inv.args).replace(/^\/+/, '')
+  const renderedPath = interpolate(request.path, scope).replace(/^\/+/, '')
   const baseWithSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const url = new URL(renderedPath, baseWithSlash)
   for (const [key, value] of Object.entries(request.query ?? {})) {
-    const rendered = renderQueryValue(value, inv.args)
+    const rendered = renderQueryValue(value, scope)
     if (rendered !== undefined && rendered !== '') url.searchParams.set(key, String(rendered))
   }
   // Some AWS capabilities (Bedrock control-plane) target a different host than
@@ -234,7 +264,7 @@ export async function executeRestRequest(
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...spec.defaultHeaders,
-    ...renderHeaders(renderableHeaders, inv.args),
+    ...renderHeaders(renderableHeaders, scope),
   }
   if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
@@ -251,7 +281,7 @@ export async function executeRestRequest(
   }
   // Serialize the body before signing — SigV4 hashes the payload into the
   // canonical request.
-  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, requiredArgs)) : undefined
+  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, scope, requiredArgs)) : undefined
 
   if (placement.kind === 'aws-sigv4') {
     signAwsRequest(headers, url, {
@@ -408,14 +438,62 @@ function signAwsRequest(
   headers.authorization = signed.authorization
 }
 
+/**
+ * `body: 'args'` splats the caller's arguments verbatim as the request body,
+ * so it MUST use `args` — not the interpolation scope. The scope carries the
+ * reserved `connection` namespace, and splatting that would post the
+ * connection's metadata to the upstream on every `body: 'args'` connector.
+ * Templated bodies (a string or object with `{placeholder}` fields) render
+ * against the full scope, so they can reference `{connection.<field>}`.
+ */
 function resolveBody(
   body: RestRequestSpec['body'],
   args: Record<string, unknown>,
+  scope: Record<string, unknown>,
   requiredArgs?: readonly string[],
 ): unknown {
   if (!body || body === 'args') return args
-  if (typeof body === 'string') return renderValue(body, args, requiredArgs)
-  return renderObject(body, args, requiredArgs)
+  if (typeof body === 'string') return renderValue(body, scope, requiredArgs)
+  return renderObject(body, scope, requiredArgs)
+}
+
+/** Placeholder-resolution scope for one invocation: the capability arguments,
+ *  plus a reserved `connection` key exposing the connection's own metadata as
+ *  `{connection.<field>}`. Arguments take precedence, so an adapter that
+ *  already declares a `connection` argument keeps its current meaning. */
+/** Read the transport's tagged non-commit payload. `executeRestRequest` maps a
+ *  409/412 to `{status:'conflict'}` and a 429 to `{status:'rate-limited'}`
+ *  instead of throwing, so the mutation wrapper has to re-read that tag to
+ *  produce the right `CapabilityMutationResult` branch. */
+function mutationOutcome(data: unknown): 'conflict' | 'rate-limited' | 'committed' {
+  if (!data || typeof data !== 'object') return 'committed'
+  const status = (data as { status?: unknown }).status
+  if (status === 'conflict') return 'conflict'
+  if (status === 'rate-limited') return 'rate-limited'
+  return 'committed'
+}
+
+function messageOf(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined
+  const message = (data as { message?: unknown }).message
+  return typeof message === 'string' && message.trim() ? message : undefined
+}
+
+/** `Retry-After` is seconds or an HTTP-date. Absent/unparseable falls back to
+ *  60s — a conservative wait, never 0, which would busy-loop the upstream. */
+function retryAfterMsOf(data: unknown): number {
+  const raw = data && typeof data === 'object' ? (data as { retryAfter?: unknown }).retryAfter : undefined
+  if (typeof raw === 'string' && raw.trim()) {
+    const seconds = Number(raw)
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000)
+    const at = Date.parse(raw)
+    if (Number.isFinite(at)) return Math.max(0, at - Date.now())
+  }
+  return 60_000
+}
+
+function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
+  return { connection: inv.source.metadata, ...inv.args }
 }
 
 function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {

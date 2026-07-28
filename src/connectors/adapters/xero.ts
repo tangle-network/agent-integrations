@@ -23,7 +23,15 @@ export const xeroConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://login.xero.com/identity/connect/authorize',
     tokenUrl: 'https://identity.xero.com/connect/token',
-    scopes: ['offline_access', 'accounting.contacts', 'accounting.transactions', 'accounting.settings.read'],
+    // `accounting.reports.read` is a distinct Xero scope — the reports
+    // namespace is not covered by settings/transactions and 403s without it.
+    scopes: [
+      'offline_access',
+      'accounting.contacts',
+      'accounting.transactions',
+      'accounting.settings.read',
+      'accounting.reports.read',
+    ],
     clientIdEnv: 'XERO_OAUTH_CLIENT_ID',
     clientSecretEnv: 'XERO_OAUTH_CLIENT_SECRET',
   },
@@ -33,6 +41,56 @@ export const xeroConnector = declarativeRestConnector({
   defaultHeaders: { accept: 'application/json' },
   test: { method: 'GET', path: '/connections' },
   capabilities: [
+    {
+      // Every other Xero capability REQUIRES `tenantId`, and a tenant id is an
+      // opaque GUID no caller can know before asking. Without this read the
+      // connector is unusable by an agent: the only place the id appeared was
+      // the health check, which discards its body.
+      name: 'tenants.list',
+      class: 'read',
+      description:
+        'List the Xero organizations (tenants) this connection is authorized for. Call this FIRST — every other Xero capability requires the `tenantId` returned here.',
+      parameters: { type: 'object', properties: {} },
+      request: { method: 'GET', path: '/connections' },
+    },
+    {
+      // Xero's reporting surface, like QBO's, is a separate namespace from the
+      // record endpoints. These are the statements a return or a books review
+      // is actually built from.
+      name: 'reports.get',
+      class: 'read',
+      description:
+        'Run a Xero accounting report. `reportName` is the Xero report id (ProfitAndLoss, BalanceSheet, TrialBalance, BankSummary, AgedReceivablesByContact, AgedPayablesByContact).',
+      parameters: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'From tenants.list.' },
+          reportName: {
+            type: 'string',
+            enum: [
+              'ProfitAndLoss',
+              'BalanceSheet',
+              'TrialBalance',
+              'BankSummary',
+              'AgedReceivablesByContact',
+              'AgedPayablesByContact',
+            ],
+          },
+          fromDate: { type: 'string', description: 'YYYY-MM-DD.' },
+          toDate: { type: 'string', description: 'YYYY-MM-DD.' },
+          date: { type: 'string', description: 'YYYY-MM-DD — point-in-time reports (BalanceSheet, TrialBalance).' },
+          contactId: { type: 'string', description: 'Required by the aged receivables/payables reports.' },
+        },
+        required: ['tenantId', 'reportName'],
+      },
+      request: {
+        method: 'GET',
+        path: '/api.xro/2.0/Reports/{reportName}',
+        query: { fromDate: '{fromDate}', toDate: '{toDate}', date: '{date}', contactID: '{contactId}' },
+        headers: { 'xero-tenant-id': '{tenantId}' },
+      },
+      requiredScopes: ['accounting.reports.read'],
+    },
     {
       name: 'contacts.search',
       class: 'read',
