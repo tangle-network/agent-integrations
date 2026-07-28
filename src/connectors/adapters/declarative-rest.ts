@@ -493,7 +493,24 @@ function retryAfterMsOf(data: unknown): number {
 }
 
 function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
-  return { connection: inv.source.metadata, ...inv.args }
+  // The connection namespace is applied LAST so it cannot be shadowed by a
+  // caller-supplied argument.
+  //
+  // This is a tenant boundary, not a naming convenience. `{connection.<field>}`
+  // carries identifiers pinned when the user connected — QuickBooks' realmId,
+  // a company/tenant id — and those decide WHOSE data a request reads. With
+  // args spread last, an argument named `connection` redirected the request:
+  // a connection pinned to realm 9341454792738105 could be driven to
+  // `companyinfo/ATTACKER-REALM` while still presenting that connection's
+  // OAuth token. Whether the upstream rejects it is not our boundary to
+  // delegate; a value fixed at connect time must not be reachable from
+  // per-call arguments, which on this path are model-authored.
+  //
+  // Safe for existing adapters: no capability template references a bare
+  // `{connection}`, and Auth0's `connection` parameter — the only one so
+  // named — travels through the `body: 'args'` splat, which resolves against
+  // the raw arguments rather than this scope.
+  return { ...inv.args, connection: inv.source.metadata }
 }
 
 function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {

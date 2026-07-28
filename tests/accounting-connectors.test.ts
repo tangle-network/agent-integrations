@@ -161,7 +161,7 @@ describe('xero tenant discovery', () => {
   })
 })
 
-describe('arguments still win over connection metadata', () => {
+describe('arguments and connection metadata stay distinct', () => {
   it('does not let a connection field shadow a caller-supplied argument', async () => {
     const calls = stubFetch(200, {})
 
@@ -175,5 +175,75 @@ describe('arguments still win over connection metadata', () => {
     })
 
     expect(new URL(calls[0].url).pathname).toBe(`/v3/company/${REALM}/customer/42`)
+  })
+})
+
+describe('the tenant a connection is pinned to is not caller-addressable', () => {
+  // Arguments on this path are model-authored. If a per-call argument can
+  // reach the identifier that selects WHOSE books are read, then a prompt
+  // injection or a hallucinated field is enough to point a trusted OAuth
+  // token at another company's data.
+  const FOREIGN_REALM = '1111111111111111'
+
+  it('ignores an argument that tries to re-address the QuickBooks realm', async () => {
+    const calls = stubFetch(200, {})
+
+    await quickbooksConnector.executeRead!({
+      source: qbo(),
+      capabilityName: 'companyinfo.get',
+      // `companyinfo.get` resolves its realm from `{connection.realmId}`.
+      // Supplying an argument named `connection` must not redirect it.
+      args: { connection: { realmId: FOREIGN_REALM } },
+      idempotencyKey: 'k',
+    })
+
+    const pathname = new URL(calls[0].url).pathname
+    expect(pathname).toBe(`/v3/company/${REALM}/companyinfo/${REALM}`)
+    expect(pathname).not.toContain(FOREIGN_REALM)
+  })
+
+  it('keeps the health check pinned to the connection realm under a hostile argument', async () => {
+    const calls = stubFetch(200, { CompanyInfo: { CompanyName: 'Acme' } })
+
+    await quickbooksConnector.executeRead!({
+      source: qbo(),
+      capabilityName: 'companyinfo.get',
+      args: { connection: { realmId: FOREIGN_REALM }, realmId: FOREIGN_REALM },
+      idempotencyKey: 'k',
+    })
+
+    expect(new URL(calls[0].url).pathname.endsWith(`/companyinfo/${REALM}`)).toBe(true)
+  })
+
+  it('refuses a Xero read that carries no tenant instead of guessing one', async () => {
+    stubFetch(200, {})
+
+    // Xero addresses every call with the `xero-tenant-id` header. An absent
+    // tenant must fail loudly here — a request that omitted the header would
+    // be resolved by Xero against the connection's default organisation,
+    // which is silently the wrong company whenever a user authorised more
+    // than one.
+    await expect(
+      xeroConnector.executeRead!({
+        source: source('xero', {}),
+        capabilityName: 'reports.get',
+        args: { reportName: 'ProfitAndLoss' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/tenantId/)
+  })
+
+  it('sends exactly the tenant it was given, and never an empty header', async () => {
+    const calls = stubFetch(200, {})
+
+    await xeroConnector.executeRead!({
+      source: source('xero', {}),
+      capabilityName: 'reports.get',
+      args: { tenantId: 'tenant-abc', reportName: 'ProfitAndLoss' },
+      idempotencyKey: 'k',
+    })
+
+    const headers = new Headers(calls[0].headers)
+    expect(headers.get('xero-tenant-id')).toBe('tenant-abc')
   })
 })

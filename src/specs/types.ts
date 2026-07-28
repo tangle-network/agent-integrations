@@ -55,8 +55,19 @@ export type IntegrationAuthSpec =
 
 export interface OAuth2AuthSpec {
   mode: 'oauth2'
-  authorizationUrl: string
-  tokenUrl: string
+  /** Authorization endpoint the connect flow sends the user to.
+   *
+   *  UNDEFINED when no shipped adapter and no family default supplies one —
+   *  i.e. the catalog knows the integration exists but nothing can currently
+   *  authenticate it. Callers must treat undefined as "not connectable" and
+   *  say so; this field was previously filled with
+   *  `https://example.invalid/<kind>/authorize`, a reserved TLD that can
+   *  never resolve, which made unconnectable integrations indistinguishable
+   *  from working ones. */
+  authorizationUrl?: string
+  /** Token endpoint. Undefined under the same condition as
+   *  {@link authorizationUrl}. */
+  tokenUrl?: string
   clientIdEnv?: string
   clientSecretEnv?: string
   scopes: ScopeDescriptor[]
