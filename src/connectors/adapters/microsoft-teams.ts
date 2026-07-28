@@ -33,6 +33,7 @@ import {
   CredentialsExpired,
 } from '../types.js'
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
+import { decodeJwt } from 'jose'
 
 const SCOPES = [
   'https://graph.microsoft.com/ChannelMessage.Send',
@@ -41,6 +42,12 @@ const SCOPES = [
   'https://graph.microsoft.com/Channel.ReadBasic.All',
   'https://graph.microsoft.com/User.Read',
   'https://graph.microsoft.com/User.ReadBasic.All',
+  // OpenID Connect yields an ID token whose `tid` claim is the stable tenant
+  // identity Teams stamps on authenticated bot activities. Capturing it at
+  // connect time lets the platform route inbound messages without requesting
+  // the admin-only Organization.Read.All Graph permission.
+  'openid',
+  'profile',
   // offline_access is required on v2.0 to receive a refresh_token.
   'offline_access',
 ]
@@ -302,6 +309,12 @@ export function microsoftTeams(opts: MicrosoftTeamsOptions): ConnectorAdapter {
         codeVerifier: input.codeVerifier,
         redirectUri: input.redirectUri,
       })
+      const tenantId = microsoftTenantId(tokens.idToken, clientId)
+      if (!tenantId) {
+        throw new Error(
+          'Microsoft Teams OAuth token response did not contain a valid tenant identity',
+        )
+      }
       return {
         credentials: {
           kind: 'oauth2',
@@ -310,7 +323,10 @@ export function microsoftTeams(opts: MicrosoftTeamsOptions): ConnectorAdapter {
           expiresAt: tokens.expiresIn ? Date.now() + tokens.expiresIn * 1000 : undefined,
         },
         scopes: tokens.scope?.split(/\s+/) ?? SCOPES,
-        metadata: {},
+        // The token came directly from Microsoft's pinned token endpoint after
+        // state + PKCE validation. Only the non-secret tenant identifier is
+        // retained; the ID token itself is discarded.
+        metadata: { tenantId },
       }
     },
 
@@ -352,6 +368,48 @@ export function microsoftTeams(opts: MicrosoftTeamsOptions): ConnectorAdapter {
     },
   }
   return adapter
+}
+
+function microsoftTenantId(
+  idToken: string | undefined,
+  clientId: string,
+): string | null {
+  if (!idToken) return null
+  try {
+    const claims = decodeJwt(idToken)
+    const tenantId = claims.tid
+    if (
+      typeof tenantId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        tenantId,
+      )
+    ) {
+      return null
+    }
+    const normalizedTenantId = tenantId.toLowerCase()
+    const audiences = Array.isArray(claims.aud)
+      ? claims.aud
+      : typeof claims.aud === 'string'
+        ? [claims.aud]
+        : []
+    if (!audiences.includes(clientId)) return null
+    if (
+      claims.iss !==
+      `https://login.microsoftonline.com/${normalizedTenantId}/v2.0`
+    ) {
+      return null
+    }
+    if (
+      typeof claims.exp !== 'number' ||
+      !Number.isSafeInteger(claims.exp) ||
+      claims.exp <= Math.floor(Date.now() / 1_000)
+    ) {
+      return null
+    }
+    return normalizedTenantId
+  } catch {
+    return null
+  }
 }
 
 async function ensureFreshAccessToken(

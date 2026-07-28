@@ -44,6 +44,7 @@ describe('slack adapter', () => {
     expect(names).toEqual([
       'add_reaction',
       'delete_message',
+      'download_file',
       'list_channels',
       'lookup_user',
       'post_in_thread',
@@ -51,6 +52,202 @@ describe('slack adapter', () => {
       'update_message',
       'upload_file',
     ])
+    expect(adapter.manifest.auth).toMatchObject({
+      kind: 'oauth2',
+      scopes: expect.arrayContaining(['app_mentions:read', 'files:read']),
+    })
+  })
+
+  it('downloads private Slack files with the bot token and returns bounded base64', async () => {
+    const calls: Array<{ url: string; authorization: string | null }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const headers = new Headers(init?.headers)
+        calls.push({
+          url,
+          authorization: headers.get('authorization'),
+        })
+        if (url.endsWith('/api/files.info?file=F123')) {
+          return jsonResponse({
+            ok: true,
+            file: {
+              id: 'F123',
+              name: 'package.pdf',
+              mimetype: 'application/pdf',
+              size: 3,
+              url_private_download:
+                'https://files.slack.com/files-pri/T1-F123/package.pdf',
+            },
+          })
+        }
+        if (
+          url ===
+          'https://files.slack.com/files-pri/T1-F123/package.pdf'
+        ) {
+          return new Response(new Uint8Array([1, 2, 3]), {
+            status: 200,
+            headers: {
+              'content-length': '3',
+              'content-type': 'application/pdf',
+            },
+          })
+        }
+        throw new Error(`unexpected url ${url}`)
+      }),
+    )
+
+    const result = await adapter.executeRead!({
+      source: source({ scopes: ['files:read'] }),
+      capabilityName: 'download_file',
+      args: { file_id: 'F123' },
+      idempotencyKey: 'read-file-1',
+    })
+
+    expect(calls).toEqual([
+      {
+        url: 'https://slack.com/api/files.info?file=F123',
+        authorization: 'Bearer xoxb-test',
+      },
+      {
+        url: 'https://files.slack.com/files-pri/T1-F123/package.pdf',
+        authorization: 'Bearer xoxb-test',
+      },
+    ])
+    expect(result.data).toEqual({
+      id: 'F123',
+      name: 'package.pdf',
+      contentType: 'application/pdf',
+      size: 3,
+      contentBase64: 'AQID',
+    })
+  })
+
+  it('rejects a private Slack file above the inline download limit before fetching it', async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        ok: true,
+        file: {
+          id: 'F123',
+          size: 4 * 1024 * 1024 + 1,
+          url_private_download:
+            'https://files.slack.com/files-pri/T1-F123/package.pdf',
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.executeRead!({
+        source: source({ scopes: ['files:read'] }),
+        capabilityName: 'download_file',
+        args: { file_id: 'F123' },
+        idempotencyKey: 'read-file-too-large',
+      }),
+    ).rejects.toThrow(/4194304 byte inline limit/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects an oversized Slack file id before making a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.executeRead!({
+        source: source({ scopes: ['files:read'] }),
+        capabilityName: 'download_file',
+        args: { file_id: `F${'x'.repeat(300)}` },
+        idempotencyKey: 'read-file-invalid-id',
+      }),
+    ).rejects.toThrow(/bounded `file_id` is required/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a file URL outside the exact Slack private-file origin', async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        ok: true,
+        file: {
+          id: 'F123',
+          size: 3,
+          url_private_download:
+            'https://files.slack.com.attacker.test/package.pdf',
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.executeRead!({
+        source: source({ scopes: ['files:read'] }),
+        capabilityName: 'download_file',
+        args: { file_id: 'F123' },
+        idempotencyKey: 'read-file-wrong-origin',
+      }),
+    ).rejects.toThrow(/did not return a private file URL/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops reading a file that exceeds the inline limit without a content-length header', async () => {
+    let canceled = false
+    let reads = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/api/files.info?file=F123')) {
+        return jsonResponse({
+          ok: true,
+          file: {
+            id: 'F123',
+            url_private_download:
+              'https://files.slack.com/files-pri/T1-F123/package.pdf',
+          },
+        })
+      }
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            reads += 1
+            if (reads === 1) {
+              controller.enqueue(new Uint8Array(3 * 1024 * 1024))
+              return
+            }
+            controller.enqueue(new Uint8Array(2 * 1024 * 1024))
+          },
+          cancel() {
+            canceled = true
+          },
+        }),
+        { status: 200 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.executeRead!({
+        source: source({ scopes: ['files:read'] }),
+        capabilityName: 'download_file',
+        args: { file_id: 'F123' },
+        idempotencyKey: 'read-file-stream-too-large',
+      }),
+    ).rejects.toThrow(/4194304 byte inline limit/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(canceled).toBe(true)
+  })
+
+  it('maps Slack file authorization errors to a reconnectable credential error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ ok: false, error: 'token_revoked' })),
+    )
+
+    await expect(
+      adapter.executeRead!({
+        source: source({ scopes: ['files:read'] }),
+        capabilityName: 'download_file',
+        args: { file_id: 'F123' },
+        idempotencyKey: 'read-file-revoked',
+      }),
+    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('post_in_thread requires channel + thread_ts and threads under parent', async () => {

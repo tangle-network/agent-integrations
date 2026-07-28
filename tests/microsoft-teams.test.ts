@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SignJWT } from 'jose'
 import {
   microsoftTeams,
   validateConnectorManifest,
@@ -69,10 +70,118 @@ describe('microsoft-teams adapter', () => {
     })
     if (adapter.manifest.auth.kind === 'oauth2') {
       expect(adapter.manifest.auth.scopes).toContain('offline_access')
+      expect(adapter.manifest.auth.scopes).toContain('openid')
       expect(adapter.manifest.auth.scopes).toContain(
         'https://graph.microsoft.com/ChannelMessage.Send',
       )
     }
+  })
+
+  it('captures the Microsoft tenant id from the OpenID token at exchange', async () => {
+    const tenantId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+    const idToken = await new SignJWT({ tid: tenantId })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setAudience('cid')
+      .setIssuer(`https://login.microsoftonline.com/${tenantId}/v2.0`)
+      .setExpirationTime('5m')
+      .sign(new TextEncoder().encode('test-secret-test-secret-test-secret'))
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        access_token: 'access',
+        refresh_token: 'refresh',
+        expires_in: 3_600,
+        scope: 'openid profile offline_access',
+        token_type: 'Bearer',
+        id_token: idToken,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await adapter.exchangeOAuth!({
+      code: 'code',
+      state: 'state',
+      codeVerifier: 'verifier',
+      redirectUri: 'https://platform.test/callback',
+    })
+
+    expect(result.metadata).toEqual({ tenantId })
+  })
+
+  it.each([
+    {
+      name: 'wrong OAuth client',
+      audience: 'another-client',
+      issuerTenant: 'f8cdef31-a31e-4b4a-93e4-5f571e91255a',
+      expiration: '5m',
+    },
+    {
+      name: 'wrong Microsoft issuer tenant',
+      audience: 'cid',
+      issuerTenant: '6b606dab-04dc-4e59-b401-b7987e98e84b',
+      expiration: '5m',
+    },
+    {
+      name: 'expired token',
+      audience: 'cid',
+      issuerTenant: 'f8cdef31-a31e-4b4a-93e4-5f571e91255a',
+      expiration: 0,
+    },
+  ])('refuses tenant identity from an ID token with $name', async ({
+    audience,
+    issuerTenant,
+    expiration,
+  }) => {
+    const tenantId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+    const idToken = await new SignJWT({ tid: tenantId })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setAudience(audience)
+      .setIssuer(`https://login.microsoftonline.com/${issuerTenant}/v2.0`)
+      .setExpirationTime(expiration)
+      .sign(new TextEncoder().encode('test-secret-test-secret-test-secret'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          access_token: 'access',
+          refresh_token: 'refresh',
+          expires_in: 3_600,
+          scope: 'openid profile offline_access',
+          token_type: 'Bearer',
+          id_token: idToken,
+        }),
+      ),
+    )
+
+    await expect(
+      adapter.exchangeOAuth!({
+        code: 'code',
+        state: 'state',
+        codeVerifier: 'verifier',
+        redirectUri: 'https://platform.test/callback',
+      }),
+    ).rejects.toThrow(/valid tenant identity/i)
+  })
+
+  it('refuses an exchange with no trustworthy tenant identity', async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        access_token: 'access',
+        refresh_token: 'refresh',
+        expires_in: 3_600,
+        scope: 'openid profile offline_access',
+        token_type: 'Bearer',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      adapter.exchangeOAuth!({
+        code: 'code',
+        state: 'state',
+        codeVerifier: 'verifier',
+        redirectUri: 'https://platform.test/callback',
+      }),
+    ).rejects.toThrow(/valid tenant identity/i)
   })
 
   it('mutation capabilities are declared cas:none under an advisory consistency model', () => {

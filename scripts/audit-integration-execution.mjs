@@ -191,7 +191,7 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | Tangle first-class contracts | Done | ${summary.tangleContracts} connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | ${summary.catalogConnectors} catalog connectors, ${summary.catalogActions} actions, ${summary.catalogTriggers} triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | ${summary.firstPartyAdapterSurfaces} reviewed native adapter surfaces ship from this package; ${summary.nativeBackedContracts} overlap the ${summary.tangleContracts} catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
+| OAuth/API-key setup metadata | Partial | ${summary.setupSpecs} setup specs exist; ${summary.executableSetupSpecs} are executable setup specs and ${summary.catalogOnlySetupSpecs} are catalog/setup-only. |
 | Direct adapter backlog | Tracked | ${summary.packageRuntimeBackedContracts} contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | \`buildTangleCatalogRuntimePackageManifest()\` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |

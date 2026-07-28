@@ -532,6 +532,30 @@
     "missing": []
   },
   {
+    "id": "adp",
+    "title": "adp",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "afforai",
     "title": "Afforai",
     "category": "workflow",
@@ -10199,6 +10223,30 @@
     ]
   },
   {
+    "id": "amplemarket",
+    "title": "amplemarket",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "anthropic",
     "title": "anthropic",
     "category": "internal",
@@ -12038,6 +12086,30 @@
     "actionCount": null,
     "triggerCount": null,
     "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "autobound",
+    "title": "autobound",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -13954,6 +14026,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "bettercontact",
+    "title": "bettercontact",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "bettermode",
@@ -16147,6 +16243,30 @@
     "missing": []
   },
   {
+    "id": "brightdata",
+    "title": "brightdata",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "brilliant-directories",
     "title": "API Key",
     "category": "workflow",
@@ -16988,6 +17108,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "builtwith",
+    "title": "builtwith",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "bumpups",
@@ -24005,6 +24149,30 @@
     ]
   },
   {
+    "id": "clay",
+    "title": "clay",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "clearout",
     "title": "Clearout",
     "category": "crm",
@@ -25746,6 +25914,30 @@
     ]
   },
   {
+    "id": "cognism",
+    "title": "cognism",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "cognito-forms",
     "title": "Cognito Forms",
     "category": "docs",
@@ -25961,6 +26153,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "common-room",
+    "title": "common-room",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "confluence",
@@ -26286,6 +26502,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "contactout",
+    "title": "contactout",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "contentful",
@@ -27693,6 +27933,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "crustdata",
+    "title": "crustdata",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "cryptolens",
@@ -30131,6 +30395,30 @@
     ]
   },
   {
+    "id": "demandbase",
+    "title": "demandbase",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "denser-ai",
     "title": "Denser.ai",
     "category": "workflow",
@@ -30577,6 +30865,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "dialpad",
+    "title": "dialpad",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "digital-ocean",
@@ -31785,6 +32097,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "docuseal",
+    "title": "docuseal",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "docusign",
@@ -35113,6 +35449,54 @@
     ]
   },
   {
+    "id": "etsy",
+    "title": "etsy",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://example.invalid/etsy/authorize",
+      "tokenUrl": "https://example.invalid/etsy/token",
+      "scopes": [
+        {
+          "normalized": "commerce.read",
+          "providerScope": "etsy.read",
+          "title": "Etsy read",
+          "reason": "Read Etsy data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "commerce.write",
+          "providerScope": "etsy.write",
+          "title": "Etsy write",
+          "reason": "Create or update Etsy resources after policy approval.",
+          "risk": "write",
+          "dataClass": "sensitive"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/etsy/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "everhour",
     "title": "Everhour",
     "category": "workflow",
@@ -35672,6 +36056,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "factors-ai",
+    "title": "factors-ai",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "famulor",
@@ -36780,6 +37188,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "findymail",
+    "title": "findymail",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "firebase",
@@ -39324,6 +39756,30 @@
     ]
   },
   {
+    "id": "fullenrich",
+    "title": "fullenrich",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "gameball",
     "title": "API Key",
     "category": "workflow",
@@ -39758,9 +40214,9 @@
     "actionCount": 5,
     "triggerCount": 0,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 5,
     "quality": {
       "tangleContract": true,
@@ -39768,7 +40224,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "executable_setup_spec"
@@ -40457,9 +40913,9 @@
     "actionCount": 6,
     "triggerCount": 4,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 6,
     "quality": {
       "tangleContract": true,
@@ -40467,12 +40923,36 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "gong",
+    "title": "gong",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "goodmem",
@@ -40500,6 +40980,61 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "google-analytics",
+    "title": "google-analytics",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "analytics.read",
+          "providerScope": "google-analytics.read",
+          "title": "Google Analytics read",
+          "reason": "Read Google Analytics data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "internal"
+        },
+        {
+          "normalized": "analytics.write",
+          "providerScope": "google-analytics.write",
+          "title": "Google Analytics write",
+          "reason": "Create or update Google Analytics resources after policy approval.",
+          "risk": "write",
+          "dataClass": "internal"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "google-bigquery",
@@ -40601,9 +41136,9 @@
     "actionCount": 8,
     "triggerCount": 7,
     "setupStatus": "executable",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 8,
     "quality": {
       "tangleContract": true,
@@ -40611,7 +41146,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime"
@@ -40790,9 +41325,9 @@
     "actionCount": 5,
     "triggerCount": 1,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 5,
     "quality": {
       "tangleContract": true,
@@ -40800,7 +41335,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -40864,9 +41399,9 @@
     "actionCount": 0,
     "triggerCount": 2,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -40874,7 +41409,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -40938,9 +41473,9 @@
     "actionCount": 0,
     "triggerCount": 1,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -40948,7 +41483,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -41120,6 +41655,61 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "google-meet",
+    "title": "google-meet",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "calendar.read",
+          "providerScope": "google-meet.read",
+          "title": "Google Meet read",
+          "reason": "Read Google Meet data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "google-meet.write",
+          "title": "Google Meet write",
+          "reason": "Create or update Google Meet resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "google-my-business",
@@ -41331,9 +41921,9 @@
     "actionCount": 20,
     "triggerCount": 4,
     "setupStatus": "executable",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 20,
     "quality": {
       "tangleContract": true,
@@ -41341,7 +41931,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime"
@@ -43405,6 +43995,54 @@
     ]
   },
   {
+    "id": "hellosign",
+    "title": "hellosign",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://example.invalid/hellosign/authorize",
+      "tokenUrl": "https://example.invalid/hellosign/token",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "hellosign.read",
+          "title": "Dropbox Sign read",
+          "reason": "Read Dropbox Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "hellosign.write",
+          "title": "Dropbox Sign write",
+          "reason": "Create or update Dropbox Sign resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/hellosign/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "help-scout",
     "title": "Help Scout",
     "category": "crm",
@@ -43843,6 +44481,54 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "heyreach",
+    "title": "heyreach",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "hightouch",
+    "title": "hightouch",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "housecall-pro",
@@ -44655,9 +45341,9 @@
     "actionCount": 44,
     "triggerCount": 24,
     "setupStatus": "executable",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 44,
     "quality": {
       "tangleContract": true,
@@ -44665,7 +45351,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime"
@@ -48685,6 +49371,30 @@
     ]
   },
   {
+    "id": "justcall",
+    "title": "justcall",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "kallabot-ai",
     "title": "API Key",
     "category": "workflow",
@@ -50929,6 +51639,30 @@
     ]
   },
   {
+    "id": "lagrowthmachine",
+    "title": "lagrowthmachine",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "lead-connector",
     "title": "LeadConnector",
     "category": "crm",
@@ -50970,6 +51704,54 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "leadfeeder",
+    "title": "leadfeeder",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "leadmagic",
+    "title": "leadmagic",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "leap-ai",
@@ -57975,6 +58757,56 @@
     ]
   },
   {
+    "id": "microsoft-calendar",
+    "title": "microsoft-calendar",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "calendar.read",
+          "providerScope": "Calendars.Read",
+          "title": "Outlook Calendar read",
+          "reason": "Read Outlook Calendar data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "Calendars.ReadWrite",
+          "title": "Outlook Calendar write",
+          "reason": "Create or update Outlook Calendar resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "microsoft-copilot",
     "title": "Microsoft 365 Copilot",
     "category": "workflow",
@@ -58144,6 +58976,56 @@
     ]
   },
   {
+    "id": "microsoft-graph",
+    "title": "microsoft-graph",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "workflow.read",
+          "providerScope": "microsoft-graph.read",
+          "title": "Microsoft Graph read",
+          "reason": "Read Microsoft Graph data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "internal"
+        },
+        {
+          "normalized": "workflow.write",
+          "providerScope": "microsoft-graph.write",
+          "title": "Microsoft Graph write",
+          "reason": "Create or update Microsoft Graph resources after policy approval.",
+          "risk": "write",
+          "dataClass": "internal"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "microsoft-onedrive",
     "title": "Microsoft OneDrive",
     "category": "storage",
@@ -58169,9 +59051,9 @@
     "actionCount": 4,
     "triggerCount": 1,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "native_backed",
-    "implementationKind": "native_adapter",
-    "nativeAdapter": true,
+    "tangleContractStatus": "runtime_backed",
+    "implementationKind": "package_runtime",
+    "nativeAdapter": false,
     "catalogActionMappings": 4,
     "quality": {
       "tangleContract": true,
@@ -58179,7 +59061,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": true
+      "nativeAdapter": false
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -58255,9 +59137,9 @@
     "actionCount": 11,
     "triggerCount": 3,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "native_backed",
-    "implementationKind": "native_adapter",
-    "nativeAdapter": true,
+    "tangleContractStatus": "runtime_backed",
+    "implementationKind": "package_runtime",
+    "nativeAdapter": false,
     "catalogActionMappings": 11,
     "quality": {
       "tangleContract": true,
@@ -58265,7 +59147,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": true
+      "nativeAdapter": false
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -58298,9 +59180,9 @@
     "actionCount": 3,
     "triggerCount": 0,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "native_backed",
-    "implementationKind": "native_adapter",
-    "nativeAdapter": true,
+    "tangleContractStatus": "runtime_backed",
+    "implementationKind": "package_runtime",
+    "nativeAdapter": false,
     "catalogActionMappings": 3,
     "quality": {
       "tangleContract": true,
@@ -58308,7 +59190,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": true
+      "nativeAdapter": false
     },
     "missing": [
       "executable_setup_spec"
@@ -58382,9 +59264,9 @@
     "actionCount": 15,
     "triggerCount": 8,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "native_backed",
-    "implementationKind": "native_adapter",
-    "nativeAdapter": true,
+    "tangleContractStatus": "runtime_backed",
+    "implementationKind": "package_runtime",
+    "nativeAdapter": false,
     "catalogActionMappings": 15,
     "quality": {
       "tangleContract": true,
@@ -58392,7 +59274,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": true
+      "nativeAdapter": false
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -58451,9 +59333,9 @@
     "actionCount": 15,
     "triggerCount": 4,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 15,
     "quality": {
       "tangleContract": true,
@@ -58461,7 +59343,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -59712,6 +60594,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "modjo",
+    "title": "modjo",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "mollie",
@@ -63793,11 +64699,64 @@
     ]
   },
   {
+    "id": "nooks",
+    "title": "nooks",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "notion",
     "title": "Notion",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://api.notion.com/v1/oauth/authorize",
+      "tokenUrl": "https://api.notion.com/v1/oauth/token",
+      "clientIdEnv": "NOTION_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "NOTION_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "notion.read",
+          "title": "Notion read",
+          "reason": "Read Notion data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "notion.write",
+          "title": "Notion write",
+          "reason": "Create or update Notion resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "owner": "user"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/notion/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -63817,7 +64776,7 @@
     "runtimePackage": "@activepieces/piece-notion",
     "actionCount": 12,
     "triggerCount": 4,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -63831,8 +64790,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -64026,6 +64984,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "ocean-io",
+    "title": "ocean-io",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "octopush-sms",
@@ -65051,6 +66033,56 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "onedrive",
+    "title": "onedrive",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "storage.read",
+          "providerScope": "Files.Read",
+          "title": "OneDrive read",
+          "reason": "Read OneDrive data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.write",
+          "providerScope": "Files.ReadWrite",
+          "title": "OneDrive write",
+          "reason": "Create or update OneDrive resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "onfleet",
@@ -67130,6 +68162,80 @@
     ]
   },
   {
+    "id": "outlook-mail",
+    "title": "outlook-mail",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "email.read",
+          "providerScope": "Mail.Read",
+          "title": "Outlook Mail read",
+          "reason": "Read Outlook Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.write",
+          "providerScope": "Mail.Send",
+          "title": "Outlook Mail write",
+          "reason": "Create or update Outlook Mail resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "outreach",
+    "title": "outreach",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "outseta",
     "title": "Outseta",
     "category": "crm",
@@ -67766,9 +68872,9 @@
     "actionCount": 7,
     "triggerCount": 3,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 7,
     "quality": {
       "tangleContract": true,
@@ -67776,7 +68882,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -68579,6 +69685,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "paychex",
+    "title": "paychex",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "paywhirl",
@@ -70559,9 +71689,9 @@
     "actionCount": 1,
     "triggerCount": 1,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 1,
     "quality": {
       "tangleContract": true,
@@ -70569,7 +71699,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -72167,6 +73297,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "polytomic",
+    "title": "polytomic",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "poper",
@@ -76935,6 +78089,30 @@
     ]
   },
   {
+    "id": "ringcentral",
+    "title": "ringcentral",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "rippling",
     "title": "rippling",
     "category": "internal",
@@ -77572,6 +78750,54 @@
     "missing": []
   },
   {
+    "id": "saleshandy",
+    "title": "saleshandy",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "salesloft",
+    "title": "salesloft",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "sanity",
     "title": "sanity",
     "category": "internal",
@@ -78035,6 +79261,30 @@
     ]
   },
   {
+    "id": "seamless-ai",
+    "title": "seamless-ai",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "seek-table",
     "title": "SeekTable",
     "category": "workflow",
@@ -78185,6 +79435,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "semrush",
+    "title": "semrush",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "send-it",
@@ -79444,6 +80718,30 @@
     ]
   },
   {
+    "id": "serper",
+    "title": "serper",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "serpstat",
     "title": "Serpstat",
     "category": "docs",
@@ -80147,6 +81445,56 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "sharepoint",
+    "title": "sharepoint",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "storage.read",
+          "providerScope": "Sites.Read.All",
+          "title": "SharePoint read",
+          "reason": "Read SharePoint data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.write",
+          "providerScope": "Sites.ReadWrite.All",
+          "title": "SharePoint write",
+          "reason": "Create or update SharePoint resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "shippo",
@@ -81340,6 +82688,54 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "signwell",
+    "title": "signwell",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "similarweb",
+    "title": "similarweb",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "simplepdf",
@@ -82871,9 +84267,9 @@
     "actionCount": 27,
     "triggerCount": 14,
     "setupStatus": "executable",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 27,
     "quality": {
       "tangleContract": true,
@@ -82881,7 +84277,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime"
@@ -84016,6 +85412,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "snov-io",
+    "title": "snov-io",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "snowflake",
@@ -91015,6 +92435,30 @@
     ]
   },
   {
+    "id": "theirstack",
+    "title": "theirstack",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "ticktick",
     "title": "TickTick",
     "category": "workflow",
@@ -95483,6 +96927,30 @@
     ]
   },
   {
+    "id": "usergems",
+    "title": "usergems",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "vadoo-ai",
     "title": "Vadoo AI",
     "category": "workflow",
@@ -98868,6 +100336,30 @@
     ]
   },
   {
+    "id": "warmly",
+    "title": "warmly",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "wealthbox",
     "title": "API Access Token",
     "category": "workflow",
@@ -101071,6 +102563,54 @@
     ]
   },
   {
+    "id": "whatsapp-business",
+    "title": "whatsapp-business",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://example.invalid/whatsapp-business/authorize",
+      "tokenUrl": "https://example.invalid/whatsapp-business/token",
+      "scopes": [
+        {
+          "normalized": "chat.read",
+          "providerScope": "whatsapp-business.read",
+          "title": "WhatsApp Business read",
+          "reason": "Read WhatsApp Business data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "chat.write",
+          "providerScope": "whatsapp-business.write",
+          "title": "WhatsApp Business write",
+          "reason": "Create or update WhatsApp Business resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/whatsapp-business/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "whatsscale",
     "title": "WhatsScale",
     "category": "chat",
@@ -101218,6 +102758,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "wiza",
+    "title": "wiza",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "wonderchat",
@@ -102899,9 +104463,9 @@
     "actionCount": 0,
     "triggerCount": 1,
     "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -102909,7 +104473,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "hosted_trigger_runtime",
@@ -103933,6 +105497,30 @@
     ]
   },
   {
+    "id": "zenrows",
+    "title": "zenrows",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "zeplin",
     "title": "Zeplin",
     "category": "workflow",
@@ -104513,6 +106101,30 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "zoominfo",
+    "title": "zoominfo",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "zuora",

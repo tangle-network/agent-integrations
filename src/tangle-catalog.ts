@@ -177,7 +177,11 @@ export interface TangleIntegrationCatalogFreshnessResult {
 }
 
 export function listTangleNativeAdapterIds(): string[] {
-  const ids = new Set<string>()
+  const ids = new Set<string>(
+    bundledAdapters.CONNECTOR_ADAPTER_FACTORIES.map(
+      (definition) => definition.kind,
+    ),
+  )
   for (const value of Object.values(bundledAdapters)) {
     if (isConnectorAdapter(value)) {
       ids.add(value.manifest.kind)
