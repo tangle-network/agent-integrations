@@ -107,20 +107,22 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
       // reporting them under `status: 'committed'` told the caller a write
       // landed when nothing was written — the caller then skips its retry and
       // the record silently never exists.
-      const outcome = mutationOutcome(response.data)
-      if (outcome === 'conflict') {
+      if (response.outcome === 'conflict') {
         return {
           status: 'conflict',
           alternatives: [],
+          // The upstream's parsed body — the contract calls this "the current
+          // authoritative state", so it must be what the provider returned,
+          // not the transport's own wrapper.
           currentState: response.data,
-          message: messageOf(response.data) ?? `${spec.displayName} rejected the write on a state conflict`,
+          message: response.message || `${spec.displayName} rejected the write on a state conflict`,
         }
       }
-      if (outcome === 'rate-limited') {
+      if (response.outcome === 'rate-limited') {
         return {
           status: 'rate-limited',
-          retryAfterMs: retryAfterMsOf(response.data),
-          message: messageOf(response.data) ?? `${spec.displayName} throttled the write`,
+          retryAfterMs: response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS,
+          message: response.message || `${spec.displayName} throttled the write`,
         }
       }
       return {
@@ -211,12 +213,28 @@ function requiredArgsOf(parameters: Record<string, unknown>): readonly string[] 
   return Array.isArray(required) ? required.filter((entry): entry is string => typeof entry === 'string') : undefined
 }
 
+/**
+ * One transport result. `outcome` is absent on a normal success; when present
+ * it names a non-commit the caller must not treat as a write. It lives beside
+ * `data` rather than inside it so an upstream field can never be mistaken for
+ * a transport tag, and so `data` is always the upstream's own parsed body.
+ */
+export interface RestTransportResponse {
+  data: unknown
+  etag?: string
+  outcome?: 'conflict' | 'rate-limited'
+  /** Upstream's error text, kept verbatim for the caller's message. */
+  message?: string
+  /** Resolved from `Retry-After` on a 429. */
+  retryAfterMs?: number
+}
+
 export async function executeRestRequest(
   spec: RestConnectorSpec,
   request: RestRequestSpec,
   inv: ConnectorInvocation,
   requiredArgs?: readonly string[],
-): Promise<{ data: unknown; etag?: string }> {
+): Promise<RestTransportResponse> {
   const placement = spec.credentialPlacement ?? { kind: 'bearer' }
 
   // AWS SigV4 binds the target region into the HOST and signs the request body,
@@ -304,22 +322,29 @@ export async function executeRestRequest(
   if (res.status === 401 || res.status === 403) {
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
   }
+  // A non-commit is reported on the ENVELOPE, never as a `status` field inside
+  // the body. Tagging the body meant two things went wrong at once: the
+  // upstream's own JSON was discarded in favour of the wrapper (so a caller
+  // reading `currentState` got the tag instead of the state), and any
+  // connector whose successful 2xx body happens to carry `status: 'conflict'`
+  // would have had a landed write reclassified as a failure. ~200 connectors
+  // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
+    const text = await safeErrorText(res)
     return {
-      data: {
-        status: 'conflict',
-        message: await safeErrorText(res),
-      },
+      data: parseBodyText(text),
+      outcome: 'conflict',
+      message: text,
       etag: res.headers.get('etag') ?? undefined,
     }
   }
   if (res.status === 429) {
+    const text = await safeErrorText(res)
     return {
-      data: {
-        status: 'rate-limited',
-        retryAfter: res.headers.get('retry-after') ?? undefined,
-        message: await safeErrorText(res),
-      },
+      data: parseBodyText(text),
+      outcome: 'rate-limited',
+      message: text,
+      retryAfterMs: retryAfterMsFromHeader(res.headers.get('retry-after')),
     }
   }
   // Existence-probe semantics: 204 = present, 404 = absent. Resolve to an
@@ -457,39 +482,38 @@ function resolveBody(
   return renderObject(body, scope, requiredArgs)
 }
 
-/** Placeholder-resolution scope for one invocation: the capability arguments,
- *  plus a reserved `connection` key exposing the connection's own metadata as
- *  `{connection.<field>}`. Arguments take precedence, so an adapter that
- *  already declares a `connection` argument keeps its current meaning. */
-/** Read the transport's tagged non-commit payload. `executeRestRequest` maps a
- *  409/412 to `{status:'conflict'}` and a 429 to `{status:'rate-limited'}`
- *  instead of throwing, so the mutation wrapper has to re-read that tag to
- *  produce the right `CapabilityMutationResult` branch. */
-function mutationOutcome(data: unknown): 'conflict' | 'rate-limited' | 'committed' {
-  if (!data || typeof data !== 'object') return 'committed'
-  const status = (data as { status?: unknown }).status
-  if (status === 'conflict') return 'conflict'
-  if (status === 'rate-limited') return 'rate-limited'
-  return 'committed'
+/** Conservative wait when the upstream throttles without saying for how long. */
+const DEFAULT_RETRY_AFTER_MS = 60_000
+/** Floor for an explicit `Retry-After`. `Retry-After: 0` is legal HTTP and is
+ *  sometimes sent when a bucket has already refilled, but honouring it
+ *  literally turns a throttle into a busy-loop against the upstream. */
+const MIN_RETRY_AFTER_MS = 1_000
+
+/** Parse a non-2xx body without throwing. Preserves the upstream's own JSON so
+ *  a conflict can report real state; falls back to the raw text, matching how
+ *  the success path handles non-JSON payloads. */
+function parseBodyText(text: string): unknown {
+  if (!text) return null
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return { raw: text }
+  }
 }
 
-function messageOf(data: unknown): string | undefined {
-  if (!data || typeof data !== 'object') return undefined
-  const message = (data as { message?: unknown }).message
-  return typeof message === 'string' && message.trim() ? message : undefined
-}
-
-/** `Retry-After` is seconds or an HTTP-date. Absent/unparseable falls back to
- *  60s — a conservative wait, never 0, which would busy-loop the upstream. */
-function retryAfterMsOf(data: unknown): number {
-  const raw = data && typeof data === 'object' ? (data as { retryAfter?: unknown }).retryAfter : undefined
+/** `Retry-After` is either a seconds count or an HTTP-date. Absent or
+ *  unparseable falls back to {@link DEFAULT_RETRY_AFTER_MS}; any parsed value
+ *  is floored at {@link MIN_RETRY_AFTER_MS}. */
+function retryAfterMsFromHeader(raw: string | null): number {
   if (typeof raw === 'string' && raw.trim()) {
     const seconds = Number(raw)
-    if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000)
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.max(MIN_RETRY_AFTER_MS, Math.round(seconds * 1000))
+    }
     const at = Date.parse(raw)
-    if (Number.isFinite(at)) return Math.max(0, at - Date.now())
+    if (Number.isFinite(at)) return Math.max(MIN_RETRY_AFTER_MS, at - Date.now())
   }
-  return 60_000
+  return DEFAULT_RETRY_AFTER_MS
 }
 
 function renderScope(inv: ConnectorInvocation): Record<string, unknown> {

@@ -121,6 +121,95 @@ describe('a non-commit must never be reported as a commit', () => {
     expect(result.status).toBe('rate-limited')
     if (result.status === 'rate-limited') expect(result.retryAfterMs).toBe(30_000)
   })
+
+  it('maps a 412 precondition failure to conflict, same as a 409', async () => {
+    stubFetch(412, 'precondition failed')
+
+    const result = await quickbooksConnector.executeMutation!({
+      source: qbo(),
+      capabilityName: 'customers.update',
+      args: { Id: '1', SyncToken: '0', DisplayName: 'Acme' },
+      idempotencyKey: 'k',
+    })
+
+    expect(result.status).toBe('conflict')
+  })
+
+  it('reports the upstream body as current state, not the transport wrapper', async () => {
+    // `currentState` is contractually "the current authoritative state". It
+    // used to receive the transport's own `{status:'conflict', message}`
+    // object, with the provider's parsed JSON discarded — so a caller diffing
+    // against its attempted write got a wrapper it could do nothing with.
+    const upstream = {
+      Fault: { Error: [{ code: '5010', Message: 'Stale Object Error' }] },
+      SyncToken: '4',
+    }
+    stubFetch(409, upstream)
+
+    const result = await quickbooksConnector.executeMutation!({
+      source: qbo(),
+      capabilityName: 'customers.update',
+      args: { Id: '1', SyncToken: '0', DisplayName: 'Acme' },
+      idempotencyKey: 'k',
+    })
+
+    expect(result.status).toBe('conflict')
+    if (result.status !== 'conflict') return
+    expect(result.currentState).toEqual(upstream)
+    expect((result.currentState as { SyncToken?: string }).SyncToken).toBe('4')
+  })
+
+  it('does not reclassify a successful write whose body carries status:conflict', async () => {
+    // ~200 connectors share this transport. The outcome tag used to be read
+    // off `data.status`, indistinguishable from an upstream field of the same
+    // name, so a 200 body like this would report a landed write as a failure
+    // and the caller would abort or retry a write that already happened.
+    stubFetch(200, { Customer: { Id: '99' }, status: 'conflict' })
+
+    const result = await quickbooksConnector.executeMutation!({
+      source: qbo(),
+      capabilityName: 'customers.create',
+      args: { DisplayName: 'Acme' },
+      idempotencyKey: 'k',
+    })
+
+    expect(result.status).toBe('committed')
+  })
+
+  it('never returns a zero wait on an explicit Retry-After: 0', async () => {
+    // Legal HTTP, sent when a bucket has already refilled — but honouring it
+    // literally turns a throttle into a busy-loop against the upstream.
+    stubFetch(429, 'throttled', { 'retry-after': '0' })
+
+    const result = await quickbooksConnector.executeMutation!({
+      source: qbo(),
+      capabilityName: 'customers.create',
+      args: { DisplayName: 'Acme' },
+      idempotencyKey: 'k',
+    })
+
+    expect(result.status).toBe('rate-limited')
+    if (result.status === 'rate-limited') expect(result.retryAfterMs).toBeGreaterThan(0)
+  })
+})
+
+describe('credentials reach the wire', () => {
+  it('sends the connection access token as a bearer header', async () => {
+    // Every bearer connector shares `applyCredentials`. A regression there
+    // would send unauthenticated requests, and no test inspected the outgoing
+    // authorization header — the stub ignores headers, so the suite stayed
+    // green while the product broke.
+    const calls = stubFetch(200, {})
+
+    await quickbooksConnector.executeRead!({
+      source: qbo(),
+      capabilityName: 'companyinfo.get',
+      args: {},
+      idempotencyKey: 'k',
+    })
+
+    expect(new Headers(calls[0].headers).get('authorization')).toBe('Bearer access-token')
+  })
 })
 
 describe('xero tenant discovery', () => {
