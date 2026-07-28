@@ -210,9 +210,22 @@ export function toMcpTools(tools: IntegrationToolDefinition[]): McpToolDefinitio
 function scoreTool(tool: IntegrationToolDefinition, terms: string[]): IntegrationToolSearchResult {
   if (terms.length === 0) return { tool, score: 1, matched: [] }
   const haystack = new Set(tool.tags)
+  // Naming the connector is a stronger signal than matching a generic verb:
+  // "send a slack message" is a request for Slack, not for whichever
+  // connector happens to spell its capability `send_*`. Scored above a plain
+  // tag hit so connector identity breaks that tie on meaning rather than on
+  // alphabetical order.
+  const identity = new Set(
+    [tool.connectorId, tool.connectorTitle, tool.providerId].flatMap(tokenize),
+  )
   const matched: string[] = []
   let score = 0
   for (const term of terms) {
+    if (identity.has(term)) {
+      matched.push(term)
+      score += 6
+      continue
+    }
     if (haystack.has(term)) {
       matched.push(term)
       score += 4

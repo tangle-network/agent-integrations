@@ -183,6 +183,38 @@ describe('integration specs', () => {
     }
   })
 
+  it('only advertises actions the adapter actually implements', () => {
+    // The coverage table synthesizes actions from 19 generic packs, so every
+    // finance connector advertised `transactions.search`, `accounts.read`,
+    // `invoices.create`, `records.sync`. QuickBooks implements one of those
+    // four. A named-but-absent tool is worse than an unnamed one — the model
+    // spends the turn calling it.
+    let audited = 0
+    for (const spec of listIntegrationSpecs()) {
+      const manifest = getBundledAdapterManifest(spec.kind)
+      if (!manifest) continue
+      const real = new Set(manifest.capabilities.map((capability) => capability.name))
+      for (const action of spec.actions) {
+        expect(real.has(action.id), `${spec.kind} advertises "${action.id}", which it cannot execute`).toBe(true)
+      }
+      audited += 1
+    }
+    expect(audited).toBeGreaterThan(80)
+  })
+
+  it('surfaces the accounting reads a tax return is actually built from', () => {
+    const quickbooks = getIntegrationSpec('quickbooks')!.actions.map((action) => action.id)
+    expect(quickbooks).toContain('reports.get')
+    expect(quickbooks).toContain('entities.query')
+    expect(quickbooks).not.toContain('transactions.search')
+
+    const xero = getIntegrationSpec('xero')!.actions.map((action) => action.id)
+    // Every other Xero call needs a tenantId, so the discovery capability has
+    // to be reachable or the connector is unusable from a cold start.
+    expect(xero).toContain('tenants.list')
+    expect(xero).toContain('reports.get')
+  })
+
   it('carries the real accounting endpoints QuickBooks and Xero authenticate against', () => {
     const quickbooks = getIntegrationSpec('quickbooks')
     expect(quickbooks?.status).toBe('executable')

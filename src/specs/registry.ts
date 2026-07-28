@@ -15,6 +15,7 @@ import {
   bundledOAuth2Auth,
   getBundledAdapterManifest,
 } from '../connectors/bundled-manifests.js'
+import type { ConnectorManifest } from '../connectors/types.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
 import { getIntegrationOverride } from './overrides.js'
 import type {
@@ -146,7 +147,11 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
   const kind = KIND_ALIASES[coverage.id] ?? coverage.id
   const family = familyFor(coverage)
   const familySpec = getIntegrationFamily(family)
-  const permissions = permissionsFor(coverage, connector.actions)
+  const manifest = bundledManifestFor(kind, coverage.id)
+  const actions = manifest
+    ? actionsFromManifest(manifest, dataClassFor(connector.actions))
+    : connector.actions
+  const permissions = permissionsFor(coverage, actions)
   const auth = authFor(coverage, family, permissions, kind)
   const status = statusFor(kind, coverage.id)
   // Per-kind overrides layer in here — see specs/overrides.ts. The override
@@ -168,7 +173,7 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
     family,
     auth,
     permissions,
-    actions: connector.actions,
+    actions,
     triggers: connector.triggers,
     setup: {
       consoleUrl: override?.consoleUrl ?? familySpec.consoleUrl,
@@ -180,7 +185,7 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
       healthcheck: override?.healthcheck ?? healthcheckFor(kind, status, auth),
     },
     lifecycle: familySpec.lifecycle,
-    plannerHints: plannerHintsFor(coverage, connector.actions),
+    plannerHints: plannerHintsFor(coverage, actions),
     metadata: { priority: coverage.priority, domains: coverage.domains },
   }
 }
@@ -267,6 +272,39 @@ function authFor(
     redirectUriTemplate: (f.redirectUriTemplate ?? 'https://{host}/api/integrations/oauth/{kind}/callback').replace('{kind}', spec.id),
     pkce: family === 'google' || family === 'microsoft-graph' ? 'supported' : 'unsupported',
   } satisfies OAuth2AuthSpec
+}
+
+/**
+ * The action list an agent is shown, taken from the adapter's own capability
+ * catalog.
+ *
+ * The coverage table synthesizes actions from 19 generic "action packs", so
+ * every finance-pack connector advertised the same four names —
+ * `transactions.search`, `accounts.read`, `invoices.create`, `records.sync`.
+ * For QuickBooks and Xero, one of those four exists. The other three are tool
+ * calls that can only fail, while the capabilities that DO exist (`reports.get`,
+ * `entities.query`, `tenants.list`) went unmentioned. Naming a tool that does
+ * not exist is worse than naming none: the model spends the turn on it.
+ */
+function actionsFromManifest(
+  manifest: ConnectorManifest,
+  fallbackDataClass: IntegrationDataClass,
+): IntegrationConnectorAction[] {
+  return manifest.capabilities.map((capability): IntegrationConnectorAction => {
+    const mutation = capability.class === 'mutation'
+    return {
+      id: capability.name,
+      title: capability.name,
+      risk: mutation ? 'write' : 'read',
+      requiredScopes: capability.requiredScopes ? [...capability.requiredScopes] : [],
+      dataClass: fallbackDataClass,
+      description: capability.description,
+      // A mutation reaching resources outside the caller needs confirmation
+      // before it runs; the adapter is what knows which those are.
+      approvalRequired: mutation ? capability.externalEffect : undefined,
+      inputSchema: capability.parameters,
+    }
+  })
 }
 
 /** Pair the adapter's REAL provider scopes with the closest permission
