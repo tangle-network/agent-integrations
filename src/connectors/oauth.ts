@@ -160,6 +160,10 @@ export interface OAuthTokens {
   expiresIn?: number
   scope?: string
   tokenType?: string
+  /** OpenID Connect identity token returned when the connector requests
+   *  `openid`. Kept separate from the access credential so adapters can
+   *  capture stable account metadata without persisting the ID token. */
+  idToken?: string
 }
 
 /** POST authorization code → token endpoint. Provider-agnostic; if a
@@ -190,6 +194,7 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
     expires_in?: number
     scope?: string
     token_type?: string
+    id_token?: string
   }
   return {
     accessToken: json.access_token,
@@ -197,6 +202,7 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
     expiresIn: json.expires_in,
     scope: json.scope,
     tokenType: json.token_type,
+    idToken: json.id_token,
   }
 }
 
@@ -234,6 +240,7 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     expires_in?: number
     scope?: string
     token_type?: string
+    id_token?: string
   }
   return {
     accessToken: json.access_token,
@@ -243,6 +250,7 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     expiresIn: json.expires_in,
     scope: json.scope,
     tokenType: json.token_type,
+    idToken: json.id_token,
   }
 }
 

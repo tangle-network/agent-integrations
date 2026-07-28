@@ -54,6 +54,11 @@
       "import": "./dist/webhooks/index.js",
       "default": "./dist/webhooks/index.js"
     },
+    "./conversation-events": {
+      "types": "./dist/conversation-events/index.d.ts",
+      "import": "./dist/conversation-events/index.js",
+      "default": "./dist/conversation-events/index.js"
+    },
     "./delegated-tools": {
       "types": "./dist/delegated-tools/index.d.ts",
       "import": "./dist/delegated-tools/index.js",
@@ -110,15 +115,18 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
+    "@types/node": "^26.1.2",
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0",
-    "vite": "^8.1.2",
-    "vitest": "^4.1.9"
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.28.0"
+  "packageManager": "pnpm@10.28.0",
+  "dependencies": {
+    "jose": "6.2.4"
+  }
 }

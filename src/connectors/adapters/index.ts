@@ -17,6 +17,13 @@
  * discipline).
  */
 
+export {
+  CONNECTOR_ADAPTER_FACTORIES,
+  resolveConnectorAdapterFactoryOptions,
+  type ConnectorAdapterFactoryDefinition,
+  type ConnectorAdapterFactoryEnvNames,
+} from './factories.js'
+
 export { googleCalendar, type GoogleCalendarOptions } from './google-calendar.js'
 export { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 export { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'

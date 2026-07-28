@@ -34,18 +34,23 @@ import {
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
 
 const SCOPE_CHAT_WRITE = 'chat:write'
+const SCOPE_APP_MENTIONS_READ = 'app_mentions:read'
 const SCOPE_USERS_READ = 'users:read'
 const SCOPE_USERS_READ_EMAIL = 'users:read.email'
 const SCOPE_CHANNELS_READ = 'channels:read'
 const SCOPE_REACTIONS_WRITE = 'reactions:write'
+const SCOPE_FILES_READ = 'files:read'
 const SCOPE_FILES_WRITE = 'files:write'
+const MAX_INLINE_FILE_BYTES = 4 * 1024 * 1024
 
 const SCOPES = [
   SCOPE_CHAT_WRITE,
+  SCOPE_APP_MENTIONS_READ,
   SCOPE_USERS_READ,
   SCOPE_USERS_READ_EMAIL,
   SCOPE_CHANNELS_READ,
   SCOPE_REACTIONS_WRITE,
+  SCOPE_FILES_READ,
   SCOPE_FILES_WRITE,
 ]
 const AUTH_URL = 'https://slack.com/oauth/v2/authorize'
@@ -217,6 +222,24 @@ export function slack(opts: SlackOptions): ConnectorAdapter {
           },
         },
       },
+      {
+        name: 'download_file',
+        class: 'read',
+        description:
+          'Download a Slack file by id. Returns up to 4 MiB of bytes as base64 so callers never have to handle Slack private URLs or bot tokens.',
+        requiredScopes: [SCOPE_FILES_READ],
+        parameters: {
+          type: 'object',
+          properties: {
+            file_id: {
+              type: 'string',
+              description: 'Slack file id (F…).',
+              maxLength: 300,
+            },
+          },
+          required: ['file_id'],
+        },
+      },
     ],
   },
 
@@ -253,6 +276,9 @@ export function slack(opts: SlackOptions): ConnectorAdapter {
         data: { channels: channels.map(c => ({ id: c.id, name: c.name, isPrivate: c.is_private ?? false })) },
         fetchedAt: Date.now(),
       }
+    }
+    if (inv.capabilityName === 'download_file') {
+      return downloadFile(inv, accessToken)
     }
     throw new Error(`slack: unknown read capability ${inv.capabilityName}`)
   },
@@ -377,6 +403,147 @@ async function slackGet(url: string, accessToken: string, dataSourceId: string):
     throw new Error(`slack HTTP ${res.status}: ${t.slice(0, 200)}`)
   }
   return (await res.json()) as SlackJsonResponse
+}
+
+async function downloadFile(
+  inv: ConnectorInvocation,
+  accessToken: string,
+): Promise<CapabilityReadResult> {
+  const { file_id: rawFileId } = inv.args as { file_id?: unknown }
+  const fileId = typeof rawFileId === 'string' ? rawFileId.trim() : ''
+  if (!fileId || fileId.length > 300) {
+    throw new Error(
+      'slack download_file: a bounded `file_id` is required',
+    )
+  }
+  const info = await slackGet(
+    `${API}/files.info?file=${encodeURIComponent(fileId)}`,
+    accessToken,
+    inv.source.id,
+  )
+  if (!info.ok) {
+    if (isAuthError(info.error)) {
+      throw new CredentialsExpired(
+        `Slack rejected token: ${info.error}`,
+        inv.source.id,
+      )
+    }
+    throw new Error(`slack download_file: ${info.error ?? 'unknown'}`)
+  }
+  const file =
+    info.file && typeof info.file === 'object'
+      ? (info.file as Record<string, unknown>)
+      : null
+  const url =
+    typeof file?.url_private_download === 'string'
+      ? file.url_private_download
+      : typeof file?.url_private === 'string'
+        ? file.url_private
+        : null
+  if (!url || !isSlackPrivateFileUrl(url)) {
+    throw new Error('slack download_file: Slack did not return a private file URL')
+  }
+  const declaredSize =
+    typeof file?.size === 'number' && Number.isFinite(file.size)
+      ? file.size
+      : null
+  if (declaredSize !== null && declaredSize > MAX_INLINE_FILE_BYTES) {
+    throw new Error(
+      `slack download_file: file exceeds the ${MAX_INLINE_FILE_BYTES} byte inline limit`,
+    )
+  }
+
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    redirect: 'error',
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (response.status === 401 || response.status === 403) {
+    throw new CredentialsExpired(
+      `Slack rejected token (${response.status})`,
+      inv.source.id,
+    )
+  }
+  if (!response.ok) {
+    throw new Error(`slack download_file: Slack returned ${response.status}`)
+  }
+  const contentLength = Number(response.headers.get('content-length'))
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_INLINE_FILE_BYTES
+  ) {
+    await response.body?.cancel()
+    throw new Error(
+      `slack download_file: file exceeds the ${MAX_INLINE_FILE_BYTES} byte inline limit`,
+    )
+  }
+  const bytes = await readBoundedBody(response, MAX_INLINE_FILE_BYTES)
+  return {
+    data: {
+      id: fileId,
+      name:
+        typeof file?.name === 'string'
+          ? file.name
+          : typeof file?.title === 'string'
+            ? file.title
+            : null,
+      contentType:
+        typeof file?.mimetype === 'string'
+          ? file.mimetype
+          : response.headers.get('content-type'),
+      size: bytes.byteLength,
+      contentBase64: Buffer.from(bytes).toString('base64'),
+    },
+    fetchedAt: Date.now(),
+  }
+}
+
+function isSlackPrivateFileUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === 'files.slack.com' &&
+      url.port === '' &&
+      url.username === '' &&
+      url.password === ''
+    )
+  } catch {
+    return false
+  }
+}
+
+async function readBoundedBody(
+  response: Response,
+  limitBytes: number,
+): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array()
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      totalBytes += value.byteLength
+      if (totalBytes > limitBytes) {
+        await reader.cancel()
+        throw new Error(
+          `slack download_file: file exceeds the ${limitBytes} byte inline limit`,
+        )
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  const bytes = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
 }
 
 /** Slack returns HTTP 200 with `{ok:false, error:"…"}` on logical errors.
