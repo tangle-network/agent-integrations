@@ -33,6 +33,7 @@ import {
   type ConnectorInvocation,
   type ResolvedDataSource,
 } from '../types.js'
+import { assertPublicHttpTarget } from './public-http-target.js'
 
 const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
 const DEFAULT_LIMIT = 20
@@ -217,6 +218,7 @@ function readUrl(value: unknown, label: string): URL {
   if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
     throw new Error(`${label} scheme not allowed: ${parsed.protocol} (only http: and https: are accepted)`)
   }
+  assertPublicHttpTarget(parsed, label)
   return parsed
 }
 
