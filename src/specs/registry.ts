@@ -53,6 +53,7 @@ function bundledManifestFor(kind: string, coverageId: string) {
 
 const KIND_ALIASES: Record<string, string> = {
   'outlook-calendar': 'microsoft-calendar',
+  'microsoft-excel': 'microsoft-excel-365',
   'notion-database': 'notion',
   stripe: 'stripe-pack',
   twilio: 'twilio-sms',

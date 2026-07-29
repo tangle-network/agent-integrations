@@ -38,7 +38,10 @@ describe('integration coverage catalog', () => {
     expect(connectors.map((connector) => connector.id).sort()).toEqual([
       'affinity',
       'dealcloud',
+      'google-contacts',
       'hubspot',
+      'microsoft-365-people',
+      'microsoft-dynamics-crm',
       'salesforce',
     ])
     expect(connectors.every((connector) => connector.providerId === 'planning')).toBe(true)
@@ -50,7 +53,7 @@ describe('integration coverage catalog', () => {
     }))
     const results = searchIntegrationTools(tools, 'search customer crm records', { maxRisk: 'read' })
 
-    expect(results[0].tool.connectorId).toMatch(/hubspot|salesforce|zendesk|intercom/)
+    expect(results[0].tool.connectorId).toMatch(/hubspot|salesforce|zendesk|intercom|google-contacts|microsoft-365-people|microsoft-dynamics-crm/)
     expect(results[0].tool.risk).toBe('read')
   })
 

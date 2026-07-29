@@ -106,6 +106,28 @@ export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
       { id: 'events', title: 'Enable event subscriptions', detail: 'Subscribe the Hub callback to meeting, recording, and transcript completion events needed by workflows.' },
     ],
   },
+  'microsoft-forms': {
+    consoleUrl: 'https://learn.microsoft.com/microsoft-365/community/working-with-microsoft-forms-using-microsoft-graph',
+    consoleSteps: [
+      { id: 'confirm-api', title: 'Confirm supported Forms access', detail: 'Confirm the customer has a provider-supported Microsoft Forms API path for the required tenant and form ownership model.' },
+      { id: 'approve', title: 'Approve tenant access', detail: 'Document the tenant administrator approval and the specific forms Tangle may read.' },
+    ],
+    credentialFields: [],
+    knownQuirks: [
+      { id: 'no-supported-graph-surface', severity: 'critical', message: 'Microsoft Graph does not expose a generally supported Forms response API. This entry stays non-executable until Microsoft provides or approves a supported access path.' },
+    ],
+  },
+  'microsoft-word': {
+    consoleUrl: 'https://learn.microsoft.com/graph/api/resources/onedrive',
+    consoleSteps: [
+      { id: 'use-files', title: 'Connect OneDrive or SharePoint', detail: 'Use the existing OneDrive or SharePoint connector for Word file discovery, permissions, versions, and download/upload.' },
+      { id: 'confirm-edit-api', title: 'Confirm document editing API', detail: 'Before enabling document-body edits, confirm a provider-supported Word editing API and tenant authorization path.' },
+    ],
+    credentialFields: [],
+    knownQuirks: [
+      { id: 'files-not-document-model', severity: 'critical', message: 'Microsoft Graph supports Word files through OneDrive and SharePoint but does not expose the full Word document object model. This entry stays non-executable for document-body actions.' },
+    ],
+  },
   // ── Stripe pack ────────────────────────────────────────────────────
   // Stripe issues two key types: secret keys (sk_*) and restricted keys
   // (rk_*). For voice-agent workloads, restricted keys are the right call
