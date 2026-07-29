@@ -35,7 +35,12 @@ describe('integration coverage catalog', () => {
       actionPacks: ['crm'],
     })
 
-    expect(connectors.map((connector) => connector.id).sort()).toEqual(['hubspot', 'salesforce'])
+    expect(connectors.map((connector) => connector.id).sort()).toEqual([
+      'affinity',
+      'dealcloud',
+      'hubspot',
+      'salesforce',
+    ])
     expect(connectors.every((connector) => connector.providerId === 'planning')).toBe(true)
   })
 

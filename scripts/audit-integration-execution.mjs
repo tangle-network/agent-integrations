@@ -17,6 +17,7 @@ const connectors = buildTangleIntegrationCatalogConnectors({
 const contracts = listTangleIntegrationContracts()
 const firstParty = listTangleNativeAdapterIds()
 const firstPartySet = new Set(firstParty)
+const catalogIds = new Set(catalog.map((entry) => entry.id))
 const catalogRuntimeConnectors = connectors.filter((connector) => !firstPartySet.has(connector.id))
 const runtimePackageManifest = buildTangleCatalogRuntimePackageManifest({
   agentIntegrationsVersion: pkg.version,
@@ -115,9 +116,37 @@ const matrix = [
       },
       missing: [],
     })),
+  ...specs
+    .filter((spec) => !catalogIds.has(spec.kind) && !firstPartySet.has(spec.kind))
+    .map((spec) => ({
+      id: spec.kind,
+      title: spec.title,
+      category: spec.category,
+      catalogAuth: null,
+      setupAuth: spec.auth.mode,
+      authFields: spec.setup.credentialFields,
+      runtimePackage: null,
+      actionCount: spec.actions.length,
+      triggerCount: spec.triggers?.length ?? 0,
+      setupStatus: spec.status,
+      tangleContractStatus: 'contract_ready',
+      implementationKind: 'contract_only',
+      nativeAdapter: false,
+      catalogActionMappings: null,
+      quality: {
+        tangleContract: true,
+        authFieldsMapped: spec.auth.mode === 'none' || spec.setup.credentialFields.length > 0 || spec.auth.mode === 'custom',
+        actionNamesMapped: spec.actions.length === 0,
+        triggerNamesMapped: true,
+        runtimePackageMapped: false,
+        nativeAdapter: false,
+      },
+      missing: ['native_adapter'],
+    })),
 ].sort((a, b) => a.id.localeCompare(b.id))
 const matrixPath = 'docs/integration-execution-matrix.json'
 const nativeAdapterBacklog = matrix.filter((row) => row.implementationKind === 'package_runtime')
+const contractOnlySpecs = matrix.filter((row) => row.implementationKind === 'contract_only')
 const needsActionMapping = matrix.filter((row) => row.missing?.includes('catalog_action_mapping'))
 const customAuthWithoutFields = catalog.filter((entry) => entry.auth === 'custom' && (entry.authFields ?? []).length === 0)
 const triggerOnlyGap = catalog.filter((entry) => entry.triggers.length > 0)
@@ -205,6 +234,7 @@ ${executableSpecs.map((id) => `- \`${id}\``).join('\n')}
 | Bucket | Count | What it means |
 | --- | ---: | --- |
 | Contracts needing native/direct adapters | ${nativeAdapterBacklog.length} | Connector has a Tangle contract but no reviewed direct adapter yet. |
+| Commercial/setup-only provider contracts | ${contractOnlySpecs.length} | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
 | Catalog connectors with zero upstream action names | ${needsActionMapping.length} | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | ${customAuthWithoutFields.length} | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | ${triggerOnlyGap.length} | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |

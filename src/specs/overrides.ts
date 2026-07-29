@@ -54,6 +54,58 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  affinity: {
+    consoleUrl: 'https://support.affinity.co/s/article/How-to-Create-and-Manage-API-Keys',
+    credentialFields: [
+      {
+        label: 'Affinity API key',
+        description: 'Bearer API key created by an Affinity workspace administrator. API availability and record access follow the workspace plan and key owner permissions.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'check-plan', title: 'Confirm API access', detail: 'Confirm the workspace plan includes Affinity API access.' },
+      { id: 'create-key', title: 'Create an API key', detail: 'Create a dedicated key under Affinity Settings > API using a least-privileged integration user.' },
+      { id: 'paste-key', title: 'Paste the API key', detail: 'Paste the key once. Tangle Hub seals it before persistence.' },
+    ],
+    knownQuirks: [
+      { id: 'user-permissions', severity: 'warning', message: 'The key inherits its creator’s list-level and record permissions; missing records can be an authorization issue rather than a synchronization failure.' },
+    ],
+  },
+  dealcloud: {
+    consoleUrl: 'https://api.docs.dealcloud.com/',
+    consoleSteps: [
+      { id: 'contract', title: 'Confirm DealCloud API access', detail: 'Ask the DealCloud administrator or Intapp account team to enable API access for the customer site.' },
+      { id: 'schema-contract', title: 'Publish a schema contract', detail: 'Publish a scoped Schema Contract that names the entry types and fields Tangle may synchronize.' },
+      { id: 'credentials', title: 'Issue integration credentials', detail: 'Create customer-site credentials restricted to the published contract and Publications required for incremental synchronization.' },
+    ],
+    credentialFields: [],
+    knownQuirks: [
+      { id: 'commercial-access', severity: 'critical', message: 'DealCloud API access is customer-site and contract dependent. This entry remains non-executable until the customer supplies an approved schema contract, site URL, and credentials.' },
+      { id: 'custom-schema', severity: 'warning', message: 'Every DealCloud site is customized; map through the published Schema Contract instead of assuming global object or field names.' },
+    ],
+  },
+  otter: {
+    consoleUrl: 'https://otter.ai/',
+    consoleSteps: [
+      { id: 'contract', title: 'Confirm Otter API access', detail: 'Confirm the customer plan and commercial agreement include supported API access for transcripts and meeting metadata.' },
+      { id: 'credentials', title: 'Request integration credentials', detail: 'Obtain provider-issued credentials and the permitted workspace/account scope from Otter.' },
+      { id: 'scope', title: 'Record permitted data use', detail: 'Record retention, participant-consent, and transcript access rules before enabling ingestion.' },
+    ],
+    credentialFields: [],
+    knownQuirks: [
+      { id: 'no-public-self-serve-api', severity: 'critical', message: 'No generally available self-serve Otter API credential flow is documented. This entry is contract-only until provider-approved access exists.' },
+    ],
+  },
+  zoom: {
+    consoleUrl: 'https://marketplace.zoom.us/develop/create',
+    consoleSteps: [
+      { id: 'app', title: 'Create a General App', detail: 'Create a user-managed General App in Zoom App Marketplace.' },
+      { id: 'redirect', title: 'Add callback URL', detail: 'Add {redirectUri} as the OAuth redirect URL.', copyValue: '{redirectUri}' },
+      { id: 'scopes', title: 'Add granular scopes', detail: 'Add the user, meeting, webinar, and recording scopes listed by this integration.' },
+      { id: 'events', title: 'Enable event subscriptions', detail: 'Subscribe the Hub callback to meeting, recording, and transcript completion events needed by workflows.' },
+    ],
+  },
   // ── Stripe pack ────────────────────────────────────────────────────
   // Stripe issues two key types: secret keys (sk_*) and restricted keys
   // (rk_*). For voice-agent workloads, restricted keys are the right call

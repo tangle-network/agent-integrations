@@ -20,6 +20,7 @@ import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
 import { getIntegrationOverride } from './overrides.js'
 import type {
   ApiKeyAuthSpec,
+  CustomAuthSpec,
   HealthcheckSpec,
   HmacAuthSpec,
   IntegrationAuthSpec,
@@ -238,6 +239,12 @@ function authFor(
   // came to advertise an OAuth flow it does not have.
   const manifest = bundledManifestFor(kind, spec.id)
   const realMode = manifest ? bundledAuthMode(manifest) : undefined
+  if (spec.auth === 'custom' && !manifest) {
+    return {
+      mode: 'custom',
+      description: `${spec.title} requires a provider-approved commercial API agreement and workspace-specific credentials.`,
+    } satisfies CustomAuthSpec
+  }
   if (realMode === 'none') return { mode: 'none' } satisfies NoneAuthSpec
   if (realMode === 'hmac') {
     return {
