@@ -148,10 +148,28 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
   const family = familyFor(coverage)
   const familySpec = getIntegrationFamily(family)
   const manifest = bundledManifestFor(kind, coverage.id)
-  const actions = manifest
+  // A spec with no shipped adapter has no real action ids to give. The
+  // coverage table would supply four synthesized from its action pack, and
+  // naming those is the failure this whole module exists to end: 33 of 143
+  // specs have no adapter, and every one of them advertised invented calls
+  // (`jira` claimed `tasks.search`/`tasks.read`/`tasks.create`/`tasks.update`,
+  // `microsoft-excel` claimed `records.query`...). A model told about a tool
+  // that cannot resolve spends the turn on it, and the failure reads as the
+  // agent being broken. Listing the connector with NO actions is honest and
+  // still discoverable — it is genuinely connectable, it just cannot run
+  // anything yet.
+  //
+  // The synthesized set is still what `permissions` and `plannerHints` are
+  // derived from, because those describe the DATA the connector reaches
+  // (read/write shape, data class, provider scopes) rather than callable
+  // entry points. Deriving them from an empty list instead would silently
+  // drop the write permission and downgrade every one of the 33 to
+  // `dataClass: 'public'` — trading a prompt defect for a consent defect.
+  const derivationActions = manifest
     ? actionsFromManifest(manifest, dataClassFor(connector.actions))
     : connector.actions
-  const permissions = permissionsFor(coverage, actions)
+  const actions = manifest ? derivationActions : []
+  const permissions = permissionsFor(coverage, derivationActions)
   const auth = authFor(coverage, family, permissions, kind)
   const status = statusFor(kind, coverage.id)
   // Per-kind overrides layer in here — see specs/overrides.ts. The override
@@ -185,7 +203,7 @@ function specFromCoverage(coverage: IntegrationCoverageSpec, connector: Integrat
       healthcheck: override?.healthcheck ?? healthcheckFor(kind, status, auth),
     },
     lifecycle: familySpec.lifecycle,
-    plannerHints: plannerHintsFor(coverage, actions),
+    plannerHints: plannerHintsFor(coverage, derivationActions),
     metadata: { priority: coverage.priority, domains: coverage.domains },
   }
 }
