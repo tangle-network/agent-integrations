@@ -40,6 +40,8 @@ export type IntegrationActionPack =
   | 'analytics'
   | 'workflow'
   | 'webhook'
+  | 'meeting'
+  | 'telephony'
 
 type SpecTuple = [
   id: string,
@@ -78,6 +80,8 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['zoho-crm', 'Zoho CRM', 'crm', 'crm', 'tier_1', 'crm,sales'],
   ['close', 'Close', 'crm', 'crm', 'tier_1', 'crm,sales'],
   ['attio', 'Attio', 'crm', 'crm', 'tier_1', 'crm,sales,startups'],
+  ['affinity', 'Affinity', 'crm', 'crm', 'tier_0', 'crm,relationships,private-markets', 'api_key'],
+  ['dealcloud', 'DealCloud', 'crm', 'crm', 'tier_0', 'crm,relationships,private-markets,commercial-api', 'custom'],
   ['linear', 'Linear', 'workflow', 'project', 'tier_0', 'project,engineering,tickets'],
   ['jira', 'Jira', 'workflow', 'project', 'tier_0', 'project,engineering,tickets,atlassian'],
   ['github', 'GitHub', 'workflow', 'dev', 'tier_0', 'code,dev,issues,git'],
@@ -114,6 +118,10 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['sendgrid', 'SendGrid', 'email', 'email', 'tier_1', 'email,transactional'],
   ['postmark', 'Postmark', 'email', 'email', 'tier_1', 'email,transactional'],
   ['twilio', 'Twilio', 'chat', 'chat', 'tier_0', 'sms,voice,communications'],
+  ['open-phone', 'OpenPhone', 'chat', 'telephony', 'tier_0', 'sms,voice,telephony,communications', 'api_key'],
+  ['ringcentral', 'RingCentral', 'chat', 'telephony', 'tier_0', 'voice,sms,telephony,communications'],
+  ['dialpad', 'Dialpad', 'chat', 'telephony', 'tier_0', 'voice,sms,telephony,communications'],
+  ['aircall', 'Aircall', 'chat', 'telephony', 'tier_1', 'voice,telephony,communications', 'api_key'],
   ['phony', 'ph0ny', 'chat', 'chat', 'tier_1', 'voice,telephony,communications', 'api_key'],
   ['discord', 'Discord', 'chat', 'chat', 'tier_1', 'chat,community'],
   ['telegram', 'Telegram', 'chat', 'chat', 'tier_1', 'chat,community'],
@@ -167,6 +175,11 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['calendly', 'Calendly', 'calendar', 'calendar', 'tier_0', 'scheduling,calendar'],
   ['cal-com', 'Cal.com', 'calendar', 'calendar', 'tier_1', 'scheduling,calendar'],
   ['zoom', 'Zoom', 'calendar', 'calendar', 'tier_0', 'meetings,video,calendar'],
+  ['granola', 'Granola', 'docs', 'meeting', 'tier_0', 'meetings,notes,transcripts', 'api_key'],
+  ['gong', 'Gong', 'docs', 'meeting', 'tier_0', 'meetings,calls,transcripts,sales'],
+  ['fathom', 'Fathom', 'docs', 'meeting', 'tier_0', 'meetings,notes,transcripts'],
+  ['fireflies-ai', 'Fireflies.ai', 'docs', 'meeting', 'tier_0', 'meetings,notes,transcripts', 'api_key'],
+  ['otter', 'Otter.ai', 'docs', 'meeting', 'tier_0', 'meetings,notes,transcripts,commercial-api', 'custom'],
   ['google-meet', 'Google Meet', 'calendar', 'calendar', 'tier_1', 'meetings,google,video'],
   ['microsoft-graph', 'Microsoft Graph', 'internal', 'workflow', 'tier_0', 'microsoft,enterprise,identity'],
   ['openai', 'OpenAI', 'workflow', 'ai', 'tier_0', 'ai,llm'],
@@ -325,6 +338,8 @@ function actionPack(pack: IntegrationActionPack, scopes: string[]): IntegrationC
     case 'analytics': return [read('reports.query', 'Query reports', 'Query analytics reports.'), read('events.search', 'Search events', 'Search analytics events.'), write('events.track', 'Track event', 'Track an analytics event.'), write('audiences.sync', 'Sync audience', 'Sync an audience or cohort.')]
     case 'workflow': return [read('runs.search', 'Search runs', 'Search workflow runs or jobs.'), read('templates.list', 'List templates', 'List workflow templates.'), write('runs.start', 'Start run', 'Start a workflow run.'), write('webhooks.dispatch', 'Dispatch webhook', 'Dispatch a workflow webhook.')]
     case 'webhook': return [write('requests.send', 'Send request', 'Send an HTTP request or webhook event.'), read('events.search', 'Search events', 'Search received webhook events.'), write('subscriptions.create', 'Create subscription', 'Create a webhook subscription.'), destructive('subscriptions.delete', 'Delete subscription', 'Delete a webhook subscription.')]
+    case 'meeting': return [read('meetings.search', 'Search meetings', 'Search meetings and recorded calls.'), read('transcripts.read', 'Read transcript', 'Read a meeting transcript.'), read('summaries.read', 'Read summary', 'Read meeting notes, summaries, and action items.'), write('notes.create', 'Create note', 'Create or attach an approved note to a meeting.')]
+    case 'telephony': return [read('calls.search', 'Search calls', 'Search inbound and outbound calls.'), read('recordings.read', 'Read recording', 'Read call recording metadata and transcripts.'), read('messages.search', 'Search messages', 'Search SMS and MMS conversations.'), write('messages.send', 'Send message', 'Send an approved SMS or MMS message.')]
   }
 }
 
@@ -339,6 +354,18 @@ function triggersFor(pack: IntegrationActionPack, scopes: string[]): Integration
   if (pack === 'commerce') return [{ id: 'order.changed', title: 'Order changed', requiredScopes, dataClass: 'sensitive' }]
   if (pack === 'finance') return [{ id: 'transaction.changed', title: 'Transaction changed', requiredScopes, dataClass: 'sensitive' }]
   if (pack === 'workflow' || pack === 'webhook') return [{ id: 'event.received', title: 'Event received', requiredScopes, dataClass: 'internal' }]
+  if (pack === 'meeting') return [
+    { id: 'meeting.ended', title: 'Meeting ended', requiredScopes, dataClass: 'private' },
+    { id: 'transcript.ready', title: 'Transcript ready', requiredScopes, dataClass: 'private' },
+    { id: 'summary.ready', title: 'Summary ready', requiredScopes, dataClass: 'private' },
+  ]
+  if (pack === 'telephony') return [
+    { id: 'call.completed', title: 'Call completed', requiredScopes, dataClass: 'private' },
+    { id: 'call.missed', title: 'Call missed', requiredScopes, dataClass: 'private' },
+    { id: 'recording.ready', title: 'Recording ready', requiredScopes, dataClass: 'private' },
+    { id: 'transcript.ready', title: 'Transcript ready', requiredScopes, dataClass: 'private' },
+    { id: 'message.received', title: 'Message received', requiredScopes, dataClass: 'private' },
+  ]
   return undefined
 }
 

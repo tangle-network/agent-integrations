@@ -590,6 +590,38 @@
     "missing": []
   },
   {
+    "id": "affinity",
+    "title": "affinity",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "affinity API key",
+        "description": "Affinity API key from Settings > API. Availability depends on the workspace plan and key owner permissions.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "afforai",
     "title": "Afforai",
     "category": "workflow",
@@ -1431,7 +1463,15 @@
     "title": "Aircall",
     "category": "database",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "aircall API key",
+        "description": "Aircall API ID and API token, sent as HTTP Basic credentials.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "content",
@@ -1529,7 +1569,7 @@
     "runtimePackage": "@activepieces/piece-aircall",
     "actionCount": 7,
     "triggerCount": 5,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -1543,8 +1583,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -3364,6 +3403,44 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "amazon-seller-central",
+    "title": "Amazon Seller Central",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -10281,6 +10358,44 @@
     "missing": []
   },
   {
+    "id": "amplitude",
+    "title": "Amplitude",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "anthropic",
     "title": "anthropic",
     "category": "internal",
@@ -12854,6 +12969,120 @@
     ]
   },
   {
+    "id": "aws-cloudwatch",
+    "title": "AWS CloudWatch",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
+    "id": "aws-lambda",
+    "title": "AWS Lambda",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
+    "id": "aws-s3",
+    "title": "Amazon S3",
+    "category": "storage",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "azure-ad",
     "title": "Azure Active Directory",
     "category": "crm",
@@ -14838,6 +15067,46 @@
     ]
   },
   {
+    "id": "bigquery",
+    "title": "BigQuery",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "env": "GOOGLE_OAUTH_CLIENT_ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "env": "GOOGLE_OAUTH_CLIENT_SECRET",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "bika",
     "title": "Bika.ai",
     "category": "docs",
@@ -15079,6 +15348,44 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "bitbucket",
+    "title": "Bitbucket",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -25710,6 +26017,44 @@
     ]
   },
   {
+    "id": "cloudflare",
+    "title": "Cloudflare",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "cloudinary",
     "title": "Cloudinary",
     "category": "storage",
@@ -30003,6 +30348,33 @@
     ]
   },
   {
+    "id": "dealcloud",
+    "title": "DealCloud",
+    "category": "crm",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "deepgram",
     "title": "Deepgram",
     "category": "workflow",
@@ -31162,7 +31534,33 @@
     "title": "dialpad",
     "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://dialpad.com/oauth2/authorize",
+      "tokenUrl": "https://dialpad.com/oauth2/token",
+      "clientIdEnv": "DIALPAD_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "DIALPAD_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "telephony.read",
+          "providerScope": "calls:list",
+          "title": "Dialpad read",
+          "reason": "Read Dialpad data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "offline_access",
+          "title": "Dialpad read",
+          "reason": "Read Dialpad data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/dialpad/callback",
+      "pkce": "unsupported"
+    },
     "runtimePackage": null,
     "actionCount": null,
     "triggerCount": null,
@@ -36597,7 +36995,41 @@
     "title": "Fathom",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://fathom.video/oauth/authorize",
+      "tokenUrl": "https://fathom.video/oauth/token",
+      "clientIdEnv": "FATHOM_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "FATHOM_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "meeting.read",
+          "providerScope": "read:meetings",
+          "title": "Fathom read",
+          "reason": "Read Fathom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.read",
+          "providerScope": "read:recordings",
+          "title": "Fathom read",
+          "reason": "Read Fathom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.read",
+          "providerScope": "read:team",
+          "title": "Fathom read",
+          "reason": "Read Fathom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/fathom/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -36617,7 +37049,7 @@
     "runtimePackage": "@activepieces/piece-fathom",
     "actionCount": 5,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -36631,8 +37063,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -38122,7 +38553,15 @@
     "title": "Fireflies.ai",
     "category": "docs",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "fireflies-ai API key",
+        "description": "Fireflies.ai API key — sent as `Authorization: Bearer <key>` against https://api.fireflies.ai/graphql.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "meetingId",
@@ -38189,7 +38628,7 @@
     "runtimePackage": "@activepieces/piece-fireflies-ai",
     "actionCount": 5,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -38203,8 +38642,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -41425,7 +41863,65 @@
     "title": "gong",
     "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://app.gong.io/oauth2/authorize",
+      "tokenUrl": "https://app.gong.io/oauth2/generate-customer-token",
+      "clientIdEnv": "GONG_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GONG_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "meeting.read",
+          "providerScope": "api:calls:read:basic",
+          "title": "Gong read",
+          "reason": "Read Gong data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.read",
+          "providerScope": "api:calls:read:extensive",
+          "title": "Gong read",
+          "reason": "Read Gong data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.read",
+          "providerScope": "api:calls:read:transcript",
+          "title": "Gong read",
+          "reason": "Read Gong data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.write",
+          "providerScope": "api:calls:create",
+          "title": "Gong write",
+          "reason": "Create or update Gong resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.read",
+          "providerScope": "api:users:read",
+          "title": "Gong read",
+          "reason": "Read Gong data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "meeting.write",
+          "providerScope": "api:flows:write",
+          "title": "Gong write",
+          "reason": "Create or update Gong resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/gong/callback",
+      "pkce": "unsupported"
+    },
     "runtimePackage": null,
     "actionCount": null,
     "triggerCount": null,
@@ -42936,7 +43432,15 @@
     "title": "API Key",
     "category": "docs",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "granola API key",
+        "description": "Granola API key from Settings > API.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "note_id",
@@ -42990,7 +43494,7 @@
     "runtimePackage": "@activepieces/piece-granola",
     "actionCount": 2,
     "triggerCount": 2,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -43004,8 +43508,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -45869,6 +46372,33 @@
     ]
   },
   {
+    "id": "http",
+    "title": "HTTP Request",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "none",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "http-oauth2",
     "title": "Authorize URL",
     "category": "webhook",
@@ -48701,6 +49231,44 @@
     ]
   },
   {
+    "id": "ironclad",
+    "title": "Ironclad",
+    "category": "docs",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "jina-ai",
     "title": "Jina AI",
     "category": "workflow",
@@ -49061,6 +49629,44 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "jira",
+    "title": "Jira",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -53275,6 +53881,44 @@
       "nativeAdapter": true
     },
     "missing": []
+  },
+  {
+    "id": "lexisnexis",
+    "title": "LexisNexis",
+    "category": "docs",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
   },
   {
     "id": "lightfunnels",
@@ -59593,6 +60237,46 @@
     ]
   },
   {
+    "id": "microsoft-excel",
+    "title": "Microsoft Excel",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "env": "MS_OAUTH_CLIENT_ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "env": "MS_OAUTH_CLIENT_SECRET",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "microsoft-excel-365",
     "title": "Microsoft Excel 365",
     "category": "docs",
@@ -64690,6 +65374,44 @@
     "missing": []
   },
   {
+    "id": "nango",
+    "title": "Nango",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "netlify",
     "title": "Netlify",
     "category": "workflow",
@@ -64838,6 +65560,44 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "new-relic",
+    "title": "New Relic",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -67170,11 +67930,57 @@
     ]
   },
   {
+    "id": "open-automation-catalog",
+    "title": "Open Automation Catalog",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "open-phone",
     "title": "OpenPhone",
     "category": "workflow",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "open-phone API key",
+        "description": "OpenPhone API key.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "firstName",
@@ -67348,7 +68154,7 @@
     "runtimePackage": "@activepieces/piece-open-phone",
     "actionCount": 4,
     "triggerCount": 5,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -67362,8 +68168,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -68953,6 +69758,33 @@
     "missing": [
       "hosted_trigger_runtime",
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "otter",
+    "title": "Otter.ai",
+    "category": "docs",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 3,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -73697,6 +74529,44 @@
     ]
   },
   {
+    "id": "plaid",
+    "title": "Plaid",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "plausible",
     "title": "API Key",
     "category": "crm",
@@ -78033,6 +78903,82 @@
     ]
   },
   {
+    "id": "redis",
+    "title": "Redis",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
+    "id": "redshift",
+    "title": "Redshift",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "reoon-verifier",
     "title": "API Key",
     "category": "crm",
@@ -78916,7 +79862,65 @@
     "title": "ringcentral",
     "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://platform.ringcentral.com/restapi/oauth/authorize",
+      "tokenUrl": "https://platform.ringcentral.com/restapi/oauth/token",
+      "clientIdEnv": "RINGCENTRAL_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "RINGCENTRAL_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "telephony.read",
+          "providerScope": "ReadAccounts",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "ReadCallLog",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "ReadMessages",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "SMS",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "ReadContacts",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "telephony.read",
+          "providerScope": "SubscriptionWebhook",
+          "title": "RingCentral read",
+          "reason": "Read RingCentral data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/ringcentral/callback",
+      "pkce": "unsupported"
+    },
     "runtimePackage": null,
     "actionCount": null,
     "triggerCount": null,
@@ -79480,6 +80484,44 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "sage",
+    "title": "Sage",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -93825,6 +94867,44 @@
     ]
   },
   {
+    "id": "tiktok",
+    "title": "TikTok",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "time-ops",
     "title": "API Key",
     "category": "docs",
@@ -105344,6 +106424,44 @@
     ]
   },
   {
+    "id": "x-twitter",
+    "title": "X / Twitter",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "xero",
     "title": "Xero",
     "category": "crm",
@@ -105758,6 +106876,44 @@
       "nativeAdapter": true
     },
     "missing": []
+  },
+  {
+    "id": "zapier-transfer",
+    "title": "Zapier Transfer",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "oauth2",
+    "authFields": [
+      {
+        "label": "Client ID",
+        "description": "OAuth client ID.",
+        "secret": false
+      },
+      {
+        "label": "Client Secret",
+        "description": "OAuth client secret.",
+        "secret": true
+      }
+    ],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
   },
   {
     "id": "zendesk",
@@ -107223,10 +108379,14 @@
     "catalogAuth": "oauth2",
     "setupAuth": {
       "mode": "oauth2",
+      "authorizationUrl": "https://zoom.us/oauth/authorize",
+      "tokenUrl": "https://zoom.us/oauth/token",
+      "clientIdEnv": "ZOOM_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOOM_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "calendar.read",
-          "providerScope": "zoom.read",
+          "providerScope": "user:read:user",
           "title": "Zoom read",
           "reason": "Read Zoom data for user-authorized agent workflows.",
           "risk": "read",
@@ -107234,7 +108394,87 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "zoom.write",
+          "providerScope": "user:write:user",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.read",
+          "providerScope": "meeting:read:meeting",
+          "title": "Zoom read",
+          "reason": "Read Zoom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "meeting:write:meeting",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "meeting:update:meeting",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "meeting:delete:meeting",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.read",
+          "providerScope": "webinar:read:webinar",
+          "title": "Zoom read",
+          "reason": "Read Zoom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "webinar:write:webinar",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "webinar:update:webinar",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "webinar:delete:webinar",
+          "title": "Zoom write",
+          "reason": "Create or update Zoom resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.read",
+          "providerScope": "recording:read:recording",
+          "title": "Zoom read",
+          "reason": "Read Zoom data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "recording:write:recording",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -107263,10 +108503,10 @@
     "runtimePackage": "@activepieces/piece-zoom",
     "actionCount": 4,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 4,
     "quality": {
       "tangleContract": true,
@@ -107274,11 +108514,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "zoominfo",
