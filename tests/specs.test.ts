@@ -295,6 +295,47 @@ describe('integration overrides — per-kind setup richness', () => {
     expect(quirks.some((q) => q.id === 'rotate-endpoint')).toBe(true)
   })
 
+
+  it('a spec with no shipped adapter advertises NO actions', () => {
+    // The coverage table synthesizes four actions per action pack, so before
+    // this every adapter-less spec named calls that cannot resolve: `jira`
+    // claimed tasks.search/read/create/update, `microsoft-excel` claimed
+    // records.query/read/upsert/delete, and netsuite/sage/plaid claimed the
+    // finance four. A model told about a tool that does not exist spends the
+    // turn on it, and the failure reads as the agent being broken.
+    const withoutAdapter = listIntegrationSpecs().filter((spec) => !hasBundledAdapter(spec.kind))
+    expect(withoutAdapter.length).toBeGreaterThan(0)
+    const advertising = withoutAdapter.filter((spec) => spec.actions.length > 0)
+    expect(
+      advertising.map((spec) => spec.kind),
+      'adapter-less specs must not name actions',
+    ).toEqual([])
+  })
+
+  it('a spec WITH an adapter advertises exactly that adapter\'s capabilities', () => {
+    for (const spec of listIntegrationSpecs()) {
+      const manifest = getBundledAdapterManifest(spec.kind)
+      if (!manifest) continue
+      expect(
+        spec.actions.map((action) => action.id).sort(),
+        `${spec.kind} drifted from its adapter`,
+      ).toEqual(manifest.capabilities.map((capability) => capability.name).sort())
+    }
+  })
+
+  it('emptying the action list does not downgrade permissions or data class', () => {
+    // permissions/plannerHints describe the DATA a connector reaches, not its
+    // callable entry points, so they stay derived from the coverage pack.
+    // Deriving them from the now-empty action list instead would silently drop
+    // every write permission and mark all of these `public` — trading a prompt
+    // defect for a consent defect.
+    const withoutAdapter = listIntegrationSpecs().filter((spec) => !hasBundledAdapter(spec.kind))
+    const noWrite = withoutAdapter.filter((spec) => !spec.permissions.some((p) => p.risk === 'write'))
+    expect(noWrite.map((s) => s.kind), 'lost their write permission').toEqual([])
+    const publicClass = withoutAdapter.filter((spec) => spec.permissions[0]?.dataClass === 'public')
+    expect(publicClass.map((s) => s.kind), 'downgraded to dataClass public').toEqual([])
+  })
+
   it('kinds without overrides fall through to family defaults', () => {
     // gmail has no override; should use the google family's default fields
     // (Client ID + Client Secret) and the Google Cloud Console URL.
