@@ -23,8 +23,8 @@ This audit separates product contracts from implementation backends:
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
 | Setup specs | 143 |
-| Executable setup specs | 15 |
-| Catalog/setup-only specs | 128 |
+| Executable setup specs | 110 |
+| Catalog/setup-only specs | 33 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
 | Contracts with mapped actions | 669 |
@@ -153,21 +153,116 @@ The full set is in the machine-readable matrix; representative native adapters:
 
 Executable setup specs:
 
+- `adobe-creative-cloud`
 - `airtable`
+- `anthropic`
 - `asana`
+- `attio`
+- `auth0`
+- `bamboohr`
+- `basecamp`
+- `bigcommerce`
+- `box`
+- `braze`
+- `cal-com`
+- `calendly`
+- `canva`
+- `clickup`
+- `clio`
+- `close`
+- `coda`
+- `confluence`
+- `contentful`
+- `customer-io`
+- `datadog`
+- `discord`
+- `docusign`
+- `dropbox`
+- `ebay`
+- `etsy`
+- `facebook-pages`
+- `figjam`
+- `figma`
+- `firebase`
+- `front`
+- `gemini`
 - `github`
 - `gitlab`
+- `gmail`
+- `google-analytics`
 - `google-calendar`
+- `google-cloud-storage`
+- `google-docs`
+- `google-drive`
+- `google-forms`
+- `google-meet`
 - `google-sheets`
+- `gorgias`
+- `greenhouse`
+- `gusto`
+- `hellosign`
+- `helpscout`
 - `hubspot`
+- `huggingface`
+- `intercom`
+- `jotform`
+- `klaviyo`
+- `lever`
+- `linear`
+- `mailchimp`
+- `make`
+- `marketo`
 - `microsoft-calendar`
+- `microsoft-graph`
+- `microsoft-teams`
+- `miro`
+- `mixpanel`
+- `monday`
+- `mongodb`
+- `netlify`
 - `notion`
+- `onedrive`
+- `openai`
+- `opsgenie`
+- `outlook-mail`
+- `pagerduty`
+- `pandadoc`
 - `phony`
+- `pinecone`
+- `pipedream`
+- `pipedrive`
+- `postgres`
+- `postmark`
+- `qdrant`
+- `quickbooks`
+- `rippling`
 - `salesforce`
+- `sanity`
+- `sendgrid`
+- `sentry`
+- `sharepoint`
+- `shopify`
 - `slack`
+- `snowflake`
 - `stripe-pack`
+- `supabase`
+- `telegram`
+- `trello`
 - `twilio-sms`
+- `typeform`
+- `vercel`
+- `weaviate`
+- `webflow`
 - `webhook`
+- `whatsapp-business`
+- `woocommerce`
+- `wordpress`
+- `workday`
+- `xero`
+- `youtube`
+- `zapier`
+- `zendesk`
+- `zoho-crm`
 
 ## Flow Readiness
 
@@ -176,7 +271,7 @@ Executable setup specs:
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | 530 reviewed native adapter surfaces ship from this package; 441 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 143 setup specs exist; 15 are executable setup specs and 128 are catalog/setup-only. |
+| OAuth/API-key setup metadata | Partial | 143 setup specs exist; 110 are executable setup specs and 33 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 228 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
