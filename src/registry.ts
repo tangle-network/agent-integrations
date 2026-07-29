@@ -65,6 +65,7 @@ const DEFAULT_ALIASES: Record<string, string> = {
   'notion-database': 'notion',
   'microsoft-onedrive': 'onedrive',
   'microsoft-sharepoint': 'sharepoint',
+  'microsoft-excel': 'microsoft-excel-365',
   'outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook': 'outlook-mail',

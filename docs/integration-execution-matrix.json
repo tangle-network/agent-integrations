@@ -15088,7 +15088,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 1,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -30356,7 +30356,7 @@
     "authFields": [],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 1,
+    "triggerCount": 6,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -42200,7 +42200,62 @@
     "title": "Google Contacts",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://www.googleapis.com/auth/contacts",
+          "title": "Google Contacts and Directory read",
+          "reason": "Read Google Contacts and Directory data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://www.googleapis.com/auth/contacts.readonly",
+          "title": "Google Contacts and Directory read",
+          "reason": "Read Google Contacts and Directory data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://www.googleapis.com/auth/contacts.other.readonly",
+          "title": "Google Contacts and Directory read",
+          "reason": "Read Google Contacts and Directory data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://www.googleapis.com/auth/directory.readonly",
+          "title": "Google Contacts and Directory read",
+          "reason": "Read Google Contacts and Directory data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://www.googleapis.com/auth/userinfo.email",
+          "title": "Google Contacts and Directory read",
+          "reason": "Read Google Contacts and Directory data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -42220,7 +42275,7 @@
     "runtimePackage": "@activepieces/piece-google-contacts",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -42233,9 +42288,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "google-docs",
@@ -42924,7 +42977,30 @@
     "title": "Google Slides",
     "category": "workflow",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "https://www.googleapis.com/auth/presentations",
+          "title": "Google Slides read",
+          "reason": "Read Google Slides data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -42944,7 +43020,7 @@
     "runtimePackage": "@activepieces/piece-google-slides",
     "actionCount": 3,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -42957,16 +43033,37 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "google-tasks",
     "title": "Google Tasks",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_TASKS_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_TASKS_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "project.read",
+          "providerScope": "https://www.googleapis.com/auth/tasks",
+          "title": "Google Tasks read",
+          "reason": "Read Google Tasks data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -42986,7 +43083,7 @@
     "runtimePackage": "@activepieces/piece-google-tasks",
     "actionCount": 1,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -43000,8 +43097,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -43171,7 +43267,54 @@
     "title": "Google Chat",
     "category": "chat",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "chat.read",
+          "providerScope": "https://www.googleapis.com/auth/chat.messages",
+          "title": "Google Chat read",
+          "reason": "Read Google Chat data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "chat.read",
+          "providerScope": "https://www.googleapis.com/auth/chat.spaces",
+          "title": "Google Chat read",
+          "reason": "Read Google Chat data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "chat.read",
+          "providerScope": "https://www.googleapis.com/auth/chat.memberships",
+          "title": "Google Chat read",
+          "reason": "Read Google Chat data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "chat.read",
+          "providerScope": "https://www.googleapis.com/auth/chat.messages.readonly",
+          "title": "Google Chat read",
+          "reason": "Read Google Chat data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -43191,7 +43334,7 @@
     "runtimePackage": "@activepieces/piece-googlechat",
     "actionCount": 6,
     "triggerCount": 2,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -43205,8 +43348,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -49250,7 +49392,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 2,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -49651,7 +49793,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 2,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -53902,7 +54044,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 2,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -59978,7 +60120,41 @@
     "title": "Microsoft 365 People",
     "category": "workflow",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "crm.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft 365 People read",
+          "reason": "Read Microsoft 365 People data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.write",
+          "providerScope": "Contacts.ReadWrite",
+          "title": "Microsoft 365 People write",
+          "reason": "Create or update Microsoft 365 People resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "User.Read",
+          "title": "Microsoft 365 People read",
+          "reason": "Read Microsoft 365 People data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -59998,7 +60174,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-365-people",
     "actionCount": 6,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60012,8 +60188,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -60021,7 +60196,41 @@
     "title": "Microsoft 365 Planner",
     "category": "chat",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "project.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Planner read",
+          "reason": "Read Microsoft Planner data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.write",
+          "providerScope": "Tasks.ReadWrite",
+          "title": "Microsoft Planner write",
+          "reason": "Create or update Microsoft Planner resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.write",
+          "providerScope": "Group.ReadWrite.All",
+          "title": "Microsoft Planner write",
+          "reason": "Create or update Microsoft Planner resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60041,7 +60250,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-365-planner",
     "actionCount": 11,
     "triggerCount": 3,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60055,8 +60264,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -60156,7 +60364,41 @@
     "title": "Microsoft Dynamics 365 Business Central",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "BUSINESS_CENTRAL_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "BUSINESS_CENTRAL_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "finance.write",
+          "providerScope": "https://api.businesscentral.dynamics.com/Financials.ReadWrite.All",
+          "title": "Microsoft Dynamics 365 Business Central write",
+          "reason": "Create or update Microsoft Dynamics 365 Business Central resources after policy approval.",
+          "risk": "write",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "https://api.businesscentral.dynamics.com/user_impersonation",
+          "title": "Microsoft Dynamics 365 Business Central read",
+          "reason": "Read Microsoft Dynamics 365 Business Central data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Dynamics 365 Business Central read",
+          "reason": "Read Microsoft Dynamics 365 Business Central data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60176,7 +60418,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-dynamics-365-business-central",
     "actionCount": 5,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60190,8 +60432,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -60199,7 +60440,33 @@
     "title": "Microsoft Dynamics CRM",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "crm.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Dynamics 365 CRM read",
+          "reason": "Read Microsoft Dynamics 365 CRM data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "https://globaldisco.crm.dynamics.com/user_impersonation",
+          "title": "Microsoft Dynamics 365 CRM read",
+          "reason": "Read Microsoft Dynamics 365 CRM data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60219,7 +60486,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-dynamics-crm",
     "actionCount": 4,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60232,56 +60499,56 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
-  },
-  {
-    "id": "microsoft-excel",
-    "title": "Microsoft Excel",
-    "category": "database",
-    "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "env": "MS_OAUTH_CLIENT_ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "env": "MS_OAUTH_CLIENT_SECRET",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "microsoft-excel-365",
     "title": "Microsoft Excel 365",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "database.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Excel 365 read",
+          "reason": "Read Microsoft Excel 365 data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "database.write",
+          "providerScope": "Files.ReadWrite",
+          "title": "Microsoft Excel 365 write",
+          "reason": "Create or update Microsoft Excel 365 resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "database.write",
+          "providerScope": "Sites.ReadWrite.All",
+          "title": "Microsoft Excel 365 write",
+          "reason": "Create or update Microsoft Excel 365 resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "database.read",
+          "providerScope": "User.Read",
+          "title": "Microsoft Excel 365 read",
+          "reason": "Read Microsoft Excel 365 data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60301,7 +60568,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-excel-365",
     "actionCount": 31,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60314,8 +60581,33 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
+    "missing": []
+  },
+  {
+    "id": "microsoft-forms",
+    "title": "Microsoft Forms",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
     "missing": [
-      "executable_setup_spec"
+      "native_adapter"
     ]
   },
   {
@@ -60448,7 +60740,49 @@
     "title": "Microsoft OneNote",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MICROSOFT_ONENOTE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MICROSOFT_ONENOTE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft OneNote read",
+          "reason": "Read Microsoft OneNote data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "Notes.ReadWrite",
+          "title": "Microsoft OneNote write",
+          "reason": "Create or update Microsoft OneNote resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "Notes.ReadWrite.All",
+          "title": "Microsoft OneNote write",
+          "reason": "Create or update Microsoft OneNote resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "User.Read",
+          "title": "Microsoft OneNote read",
+          "reason": "Read Microsoft OneNote data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60468,7 +60802,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-onenote",
     "actionCount": 6,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60482,8 +60816,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -60576,7 +60909,41 @@
     "title": "Microsoft Power BI",
     "category": "database",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "analytics.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Power BI read",
+          "reason": "Read Microsoft Power BI data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "internal"
+        },
+        {
+          "normalized": "analytics.write",
+          "providerScope": "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All",
+          "title": "Microsoft Power BI write",
+          "reason": "Create or update Microsoft Power BI resources after policy approval.",
+          "risk": "write",
+          "dataClass": "internal"
+        },
+        {
+          "normalized": "analytics.read",
+          "providerScope": "https://analysis.windows.net/powerbi/api/Workspace.Read.All",
+          "title": "Microsoft Power BI read",
+          "reason": "Read Microsoft Power BI data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "internal"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60596,7 +60963,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-power-bi",
     "actionCount": 2,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60609,9 +60976,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "microsoft-sharepoint",
@@ -60785,7 +61150,41 @@
     "title": "Microsoft To Do",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MICROSOFT_TODO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MICROSOFT_TODO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "project.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft To Do read",
+          "reason": "Read Microsoft To Do data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.write",
+          "providerScope": "Tasks.ReadWrite",
+          "title": "Microsoft To Do write",
+          "reason": "Create or update Microsoft To Do resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.read",
+          "providerScope": "User.Read",
+          "title": "Microsoft To Do read",
+          "reason": "Read Microsoft To Do data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -60805,7 +61204,7 @@
     "runtimePackage": "@activepieces/piece-microsoft-todo",
     "actionCount": 12,
     "triggerCount": 4,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -60819,8 +61218,34 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
+    ]
+  },
+  {
+    "id": "microsoft-word",
+    "title": "Microsoft Word",
+    "category": "docs",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 2,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -78922,7 +79347,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 1,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",
@@ -78960,7 +79385,7 @@
     ],
     "runtimePackage": null,
     "actionCount": 0,
-    "triggerCount": 0,
+    "triggerCount": 1,
     "setupStatus": "catalog",
     "tangleContractStatus": "contract_ready",
     "implementationKind": "contract_only",

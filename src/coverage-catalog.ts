@@ -68,12 +68,25 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['box', 'Box', 'storage', 'storage', 'tier_1', 'files,enterprise,storage'],
   ['google-docs', 'Google Docs', 'docs', 'docs', 'tier_0', 'docs,google,workspace'],
   ['google-sheets', 'Google Sheets', 'database', 'database', 'tier_0', 'sheets,spreadsheet,google,database'],
-  ['microsoft-excel', 'Microsoft Excel', 'database', 'database', 'tier_0', 'sheets,spreadsheet,microsoft,database'],
+  ['google-contacts', 'Google Contacts and Directory', 'crm', 'crm', 'tier_0', 'contacts,people,directory,google,workspace'],
+  ['google-slides', 'Google Slides', 'docs', 'docs', 'tier_1', 'slides,presentations,google,workspace'],
+  ['googlechat', 'Google Chat', 'chat', 'chat', 'tier_1', 'chat,collaboration,google,workspace'],
+  ['google-tasks', 'Google Tasks', 'workflow', 'project', 'tier_1', 'tasks,google,workspace'],
+  ['microsoft-excel-365', 'Microsoft Excel 365', 'database', 'database', 'tier_0', 'sheets,spreadsheet,microsoft,office,database'],
   ['notion', 'Notion', 'docs', 'docs', 'tier_0', 'docs,wiki,knowledge'],
   ['airtable', 'Airtable', 'database', 'database', 'tier_0', 'database,spreadsheet,ops'],
   ['coda', 'Coda', 'docs', 'docs', 'tier_1', 'docs,wiki,ops'],
   ['confluence', 'Confluence', 'docs', 'docs', 'tier_1', 'docs,wiki,atlassian'],
   ['sharepoint', 'SharePoint', 'storage', 'storage', 'tier_1', 'files,microsoft,enterprise'],
+  ['microsoft-365-people', 'Microsoft 365 People', 'crm', 'crm', 'tier_0', 'contacts,people,microsoft,office'],
+  ['microsoft-365-planner', 'Microsoft Planner', 'workflow', 'project', 'tier_1', 'tasks,planning,microsoft,office'],
+  ['microsoft-todo', 'Microsoft To Do', 'workflow', 'project', 'tier_1', 'tasks,microsoft,office'],
+  ['microsoft-onenote', 'Microsoft OneNote', 'docs', 'docs', 'tier_1', 'notes,docs,microsoft,office'],
+  ['microsoft-dynamics-crm', 'Microsoft Dynamics 365 CRM', 'crm', 'crm', 'tier_0', 'crm,sales,microsoft,dynamics'],
+  ['microsoft-dynamics-365-business-central', 'Microsoft Dynamics 365 Business Central', 'workflow', 'finance', 'tier_1', 'erp,finance,microsoft,dynamics'],
+  ['microsoft-power-bi', 'Microsoft Power BI', 'database', 'analytics', 'tier_1', 'analytics,reporting,microsoft,office'],
+  ['microsoft-forms', 'Microsoft Forms', 'workflow', 'marketing', 'tier_1', 'forms,microsoft,office,commercial-api', 'custom'],
+  ['microsoft-word', 'Microsoft Word', 'docs', 'docs', 'tier_1', 'docs,microsoft,office,commercial-api', 'custom'],
   ['hubspot', 'HubSpot', 'crm', 'crm', 'tier_0', 'crm,sales,marketing'],
   ['salesforce', 'Salesforce', 'crm', 'crm', 'tier_0', 'crm,sales,enterprise'],
   ['pipedrive', 'Pipedrive', 'crm', 'crm', 'tier_1', 'crm,sales'],
@@ -349,7 +362,23 @@ function triggersFor(pack: IntegrationActionPack, scopes: string[]): Integration
   if (pack === 'email') return [{ id: 'message.received', title: 'Message received', requiredScopes, dataClass: 'private' }]
   if (pack === 'calendar') return [{ id: 'event.changed', title: 'Event changed', requiredScopes, dataClass: 'private' }]
   if (pack === 'chat') return [{ id: 'message.posted', title: 'Message posted', requiredScopes, dataClass: 'private' }]
-  if (pack === 'crm') return [{ id: 'record.changed', title: 'Record changed', requiredScopes, dataClass: 'private' }]
+  if (pack === 'crm') return [
+    { id: 'person.changed', title: 'Person changed', requiredScopes, dataClass: 'private' },
+    { id: 'company.changed', title: 'Company changed', requiredScopes, dataClass: 'private' },
+    { id: 'opportunity.changed', title: 'Opportunity changed', requiredScopes, dataClass: 'private' },
+    { id: 'stage.changed', title: 'Stage changed', requiredScopes, dataClass: 'private' },
+    { id: 'owner.changed', title: 'Owner changed', requiredScopes, dataClass: 'private' },
+    { id: 'record.deleted', title: 'Record deleted', requiredScopes, dataClass: 'private' },
+  ]
+  if (pack === 'docs') return [
+    { id: 'document.changed', title: 'Document changed', requiredScopes, dataClass: 'private' },
+    { id: 'document.shared', title: 'Document shared', requiredScopes, dataClass: 'private' },
+  ]
+  if (pack === 'database') return [{ id: 'record.changed', title: 'Record changed', requiredScopes, dataClass: 'private' }]
+  if (pack === 'project') return [
+    { id: 'task.changed', title: 'Task changed', requiredScopes, dataClass: 'private' },
+    { id: 'task.overdue', title: 'Task overdue', requiredScopes, dataClass: 'private' },
+  ]
   if (pack === 'support') return [{ id: 'ticket.changed', title: 'Ticket changed', requiredScopes, dataClass: 'private' }]
   if (pack === 'commerce') return [{ id: 'order.changed', title: 'Order changed', requiredScopes, dataClass: 'sensitive' }]
   if (pack === 'finance') return [{ id: 'transaction.changed', title: 'Transaction changed', requiredScopes, dataClass: 'sensitive' }]
