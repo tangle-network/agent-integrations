@@ -2963,11 +2963,46 @@
     ]
   },
   {
+    "id": "amazon-eventbridge",
+    "title": "Amazon EventBridge",
+    "category": "webhook",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "amazon-s3",
     "title": "Amazon S3",
     "category": "workflow",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "aws-s3 API key",
+        "description": "AWS credentials as JSON: {\"accessKeyId\":\"AKIA…\",\"secretAccessKey\":\"…\",\"region\":\"us-east-1\"} for an IAM principal with S3 permissions. Optional \"sessionToken\" and \"endpoint\" (S3-compatible stores). Requests are signed with AWS Signature V4; the region selects the s3.<region>.amazonaws.com endpoint.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "key",
@@ -3146,10 +3181,10 @@
     "runtimePackage": "@activepieces/piece-amazon-s3",
     "actionCount": 8,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 8,
     "quality": {
       "tangleContract": true,
@@ -3157,11 +3192,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -3753,7 +3787,15 @@
     "title": "Access Key ID",
     "category": "workflow",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "amazon-sns API key",
+        "description": "AWS credentials as JSON: {\"accessKeyId\":\"AKIA…\",\"secretAccessKey\":\"…\",\"region\":\"us-east-1\"}. Optional \"sessionToken\" and \"endpoint\". Requests are signed with AWS Signature V4; the region selects the sns.<region>.amazonaws.com endpoint.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "accessKeyId",
@@ -3802,7 +3844,7 @@
     "runtimePackage": "@activepieces/piece-amazon-sns",
     "actionCount": 1,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -3815,16 +3857,22 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "amazon-sqs",
     "title": "Access Key ID",
     "category": "workflow",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "amazon-sqs API key",
+        "description": "AWS credentials as JSON: {\"accessKeyId\":\"AKIA…\",\"secretAccessKey\":\"…\",\"region\":\"us-east-1\"}. Optional \"sessionToken\" (STS temp creds) and \"endpoint\" (override host). Requests are signed with AWS Signature V4; the region selects the sqs.<region>.amazonaws.com endpoint.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "accessKeyId",
@@ -3867,7 +3915,7 @@
     "runtimePackage": "@activepieces/piece-amazon-sqs",
     "actionCount": 1,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -3880,9 +3928,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "amazon-textract",
@@ -13045,44 +13091,6 @@
     ]
   },
   {
-    "id": "aws-s3",
-    "title": "Amazon S3",
-    "category": "storage",
-    "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
-    ]
-  },
-  {
     "id": "azure-ad",
     "title": "Azure Active Directory",
     "category": "crm",
@@ -13339,6 +13347,33 @@
     ]
   },
   {
+    "id": "azure-event-grid",
+    "title": "Azure Event Grid",
+    "category": "webhook",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "azure-openai",
     "title": "Azure OpenAI",
     "category": "workflow",
@@ -13451,6 +13486,33 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "azure-service-bus",
+    "title": "Azure Service Bus",
+    "category": "webhook",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {
@@ -28868,6 +28930,33 @@
     ]
   },
   {
+    "id": "csv-files",
+    "title": "CSV Files",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "none",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "cursor",
     "title": "Cursor",
     "category": "workflow",
@@ -36561,6 +36650,33 @@
     ]
   },
   {
+    "id": "excel-files",
+    "title": "Excel Files",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "none",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "extracta-ai",
     "title": "Extracta.ai",
     "category": "workflow",
@@ -42798,6 +42914,33 @@
     ]
   },
   {
+    "id": "google-pubsub",
+    "title": "Google Pub/Sub",
+    "category": "webhook",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "google-search",
     "title": "Google Search",
     "category": "workflow",
@@ -46515,18 +46658,19 @@
   },
   {
     "id": "http",
-    "title": "HTTP Request",
-    "category": "workflow",
+    "title": "http",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "none",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "none"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -46534,11 +46678,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "http-oauth2",
@@ -50711,6 +50853,33 @@
       "nativeAdapter": true
     },
     "missing": []
+  },
+  {
+    "id": "kafka",
+    "title": "Apache Kafka",
+    "category": "webhook",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
   },
   {
     "id": "kallabot-ai",
@@ -71468,6 +71637,33 @@
     ]
   },
   {
+    "id": "parquet-files",
+    "title": "Parquet Files",
+    "category": "database",
+    "catalogAuth": null,
+    "setupAuth": "none",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 1,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
+    ]
+  },
+  {
     "id": "parser-expert",
     "title": "Parser Expert",
     "category": "storage",
@@ -80618,10 +80814,10 @@
     "runtimePackage": "@activepieces/piece-rss",
     "actionCount": 0,
     "triggerCount": 2,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -80629,11 +80825,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -83840,6 +84035,33 @@
     },
     "missing": [
       "executable_setup_spec"
+    ]
+  },
+  {
+    "id": "sftp",
+    "title": "SFTP",
+    "category": "storage",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "authFields": [],
+    "runtimePackage": null,
+    "actionCount": 0,
+    "triggerCount": 0,
+    "setupStatus": "catalog",
+    "tangleContractStatus": "contract_ready",
+    "implementationKind": "contract_only",
+    "nativeAdapter": false,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": false
+    },
+    "missing": [
+      "native_adapter"
     ]
   },
   {

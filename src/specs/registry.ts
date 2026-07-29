@@ -54,6 +54,7 @@ function bundledManifestFor(kind: string, coverageId: string) {
 const KIND_ALIASES: Record<string, string> = {
   'outlook-calendar': 'microsoft-calendar',
   'microsoft-excel': 'microsoft-excel-365',
+  'aws-s3': 'amazon-s3',
   'notion-database': 'notion',
   stripe: 'stripe-pack',
   twilio: 'twilio-sms',
@@ -243,7 +244,7 @@ function authFor(
   if (spec.auth === 'custom' && !manifest) {
     return {
       mode: 'custom',
-      description: `${spec.title} requires a provider-approved commercial API agreement and workspace-specific credentials.`,
+      description: `${spec.title} requires provider- or workspace-specific credentials and transport configuration.`,
     } satisfies CustomAuthSpec
   }
   if (realMode === 'none') return { mode: 'none' } satisfies NoneAuthSpec

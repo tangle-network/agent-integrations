@@ -131,6 +131,19 @@ describe('http executeRead', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it.each([
+    'http://localhost/admin',
+    'http://127.0.0.1/admin',
+    'http://10.2.3.4/admin',
+    'http://169.254.169.254/latest/meta-data',
+    'http://[::1]/admin',
+  ])('rejects local, private, and metadata target %s before fetch', async (url) => {
+    await expect(
+      httpConnector.executeRead!(invocation({ url }, 'request.fetch')),
+    ).rejects.toThrow(/not a public network target/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('rejects mutation methods on the read capability', async () => {
     await expect(
       httpConnector.executeRead!(invocation({ url: 'https://example.com', method: 'POST' }, 'request.fetch')),

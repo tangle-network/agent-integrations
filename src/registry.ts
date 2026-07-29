@@ -66,6 +66,7 @@ const DEFAULT_ALIASES: Record<string, string> = {
   'microsoft-onedrive': 'onedrive',
   'microsoft-sharepoint': 'sharepoint',
   'microsoft-excel': 'microsoft-excel-365',
+  'aws-s3': 'amazon-s3',
   'outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook-calendar': 'microsoft-calendar',
   'microsoft-outlook': 'outlook-mail',

@@ -33,6 +33,7 @@ import {
   type ConnectorAdapter,
   type ConnectorInvocation,
 } from '../types.js'
+import { assertPublicHttpTarget } from './public-http-target.js'
 
 const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -206,6 +207,7 @@ function readUrl(value: unknown): URL {
   if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
     throw new Error(`http.url scheme not allowed: ${parsed.protocol} (only http: and https: are accepted)`)
   }
+  assertPublicHttpTarget(parsed, 'http.url')
   return parsed
 }
 
