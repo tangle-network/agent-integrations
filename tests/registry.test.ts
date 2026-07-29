@@ -28,8 +28,12 @@ describe('integration registry', () => {
     expect(slack?.canonicalId).toBe('slack')
     expect(slack?.supportTier).toBe('setupReady')
     expect(slack?.sources.map((source) => source.sourceId)).toEqual(expect.arrayContaining(['spec', 'tangle-catalog']))
-    expect(slack?.connector.actions.some((action) => action.id === 'messages.post')).toBe(true)
-    expect(slack?.connector.actions.some((action) => action.id.includes('send.message'))).toBe(false)
+    // `post_message` is the capability the Slack adapter actually exposes.
+    // This asserted `messages.post` — a name synthesized by the coverage
+    // catalog's generic chat action pack, which no adapter implements, so an
+    // agent calling it got an unknown-capability error.
+    expect(slack?.connector.actions.some((action) => action.id === 'post_message')).toBe(true)
+    expect(slack?.connector.actions.some((action) => action.id === 'messages.post')).toBe(false)
     expect(slack?.connector.metadata?.registry).toMatchObject({
       toolBindable: true,
     })

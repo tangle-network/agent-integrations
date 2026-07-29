@@ -31,6 +31,7 @@ describe('xero adapter manifest', () => {
       'accounting.contacts',
       'accounting.transactions',
       'accounting.settings.read',
+      'accounting.reports.read',
     ])
     expect(auth.clientIdEnv).toBe('XERO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('XERO_OAUTH_CLIENT_SECRET')
@@ -65,11 +66,13 @@ describe('xero adapter manifest', () => {
         'invoices.get',
         'invoices.search',
         'payments.create',
+        'reports.get',
+        'tenants.list',
       ],
     )
     const reads = xeroConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
     const mutations = xeroConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(reads.sort()).toEqual(['accounts.search', 'contacts.get', 'contacts.search', 'invoices.get', 'invoices.search'])
+    expect(reads.sort()).toEqual(['accounts.search', 'contacts.get', 'contacts.search', 'invoices.get', 'invoices.search', 'reports.get', 'tenants.list'])
     expect(mutations.sort()).toEqual([
       'contacts.archive',
       'contacts.create',

@@ -23,8 +23,73 @@ export const quickbooksConnector = declarativeRestConnector({
   defaultHeaders: {
     accept: 'application/json',
   },
-  test: { method: 'GET', path: 'companyinfo/{realmId}', query: { minorversion: '70' } },
+  // `realmId` is pinned at connect time, not passed per call, so the health
+  // check reads it from connection metadata. Written as `{realmId}` it resolved
+  // against the (empty) test argument map and threw before any request was
+  // made — the connection test could never pass, for any connection.
+  test: { method: 'GET', path: 'companyinfo/{connection.realmId}', query: { minorversion: '70' } },
   capabilities: [
+    {
+      // The reports namespace is NOT reachable through `entities.query` — QBO
+      // exposes the accountant-grade statements only under /reports/{name}.
+      // These four are the tax/bookkeeping read surface; without them a tax
+      // agent can enumerate ledger rows but cannot obtain a P&L or a balance
+      // sheet, which is what a return is actually built from.
+      name: 'reports.get',
+      class: 'read',
+      description:
+        'Run a QuickBooks Online report. `reportName` is the QBO report id (ProfitAndLoss, BalanceSheet, TrialBalance, GeneralLedger, CashFlow, AgedReceivables, AgedPayables).',
+      parameters: {
+        type: 'object',
+        properties: {
+          reportName: {
+            type: 'string',
+            enum: [
+              'ProfitAndLoss',
+              'BalanceSheet',
+              'TrialBalance',
+              'GeneralLedger',
+              'CashFlow',
+              'AgedReceivables',
+              'AgedPayables',
+            ],
+          },
+          start_date: { type: 'string', description: 'YYYY-MM-DD (inclusive).' },
+          end_date: { type: 'string', description: 'YYYY-MM-DD (inclusive).' },
+          accounting_method: { type: 'string', enum: ['Cash', 'Accrual'] },
+          date_macro: { type: 'string', description: 'e.g. "Last Fiscal Year" — alternative to start/end dates.' },
+          summarize_column_by: { type: 'string', description: 'e.g. Month, Quarter, Year, Total.' },
+          minorversion: { type: 'string' },
+        },
+        required: ['reportName'],
+      },
+      request: {
+        method: 'GET',
+        path: 'reports/{reportName}',
+        query: {
+          start_date: '{start_date}',
+          end_date: '{end_date}',
+          accounting_method: '{accounting_method}',
+          date_macro: '{date_macro}',
+          summarize_column_by: '{summarize_column_by}',
+          minorversion: '{minorversion}',
+        },
+      },
+      requiredScopes: ['com.intuit.quickbooks.accounting'],
+    },
+    {
+      name: 'companyinfo.get',
+      class: 'read',
+      description:
+        'Read the connected QuickBooks company profile (legal name, EIN/company id, fiscal year start, country) for the realm this connection was authorized against.',
+      parameters: { type: 'object', properties: { minorversion: { type: 'string' } } },
+      request: {
+        method: 'GET',
+        path: 'companyinfo/{connection.realmId}',
+        query: { minorversion: '{minorversion}' },
+      },
+      requiredScopes: ['com.intuit.quickbooks.accounting'],
+    },
     {
       name: 'entities.query',
       class: 'read',

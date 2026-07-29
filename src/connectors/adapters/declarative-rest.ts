@@ -102,6 +102,29 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
+      // A CAS conflict (409/412) and a throttle (429) are NOT commits. The
+      // transport surfaces them as a tagged payload rather than an exception;
+      // reporting them under `status: 'committed'` told the caller a write
+      // landed when nothing was written — the caller then skips its retry and
+      // the record silently never exists.
+      if (response.outcome === 'conflict') {
+        return {
+          status: 'conflict',
+          alternatives: [],
+          // The upstream's parsed body — the contract calls this "the current
+          // authoritative state", so it must be what the provider returned,
+          // not the transport's own wrapper.
+          currentState: response.data,
+          message: response.message || `${spec.displayName} rejected the write on a state conflict`,
+        }
+      }
+      if (response.outcome === 'rate-limited') {
+        return {
+          status: 'rate-limited',
+          retryAfterMs: response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS,
+          message: response.message || `${spec.displayName} throttled the write`,
+        }
+      }
       return {
         status: 'committed',
         data: response.data,
@@ -190,12 +213,28 @@ function requiredArgsOf(parameters: Record<string, unknown>): readonly string[] 
   return Array.isArray(required) ? required.filter((entry): entry is string => typeof entry === 'string') : undefined
 }
 
+/**
+ * One transport result. `outcome` is absent on a normal success; when present
+ * it names a non-commit the caller must not treat as a write. It lives beside
+ * `data` rather than inside it so an upstream field can never be mistaken for
+ * a transport tag, and so `data` is always the upstream's own parsed body.
+ */
+export interface RestTransportResponse {
+  data: unknown
+  etag?: string
+  outcome?: 'conflict' | 'rate-limited'
+  /** Upstream's error text, kept verbatim for the caller's message. */
+  message?: string
+  /** Resolved from `Retry-After` on a 429. */
+  retryAfterMs?: number
+}
+
 export async function executeRestRequest(
   spec: RestConnectorSpec,
   request: RestRequestSpec,
   inv: ConnectorInvocation,
   requiredArgs?: readonly string[],
-): Promise<{ data: unknown; etag?: string }> {
+): Promise<RestTransportResponse> {
   const placement = spec.credentialPlacement ?? { kind: 'bearer' }
 
   // AWS SigV4 binds the target region into the HOST and signs the request body,
@@ -207,15 +246,24 @@ export async function executeRestRequest(
 
   let baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
+  // Placeholder scope = the capability's arguments PLUS a reserved
+  // `connection.*` namespace reading the connection's own metadata. Some
+  // providers pin a tenant/realm/company identifier at connect time and then
+  // require it on every request (QuickBooks `realmId` in the path, Xero
+  // `xero-tenant-id` as a header). Before this, such a value could only reach
+  // the request through `baseUrl.metadataKey` — which cannot serve a header, a
+  // query param, or `test`, whose invocation has no arguments at all. Args win
+  // on a name clash, so no existing adapter changes behavior.
+  const scope = renderScope(inv)
   // Make the operation path RELATIVE to the base URL so a base like
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
   // every path segment the base URL carries.
-  const renderedPath = interpolate(request.path, inv.args).replace(/^\/+/, '')
+  const renderedPath = interpolate(request.path, scope).replace(/^\/+/, '')
   const baseWithSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const url = new URL(renderedPath, baseWithSlash)
   for (const [key, value] of Object.entries(request.query ?? {})) {
-    const rendered = renderQueryValue(value, inv.args)
+    const rendered = renderQueryValue(value, scope)
     if (rendered !== undefined && rendered !== '') url.searchParams.set(key, String(rendered))
   }
   // Some AWS capabilities (Bedrock control-plane) target a different host than
@@ -234,7 +282,7 @@ export async function executeRestRequest(
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...spec.defaultHeaders,
-    ...renderHeaders(renderableHeaders, inv.args),
+    ...renderHeaders(renderableHeaders, scope),
   }
   if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
@@ -251,7 +299,7 @@ export async function executeRestRequest(
   }
   // Serialize the body before signing — SigV4 hashes the payload into the
   // canonical request.
-  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, requiredArgs)) : undefined
+  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, scope, requiredArgs)) : undefined
 
   if (placement.kind === 'aws-sigv4') {
     signAwsRequest(headers, url, {
@@ -274,22 +322,29 @@ export async function executeRestRequest(
   if (res.status === 401 || res.status === 403) {
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
   }
+  // A non-commit is reported on the ENVELOPE, never as a `status` field inside
+  // the body. Tagging the body meant two things went wrong at once: the
+  // upstream's own JSON was discarded in favour of the wrapper (so a caller
+  // reading `currentState` got the tag instead of the state), and any
+  // connector whose successful 2xx body happens to carry `status: 'conflict'`
+  // would have had a landed write reclassified as a failure. ~200 connectors
+  // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
+    const text = await safeErrorText(res)
     return {
-      data: {
-        status: 'conflict',
-        message: await safeErrorText(res),
-      },
+      data: parseBodyText(text),
+      outcome: 'conflict',
+      message: text,
       etag: res.headers.get('etag') ?? undefined,
     }
   }
   if (res.status === 429) {
+    const text = await safeErrorText(res)
     return {
-      data: {
-        status: 'rate-limited',
-        retryAfter: res.headers.get('retry-after') ?? undefined,
-        message: await safeErrorText(res),
-      },
+      data: parseBodyText(text),
+      outcome: 'rate-limited',
+      message: text,
+      retryAfterMs: retryAfterMsFromHeader(res.headers.get('retry-after')),
     }
   }
   // Existence-probe semantics: 204 = present, 404 = absent. Resolve to an
@@ -408,14 +463,78 @@ function signAwsRequest(
   headers.authorization = signed.authorization
 }
 
+/**
+ * `body: 'args'` splats the caller's arguments verbatim as the request body,
+ * so it MUST use `args` — not the interpolation scope. The scope carries the
+ * reserved `connection` namespace, and splatting that would post the
+ * connection's metadata to the upstream on every `body: 'args'` connector.
+ * Templated bodies (a string or object with `{placeholder}` fields) render
+ * against the full scope, so they can reference `{connection.<field>}`.
+ */
 function resolveBody(
   body: RestRequestSpec['body'],
   args: Record<string, unknown>,
+  scope: Record<string, unknown>,
   requiredArgs?: readonly string[],
 ): unknown {
   if (!body || body === 'args') return args
-  if (typeof body === 'string') return renderValue(body, args, requiredArgs)
-  return renderObject(body, args, requiredArgs)
+  if (typeof body === 'string') return renderValue(body, scope, requiredArgs)
+  return renderObject(body, scope, requiredArgs)
+}
+
+/** Conservative wait when the upstream throttles without saying for how long. */
+const DEFAULT_RETRY_AFTER_MS = 60_000
+/** Floor for an explicit `Retry-After`. `Retry-After: 0` is legal HTTP and is
+ *  sometimes sent when a bucket has already refilled, but honouring it
+ *  literally turns a throttle into a busy-loop against the upstream. */
+const MIN_RETRY_AFTER_MS = 1_000
+
+/** Parse a non-2xx body without throwing. Preserves the upstream's own JSON so
+ *  a conflict can report real state; falls back to the raw text, matching how
+ *  the success path handles non-JSON payloads. */
+function parseBodyText(text: string): unknown {
+  if (!text) return null
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return { raw: text }
+  }
+}
+
+/** `Retry-After` is either a seconds count or an HTTP-date. Absent or
+ *  unparseable falls back to {@link DEFAULT_RETRY_AFTER_MS}; any parsed value
+ *  is floored at {@link MIN_RETRY_AFTER_MS}. */
+function retryAfterMsFromHeader(raw: string | null): number {
+  if (typeof raw === 'string' && raw.trim()) {
+    const seconds = Number(raw)
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.max(MIN_RETRY_AFTER_MS, Math.round(seconds * 1000))
+    }
+    const at = Date.parse(raw)
+    if (Number.isFinite(at)) return Math.max(MIN_RETRY_AFTER_MS, at - Date.now())
+  }
+  return DEFAULT_RETRY_AFTER_MS
+}
+
+function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
+  // The connection namespace is applied LAST so it cannot be shadowed by a
+  // caller-supplied argument.
+  //
+  // This is a tenant boundary, not a naming convenience. `{connection.<field>}`
+  // carries identifiers pinned when the user connected — QuickBooks' realmId,
+  // a company/tenant id — and those decide WHOSE data a request reads. With
+  // args spread last, an argument named `connection` redirected the request:
+  // a connection pinned to realm 9341454792738105 could be driven to
+  // `companyinfo/ATTACKER-REALM` while still presenting that connection's
+  // OAuth token. Whether the upstream rejects it is not our boundary to
+  // delegate; a value fixed at connect time must not be reachable from
+  // per-call arguments, which on this path are model-authored.
+  //
+  // Safe for existing adapters: no capability template references a bare
+  // `{connection}`, and Auth0's `connection` parameter — the only one so
+  // named — travels through the `body: 'args'` splat, which resolves against
+  // the raw arguments rather than this scope.
+  return { ...inv.args, connection: inv.source.metadata }
 }
 
 function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildHealthcheckPlan,
+  bundledAuthMode,
+  getBundledAdapterManifest,
   getIntegrationSpec,
+  hasBundledAdapter,
   integrationSpecToConnector,
   listExecutableIntegrationSpecs,
   listIntegrationCoverageSpecs,
@@ -98,7 +101,7 @@ describe('integration specs', () => {
     expect(resolveConnectorAuthSpec('stripe')?.authKind).toBe('api_key')
   })
 
-  it('keeps executable coverage explicit and bounded', () => {
+  it('derives executable status from the shipped adapter, not a hand-kept list', () => {
     const executable = listExecutableIntegrationSpecs().map((spec) => spec.kind).sort()
     expect(executable).toEqual(expect.arrayContaining([
       'airtable',
@@ -111,8 +114,123 @@ describe('integration specs', () => {
       'salesforce',
       'slack',
     ]))
-    expect(executable.length).toBeGreaterThanOrEqual(12)
-    expect(getIntegrationSpec('gmail')?.status).toBe('catalog')
+    // gmail ships a real adapter (src/connectors/adapters/gmail.ts, registered
+    // in CONNECTOR_ADAPTER_FACTORIES). It reported 'catalog' for as long as
+    // status came from a hand-maintained set that nobody updated when the
+    // adapter landed — the assertion that pinned it there was encoding the
+    // drift, not guarding against it.
+    expect(getIntegrationSpec('gmail')?.status).toBe('executable')
+
+    // Every spec's status must agree with adapter reality, in both directions.
+    for (const spec of listIntegrationSpecs()) {
+      const backed = hasBundledAdapter(spec.kind)
+      expect(
+        { kind: spec.kind, status: spec.status },
+        `${spec.kind} status must follow adapter presence (hasBundledAdapter=${backed})`,
+      ).toEqual({ kind: spec.kind, status: backed ? 'executable' : 'catalog' })
+    }
+  })
+
+  it('never advertises an unresolvable authorization URL', () => {
+    // `.invalid` is a reserved TLD (RFC 2606) — it can never resolve. Wiring
+    // it behind a Connect button makes a dead integration look identical to a
+    // working one, which is the failure this guards. An integration nothing
+    // can authenticate must expose NO url rather than a fake one.
+    const oauth = listIntegrationSpecs().filter((spec) => spec.auth.mode === 'oauth2')
+    expect(oauth.length).toBeGreaterThan(50)
+    for (const spec of oauth) {
+      const auth = spec.auth as { authorizationUrl?: string; tokenUrl?: string }
+      for (const url of [auth.authorizationUrl, auth.tokenUrl]) {
+        if (url === undefined) continue
+        expect(url, `${spec.kind} advertises a placeholder endpoint`).not.toContain('example.invalid')
+        expect(() => new URL(url), `${spec.kind} endpoint must parse`).not.toThrow()
+        expect(new URL(url).protocol, `${spec.kind} endpoint must be https`).toBe('https:')
+      }
+    }
+  })
+
+  it('an executable oauth2 spec can actually start a connect flow', () => {
+    // status:'executable' is a promise that the connect flow has somewhere to
+    // go. Without this, deriving status from adapter presence could still hand
+    // the hub an endpoint-less spec. `client_credentials` providers are the
+    // one legitimate exception — machine-to-machine grants have no authorize
+    // step by design — so they are checked for a token endpoint only.
+    let checked = 0
+    for (const spec of listExecutableIntegrationSpecs()) {
+      if (spec.auth.mode !== 'oauth2') continue
+      const manifest = getBundledAdapterManifest(spec.kind)
+      const resolved = resolveConnectorAuthSpec(spec.kind)
+      expect(resolved?.tokenUrl, `${spec.kind} is executable but has no token endpoint`).toBeTruthy()
+      if (manifest && bundledAuthMode(manifest) === 'oauth2_client_credentials') continue
+      expect(resolved?.authorizationUrl, `${spec.kind} is executable but has no authorize endpoint`).toBeTruthy()
+      checked += 1
+    }
+    expect(checked).toBeGreaterThan(20)
+  })
+
+  it('reports the auth mode the adapter really implements', () => {
+    // Coda is an api-key connector. The coverage table has no auth column for
+    // it, so it fell through to the `standard-oauth2` family default and the
+    // catalog advertised an OAuth flow that does not exist.
+    expect(getIntegrationSpec('coda')?.auth.mode).toBe('api_key')
+    for (const spec of listIntegrationSpecs()) {
+      const manifest = getBundledAdapterManifest(spec.kind)
+      if (!manifest) continue
+      const mode = bundledAuthMode(manifest)
+      if (!mode) continue
+      const expected = mode === 'oauth2_client_credentials' ? 'oauth2' : mode
+      expect(spec.auth.mode, `${spec.kind} auth mode must match its adapter`).toBe(expected)
+    }
+  })
+
+  it('only advertises actions the adapter actually implements', () => {
+    // The coverage table synthesizes actions from 19 generic packs, so every
+    // finance connector advertised `transactions.search`, `accounts.read`,
+    // `invoices.create`, `records.sync`. QuickBooks implements one of those
+    // four. A named-but-absent tool is worse than an unnamed one — the model
+    // spends the turn calling it.
+    let audited = 0
+    for (const spec of listIntegrationSpecs()) {
+      const manifest = getBundledAdapterManifest(spec.kind)
+      if (!manifest) continue
+      const real = new Set(manifest.capabilities.map((capability) => capability.name))
+      for (const action of spec.actions) {
+        expect(real.has(action.id), `${spec.kind} advertises "${action.id}", which it cannot execute`).toBe(true)
+      }
+      audited += 1
+    }
+    expect(audited).toBeGreaterThan(80)
+  })
+
+  it('surfaces the accounting reads a tax return is actually built from', () => {
+    const quickbooks = getIntegrationSpec('quickbooks')!.actions.map((action) => action.id)
+    expect(quickbooks).toContain('reports.get')
+    expect(quickbooks).toContain('entities.query')
+    expect(quickbooks).not.toContain('transactions.search')
+
+    const xero = getIntegrationSpec('xero')!.actions.map((action) => action.id)
+    // Every other Xero call needs a tenantId, so the discovery capability has
+    // to be reachable or the connector is unusable from a cold start.
+    expect(xero).toContain('tenants.list')
+    expect(xero).toContain('reports.get')
+  })
+
+  it('carries the real accounting endpoints QuickBooks and Xero authenticate against', () => {
+    const quickbooks = getIntegrationSpec('quickbooks')
+    expect(quickbooks?.status).toBe('executable')
+    expect((quickbooks?.auth as { authorizationUrl?: string }).authorizationUrl).toBe(
+      'https://appcenter.intuit.com/connect/oauth2',
+    )
+    expect(resolveConnectorAuthSpec('quickbooks')?.requestedScopes).toContain('com.intuit.quickbooks.accounting')
+
+    const xero = getIntegrationSpec('xero')
+    expect(xero?.status).toBe('executable')
+    expect((xero?.auth as { authorizationUrl?: string }).authorizationUrl).toBe(
+      'https://login.xero.com/identity/connect/authorize',
+    )
+    // Xero cannot address a single call without a tenant, so the grant must
+    // request offline access and the tenant-bearing scopes.
+    expect(resolveConnectorAuthSpec('xero')?.requestedScopes).toContain('offline_access')
   })
 })
 

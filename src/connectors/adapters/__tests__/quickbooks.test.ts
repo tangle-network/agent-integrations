@@ -53,6 +53,8 @@ describe('quickbooks adapter manifest', () => {
         'payments.create',
         'bills.create',
         'vendors.create',
+        'reports.get',
+        'companyinfo.get',
       ].sort(),
     )
     const reads = quickbooksConnector.manifest.capabilities
@@ -63,7 +65,7 @@ describe('quickbooks adapter manifest', () => {
       .filter((c) => c.class === 'mutation')
       .map((c) => c.name)
       .sort()
-    expect(reads).toEqual(['customers.get', 'entities.query', 'invoices.get'])
+    expect(reads).toEqual(['companyinfo.get', 'customers.get', 'entities.query', 'invoices.get', 'reports.get'])
     expect(mutations).toEqual([
       'bills.create',
       'customers.create',
