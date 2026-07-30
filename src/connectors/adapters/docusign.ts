@@ -42,10 +42,10 @@ export const docusignConnector = declarativeRestConnector({
     clientIdEnv: 'DOCUSIGN_OAUTH_CLIENT_ID',
     clientSecretEnv: 'DOCUSIGN_OAUTH_CLIENT_SECRET',
   },
-  category: 'other',
+  category: 'doc',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUri', fallback: 'https://demo.docusign.net' },
-  test: { method: 'GET', path: '/restapi/v2.1/accounts/{accountId}' },
+  test: { method: 'GET', path: '/restapi/v2.1/accounts/{connection.accountId}' },
   capabilities: [
     {
       name: 'envelopes.list',
