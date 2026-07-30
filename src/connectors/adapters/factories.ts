@@ -7,7 +7,10 @@ import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { dialpadConnector } from './dialpad.js'
 import { dropboxConnector } from './dropbox.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
+import { fathomConnector } from './fathom.js'
+import { firefliesAiConnector } from './fireflies-ai.js'
 import { gmail, type GmailOptions } from './gmail.js'
+import { gongConnector } from './gong.js'
 import {
   googleCalendar,
   type GoogleCalendarOptions,
@@ -16,6 +19,7 @@ import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 import { googleForms, type GoogleFormsOptions } from './google-forms.js'
 import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
+import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import {
@@ -223,6 +227,16 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => aircallConnector, {}),
     defineFactoryAdapter(() => openPhoneConnector, {}),
     defineFactoryAdapter(() => twilioSmsConnector, {}),
+    defineFactoryAdapter(() => granolaConnector, {}),
+    defineFactoryAdapter(() => firefliesAiConnector, {}),
+    defineFactoryAdapter(() => gongConnector, {
+      clientId: 'GONG_OAUTH_CLIENT_ID',
+      clientSecret: 'GONG_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => fathomConnector, {
+      clientId: 'FATHOM_OAUTH_CLIENT_ID',
+      clientSecret: 'FATHOM_OAUTH_CLIENT_SECRET',
+    }),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

@@ -20,7 +20,7 @@ export const fathomConnector = declarativeRestConnector({
     clientIdEnv: 'FATHOM_OAUTH_CLIENT_ID',
     clientSecretEnv: 'FATHOM_OAUTH_CLIENT_SECRET',
   },
-  category: 'other',
+  category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.fathom.video',
   test: { method: 'GET', path: '/external/v1/meetings', query: { limit: 1 } },
@@ -106,18 +106,17 @@ export const fathomConnector = declarativeRestConnector({
     {
       name: 'team.find',
       class: 'read',
-      description: 'Look up a Fathom team by id or slug. Returns the team record plus member count.',
+      description: 'Look up a Fathom team by id. Returns the team record plus member count.',
       parameters: {
         type: 'object',
         properties: {
-          teamId: { type: 'string', description: 'Fathom team id; mutually exclusive with slug.' },
-          slug: { type: 'string', description: 'Fathom team slug; mutually exclusive with teamId.' },
+          teamId: { type: 'string', description: 'Fathom team id.' },
         },
+        required: ['teamId'],
       },
       request: {
         method: 'GET',
         path: '/external/v1/teams/{teamId}',
-        query: { slug: '{slug}' },
       },
       requiredScopes: ['read:team'],
     },
@@ -125,20 +124,18 @@ export const fathomConnector = declarativeRestConnector({
       name: 'team.member.find',
       class: 'read',
       description:
-        'Look up a single team member by id or by email. Used to resolve attendees back to the workspace directory.',
+        'Look up a single team member by id. Used to resolve attendees back to the workspace directory.',
       parameters: {
         type: 'object',
         properties: {
           teamId: { type: 'string', description: 'Team the member belongs to.' },
-          memberId: { type: 'string', description: 'Fathom member id; mutually exclusive with email.' },
-          email: { type: 'string', description: 'Email of the member; mutually exclusive with memberId.' },
+          memberId: { type: 'string', description: 'Fathom member id.' },
         },
-        required: ['teamId'],
+        required: ['teamId', 'memberId'],
       },
       request: {
         method: 'GET',
         path: '/external/v1/teams/{teamId}/members/{memberId}',
-        query: { email: '{email}' },
       },
       requiredScopes: ['read:team'],
     },
