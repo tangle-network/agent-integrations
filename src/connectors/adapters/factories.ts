@@ -1,9 +1,11 @@
 import type { ConnectorAdapter } from '../types.js'
+import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { asanaConnector } from './asana.js'
 import { boxConnector } from './box.js'
 import { calendlyConnector } from './calendly.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
+import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
 import { dropboxConnector } from './dropbox.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
@@ -22,6 +24,7 @@ import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
 import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
+import { ironcladConnector } from './ironclad.js'
 import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
@@ -37,12 +40,14 @@ import {
 import { notion, type NotionOptions } from './notion.js'
 import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
+import { oneSpanSignConnector } from './onespan-sign.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { salesforceConnector } from './salesforce.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
+import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
 import { twitter, type TwitterOptions } from './twitter.js'
 import { twilioSmsConnector } from './twilio-sms.js'
@@ -237,6 +242,20 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'FATHOM_OAUTH_CLIENT_ID',
       clientSecret: 'FATHOM_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => docusignConnector, {
+      clientId: 'DOCUSIGN_OAUTH_CLIENT_ID',
+      clientSecret: 'DOCUSIGN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => adobeSignConnector, {
+      clientId: 'ADOBE_SIGN_OAUTH_CLIENT_ID',
+      clientSecret: 'ADOBE_SIGN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ironcladConnector, {
+      clientId: 'IRONCLAD_OAUTH_CLIENT_ID',
+      clientSecret: 'IRONCLAD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => signNowConnector, {}),
+    defineFactoryAdapter(() => oneSpanSignConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

@@ -24,7 +24,7 @@ afterEach(() => {
 describe('docusign declarative adapter', () => {
   it('declares the documented OAuth2 manifest shape', () => {
     expect(docusignConnector.manifest.kind).toBe('docusign')
-    expect(docusignConnector.manifest.category).toBe('other')
+    expect(docusignConnector.manifest.category).toBe('doc')
     expect(docusignConnector.manifest.auth.kind).toBe('oauth2')
     if (docusignConnector.manifest.auth.kind !== 'oauth2') {
       throw new Error('expected oauth2 auth')
@@ -35,6 +35,15 @@ describe('docusign declarative adapter', () => {
     expect(auth.scopes).toEqual(expect.arrayContaining(['signature', 'extended']))
     expect(auth.clientIdEnv).toBe('DOCUSIGN_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('DOCUSIGN_OAUTH_CLIENT_SECRET')
+  })
+
+  it('tests the configured account instead of requiring action arguments', async () => {
+    const fetchMock = mockFetch({ accountId: 'acc_42' })
+
+    await expect(docusignConnector.test(sourceFor(connection))).resolves.toEqual({ ok: true })
+
+    const [url] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(String(url)).toBe('https://na4.docusign.net/restapi/v2.1/accounts/acc_42')
   })
 
   it('publishes the e-signature surface the catalog expects plus the named write-side mutations', () => {
