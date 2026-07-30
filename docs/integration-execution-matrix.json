@@ -566,6 +566,30 @@
     "missing": []
   },
   {
+    "id": "adobe-sign",
+    "title": "adobe-sign",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "adp",
     "title": "adp",
     "category": "internal",
@@ -1467,7 +1491,7 @@
       "mode": "api_key",
       "credential": {
         "label": "aircall API key",
-        "description": "Aircall API ID and API token, sent as HTTP Basic credentials.",
+        "description": "Base64-encoded Aircall API ID and API token (`base64(apiId:apiToken)`).",
         "secret": true
       },
       "placement": "bearer"
@@ -11319,13 +11343,23 @@
     "category": "docs",
     "catalogAuth": "oauth2",
     "setupAuth": {
-      "mode": "api_key",
-      "credential": {
-        "label": "asana API key",
-        "description": "Asana personal access token.",
-        "secret": true
-      },
-      "placement": "bearer"
+      "mode": "oauth2",
+      "authorizationUrl": "https://app.asana.com/-/oauth_authorize",
+      "tokenUrl": "https://app.asana.com/-/oauth_token",
+      "clientIdEnv": "ASANA_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ASANA_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "project.read",
+          "providerScope": "default",
+          "title": "Asana read",
+          "reason": "Read Asana data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/asana/callback",
+      "pkce": "unsupported"
     },
     "authFields": [
       {
@@ -33143,6 +33177,9 @@
           "dataClass": "private"
         }
       ],
+      "extraAuthParams": {
+        "token_access_type": "offline"
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/dropbox/callback",
       "pkce": "unsupported"
     },
@@ -46738,6 +46775,14 @@
       "scopes": [
         {
           "normalized": "crm.read",
+          "providerScope": "oauth",
+          "title": "HubSpot read",
+          "reason": "Read HubSpot data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
           "providerScope": "crm.objects.contacts.read",
           "title": "HubSpot read",
           "reason": "Read HubSpot data for user-authorized agent workflows.",
@@ -49516,29 +49561,43 @@
   },
   {
     "id": "ironclad",
-    "title": "Ironclad",
-    "category": "docs",
+    "title": "ironclad",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://ironcladapp.com/oauth/authorize",
+      "tokenUrl": "https://ironcladapp.com/oauth/token",
+      "clientIdEnv": "IRONCLAD_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "IRONCLAD_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "read",
+          "title": "Ironclad read",
+          "reason": "Read Ironclad data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "write",
+          "title": "Ironclad write",
+          "reason": "Create or update Ironclad resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/ironclad/callback",
+      "pkce": "unsupported"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 2,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -49546,11 +49605,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "jina-ai",
@@ -68182,6 +68239,30 @@
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
       "pkce": "supported"
     },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "onespan-sign",
+    "title": "onespan-sign",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
     "triggerCount": null,
@@ -107130,6 +107211,14 @@
         },
         {
           "normalized": "finance.read",
+          "providerScope": "app.connections",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
           "providerScope": "accounting.contacts",
           "title": "Xero read",
           "reason": "Read Xero data for user-authorized agent workflows.",
@@ -107138,7 +107227,31 @@
         },
         {
           "normalized": "finance.read",
-          "providerScope": "accounting.transactions",
+          "providerScope": "accounting.contacts.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.invoices",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.invoices.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.payments",
           "title": "Xero read",
           "reason": "Read Xero data for user-authorized agent workflows.",
           "risk": "read",
@@ -107154,7 +107267,39 @@
         },
         {
           "normalized": "finance.read",
-          "providerScope": "accounting.reports.read",
+          "providerScope": "accounting.reports.aged.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.reports.balancesheet.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.reports.banksummary.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.reports.profitandloss.read",
+          "title": "Xero read",
+          "reason": "Read Xero data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "finance.read",
+          "providerScope": "accounting.reports.trialbalance.read",
           "title": "Xero read",
           "reason": "Read Xero data for user-authorized agent workflows.",
           "risk": "read",

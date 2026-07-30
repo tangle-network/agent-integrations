@@ -243,10 +243,20 @@ describe('xero tenant discovery', () => {
     expect((calls[0].headers as Record<string, string>)['xero-tenant-id']).toBe('abc-123')
   })
 
-  it('requests the reports scope the reports namespace needs', () => {
+  it('requests every granular report scope exposed by reports.get', () => {
     const auth = xeroConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
-    if (auth.kind === 'oauth2') expect(auth.scopes).toContain('accounting.reports.read')
+    if (auth.kind === 'oauth2') {
+      expect(auth.scopes).toEqual(expect.arrayContaining([
+        'accounting.reports.aged.read',
+        'accounting.reports.balancesheet.read',
+        'accounting.reports.banksummary.read',
+        'accounting.reports.profitandloss.read',
+        'accounting.reports.trialbalance.read',
+      ]))
+      expect(auth.scopes).not.toContain('accounting.reports.read')
+      expect(auth.scopes).not.toContain('accounting.transactions')
+    }
   })
 })
 
