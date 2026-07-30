@@ -154,7 +154,7 @@ describe('backblaze adapter manifest', () => {
 })
 
 function mockFetch(body: string) {
-  const fetchMock = vi.fn(async () => new Response(body, {
+  const fetchMock = vi.fn(async (_input: URL | string, _init?: RequestInit) => new Response(body, {
     status: 200,
     headers: { 'content-type': 'application/xml' },
   }))
