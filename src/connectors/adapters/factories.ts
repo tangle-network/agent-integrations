@@ -1,8 +1,10 @@
 import type { ConnectorAdapter } from '../types.js'
+import { aircallConnector } from './aircall.js'
 import { asanaConnector } from './asana.js'
 import { boxConnector } from './box.js'
 import { calendlyConnector } from './calendly.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
+import { dialpadConnector } from './dialpad.js'
 import { dropboxConnector } from './dropbox.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { gmail, type GmailOptions } from './gmail.js'
@@ -29,14 +31,17 @@ import {
   type MicrosoftTeamsOptions,
 } from './microsoft-teams.js'
 import { notion, type NotionOptions } from './notion.js'
+import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
 import { quickbooksConnector } from './quickbooks.js'
+import { ringcentralConnector } from './ringcentral.js'
 import { salesforceConnector } from './salesforce.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { slack, type SlackOptions } from './slack.js'
 import { twitter, type TwitterOptions } from './twitter.js'
+import { twilioSmsConnector } from './twilio-sms.js'
 import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
@@ -207,6 +212,17 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'ASANA_OAUTH_CLIENT_ID',
       clientSecret: 'ASANA_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => ringcentralConnector, {
+      clientId: 'RINGCENTRAL_OAUTH_CLIENT_ID',
+      clientSecret: 'RINGCENTRAL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => dialpadConnector, {
+      clientId: 'DIALPAD_OAUTH_CLIENT_ID',
+      clientSecret: 'DIALPAD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => aircallConnector, {}),
+    defineFactoryAdapter(() => openPhoneConnector, {}),
+    defineFactoryAdapter(() => twilioSmsConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

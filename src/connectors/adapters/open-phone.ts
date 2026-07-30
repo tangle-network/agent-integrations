@@ -5,7 +5,7 @@ export const openPhoneConnector = declarativeRestConnector({
   displayName: 'OpenPhone',
   description: 'Send messages, manage contacts, and retrieve call summaries via OpenPhone.',
   auth: { kind: 'api-key', hint: 'OpenPhone API key.' },
-  category: 'other',
+  category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.openphone.com/v1',
   test: { method: 'GET', path: '/users' },
