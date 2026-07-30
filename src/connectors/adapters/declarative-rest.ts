@@ -6,6 +6,7 @@ import {
   type ConnectorCredentials,
   type ConnectorInvocation,
   CredentialsExpired,
+  ProviderRateLimited,
 } from '../types.js'
 import {
   type AwsCredentialBundle,
@@ -92,6 +93,24 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const op = readOperation(spec, inv.capabilityName, 'read')
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
+      // `CapabilityReadResult` has no soft-failure channel, so a tagged
+      // transport outcome MUST throw here: returning it as `data` reported the
+      // provider's 429/409 error body as a successful read — the caller (and
+      // `invokeAction`, which wraps every read result in `ok: true`) then
+      // treated "API rate limit exceeded" as the answer to the read.
+      if (response.outcome === 'rate-limited') {
+        const retryAfterMs = response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS
+        throw new ProviderRateLimited(
+          `${spec.displayName} ${inv.capabilityName} rate limit (429); retry after ${retryAfterMs}ms`,
+          inv.source.id,
+          { status: 429, body: response.data, retryAfterMs },
+        )
+      }
+      if (response.outcome === 'conflict') {
+        throw new Error(
+          `${spec.kind} ${op.request.method} ${op.request.path} HTTP ${response.status ?? 409}: ${(response.message ?? '').slice(0, 300)}`,
+        )
+      }
       return {
         data: response.data,
         etag: response.etag,
@@ -102,36 +121,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
-      // A CAS conflict (409/412) and a throttle (429) are NOT commits. The
-      // transport surfaces them as a tagged payload rather than an exception;
-      // reporting them under `status: 'committed'` told the caller a write
-      // landed when nothing was written — the caller then skips its retry and
-      // the record silently never exists.
-      if (response.outcome === 'conflict') {
-        return {
-          status: 'conflict',
-          alternatives: [],
-          // The upstream's parsed body — the contract calls this "the current
-          // authoritative state", so it must be what the provider returned,
-          // not the transport's own wrapper.
-          currentState: response.data,
-          message: response.message || `${spec.displayName} rejected the write on a state conflict`,
-        }
-      }
-      if (response.outcome === 'rate-limited') {
-        return {
-          status: 'rate-limited',
-          retryAfterMs: response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS,
-          message: response.message || `${spec.displayName} throttled the write`,
-        }
-      }
-      return {
-        status: 'committed',
-        data: response.data,
-        etagAfter: response.etag,
-        committedAt: Date.now(),
-        idempotentReplay: false,
-      }
+      return mutationResultFromTransport(spec.displayName, response)
     },
 
     async test(source) {
@@ -143,6 +133,16 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
           args: {},
           idempotencyKey: 'test',
         })
+        // A throttled or conflicted probe proved nothing about the connection;
+        // validating expectations against the provider's error body (or
+        // passing outright when the spec has none) would report a health check
+        // that never ran as green.
+        if (response.outcome) {
+          return {
+            ok: false,
+            reason: response.message || `${spec.displayName} test request was ${response.outcome}`,
+          }
+        }
         validateTestResponse(spec, spec.test, response.data)
         return { ok: true }
       } catch (error) {
@@ -223,10 +223,48 @@ export interface RestTransportResponse {
   data: unknown
   etag?: string
   outcome?: 'conflict' | 'rate-limited'
+  /** HTTP status that produced a tagged `outcome` (409/412/429). */
+  status?: number
   /** Upstream's error text, kept verbatim for the caller's message. */
   message?: string
   /** Resolved from `Retry-After` on a 429. */
   retryAfterMs?: number
+}
+
+/**
+ * Map a transport response onto the mutation contract. A CAS conflict
+ * (409/412) and a throttle (429) are NOT commits — reporting them under
+ * `status: 'committed'` told the caller a write landed when nothing was
+ * written, so the caller skipped its retry and the record silently never
+ * existed. Shared so hand-rolled adapters that call `executeRestRequest`
+ * directly (e.g. Notion's partial update) apply the same rule.
+ */
+export function mutationResultFromTransport(displayName: string, response: RestTransportResponse): CapabilityMutationResult {
+  if (response.outcome === 'conflict') {
+    return {
+      status: 'conflict',
+      alternatives: [],
+      // The upstream's parsed body — the contract calls this "the current
+      // authoritative state", so it must be what the provider returned,
+      // not the transport's own wrapper.
+      currentState: response.data,
+      message: response.message || `${displayName} rejected the write on a state conflict`,
+    }
+  }
+  if (response.outcome === 'rate-limited') {
+    return {
+      status: 'rate-limited',
+      retryAfterMs: response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS,
+      message: response.message || `${displayName} throttled the write`,
+    }
+  }
+  return {
+    status: 'committed',
+    data: response.data,
+    etagAfter: response.etag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
 }
 
 export async function executeRestRequest(
@@ -334,6 +372,7 @@ export async function executeRestRequest(
     return {
       data: parseBodyText(text),
       outcome: 'conflict',
+      status: res.status,
       message: text,
       etag: res.headers.get('etag') ?? undefined,
     }
@@ -343,6 +382,7 @@ export async function executeRestRequest(
     return {
       data: parseBodyText(text),
       outcome: 'rate-limited',
+      status: res.status,
       message: text,
       retryAfterMs: retryAfterMsFromHeader(res.headers.get('retry-after')),
     }

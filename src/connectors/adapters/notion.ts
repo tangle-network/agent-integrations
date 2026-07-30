@@ -24,6 +24,7 @@ import { refreshAccessToken } from '../oauth.js'
 import {
   declarativeRestConnector,
   executeRestRequest,
+  mutationResultFromTransport,
   type RestConnectorSpec,
 } from './declarative-rest.js'
 
@@ -358,13 +359,7 @@ async function databasesUpdate(inv: ConnectorInvocation): Promise<CapabilityMuta
     { method: 'PATCH', path: '/databases/{databaseId}', body },
     inv,
   )
-  return {
-    status: 'committed',
-    data: response.data,
-    etagAfter: response.etag,
-    committedAt: Date.now(),
-    idempotentReplay: false,
-  }
+  return mutationResultFromTransport(NOTION_SPEC.displayName, response)
 }
 
 /** Wrap the declarative adapter to hand-roll the one capability the
