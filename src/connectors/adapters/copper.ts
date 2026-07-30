@@ -8,9 +8,8 @@ import { declarativeRestConnector } from './declarative-rest.js'
 //
 // The activepieces piece (@activepieces/piece-copper) only models the
 // access-token field directly; the user-email + application headers are
-// constants per Copper's docs, so they live in defaultHeaders. Hosts that
-// want to override the email per-connection can do so by post-processing
-// the manifest.defaultHeaders before invocation.
+// constants per Copper's docs. The user email comes from connection metadata
+// so every tenant sends the account identity tied to its own key.
 export const copperConnector = declarativeRestConnector({
   kind: 'copper',
   displayName: 'Copper',
@@ -28,6 +27,7 @@ export const copperConnector = declarativeRestConnector({
     accept: 'application/json',
     'content-type': 'application/json',
     'x-pw-application': 'developer_api',
+    'x-pw-useremail': '{connection.userEmail}',
   },
   test: { method: 'GET', path: '/account' },
   capabilities: [

@@ -45,6 +45,9 @@ export const zohoCrmConnector = declarativeRestConnector({
     scopes: ['ZohoCRM.modules.ALL', 'ZohoCRM.users.READ', 'ZohoCRM.settings.READ', 'offline_access'],
     clientIdEnv: 'ZOHO_CRM_OAUTH_CLIENT_ID',
     clientSecretEnv: 'ZOHO_CRM_OAUTH_CLIENT_SECRET',
+    tokenMetadata: {
+      apiDomain: { field: 'api_domain', required: true },
+    },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
