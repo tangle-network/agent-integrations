@@ -5,6 +5,7 @@ import {
   datadogConnector,
   firebaseConnector,
   googleBigqueryConnector,
+  hightouchConnector,
   metabaseConnector,
   resolveConnectorAdapterFactoryOptions,
   segmentConnector,
@@ -74,7 +75,13 @@ describe('data warehouse, database, and BI provider factories', () => {
   })
 
   it('registers customer-token data providers without shared deployment secrets', () => {
-    for (const kind of ['airtable', 'segment', 'datadog', 'metabase']) {
+    for (const kind of [
+      'airtable',
+      'segment',
+      'hightouch',
+      'datadog',
+      'metabase',
+    ]) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
       )
@@ -112,6 +119,7 @@ describe('data provider credential and endpoint boundaries', () => {
   it.each([
     [airtableConnector, 'airtable', {}],
     [segmentConnector, 'segment', {}],
+    [hightouchConnector, 'hightouch', {}],
     [datadogConnector, 'datadog', { intakeUrl: 'https://api.datadoghq.com' }],
     [metabaseConnector, 'metabase', { baseUrl: 'https://analytics.example.com' }],
   ] as const)('rejects an empty %s API key before making a network request', async (
@@ -178,6 +186,27 @@ describe('data provider credential and endpoint boundaries', () => {
     ))).resolves.toEqual({ ok: true })
     expect(headers.get('x-api-key')).toBe('metabase-secret')
     expect(headers.has('authorization')).toBe(false)
+  })
+
+  it('sends Hightouch credentials as a bearer token to its fixed API host', async () => {
+    let requestUrl = ''
+    let headers = new Headers()
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      headers = new Headers(init?.headers)
+      return new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }))
+
+    await expect(hightouchConnector.test(source(
+      'hightouch',
+      {},
+      { kind: 'api-key', apiKey: 'hightouch-secret' },
+    ))).resolves.toEqual({ ok: true })
+    expect(requestUrl).toBe('https://api.hightouch.com/api/v1/syncs')
+    expect(headers.get('authorization')).toBe('Bearer hightouch-secret')
   })
 
   it('allows documented Datadog regions and rejects lookalike hosts', async () => {

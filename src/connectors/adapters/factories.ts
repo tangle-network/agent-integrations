@@ -151,6 +151,7 @@ import { airtableConnector } from './airtable.js'
 import { datadogConnector } from './datadog.js'
 import { firebaseConnector } from './firebase.js'
 import { googleBigqueryConnector } from './google-bigquery.js'
+import { hightouchConnector } from './hightouch.js'
 import { metabaseConnector } from './metabase.js'
 import { segmentConnector } from './segment.js'
 import { supabaseConnector } from './supabase.js'
@@ -293,6 +294,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     }),
     defineFactoryAdapter(() => airtableConnector, {}),
     defineFactoryAdapter(() => segmentConnector, {}),
+    defineFactoryAdapter(() => hightouchConnector, {}),
     defineFactoryAdapter(() => datadogConnector, {}),
     defineFactoryAdapter(() => metabaseConnector, {}),
     defineFactoryAdapter(
