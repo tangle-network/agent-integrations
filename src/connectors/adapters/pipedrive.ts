@@ -22,6 +22,7 @@ export const pipedriveConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiDomain', fallback: 'https://api.pipedrive.com' },
+  allowedBaseUrlSuffixes: ['.pipedrive.com'],
   test: { method: 'GET', path: '/v1/users/me' },
   capabilities: [
     {

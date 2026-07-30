@@ -8,6 +8,7 @@ export const fireberryConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.fireberry.com',
+  credentialPlacement: { kind: 'header', header: 'tokenid' },
   test: { method: 'GET', path: '/api/metadata/records/account' },
   capabilities: [
     {

@@ -54,6 +54,17 @@ export const biginByZohoConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiDomain', fallback: 'https://www.zohoapis.com' },
+  allowedBaseUrlSuffixes: [
+    '.zohoapis.com',
+    '.zohoapis.eu',
+    '.zohoapis.in',
+    '.zohoapis.com.au',
+    '.zohoapis.jp',
+    '.zohoapis.ca',
+    '.zohocloud.ca',
+    '.zohoapis.com.cn',
+    '.zohoapis.sa',
+  ],
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Zoho-oauthtoken ' },
   test: { method: 'GET', path: '/bigin/v2/users', query: { type: 'CurrentUser' } },
   capabilities: [

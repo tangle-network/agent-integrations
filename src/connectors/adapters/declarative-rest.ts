@@ -19,6 +19,9 @@ import {
 
 export type RestCredentialPlacement =
   | { kind: 'bearer' }
+  /** HTTP Basic with the API key as the username and an empty password.
+   *  Insightly uses this convention for its otherwise single-secret auth. */
+  | { kind: 'basic-api-key' }
   | { kind: 'header'; header: string; prefix?: string }
   | { kind: 'query'; parameter: string }
   /** Multi-part credentials stored as either `custom.values` or a JSON object
@@ -515,6 +518,9 @@ function applyCredentials(
 ): void {
   const token = credentialToken(credentials)
   if (placement.kind === 'bearer') headers.authorization = `Bearer ${token}`
+  if (placement.kind === 'basic-api-key') {
+    headers.authorization = `Basic ${Buffer.from(`${token}:`).toString('base64')}`
+  }
   if (placement.kind === 'header') headers[placement.header] = `${placement.prefix ?? ''}${token}`
   if (placement.kind === 'query') url.searchParams.set(placement.parameter, token)
 }

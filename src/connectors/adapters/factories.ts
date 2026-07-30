@@ -9,11 +9,13 @@ import { auth0Connector } from './auth0.js'
 import { azureAdConnector } from './azure-ad.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
+import { biginByZohoConnector } from './bigin-by-zoho.js'
 import { boxConnector } from './box.js'
 import { brexConnector } from './brex.js'
 import { billComConnector } from './bill-com.js'
 import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
+import { capsuleCrmConnector } from './capsule-crm.js'
 import { closeConnector } from './close.js'
 import { clickupConnector } from './clickup.js'
 import { cloudinaryConnector } from './cloudinary.js'
@@ -28,9 +30,13 @@ import { dialpadConnector } from './dialpad.js'
 import { dropboxConnector } from './dropbox.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { fathomConnector } from './fathom.js'
+import { fireberryConnector } from './fireberry.js'
 import { firefliesAiConnector } from './fireflies-ai.js'
 import { filloutFormsConnector } from './fillout-forms.js'
+import { flowluConnector } from './flowlu.js'
+import { folkConnector } from './folk.js'
 import { freshdeskConnector } from './freshdesk.js'
+import { freshsalesConnector } from './freshsales.js'
 import { frontConnector } from './front.js'
 import { gmail, type GmailOptions } from './gmail.js'
 import { gongConnector } from './gong.js'
@@ -53,9 +59,11 @@ import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import { intercomConnector } from './intercom.js'
+import { insightlyConnector } from './insightly.js'
 import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
+import { leadConnectorConnector } from './lead-connector.js'
 import { linearConnector } from './linear.js'
 import {
   microsoft365PeopleConnector,
@@ -84,6 +92,7 @@ import { microsoftTodoConnector } from './microsoft-todo.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { netsuiteConnector } from './netsuite.js'
+import { ninjapipeConnector } from './ninjapipe.js'
 import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
 import { oneSpanSignConnector } from './onespan-sign.js'
@@ -105,6 +114,7 @@ import { stripePackConnector } from './stripe-pack.js'
 import { tallyConnector } from './tally.js'
 import { todoistConnector } from './todoist.js'
 import { trelloConnector } from './trello.js'
+import { twentyConnector } from './twenty.js'
 import { typeformConnector } from './typeform.js'
 import { twitter, type TwitterOptions } from './twitter.js'
 import { twilioSmsConnector } from './twilio-sms.js'
@@ -440,6 +450,25 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'AUTH0_OAUTH_CLIENT_ID',
       clientSecret: 'AUTH0_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => twentyConnector, {}),
+    defineFactoryAdapter(() => folkConnector, {}),
+    defineFactoryAdapter(() => freshsalesConnector, {}),
+    defineFactoryAdapter(() => capsuleCrmConnector, {
+      clientId: 'CAPSULE_CRM_OAUTH_CLIENT_ID',
+      clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => insightlyConnector, {}),
+    defineFactoryAdapter(() => biginByZohoConnector, {
+      clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+      clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => fireberryConnector, {}),
+    defineFactoryAdapter(() => flowluConnector, {}),
+    defineFactoryAdapter(() => leadConnectorConnector, {
+      clientId: 'LEAD_CONNECTOR_OAUTH_CLIENT_ID',
+      clientSecret: 'LEAD_CONNECTOR_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ninjapipeConnector, {}),
     // Revenue/accounting providers use customer-supplied access tokens or
     // credential bundles, so no shared deployment secret gates registration.
     defineFactoryAdapter(() => stripePackConnector, {}),

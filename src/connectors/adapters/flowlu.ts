@@ -16,6 +16,7 @@ export const flowluConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl' },
+  allowedBaseUrlSuffixes: ['.flowlu.com'],
   credentialPlacement: { kind: 'query', parameter: 'api_key' },
   test: { method: 'GET', path: '/module/crm/account/list' },
   capabilities: [
