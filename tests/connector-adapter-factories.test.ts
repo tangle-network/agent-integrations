@@ -57,6 +57,34 @@ describe('connector adapter factory registry', () => {
     }
   })
 
+  it('runs the complete Microsoft 365 pack through the shared OAuth application', () => {
+    const kinds = [
+      'microsoft-excel-365',
+      'microsoft-365-people',
+      'microsoft-365-planner',
+      'microsoft-todo',
+      'microsoft-onenote',
+      'microsoft-power-bi',
+      'microsoft-dynamics-365-business-central',
+    ]
+    const envMap = {
+      clientId: ['MICROSOFT_OAUTH_CLIENT_ID', 'MS_OAUTH_CLIENT_ID'],
+      clientSecret: ['MICROSOFT_OAUTH_CLIENT_SECRET', 'MS_OAUTH_CLIENT_SECRET'],
+    }
+
+    for (const kind of kinds) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual(envMap)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        MICROSOFT_OAUTH_CLIENT_ID: 'client-id',
+        MICROSOFT_OAUTH_CLIENT_SECRET: 'client-secret',
+      }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+    }
+  })
+
   it('registers launch providers behind their OAuth application settings', () => {
     const expected = {
       salesforce: ['SALESFORCE_OAUTH_CLIENT_ID', 'SALESFORCE_OAUTH_CLIENT_SECRET'],
