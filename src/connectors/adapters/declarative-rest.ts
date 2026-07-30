@@ -21,6 +21,15 @@ export type RestCredentialPlacement =
   | { kind: 'bearer' }
   | { kind: 'header'; header: string; prefix?: string }
   | { kind: 'query'; parameter: string }
+  /** Multi-part credentials stored as either `custom.values` or a JSON object
+   *  in the api-key field. Keys are copied into provider headers. This keeps
+   *  Bill.com's developer key + session id inside the encrypted credential
+   *  envelope instead of leaking either through connection metadata. */
+  | { kind: 'structured-headers'; fields: Readonly<Record<string, string>> }
+  /** Multi-part credentials copied into a JSON request body. Plaid requires
+   *  client_id, secret, and access_token on every request rather than using an
+   *  Authorization header. Credential values override model-authored args. */
+  | { kind: 'structured-json-body'; fields: Readonly<Record<string, string>> }
   /** AWS Signature Version 4. The api-key credential field carries a JSON
    *  bundle (accessKeyId + secretAccessKey + region [+ sessionToken, endpoint]);
    *  the runtime signs each request at fetch time. `service` is the SigV4
@@ -41,6 +50,10 @@ export interface RestConnectorSpec {
    *  Use this for regional SaaS hosts so a user-controlled metadata value
    *  cannot redirect provider credentials to an arbitrary server. */
   allowedBaseUrls?: readonly string[]
+  /** HTTPS hostname suffixes accepted for tenant-specific provider hosts.
+   *  A suffix `.example.com` accepts `tenant.example.com`, never
+   *  `example.com.attacker.test`. */
+  allowedBaseUrlSuffixes?: readonly string[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
@@ -290,6 +303,7 @@ export async function executeRestRequest(
     spec.baseUrl,
     inv.source.metadata,
     spec.allowedBaseUrls,
+    spec.allowedBaseUrlSuffixes,
   )
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Placeholder scope = the capability's arguments PLUS a reserved
@@ -330,6 +344,15 @@ export async function executeRestRequest(
     ...renderHeaders(spec.defaultHeaders ?? {}, scope, true),
     ...renderHeaders(renderableHeaders, scope),
   }
+  const structuredCredentials =
+    placement.kind === 'structured-headers' || placement.kind === 'structured-json-body'
+      ? readStructuredCredentials(inv.source.credentials, placement.fields)
+      : undefined
+  if (placement.kind === 'structured-headers') {
+    for (const [credentialName, headerName] of Object.entries(placement.fields)) {
+      headers[headerName] = structuredCredentials![credentialName]!
+    }
+  }
   if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
   // POST/PUT/PATCH always carry a body. DELETE carries one ONLY when the
@@ -345,7 +368,22 @@ export async function executeRestRequest(
   }
   // Serialize the body before signing — SigV4 hashes the payload into the
   // canonical request.
-  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, scope, requiredArgs)) : undefined
+  let resolvedBody = sendsBody ? resolveBody(request.body, inv.args, scope, requiredArgs) : undefined
+  if (placement.kind === 'structured-json-body') {
+    if (!resolvedBody || typeof resolvedBody !== 'object' || Array.isArray(resolvedBody)) {
+      throw new Error(`${spec.kind}: structured JSON credentials require an object request body`)
+    }
+    resolvedBody = {
+      ...resolvedBody,
+      ...Object.fromEntries(
+        Object.entries(placement.fields).map(([credentialName, bodyName]) => [
+          bodyName,
+          structuredCredentials![credentialName],
+        ]),
+      ),
+    }
+  }
+  const bodyString = sendsBody ? JSON.stringify(resolvedBody) : undefined
 
   if (placement.kind === 'aws-sigv4') {
     signAwsRequest(headers, url, {
@@ -355,7 +393,7 @@ export async function executeRestRequest(
       region: awsRegion!,
       bundle: aws!,
     })
-  } else {
+  } else if (placement.kind !== 'structured-headers' && placement.kind !== 'structured-json-body') {
     applyCredentials(headers, url, placement, inv.source.credentials)
   }
 
@@ -428,6 +466,7 @@ function resolveBaseUrl(
   baseUrl: RestConnectorSpec['baseUrl'],
   metadata: Record<string, unknown>,
   allowedBaseUrls?: readonly string[],
+  allowedBaseUrlSuffixes?: readonly string[],
 ): string {
   let resolved: string
   if (typeof baseUrl === 'string') {
@@ -442,10 +481,22 @@ function resolveBaseUrl(
       throw new Error(`missing metadata.${baseUrl.metadataKey} base URL`)
     }
   }
-  if (allowedBaseUrls && !allowedBaseUrls.some((candidate) => sameUrl(candidate, resolved))) {
+  const exactAllowed = allowedBaseUrls?.some((candidate) => sameUrl(candidate, resolved)) ?? false
+  const suffixAllowed = allowedBaseUrlSuffixes?.some((suffix) => hasHttpsHostnameSuffix(resolved, suffix)) ?? false
+  if ((allowedBaseUrls || allowedBaseUrlSuffixes) && !exactAllowed && !suffixAllowed) {
     throw new Error('connection base URL is not an allowed provider endpoint')
   }
   return resolved
+}
+
+function hasHttpsHostnameSuffix(value: string, suffix: string): boolean {
+  try {
+    const url = new URL(value)
+    const normalized = suffix.toLowerCase()
+    return url.protocol === 'https:' && normalized.startsWith('.') && url.hostname.toLowerCase().endsWith(normalized)
+  } catch {
+    return false
+  }
 }
 
 function sameUrl(left: string, right: string): boolean {
@@ -468,6 +519,33 @@ function applyCredentials(
   if (placement.kind === 'query') url.searchParams.set(placement.parameter, token)
 }
 
+function readStructuredCredentials(
+  credentials: ConnectorCredentials,
+  fields: Readonly<Record<string, string>>,
+): Record<string, string> {
+  let values: Record<string, unknown>
+  if (credentials.kind === 'custom') {
+    values = credentials.values
+  } else if (credentials.kind === 'api-key') {
+    try {
+      const parsed = JSON.parse(credentials.apiKey) as unknown
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object')
+      values = parsed as Record<string, unknown>
+    } catch {
+      throw new Error('structured credentials require a JSON object in the api-key field')
+    }
+  } else {
+    throw new Error(`structured credentials require custom or api-key credentials, got ${credentials.kind}`)
+  }
+  return Object.fromEntries(Object.keys(fields).map((name) => {
+    const value = values[name]
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`structured credentials are missing ${name}`)
+    }
+    return [name, value]
+  }))
+}
+
 function credentialToken(credentials: ConnectorCredentials): string {
   if (credentials.kind === 'oauth2') return credentials.accessToken
   if (credentials.kind === 'api-key') return credentials.apiKey
@@ -478,7 +556,9 @@ function redactCredentialText(text: string, credentials: ConnectorCredentials): 
   const candidates = credentials.kind === 'oauth2'
     ? [credentials.accessToken, credentials.refreshToken]
     : credentials.kind === 'api-key'
-      ? [credentials.apiKey]
+      ? [credentials.apiKey, ...jsonStringValues(credentials.apiKey)]
+      : credentials.kind === 'custom'
+        ? Object.values(credentials.values)
       : []
   const secrets = candidates.filter(
     (secret): secret is string => typeof secret === 'string' && secret.length > 0,
@@ -487,6 +567,16 @@ function redactCredentialText(text: string, credentials: ConnectorCredentials): 
     (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
     text,
   )
+}
+
+function jsonStringValues(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return []
+    return Object.values(parsed).filter((entry): entry is string => typeof entry === 'string')
+  } catch {
+    return []
+  }
 }
 
 /** Region precedence for an AWS connection: the credential bundle wins, then
