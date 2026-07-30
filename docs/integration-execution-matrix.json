@@ -40067,21 +40067,17 @@
     "catalogAuth": "api_key",
     "setupAuth": {
       "mode": "oauth2",
+      "authorizationUrl": "https://{subdomain}.freshdesk.com/oauth/authorize",
+      "tokenUrl": "https://{subdomain}.freshdesk.com/oauth/token",
+      "clientIdEnv": "FRESHDESK_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "FRESHDESK_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "support.read",
-          "providerScope": "freshdesk.read",
+          "providerScope": "freshdesk.api",
           "title": "Freshdesk read",
           "reason": "Read Freshdesk data for user-authorized agent workflows.",
           "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "support.write",
-          "providerScope": "freshdesk.write",
-          "title": "Freshdesk write",
-          "reason": "Create or update Freshdesk resources after policy approval.",
-          "risk": "write",
           "dataClass": "private"
         }
       ],
@@ -40165,10 +40161,10 @@
     "runtimePackage": "@activepieces/piece-freshdesk",
     "actionCount": 5,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 5,
     "quality": {
       "tangleContract": true,
@@ -40176,11 +40172,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "freshsales",

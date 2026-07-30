@@ -105,6 +105,7 @@ export { intercomConnector } from './intercom.js'
 export { helpscoutConnector } from './helpscout.js'
 export { frontConnector } from './front.js'
 export { gorgiasConnector } from './gorgias.js'
+export { freshdeskConnector } from './freshdesk.js'
 // Email / marketing
 export { mailchimpConnector } from './mailchimp.js'
 export { klaviyoConnector } from './klaviyo.js'

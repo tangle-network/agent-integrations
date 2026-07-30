@@ -31,6 +31,7 @@ export const gorgiasConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'subdomainUrl' },
+  allowedBaseUrlSuffixes: ['.gorgias.com'],
   test: { method: 'GET', path: '/api/users/0' },
   capabilities: [
     {
