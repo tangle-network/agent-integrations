@@ -28,6 +28,7 @@ import { notion, type NotionOptions } from './notion.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
+import { quickbooksConnector } from './quickbooks.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { slack, type SlackOptions } from './slack.js'
 import { twitter, type TwitterOptions } from './twitter.js'
@@ -35,6 +36,7 @@ import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
 } from './whatsapp-business.js'
+import { xeroConnector } from './xero.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -163,6 +165,17 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter<TwitterOptions>(twitter, {
       clientId: 'TWITTER_OAUTH_CLIENT_ID',
       clientSecret: 'TWITTER_OAUTH_CLIENT_SECRET',
+    }),
+    // Declarative OAuth2 connectors: the manifest already pins clientIdEnv /
+    // clientSecretEnv; the envMap re-pins the same names so registration is
+    // gated on the OAuth app actually being configured (no half-live connector).
+    defineFactoryAdapter(() => quickbooksConnector, {
+      clientId: 'QUICKBOOKS_OAUTH_CLIENT_ID',
+      clientSecret: 'QUICKBOOKS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => xeroConnector, {
+      clientId: 'XERO_OAUTH_CLIENT_ID',
+      clientSecret: 'XERO_OAUTH_CLIENT_SECRET',
     }),
   ]
 
