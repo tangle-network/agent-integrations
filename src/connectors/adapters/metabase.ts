@@ -11,6 +11,7 @@ export const metabaseConnector = declarativeRestConnector({
   category: 'database',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl' },
+  credentialPlacement: { kind: 'header', header: 'X-API-Key' },
   test: { method: 'GET', path: '/api/user/current' },
   capabilities: [
     {

@@ -50,7 +50,10 @@ export const googleBigqueryConnector = declarativeRestConnector({
   baseUrl: 'https://bigquery.googleapis.com/bigquery/v2',
   // Cheap surface that 200s for any token with the BigQuery scope: list
   // datasets in the connection's project.
-  test: { method: 'GET', path: '/projects/{projectId}/datasets' },
+  test: {
+    method: 'GET',
+    path: '/projects/{connection.projectId}/datasets',
+  },
   capabilities: [
     // ---------- Queries ----------
     {

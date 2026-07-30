@@ -30,7 +30,11 @@ export const segmentConnector = declarativeRestConnector({
   category: 'database',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.segmentapis.com',
-  test: { method: 'GET', path: '/' },
+  test: {
+    method: 'GET',
+    path: '/sources',
+    query: { 'pagination.count': 1 },
+  },
   capabilities: [
     {
       name: 'sources.search',
