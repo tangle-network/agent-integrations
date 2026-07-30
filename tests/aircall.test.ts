@@ -37,6 +37,20 @@ describe('aircall adapter manifest', () => {
     expect(auth.kind).toBe('api-key')
   })
 
+  it('sends the configured API ID/token pair through HTTP Basic auth', async () => {
+    let requestHeaders: Record<string, string> = {}
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestHeaders = init?.headers as Record<string, string>
+      return jsonResponse({ company: { id: 1 } })
+    }))
+
+    expect(await aircallConnector.test(source({
+      credentials: { kind: 'api-key', apiKey: 'base64-api-id-and-token' },
+    }))).toEqual({ ok: true })
+    expect(requestHeaders.Authorization).toBe('Basic base64-api-id-and-token')
+    expect(requestHeaders.authorization).toBeUndefined()
+  })
+
   it('covers the catalog action set plus the new write-side mutations', () => {
     const names = aircallConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(

@@ -30,9 +30,9 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('open-phone adapter manifest', () => {
-  it('classifies itself as the other category and exposes the open-phone kind', () => {
+  it('classifies itself as communications and exposes the open-phone kind', () => {
     expect(openPhoneConnector.manifest.kind).toBe('open-phone')
-    expect(openPhoneConnector.manifest.category).toBe('other')
+    expect(openPhoneConnector.manifest.category).toBe('comms')
     expect(openPhoneConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
