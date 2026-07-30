@@ -30,6 +30,7 @@ export const mastodonConnector = declarativeRestConnector({
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl', fallback: 'https://mastodon.social' },
+  requirePublicHttpsBaseUrl: true,
   test: { method: 'GET', path: '/api/v1/accounts/verify_credentials' },
   capabilities: [
     {

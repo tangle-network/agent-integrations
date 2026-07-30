@@ -48700,10 +48700,22 @@
     "catalogAuth": "oauth2",
     "setupAuth": {
       "mode": "oauth2",
+      "authorizationUrl": "https://www.facebook.com/v21.0/dialog/oauth",
+      "tokenUrl": "https://graph.facebook.com/v21.0/oauth/access_token",
+      "clientIdEnv": "INSTAGRAM_BUSINESS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "INSTAGRAM_BUSINESS_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "marketing.read",
-          "providerScope": "instagram-business.read",
+          "providerScope": "instagram_basic",
+          "title": "Instagram Business read",
+          "reason": "Read Instagram Business data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "instagram_content_publish",
           "title": "Instagram Business read",
           "reason": "Read Instagram Business data for user-authorized agent workflows.",
           "risk": "read",
@@ -48711,10 +48723,50 @@
         },
         {
           "normalized": "marketing.write",
-          "providerScope": "instagram-business.write",
+          "providerScope": "instagram_manage_comments",
           "title": "Instagram Business write",
           "reason": "Create or update Instagram Business resources after policy approval.",
           "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "instagram_manage_insights",
+          "title": "Instagram Business write",
+          "reason": "Create or update Instagram Business resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "instagram_manage_messages",
+          "title": "Instagram Business write",
+          "reason": "Create or update Instagram Business resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "pages_show_list",
+          "title": "Instagram Business read",
+          "reason": "Read Instagram Business data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "pages_read_engagement",
+          "title": "Instagram Business read",
+          "reason": "Read Instagram Business data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "business_management",
+          "title": "Instagram Business read",
+          "reason": "Read Instagram Business data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "private"
         }
       ],
@@ -48740,10 +48792,10 @@
     "runtimePackage": "@activepieces/piece-instagram-business",
     "actionCount": 2,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 2,
     "quality": {
       "tangleContract": true,
@@ -48751,11 +48803,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "instantly-ai",
@@ -56488,10 +56538,54 @@
     "catalogAuth": "oauth2",
     "setupAuth": {
       "mode": "oauth2",
+      "authorizationUrl": "https://www.linkedin.com/oauth/v2/authorization",
+      "tokenUrl": "https://www.linkedin.com/oauth/v2/accessToken",
+      "clientIdEnv": "LINKEDIN_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "LINKEDIN_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "sales.read",
-          "providerScope": "linkedin.read",
+          "providerScope": "openid",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "profile",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "email",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "w_member_social",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "r_organization_social",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "w_organization_social",
           "title": "LinkedIn read",
           "reason": "Read LinkedIn data for user-authorized agent workflows.",
           "risk": "read",
@@ -56499,7 +56593,7 @@
         },
         {
           "normalized": "sales.write",
-          "providerScope": "linkedin.write",
+          "providerScope": "rw_organization_admin",
           "title": "LinkedIn write",
           "reason": "Create or update LinkedIn resources after policy approval.",
           "risk": "write",
@@ -56528,10 +56622,10 @@
     "runtimePackage": "@activepieces/piece-linkedin",
     "actionCount": 2,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 2,
     "quality": {
       "tangleContract": true,
@@ -56539,11 +56633,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "linkup",

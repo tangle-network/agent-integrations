@@ -64,7 +64,11 @@ export const instagramBusinessConnector = declarativeRestConnector({
   // Graph API takes the user access token as a query parameter (?access_token=).
   // No Authorization header is honored on the public graph.
   credentialPlacement: { kind: 'query', parameter: 'access_token' },
-  test: { method: 'GET', path: '/{igUserId}', query: { fields: 'id,username' } },
+  test: {
+    method: 'GET',
+    path: '/{connection.igUserId}',
+    query: { fields: 'id,username' },
+  },
   capabilities: [
     {
       name: 'account.get',

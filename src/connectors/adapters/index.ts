@@ -76,6 +76,8 @@ export { twentyConnector } from './twenty.js'
 export { supabaseConnector } from './supabase.js'
 export { discordConnector } from './discord.js'
 export { facebookPagesConnector } from './facebook-pages.js'
+export { instagramBusinessConnector } from './instagram-business.js'
+export { linkedinConnector } from './linkedin.js'
 export { telegramConnector, TELEGRAM_FILE_DOWNLOAD_ROOT } from './telegram.js'
 
 // === Mega fan-out (2026-05-31): native adapter expansion ===
