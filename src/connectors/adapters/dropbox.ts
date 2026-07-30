@@ -67,6 +67,7 @@ export const dropboxConnector = declarativeRestConnector({
     scopes: ['account_info.read', 'files.metadata.read', 'sharing.read'],
     clientIdEnv: 'DROPBOX_OAUTH_CLIENT_ID',
     clientSecretEnv: 'DROPBOX_OAUTH_CLIENT_SECRET',
+    extraAuthParams: { token_access_type: 'offline' },
   },
   category: 'storage',
   defaultConsistencyModel: 'authoritative',

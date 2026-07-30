@@ -368,7 +368,7 @@ export async function executeRestRequest(
   // would have had a landed write reclassified as a failure. ~200 connectors
   // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
-    const text = await safeErrorText(res)
+    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
     return {
       data: parseBodyText(text),
       outcome: 'conflict',
@@ -378,7 +378,7 @@ export async function executeRestRequest(
     }
   }
   if (res.status === 429) {
-    const text = await safeErrorText(res)
+    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
     return {
       data: parseBodyText(text),
       outcome: 'rate-limited',
@@ -397,7 +397,8 @@ export async function executeRestRequest(
     return { data: { exists: res.status === 204 } }
   }
   if (!res.ok) {
-    throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${(await safeErrorText(res)).slice(0, 300)}`)
+    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
+    throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
   const text = await res.text()
   // Most upstreams return JSON, but some return raw payloads — scrapers
@@ -439,6 +440,21 @@ function credentialToken(credentials: ConnectorCredentials): string {
   if (credentials.kind === 'oauth2') return credentials.accessToken
   if (credentials.kind === 'api-key') return credentials.apiKey
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
+}
+
+function redactCredentialText(text: string, credentials: ConnectorCredentials): string {
+  const candidates = credentials.kind === 'oauth2'
+    ? [credentials.accessToken, credentials.refreshToken]
+    : credentials.kind === 'api-key'
+      ? [credentials.apiKey]
+      : []
+  const secrets = candidates.filter(
+    (secret): secret is string => typeof secret === 'string' && secret.length > 0,
+  )
+  return secrets.reduce<string>(
+    (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
+    text,
+  )
 }
 
 /** Region precedence for an AWS connection: the credential bundle wins, then
