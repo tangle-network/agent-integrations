@@ -292,7 +292,7 @@ export async function executeRestRequest(
   // the request through `baseUrl.metadataKey` — which cannot serve a header, a
   // query param, or `test`, whose invocation has no arguments at all. Args win
   // on a name clash, so no existing adapter changes behavior.
-  const scope = renderScope(inv)
+  const scope = renderScope(inv, aws?.bucket ? { bucket: aws.bucket } : undefined)
   // Make the operation path RELATIVE to the base URL so a base like
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
@@ -572,7 +572,7 @@ function retryAfterMsFromHeader(raw: string | null): number {
   return DEFAULT_RETRY_AFTER_MS
 }
 
-function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
+function renderScope(inv: ConnectorInvocation, credentialDefaults?: Record<string, unknown>): Record<string, unknown> {
   // The connection namespace is applied LAST so it cannot be shadowed by a
   // caller-supplied argument.
   //
@@ -590,7 +590,12 @@ function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
   // `{connection}`, and Auth0's `connection` parameter — the only one so
   // named — travels through the `body: 'args'` splat, which resolves against
   // the raw arguments rather than this scope.
-  return { ...inv.args, connection: inv.source.metadata }
+  // Credential-derived request defaults are explicitly allowlisted by the
+  // caller (currently only the non-secret S3-compatible bucket). Arguments
+  // override defaults, while connection metadata remains an unshadowable
+  // namespace. Never spread a parsed credential object here: it contains the
+  // signing secret and would make it reachable from declarative templates.
+  return { ...credentialDefaults, ...inv.args, connection: inv.source.metadata }
 }
 
 function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {

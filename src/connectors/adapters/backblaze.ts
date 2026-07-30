@@ -43,7 +43,7 @@ export const backblazeConnector = declarativeRestConnector({
     'Read and upload objects on a Backblaze B2 bucket via the S3-compatible REST API at s3.{region}.backblazeb2.com.',
   auth: {
     kind: 'api-key',
-    hint: 'Backblaze B2 application key pair as JSON: {"accessKeyId":"…","secretAccessKey":"…","region":"us-west-001"} scoped to the target bucket. Optional "endpoint" overrides the host. Requests are signed with AWS Signature V4 (S3-compatible); the region selects the s3.<region>.backblazeb2.com endpoint.',
+    hint: 'Backblaze B2 application key pair as JSON: {"accessKeyId":"…","secretAccessKey":"…","region":"us-west-001","bucket":"…"} scoped to the target bucket. Optional "endpoint" overrides the host. Requests are signed with AWS Signature V4 (S3-compatible); the region selects the s3.<region>.backblazeb2.com endpoint.',
   },
   category: 'storage',
   defaultConsistencyModel: 'authoritative',
