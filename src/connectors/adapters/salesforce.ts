@@ -11,6 +11,9 @@ export const salesforceConnector = declarativeRestConnector({
     scopes: ['api', 'refresh_token'],
     clientIdEnv: 'SALESFORCE_OAUTH_CLIENT_ID',
     clientSecretEnv: 'SALESFORCE_OAUTH_CLIENT_SECRET',
+    tokenMetadata: {
+      instanceUrl: { field: 'instance_url', required: true },
+    },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',

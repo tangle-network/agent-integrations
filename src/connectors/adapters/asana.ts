@@ -4,7 +4,21 @@ export const asanaConnector = declarativeRestConnector({
   kind: 'asana',
   displayName: 'Asana',
   description: 'Search projects/tasks and create or update Asana tasks.',
-  auth: { kind: 'api-key', hint: 'Asana personal access token.' },
+  auth: {
+    kind: 'one_of',
+    preferred: 'oauth2',
+    options: [
+      {
+        kind: 'oauth2',
+        authorizationUrl: 'https://app.asana.com/-/oauth_authorize',
+        tokenUrl: 'https://app.asana.com/-/oauth_token',
+        scopes: ['default'],
+        clientIdEnv: 'ASANA_OAUTH_CLIENT_ID',
+        clientSecretEnv: 'ASANA_OAUTH_CLIENT_SECRET',
+      },
+      { kind: 'api-key', hint: 'Asana personal access token.' },
+    ],
+  },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://app.asana.com/api/1.0',

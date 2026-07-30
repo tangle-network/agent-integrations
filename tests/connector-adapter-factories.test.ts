@@ -45,4 +45,26 @@ describe('connector adapter factory registry', () => {
       expect(nativeIds.has(definition.kind), definition.kind).toBe(true)
     }
   })
+
+  it('registers launch providers behind their OAuth application settings', () => {
+    const expected = {
+      salesforce: ['SALESFORCE_OAUTH_CLIENT_ID', 'SALESFORCE_OAUTH_CLIENT_SECRET'],
+      dropbox: ['DROPBOX_OAUTH_CLIENT_ID', 'DROPBOX_OAUTH_CLIENT_SECRET'],
+      box: ['BOX_OAUTH_CLIENT_ID', 'BOX_OAUTH_CLIENT_SECRET'],
+      zoom: ['ZOOM_OAUTH_CLIENT_ID', 'ZOOM_OAUTH_CLIENT_SECRET'],
+      calendly: ['CALENDLY_OAUTH_CLIENT_ID', 'CALENDLY_OAUTH_CLIENT_SECRET'],
+      asana: ['ASANA_OAUTH_CLIENT_ID', 'ASANA_OAUTH_CLIENT_SECRET'],
+    } as const
+
+    for (const [kind, envNames] of Object.entries(expected)) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(Object.values(definition!.envMap)).toEqual(envNames)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envNames[0]]: 'client-id',
+      }), kind).toBeNull()
+    }
+  })
 })
