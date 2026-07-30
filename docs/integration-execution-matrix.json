@@ -43187,8 +43187,8 @@
       "mode": "oauth2",
       "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
       "tokenUrl": "https://oauth2.googleapis.com/token",
-      "clientIdEnv": "GOOGLE_TASKS_CLIENT_ID",
-      "clientSecretEnv": "GOOGLE_TASKS_CLIENT_SECRET",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "project.read",
