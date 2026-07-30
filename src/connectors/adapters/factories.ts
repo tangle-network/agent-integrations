@@ -2,9 +2,11 @@ import type { ConnectorAdapter } from '../types.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
+import { amazonS3Connector } from './amazon-s3.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { basecampConnector } from './basecamp.js'
+import { backblazeConnector } from './backblaze.js'
 import { boxConnector } from './box.js'
 import { brexConnector } from './brex.js'
 import { billComConnector } from './bill-com.js'
@@ -12,6 +14,10 @@ import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { closeConnector } from './close.js'
 import { clickupConnector } from './clickup.js'
+import { cloudinaryConnector } from './cloudinary.js'
+import { codaConnector } from './coda.js'
+import { confluenceConnector } from './confluence.js'
+import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
@@ -31,6 +37,7 @@ import {
   googleCalendar,
   type GoogleCalendarOptions,
 } from './google-calendar.js'
+import { googleCloudStorageConnector } from './google-cloud-storage.js'
 import { googleContactsConnector } from './google-contacts.js'
 import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
@@ -284,6 +291,22 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => boxConnector, {
       clientId: 'BOX_OAUTH_CLIENT_ID',
       clientSecret: 'BOX_OAUTH_CLIENT_SECRET',
+    }),
+    // File storage and knowledge providers. API-key providers receive their
+    // credentials from each connection; OAuth providers are registered only
+    // when the shared application credentials are present.
+    defineFactoryAdapter(() => amazonS3Connector, {}),
+    defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => backblazeConnector, {}),
+    defineFactoryAdapter(() => cloudinaryConnector, {}),
+    defineFactoryAdapter(() => codaConnector, {}),
+    defineFactoryAdapter(() => confluenceConnector, {
+      clientId: 'ATLASSIAN_OAUTH_CLIENT_ID',
+      clientSecret: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => contentfulConnector, {
+      clientId: 'CONTENTFUL_OAUTH_CLIENT_ID',
+      clientSecret: 'CONTENTFUL_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => zoomConnector, {
       clientId: 'ZOOM_OAUTH_CLIENT_ID',
