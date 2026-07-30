@@ -3,8 +3,8 @@ import { declarativeRestConnector } from './declarative-rest.js'
 /**
  * Zoom API v2 — Bearer OAuth2 against api.zoom.us.
  *
- * Auth flow uses the user-level OAuth app type ("OAuth" / general app on the
- * Zoom Marketplace) — server-to-server JWT was deprecated in 2023, and the
+ * Auth flow uses an admin-managed General OAuth app on the Zoom Marketplace.
+ * Server-to-server JWT was deprecated in 2023, and the
  * Server-to-Server OAuth flow is a different OAuth app type that uses the same
  * token endpoint but a `grant_type=account_credentials` exchange; the user
  * flow below is the one the runtime drives for delegated user access.
@@ -28,18 +28,18 @@ export const zoomConnector = declarativeRestConnector({
     authorizationUrl: 'https://zoom.us/oauth/authorize',
     tokenUrl: 'https://zoom.us/oauth/token',
     scopes: [
-      'user:read:user',
-      'user:write:user',
-      'meeting:read:meeting',
-      'meeting:write:meeting',
-      'meeting:update:meeting',
-      'meeting:delete:meeting',
-      'webinar:read:webinar',
-      'webinar:write:webinar',
-      'webinar:update:webinar',
-      'webinar:delete:webinar',
-      'recording:read:recording',
-      'recording:write:recording',
+      'user:read:user:admin',
+      'user:write:user:admin',
+      'meeting:read:meeting:admin',
+      'meeting:write:meeting:admin',
+      'meeting:update:meeting:admin',
+      'meeting:delete:meeting:admin',
+      'webinar:read:webinar:admin',
+      'webinar:write:webinar:admin',
+      'webinar:update:webinar:admin',
+      'webinar:delete:webinar:admin',
+      'cloud_recording:read:recording:admin',
+      'cloud_recording:delete:recording_file:admin',
     ],
     clientIdEnv: 'ZOOM_OAUTH_CLIENT_ID',
     clientSecretEnv: 'ZOOM_OAUTH_CLIENT_SECRET',
@@ -61,7 +61,7 @@ export const zoomConnector = declarativeRestConnector({
         required: ['userId'],
       },
       request: { method: 'GET', path: '/v2/users/{userId}' },
-      requiredScopes: ['user:read:user'],
+      requiredScopes: ['user:read:user:admin'],
     },
     {
       name: 'users.list',
@@ -86,7 +86,7 @@ export const zoomConnector = declarativeRestConnector({
           role_id: '{role_id}',
         },
       },
-      requiredScopes: ['user:read:user'],
+      requiredScopes: ['user:read:user:admin'],
     },
     {
       name: 'meetings.list',
@@ -115,7 +115,7 @@ export const zoomConnector = declarativeRestConnector({
           next_page_token: '{next_page_token}',
         },
       },
-      requiredScopes: ['meeting:read:meeting'],
+      requiredScopes: ['meeting:read:meeting:admin'],
     },
     {
       name: 'meetings.get',
@@ -134,7 +134,7 @@ export const zoomConnector = declarativeRestConnector({
         path: '/v2/meetings/{meetingId}',
         query: { occurrence_id: '{occurrence_id}' },
       },
-      requiredScopes: ['meeting:read:meeting'],
+      requiredScopes: ['meeting:read:meeting:admin'],
     },
     {
       name: 'meetings.create',
@@ -179,7 +179,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'none',
       externalEffect: true,
-      requiredScopes: ['meeting:write:meeting'],
+      requiredScopes: ['meeting:write:meeting:admin'],
     },
     {
       name: 'meetings.update',
@@ -217,7 +217,7 @@ export const zoomConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['meeting:update:meeting'],
+      requiredScopes: ['meeting:update:meeting:admin'],
     },
     {
       name: 'meetings.delete',
@@ -244,7 +244,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['meeting:delete:meeting'],
+      requiredScopes: ['meeting:delete:meeting:admin'],
     },
     {
       name: 'meetings.list-registrants',
@@ -271,7 +271,7 @@ export const zoomConnector = declarativeRestConnector({
           next_page_token: '{next_page_token}',
         },
       },
-      requiredScopes: ['meeting:read:meeting'],
+      requiredScopes: ['meeting:read:meeting:admin'],
     },
     {
       name: 'meetings.add-registrant',
@@ -331,7 +331,7 @@ export const zoomConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['meeting:write:meeting'],
+      requiredScopes: ['meeting:write:meeting:admin'],
     },
     {
       name: 'webinars.list',
@@ -354,7 +354,7 @@ export const zoomConnector = declarativeRestConnector({
           next_page_token: '{next_page_token}',
         },
       },
-      requiredScopes: ['webinar:read:webinar'],
+      requiredScopes: ['webinar:read:webinar:admin'],
     },
     {
       name: 'webinars.get',
@@ -373,7 +373,7 @@ export const zoomConnector = declarativeRestConnector({
         path: '/v2/webinars/{webinarId}',
         query: { occurrence_id: '{occurrence_id}' },
       },
-      requiredScopes: ['webinar:read:webinar'],
+      requiredScopes: ['webinar:read:webinar:admin'],
     },
     {
       name: 'webinars.create',
@@ -416,7 +416,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'none',
       externalEffect: true,
-      requiredScopes: ['webinar:write:webinar'],
+      requiredScopes: ['webinar:write:webinar:admin'],
     },
     {
       name: 'recordings.list',
@@ -449,7 +449,7 @@ export const zoomConnector = declarativeRestConnector({
           trash_type: '{trash_type}',
         },
       },
-      requiredScopes: ['recording:read:recording'],
+      requiredScopes: ['cloud_recording:read:recording:admin'],
     },
     {
       // Zoom does not expose a DELETE /meetings/{id}/live; ending an in-flight
@@ -472,7 +472,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['meeting:update:meeting'],
+      requiredScopes: ['meeting:update:meeting:admin'],
     },
     {
       // Mirrors the meeting update contract: a PATCH against the webinar
@@ -511,7 +511,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['webinar:update:webinar'],
+      requiredScopes: ['webinar:update:webinar:admin'],
     },
     {
       name: 'webinars.delete',
@@ -536,7 +536,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['webinar:delete:webinar'],
+      requiredScopes: ['webinar:delete:webinar:admin'],
     },
     {
       // `action=trash` moves the recording to the cloud trash (recoverable for
@@ -562,7 +562,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['recording:write:recording'],
+      requiredScopes: ['cloud_recording:delete:recording_file:admin'],
     },
     {
       // Zoom user provisioning is a single POST with an `action` discriminator:
@@ -595,7 +595,7 @@ export const zoomConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['user:write:user'],
+      requiredScopes: ['user:write:user:admin'],
     },
     {
       name: 'recordings.get',
@@ -618,7 +618,7 @@ export const zoomConnector = declarativeRestConnector({
           ttl: '{ttl}',
         },
       },
-      requiredScopes: ['recording:read:recording'],
+      requiredScopes: ['cloud_recording:read:recording:admin'],
     },
   ],
 })

@@ -54205,11 +54205,11 @@
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "opportunities:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
@@ -54221,11 +54221,11 @@
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "postings:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
@@ -54237,11 +54237,11 @@
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "requisitions:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
@@ -54253,35 +54253,35 @@
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "users:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "stages:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "archive_reasons:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         },
         {
-          "normalized": "hr.write",
+          "normalized": "hr.read",
           "providerScope": "sources:read:admin",
-          "title": "Lever write",
-          "reason": "Create or update Lever resources after policy approval.",
-          "risk": "write",
+          "title": "Lever read",
+          "reason": "Read Lever data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "sensitive"
         }
       ],
@@ -56592,11 +56592,11 @@
           "dataClass": "private"
         },
         {
-          "normalized": "sales.write",
+          "normalized": "sales.read",
           "providerScope": "rw_organization_admin",
-          "title": "LinkedIn write",
-          "reason": "Create or update LinkedIn resources after policy approval.",
-          "risk": "write",
+          "title": "LinkedIn read",
+          "reason": "Read LinkedIn data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "private"
         }
       ],
@@ -83378,11 +83378,11 @@
           "dataClass": "internal"
         },
         {
-          "normalized": "dev.write",
+          "normalized": "dev.read",
           "providerScope": "event:admin",
-          "title": "Sentry write",
-          "reason": "Create or update Sentry resources after policy approval.",
-          "risk": "write",
+          "title": "Sentry read",
+          "reason": "Read Sentry data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "internal"
         },
         {
@@ -109384,7 +109384,7 @@
       "scopes": [
         {
           "normalized": "calendar.read",
-          "providerScope": "user:read:user",
+          "providerScope": "user:read:user:admin",
           "title": "Zoom read",
           "reason": "Read Zoom data for user-authorized agent workflows.",
           "risk": "read",
@@ -109392,7 +109392,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "user:write:user",
+          "providerScope": "user:write:user:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109400,7 +109400,7 @@
         },
         {
           "normalized": "calendar.read",
-          "providerScope": "meeting:read:meeting",
+          "providerScope": "meeting:read:meeting:admin",
           "title": "Zoom read",
           "reason": "Read Zoom data for user-authorized agent workflows.",
           "risk": "read",
@@ -109408,7 +109408,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "meeting:write:meeting",
+          "providerScope": "meeting:write:meeting:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109416,7 +109416,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "meeting:update:meeting",
+          "providerScope": "meeting:update:meeting:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109424,7 +109424,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "meeting:delete:meeting",
+          "providerScope": "meeting:delete:meeting:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109432,7 +109432,7 @@
         },
         {
           "normalized": "calendar.read",
-          "providerScope": "webinar:read:webinar",
+          "providerScope": "webinar:read:webinar:admin",
           "title": "Zoom read",
           "reason": "Read Zoom data for user-authorized agent workflows.",
           "risk": "read",
@@ -109440,7 +109440,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "webinar:write:webinar",
+          "providerScope": "webinar:write:webinar:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109448,7 +109448,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "webinar:update:webinar",
+          "providerScope": "webinar:update:webinar:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109456,7 +109456,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "webinar:delete:webinar",
+          "providerScope": "webinar:delete:webinar:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
@@ -109464,7 +109464,7 @@
         },
         {
           "normalized": "calendar.read",
-          "providerScope": "recording:read:recording",
+          "providerScope": "cloud_recording:read:recording:admin",
           "title": "Zoom read",
           "reason": "Read Zoom data for user-authorized agent workflows.",
           "risk": "read",
@@ -109472,7 +109472,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "recording:write:recording",
+          "providerScope": "cloud_recording:delete:recording_file:admin",
           "title": "Zoom write",
           "reason": "Create or update Zoom resources after policy approval.",
           "risk": "write",
