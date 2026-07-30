@@ -23,6 +23,7 @@ export const chargebeeConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'siteBaseUrl' },
+  allowedBaseUrlSuffixes: ['.chargebee.com'],
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Basic ' },
   test: { method: 'GET', path: '/api/v2/subscriptions', query: { limit: '1' } },
   capabilities: [

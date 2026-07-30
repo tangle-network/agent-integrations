@@ -15271,6 +15271,38 @@
     ]
   },
   {
+    "id": "bill-com",
+    "title": "bill-com",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "bill-com API key",
+        "description": "JSON credential bundle: {\"developerKey\":\"...\",\"sessionId\":\"...\"}.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "billplz",
     "title": "Billplz",
     "category": "workflow",
@@ -16868,6 +16900,38 @@
       "credential": {
         "label": "braze API key",
         "description": "Braze REST API key from Settings → REST API Keys with the per-endpoint permissions the agent needs (users.track, campaigns.trigger.send, etc.).",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "brex",
+    "title": "brex",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "brex API key",
+        "description": "Brex OAuth access token or customer-generated user token, stored as a bearer token.",
         "secret": true
       },
       "placement": "bearer"
@@ -20316,7 +20380,15 @@
     "title": "Chargebee",
     "category": "crm",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "chargebee API key",
+        "description": "Chargebee full-access API key (Settings → Configure Chargebee → API Keys → Full-Access Key). Stored as base64(\"apiKey:\") so it can be attached as HTTP Basic. The connection must also store the per-site `site` metadata (e.g. \"acme\" for acme.chargebee.com).",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "subscription_id",
@@ -20707,7 +20779,7 @@
     "runtimePackage": "@activepieces/piece-chargebee",
     "actionCount": 4,
     "triggerCount": 8,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -20721,8 +20793,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -66135,27 +66206,13 @@
     "category": "crm",
     "catalogAuth": "oauth2",
     "setupAuth": {
-      "mode": "oauth2",
-      "scopes": [
-        {
-          "normalized": "finance.read",
-          "providerScope": "netsuite.read",
-          "title": "NetSuite read",
-          "reason": "Read NetSuite data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "sensitive"
-        },
-        {
-          "normalized": "finance.write",
-          "providerScope": "netsuite.write",
-          "title": "NetSuite write",
-          "reason": "Create or update NetSuite resources after policy approval.",
-          "risk": "write",
-          "dataClass": "sensitive"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/netsuite/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "netsuite API key",
+        "description": "NetSuite OAuth 2.0 access token. Connection metadata must include the account-specific REST base URL.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "authFields": [
       {
@@ -66176,10 +66233,10 @@
     "runtimePackage": "@activepieces/piece-netsuite",
     "actionCount": 4,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 4,
     "quality": {
       "tangleContract": true,
@@ -66187,11 +66244,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "neverbounce",
@@ -70615,7 +70670,15 @@
     "title": "Paddle",
     "category": "crm",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "paddle API key",
+        "description": "Paddle API key.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "effectiveFrom",
@@ -70677,7 +70740,7 @@
     "runtimePackage": "@activepieces/piece-paddle",
     "actionCount": 5,
     "triggerCount": 5,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -70691,8 +70754,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -75248,29 +75310,25 @@
   },
   {
     "id": "plaid",
-    "title": "Plaid",
-    "category": "workflow",
+    "title": "plaid",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "plaid API key",
+        "description": "JSON credential bundle: {\"clientId\":\"...\",\"secret\":\"...\",\"accessToken\":\"...\"}.",
         "secret": true
-      }
-    ],
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -75278,11 +75336,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "plausible",
@@ -78898,6 +78954,38 @@
     ]
   },
   {
+    "id": "ramp",
+    "title": "ramp",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "ramp API key",
+        "description": "Ramp OAuth access token. Create a free developer app or customer-issued API connection and paste the bearer token.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "rapidtext-ai",
     "title": "RapidText AI",
     "category": "workflow",
@@ -81240,6 +81328,38 @@
     "missing": [
       "native_adapter"
     ]
+  },
+  {
+    "id": "sage-intacct",
+    "title": "sage-intacct",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "sage-intacct API key",
+        "description": "Sage Intacct REST API OAuth access token, stored as a bearer token.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "saleor",

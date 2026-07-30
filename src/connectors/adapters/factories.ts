@@ -6,11 +6,14 @@ import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { basecampConnector } from './basecamp.js'
 import { boxConnector } from './box.js'
+import { brexConnector } from './brex.js'
+import { billComConnector } from './bill-com.js'
 import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { closeConnector } from './close.js'
 import { clickupConnector } from './clickup.js'
 import { copperConnector } from './copper.js'
+import { chargebeeConnector } from './chargebee.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
@@ -51,19 +54,25 @@ import {
 } from './microsoft-teams.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
+import { netsuiteConnector } from './netsuite.js'
 import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
 import { oneSpanSignConnector } from './onespan-sign.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
+import { paddleConnector } from './paddle.js'
+import { plaidConnector } from './plaid.js'
 import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
+import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { salesforceConnector } from './salesforce.js'
 import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
+import { sageIntacctConnector } from './sage-intacct.js'
+import { stripePackConnector } from './stripe-pack.js'
 import { tallyConnector } from './tally.js'
 import { todoistConnector } from './todoist.js'
 import { trelloConnector } from './trello.js'
@@ -345,6 +354,17 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_ID'],
       clientSecret: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_SECRET'],
     }),
+    // Revenue/accounting providers use customer-supplied access tokens or
+    // credential bundles, so no shared deployment secret gates registration.
+    defineFactoryAdapter(() => stripePackConnector, {}),
+    defineFactoryAdapter(() => chargebeeConnector, {}),
+    defineFactoryAdapter(() => paddleConnector, {}),
+    defineFactoryAdapter(() => plaidConnector, {}),
+    defineFactoryAdapter(() => rampConnector, {}),
+    defineFactoryAdapter(() => brexConnector, {}),
+    defineFactoryAdapter(() => billComConnector, {}),
+    defineFactoryAdapter(() => netsuiteConnector, {}),
+    defineFactoryAdapter(() => sageIntacctConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(
