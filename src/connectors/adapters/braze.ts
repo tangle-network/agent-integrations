@@ -40,6 +40,7 @@ export const brazeConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'restEndpoint' },
+  allowedBaseUrlSuffixes: ['.braze.com'],
   test: { method: 'GET', path: '/email/hard_bounces?limit=1' },
   capabilities: [
     {

@@ -119,7 +119,7 @@ describe('smartlead campaigns.start', () => {
     })
 
     expect(capturedMethod).toBe('POST')
-    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/123/status')
+    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/123/status?api_key=smartlead_secret')
     expect(capturedBody).toEqual({ status: 'START' })
     expect(result.status).toBe('committed')
   })
@@ -160,7 +160,7 @@ describe('smartlead campaigns.pause', () => {
     })
 
     expect(capturedMethod).toBe('POST')
-    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/7/status')
+    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/7/status?api_key=smartlead_secret')
     expect(capturedBody).toEqual({ status: 'PAUSED' })
     expect(result.status).toBe('committed')
   })
@@ -187,7 +187,7 @@ describe('smartlead campaigns.delete', () => {
     })
 
     expect(capturedMethod).toBe('DELETE')
-    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/55')
+    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/55?api_key=smartlead_secret')
     expect(result.status).toBe('committed')
   })
 })
@@ -215,7 +215,7 @@ describe('smartlead leads.update', () => {
     })
 
     expect(capturedMethod).toBe('POST')
-    expect(capturedUrl).toBe('https://api.smartlead.io/v1/leads/99')
+    expect(capturedUrl).toBe('https://api.smartlead.io/v1/leads/99?api_key=smartlead_secret')
     expect(capturedBody).toMatchObject({ first_name: 'Ada', email: 'ada@example.com' })
     expect(result.status).toBe('committed')
   })
@@ -242,7 +242,7 @@ describe('smartlead leads.remove', () => {
     })
 
     expect(capturedMethod).toBe('DELETE')
-    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/12/leads/99')
+    expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/12/leads/99?api_key=smartlead_secret')
     expect(result.status).toBe('committed')
   })
 
