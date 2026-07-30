@@ -159,6 +159,11 @@ import { hightouchConnector } from './hightouch.js'
 import { metabaseConnector } from './metabase.js'
 import { segmentConnector } from './segment.js'
 import { supabaseConnector } from './supabase.js'
+import { builtwithConnector } from './builtwith.js'
+import { fullenrichConnector } from './fullenrich.js'
+import { hunterConnector } from './hunter.js'
+import { theirstackConnector } from './theirstack.js'
+import { zerobounceConnector } from './zerobounce.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -595,6 +600,11 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => brazeConnector, {}),
     defineFactoryAdapter(() => smartleadConnector, {}),
     defineFactoryAdapter(() => lemlistConnector, {}),
+    defineFactoryAdapter(() => builtwithConnector, {}),
+    defineFactoryAdapter(() => fullenrichConnector, {}),
+    defineFactoryAdapter(() => hunterConnector, {}),
+    defineFactoryAdapter(() => theirstackConnector, {}),
+    defineFactoryAdapter(() => zerobounceConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(
