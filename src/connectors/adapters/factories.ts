@@ -5,6 +5,8 @@ import { affinityConnector } from './affinity.js'
 import { amazonS3Connector } from './amazon-s3.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
+import { auth0Connector } from './auth0.js'
+import { azureAdConnector } from './azure-ad.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
 import { boxConnector } from './box.js'
@@ -421,6 +423,22 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => microsoftDynamicsCrmConnector, {
       clientId: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_ID'],
       clientSecret: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_SECRET'],
+    }),
+    defineFactoryAdapter(() => azureAdConnector, {
+      clientId: [
+        'AZURE_AD_OAUTH_CLIENT_ID',
+        'MICROSOFT_OAUTH_CLIENT_ID',
+        'MS_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'AZURE_AD_OAUTH_CLIENT_SECRET',
+        'MICROSOFT_OAUTH_CLIENT_SECRET',
+        'MS_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => auth0Connector, {
+      clientId: 'AUTH0_OAUTH_CLIENT_ID',
+      clientSecret: 'AUTH0_OAUTH_CLIENT_SECRET',
     }),
     // Revenue/accounting providers use customer-supplied access tokens or
     // credential bundles, so no shared deployment secret gates registration.

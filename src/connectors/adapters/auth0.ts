@@ -73,6 +73,7 @@ export const auth0Connector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'tenantDomain' },
+  allowedBaseUrlSuffixes: ['.auth0.com'],
   test: { method: 'GET', path: '/api/v2/stats/active-users' },
   capabilities: [
     // ---------- Users ----------
