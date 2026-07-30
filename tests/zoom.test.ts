@@ -10,7 +10,13 @@ function zoomSource(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSo
     kind: 'zoom',
     label: 'Zoom test',
     consistencyModel: 'authoritative',
-    scopes: ['meeting:update:meeting', 'webinar:update:webinar', 'webinar:delete:webinar', 'recording:write:recording', 'user:write:user'],
+    scopes: [
+      'meeting:update:meeting:admin',
+      'webinar:update:webinar:admin',
+      'webinar:delete:webinar:admin',
+      'cloud_recording:delete:recording_file:admin',
+      'user:write:user:admin',
+    ],
     metadata: {},
     credentials: { kind: 'oauth2', accessToken: 'zoom_tok' },
     status: 'active',
@@ -47,20 +53,27 @@ describe('zoom adapter manifest', () => {
     expect(auth.clientSecretEnv).toBe('ZOOM_OAUTH_CLIENT_SECRET')
   })
 
-  it('uses Zoom granular scopes (resource:action:scope) covering meeting, webinar, user, recording', () => {
+  it('uses the exact admin-managed granular scopes configured in the production Zoom app', () => {
     const auth = zoomConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.scopes).toContain('user:read:user')
-    expect(auth.scopes).toContain('meeting:read:meeting')
-    expect(auth.scopes).toContain('meeting:write:meeting')
-    expect(auth.scopes).toContain('meeting:update:meeting')
-    expect(auth.scopes).toContain('meeting:delete:meeting')
-    expect(auth.scopes).toContain('webinar:read:webinar')
-    expect(auth.scopes).toContain('webinar:write:webinar')
-    expect(auth.scopes).toContain('recording:read:recording')
-    // Granular scopes are mandatory for new Zoom apps — reject the legacy 2-segment form.
+    expect(auth.scopes).toEqual([
+      'user:read:user:admin',
+      'user:write:user:admin',
+      'meeting:read:meeting:admin',
+      'meeting:write:meeting:admin',
+      'meeting:update:meeting:admin',
+      'meeting:delete:meeting:admin',
+      'webinar:read:webinar:admin',
+      'webinar:write:webinar:admin',
+      'webinar:update:webinar:admin',
+      'webinar:delete:webinar:admin',
+      'cloud_recording:read:recording:admin',
+      'cloud_recording:delete:recording_file:admin',
+    ])
+    // Admin-managed granular scopes have an explicit fourth account-level segment.
     for (const scope of auth.scopes) {
-      expect(scope.split(':').length).toBe(3)
+      expect(scope.split(':').length).toBe(4)
+      expect(scope.endsWith(':admin')).toBe(true)
     }
   })
 
@@ -159,6 +172,36 @@ describe('zoom adapter manifest', () => {
         expect(declared.has(scope)).toBe(true)
       }
     }
+  })
+
+  it('maps every capability to the production app scope that authorizes its endpoint', () => {
+    const expectedScopes: Record<string, string> = {
+      'users.get': 'user:read:user:admin',
+      'users.list': 'user:read:user:admin',
+      'users.create': 'user:write:user:admin',
+      'meetings.list': 'meeting:read:meeting:admin',
+      'meetings.get': 'meeting:read:meeting:admin',
+      'meetings.create': 'meeting:write:meeting:admin',
+      'meetings.update': 'meeting:update:meeting:admin',
+      'meetings.delete': 'meeting:delete:meeting:admin',
+      'meetings.end': 'meeting:update:meeting:admin',
+      'meetings.list-registrants': 'meeting:read:meeting:admin',
+      'meetings.add-registrant': 'meeting:write:meeting:admin',
+      'webinars.list': 'webinar:read:webinar:admin',
+      'webinars.get': 'webinar:read:webinar:admin',
+      'webinars.create': 'webinar:write:webinar:admin',
+      'webinars.update': 'webinar:update:webinar:admin',
+      'webinars.delete': 'webinar:delete:webinar:admin',
+      'recordings.list': 'cloud_recording:read:recording:admin',
+      'recordings.get': 'cloud_recording:read:recording:admin',
+      'recordings.delete': 'cloud_recording:delete:recording_file:admin',
+    }
+    const actualScopes = Object.fromEntries(
+      zoomConnector.manifest.capabilities.map((cap) => [cap.name, cap.requiredScopes]),
+    )
+    expect(actualScopes).toEqual(
+      Object.fromEntries(Object.entries(expectedScopes).map(([name, scope]) => [name, [scope]])),
+    )
   })
 
   it('marks the new write-side mutations as native-idempotency external effect', () => {
