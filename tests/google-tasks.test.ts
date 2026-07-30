@@ -85,9 +85,104 @@ describe('google-tasks tasks.complete', () => {
     })
 
     expect(requestMethod).toBe('PATCH')
-    expect(String(requestUrl)).toBe('https://tasks.googleapis.com/tasks/v1/users/@me/lists/list_1/tasks/task_42')
+    expect(String(requestUrl)).toBe('https://tasks.googleapis.com/tasks/v1/lists/list_1/tasks/task_42')
     expect(requestBody).toMatchObject({ status: 'completed' })
     expect(result.status).toBe('committed')
+  })
+})
+
+describe('google-tasks task operations', () => {
+  it('uses the Google Tasks /lists path and maps insertion query/body fields', async () => {
+    let requestUrl: string | undefined
+    let requestMethod: string | undefined
+    let requestBody: Record<string, unknown> | null = null
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      requestMethod = init?.method
+      requestBody = init?.body ? JSON.parse(init.body as string) : null
+      return jsonResponse({ id: 'task_42', title: 'Production proof' })
+    }))
+
+    await googleTasksConnector.executeMutation!({
+      source: baseSource,
+      capabilityName: 'tasks.create',
+      args: {
+        tasklistId: 'list_1',
+        title: 'Production proof',
+        dueDate: '2026-07-31T00:00:00.000Z',
+        parent: 'parent_1',
+        previous: 'task_41',
+      },
+      idempotencyKey: 'k-1',
+    })
+
+    expect(requestMethod).toBe('POST')
+    expect(String(requestUrl)).toBe(
+      'https://tasks.googleapis.com/tasks/v1/lists/list_1/tasks?parent=parent_1&previous=task_41',
+    )
+    expect(requestBody).toEqual({
+      title: 'Production proof',
+      due: '2026-07-31T00:00:00.000Z',
+    })
+  })
+
+  it('lists tasks from /lists and forwards supported filters', async () => {
+    let requestUrl: string | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ items: [] })
+    }))
+
+    await googleTasksConnector.executeRead!({
+      source: baseSource,
+      capabilityName: 'tasks.list',
+      idempotencyKey: 'k-1',
+      args: {
+        tasklistId: 'list_1',
+        maxResults: 50,
+        showCompleted: false,
+        showAssigned: true,
+        updatedMin: '2026-07-01T00:00:00.000Z',
+      },
+    })
+
+    const url = new URL(String(requestUrl))
+    expect(url.pathname).toBe('/tasks/v1/lists/list_1/tasks')
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      maxResults: '50',
+      showCompleted: 'false',
+      showAssigned: 'true',
+      updatedMin: '2026-07-01T00:00:00.000Z',
+    })
+  })
+
+  it.each([
+    ['tasks.get', 'GET'],
+    ['tasks.update', 'PATCH'],
+    ['tasks.delete', 'DELETE'],
+  ] as const)('%s targets /lists/{tasklist}/tasks/{task}', async (capabilityName, method) => {
+    let requestUrl: string | undefined
+    let requestMethod: string | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      requestMethod = init?.method
+      return method === 'DELETE' ? new Response(null, { status: 204 }) : jsonResponse({ id: 'task_42' })
+    }))
+
+    const invocation = {
+      source: baseSource,
+      capabilityName,
+      idempotencyKey: 'k-1',
+      args: { tasklistId: 'list_1', taskId: 'task_42', title: 'Updated' },
+    }
+    if (capabilityName === 'tasks.get') {
+      await googleTasksConnector.executeRead!(invocation)
+    } else {
+      await googleTasksConnector.executeMutation!(invocation)
+    }
+
+    expect(requestMethod).toBe(method)
+    expect(String(requestUrl)).toBe('https://tasks.googleapis.com/tasks/v1/lists/list_1/tasks/task_42')
   })
 })
 
