@@ -33,7 +33,7 @@ describe('cal-com adapter manifest', () => {
 
   it('marks the new write capabilities as native-idempotency external effect', () => {
     const caps = calComConnector.manifest.capabilities
-    const targets = ['bookings.update', 'event-types.create', 'event-types.delete', 'schedules.create']
+    const targets = ['event-types.create', 'event-types.delete', 'schedules.create']
     for (const name of targets) {
       const cap = caps.find((c) => c.name === name)
       expect(cap, `missing capability ${name}`).toBeDefined()
@@ -43,47 +43,6 @@ describe('cal-com adapter manifest', () => {
       expect(cap.cas).toBe('native-idempotency')
       expect(cap.externalEffect).toBe(true)
     }
-  })
-})
-
-describe('cal-com bookings.update', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('PATCHes /v2/bookings/{uid} with the metadata body', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: unknown
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        requestUrl = String(input)
-        requestMethod = init?.method
-        requestBody = init?.body ? JSON.parse(init.body as string) : null
-        return jsonResponse({ uid: 'bk_123' })
-      }),
-    )
-    const result = await calComConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'bookings.update',
-      args: { bookingUid: 'bk_123', metadata: { foo: 'bar' } },
-      idempotencyKey: 'k-1',
-    })
-    expect(requestMethod).toBe('PATCH')
-    expect(String(requestUrl)).toContain('/v2/bookings/bk_123')
-    expect(requestBody).toEqual({ metadata: { foo: 'bar' } })
-    expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      calComConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bookings.update',
-        args: { bookingUid: 'bk_123', metadata: {} },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

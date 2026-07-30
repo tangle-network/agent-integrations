@@ -1,72 +1,249 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-/**
- * Tally — form builder and submission receiver.
- *
- * Tally's primary use case is as a webhook receiver for form submissions
- * (ActivePieces catalogues it as webhook-only). This adapter exposes the
- * REST API for querying forms and retrieving submission history, scoped to
- * read operations. The webhook integration flow remains outside this connector
- * (agent agents receive submissions via the hub's inbound webhook dispatcher).
- *
- * Auth: API key placed in the `Authorization: Bearer <apiKey>` header.
- *
- * Tally API refs:
- *   - GET https://api.tally.so/form/{formId} — fetch form metadata
- *   - GET https://api.tally.so/form/{formId}/response — list responses
- *
- * TODO: expand to pagination and per-response filters if the agent needs them.
- */
-
 export const tallyConnector = declarativeRestConnector({
   kind: 'tally',
   displayName: 'Tally',
-  description: 'Fetch form metadata and retrieve form submission responses from Tally.',
+  description:
+    'Create and manage Tally forms, read submissions, and manage signed form-response webhooks.',
   auth: {
     kind: 'api-key',
-    hint: 'Tally API key. Create one under Account Settings → API. Sent as Bearer token in Authorization header.',
+    hint: 'Tally API key from Account Settings > API keys. Sent as a Bearer token.',
   },
-  category: 'other',
+  category: 'webhook',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.tally.so',
-  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Bearer ' },
+  credentialPlacement: { kind: 'bearer' },
   defaultHeaders: { accept: 'application/json' },
-  test: { method: 'GET', path: '/form' },
+  test: { method: 'GET', path: '/users/me' },
   capabilities: [
     {
-      name: 'form.get',
+      name: 'user.get',
       class: 'read',
-      description: 'Fetch Tally form metadata by ID.',
-      parameters: {
-        type: 'object',
-        properties: {
-          formId: { type: 'string', description: 'Tally form ID.' },
-        },
-        required: ['formId'],
-      },
-      request: { method: 'GET', path: '/form/{formId}' },
+      description: 'Read the authenticated Tally user.',
+      parameters: { type: 'object', properties: {} },
+      request: { method: 'GET', path: '/users/me' },
     },
     {
-      name: 'form.responses.list',
+      name: 'forms.list',
       class: 'read',
-      description: 'List form submission responses. Returns paginated response records.',
+      description: 'List accessible forms with pagination.',
       parameters: {
         type: 'object',
         properties: {
-          formId: { type: 'string', description: 'Tally form ID.' },
-          limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Page size (default 20, max 100).' },
-          after: { type: 'string', description: 'Cursor for pagination. Use the cursor from the previous response.' },
+          page: { type: 'integer', minimum: 1 },
+          limit: { type: 'integer', minimum: 1, maximum: 500 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/forms',
+        query: { page: '{page}', limit: '{limit}' },
+      },
+    },
+    {
+      name: 'forms.get',
+      class: 'read',
+      description: 'Read a form with its blocks and settings.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string' } },
+        required: ['formId'],
+      },
+      request: { method: 'GET', path: '/forms/{formId}' },
+    },
+    {
+      name: 'forms.questions.list',
+      class: 'read',
+      description: 'List the questions defined by a form.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string' } },
+        required: ['formId'],
+      },
+      request: { method: 'GET', path: '/forms/{formId}/questions' },
+    },
+    {
+      name: 'submissions.list',
+      class: 'read',
+      description: 'List completed or partial form submissions incrementally.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          page: { type: 'integer', minimum: 1 },
+          limit: { type: 'integer', minimum: 1, maximum: 500 },
+          filter: { type: 'string', enum: ['all', 'completed', 'partial'] },
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          afterId: { type: 'string' },
         },
         required: ['formId'],
       },
       request: {
         method: 'GET',
-        path: '/form/{formId}/response',
+        path: '/forms/{formId}/submissions',
         query: {
+          page: '{page}',
           limit: '{limit}',
-          after: '{after}',
+          filter: '{filter}',
+          startDate: '{startDate}',
+          endDate: '{endDate}',
+          afterId: '{afterId}',
         },
       },
+    },
+    {
+      name: 'submissions.get',
+      class: 'read',
+      description: 'Read one submission and the form questions needed to interpret it.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string' }, submissionId: { type: 'string' } },
+        required: ['formId', 'submissionId'],
+      },
+      request: { method: 'GET', path: '/forms/{formId}/submissions/{submissionId}' },
+    },
+    {
+      name: 'webhooks.list',
+      class: 'read',
+      description: 'List webhook subscriptions across accessible forms.',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', minimum: 1 },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+      },
+      request: { method: 'GET', path: '/webhooks', query: { page: '{page}', limit: '{limit}' } },
+    },
+    {
+      name: 'forms.create',
+      class: 'mutation',
+      description: 'Create a form from blocks or a template.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceId: { type: 'string' },
+          templateId: { type: 'string' },
+          folderId: { type: 'string' },
+          status: { type: 'string', enum: ['DRAFT', 'PUBLISHED'] },
+          blocks: { type: 'array', items: { type: 'object' } },
+          settings: { type: 'object' },
+        },
+        required: ['status', 'blocks'],
+      },
+      request: {
+        method: 'POST',
+        path: '/forms',
+        body: {
+          workspaceId: '{workspaceId}',
+          templateId: '{templateId}',
+          folderId: '{folderId}',
+          status: '{status}',
+          blocks: '{blocks}',
+          settings: '{settings}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.update',
+      class: 'mutation',
+      description: 'Replace selected form settings or its complete blocks array.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          name: { type: 'string' },
+          status: { type: 'string', enum: ['DRAFT', 'PUBLISHED', 'CLOSED'] },
+          blocks: { type: 'array', items: { type: 'object' } },
+          settings: { type: 'object' },
+        },
+        required: ['formId'],
+      },
+      request: {
+        method: 'PATCH',
+        path: '/forms/{formId}',
+        body: {
+          name: '{name}',
+          status: '{status}',
+          blocks: '{blocks}',
+          settings: '{settings}',
+        },
+      },
+      cas: 'optimistic-read-verify',
+      externalEffect: true,
+    },
+    {
+      name: 'forms.delete',
+      class: 'mutation',
+      description: 'Move a form to Tally trash.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string' } },
+        required: ['formId'],
+      },
+      request: { method: 'DELETE', path: '/forms/{formId}' },
+      cas: 'optimistic-read-verify',
+      externalEffect: true,
+    },
+    {
+      name: 'submissions.delete',
+      class: 'mutation',
+      description: 'Permanently delete one form submission.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string' }, submissionId: { type: 'string' } },
+        required: ['formId', 'submissionId'],
+      },
+      request: { method: 'DELETE', path: '/forms/{formId}/submissions/{submissionId}' },
+      cas: 'optimistic-read-verify',
+      externalEffect: true,
+    },
+    {
+      name: 'webhooks.create',
+      class: 'mutation',
+      description: 'Create a signed form-response webhook subscription.',
+      parameters: {
+        type: 'object',
+        properties: {
+          formId: { type: 'string' },
+          url: { type: 'string' },
+          eventTypes: { type: 'array', items: { type: 'string', enum: ['FORM_RESPONSE'] } },
+          signingSecret: { type: 'string' },
+          httpHeaders: { type: 'array', items: { type: 'object' } },
+          externalSubscriber: { type: 'string' },
+        },
+        required: ['formId', 'url', 'eventTypes'],
+      },
+      request: {
+        method: 'POST',
+        path: '/webhooks',
+        body: {
+          formId: '{formId}',
+          url: '{url}',
+          eventTypes: '{eventTypes}',
+          signingSecret: '{signingSecret}',
+          httpHeaders: '{httpHeaders}',
+          externalSubscriber: '{externalSubscriber}',
+        },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'webhooks.delete',
+      class: 'mutation',
+      description: 'Delete a webhook subscription.',
+      parameters: {
+        type: 'object',
+        properties: { webhookId: { type: 'string' } },
+        required: ['webhookId'],
+      },
+      request: { method: 'DELETE', path: '/webhooks/{webhookId}' },
+      cas: 'optimistic-read-verify',
+      externalEffect: true,
     },
   ],
 })

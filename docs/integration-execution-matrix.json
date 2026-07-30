@@ -18193,13 +18193,13 @@
     "setupAuth": {
       "mode": "oauth2",
       "authorizationUrl": "https://app.cal.com/auth/oauth2/authorize",
-      "tokenUrl": "https://api.cal.com/v2/oauth/exchange",
+      "tokenUrl": "https://api.cal.com/v2/auth/oauth2/token",
       "clientIdEnv": "CALCOM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CALCOM_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "calendar.read",
-          "providerScope": "READ_PROFILE",
+          "providerScope": "PROFILE_READ",
           "title": "Cal.com read",
           "reason": "Read Cal.com data for user-authorized agent workflows.",
           "risk": "read",
@@ -18207,7 +18207,7 @@
         },
         {
           "normalized": "calendar.read",
-          "providerScope": "READ_BOOKING",
+          "providerScope": "BOOKING_READ",
           "title": "Cal.com read",
           "reason": "Read Cal.com data for user-authorized agent workflows.",
           "risk": "read",
@@ -18215,7 +18215,7 @@
         },
         {
           "normalized": "calendar.write",
-          "providerScope": "WRITE_BOOKING",
+          "providerScope": "BOOKING_WRITE",
           "title": "Cal.com write",
           "reason": "Create or update Cal.com resources after policy approval.",
           "risk": "write",
@@ -18223,18 +18223,34 @@
         },
         {
           "normalized": "calendar.read",
-          "providerScope": "READ_EVENT_TYPE",
+          "providerScope": "EVENT_TYPE_READ",
           "title": "Cal.com read",
           "reason": "Read Cal.com data for user-authorized agent workflows.",
           "risk": "read",
           "dataClass": "private"
         },
         {
+          "normalized": "calendar.write",
+          "providerScope": "EVENT_TYPE_WRITE",
+          "title": "Cal.com write",
+          "reason": "Create or update Cal.com resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
           "normalized": "calendar.read",
-          "providerScope": "READ_SCHEDULE",
+          "providerScope": "SCHEDULE_READ",
           "title": "Cal.com read",
           "reason": "Read Cal.com data for user-authorized agent workflows.",
           "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.write",
+          "providerScope": "SCHEDULE_WRITE",
+          "title": "Cal.com write",
+          "reason": "Create or update Cal.com resources after policy approval.",
+          "risk": "write",
           "dataClass": "private"
         }
       ],

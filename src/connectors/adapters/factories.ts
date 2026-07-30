@@ -5,6 +5,7 @@ import { affinityConnector } from './affinity.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { boxConnector } from './box.js'
+import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { closeConnector } from './close.js'
 import { copperConnector } from './copper.js'
@@ -15,6 +16,7 @@ import { dropboxConnector } from './dropbox.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { fathomConnector } from './fathom.js'
 import { firefliesAiConnector } from './fireflies-ai.js'
+import { filloutFormsConnector } from './fillout-forms.js'
 import { gmail, type GmailOptions } from './gmail.js'
 import { gongConnector } from './gong.js'
 import {
@@ -29,6 +31,7 @@ import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import { ironcladConnector } from './ironclad.js'
+import { jotformConnector } from './jotform.js'
 import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
@@ -52,16 +55,21 @@ import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { salesforceConnector } from './salesforce.js'
+import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
 import { twitter, type TwitterOptions } from './twitter.js'
 import { twilioSmsConnector } from './twilio-sms.js'
+import { tallyConnector } from './tally.js'
+import { typeformConnector } from './typeform.js'
 import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
 } from './whatsapp-business.js'
 import { xeroConnector } from './xero.js'
+import { webflowConnector } from './webflow.js'
+import { wordpressConnector } from './wordpress.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
 
@@ -223,6 +231,29 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => calendlyConnector, {
       clientId: 'CALENDLY_OAUTH_CLIENT_ID',
       clientSecret: 'CALENDLY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => calComConnector, {
+      clientId: 'CALCOM_OAUTH_CLIENT_ID',
+      clientSecret: 'CALCOM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => savvycalConnector, {
+      clientId: 'SAVVYCAL_OAUTH_CLIENT_ID',
+      clientSecret: 'SAVVYCAL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => typeformConnector, {
+      clientId: 'TYPEFORM_OAUTH_CLIENT_ID',
+      clientSecret: 'TYPEFORM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => jotformConnector, {}),
+    defineFactoryAdapter(() => tallyConnector, {}),
+    defineFactoryAdapter(() => filloutFormsConnector, {}),
+    defineFactoryAdapter(() => webflowConnector, {
+      clientId: 'WEBFLOW_OAUTH_CLIENT_ID',
+      clientSecret: 'WEBFLOW_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wordpressConnector, {
+      clientId: 'WORDPRESS_OAUTH_CLIENT_ID',
+      clientSecret: 'WORDPRESS_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => asanaConnector, {
       clientId: 'ASANA_OAUTH_CLIENT_ID',

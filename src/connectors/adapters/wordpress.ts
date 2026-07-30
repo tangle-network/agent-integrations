@@ -51,7 +51,7 @@ export const wordpressConnector = declarativeRestConnector({
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://public-api.wordpress.com',
-  test: { method: 'GET', path: '/wp/v2/sites/' },
+  test: { method: 'GET', path: '/rest/v1.1/me' },
   capabilities: [
     {
       name: 'posts.list',
