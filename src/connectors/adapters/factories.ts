@@ -8,6 +8,7 @@ import { amazonSqsConnector } from './amazon-sqs.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { auth0Connector } from './auth0.js'
+import { avomaConnector } from './avoma.js'
 import { azureAdConnector } from './azure-ad.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
@@ -96,6 +97,7 @@ import { microsoftOnenoteConnector } from './microsoft-onenote.js'
 import { microsoftPowerBiConnector } from './microsoft-power-bi.js'
 import { microsoftTodoConnector } from './microsoft-todo.js'
 import { mastodonConnector } from './mastodon.js'
+import { meetgeekAiConnector } from './meetgeek-ai.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { netsuiteConnector } from './netsuite.js'
@@ -109,6 +111,7 @@ import { paddleConnector } from './paddle.js'
 import { plaidConnector } from './plaid.js'
 import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
+import { recallAiConnector } from './recall-ai.js'
 import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { rssConnector } from './rss.js'
@@ -120,6 +123,7 @@ import { slack, type SlackOptions } from './slack.js'
 import { sageIntacctConnector } from './sage-intacct.js'
 import { stripePackConnector } from './stripe-pack.js'
 import { tallyConnector } from './tally.js'
+import { tlDvConnector } from './tl-dv.js'
 import { todoistConnector } from './todoist.js'
 import { trelloConnector } from './trello.js'
 import { twentyConnector } from './twenty.js'
@@ -452,6 +456,12 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'FATHOM_OAUTH_CLIENT_ID',
       clientSecret: 'FATHOM_OAUTH_CLIENT_SECRET',
     }),
+    // Customer-supplied API keys gate these direct adapters at connection
+    // time; no shared deployment credential is required.
+    defineFactoryAdapter(() => avomaConnector, {}),
+    defineFactoryAdapter(() => tlDvConnector, {}),
+    defineFactoryAdapter(() => meetgeekAiConnector, {}),
+    defineFactoryAdapter(() => recallAiConnector, {}),
     defineFactoryAdapter(() => docusignConnector, {
       clientId: 'DOCUSIGN_OAUTH_CLIENT_ID',
       clientSecret: 'DOCUSIGN_OAUTH_CLIENT_SECRET',

@@ -1,36 +1,44 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
+/** tl;dv's public API is served from pasta.tldv.io under /v1alpha1 and uses
+ * an x-api-key header. Keep this surface aligned with the five published
+ * actions; unlisted write routes are not part of the public contract. */
 export const tlDvConnector = declarativeRestConnector({
   kind: 'tl-dv',
   displayName: 'tl;dv',
-  description: 'Record meetings, get transcripts, and access meeting notes automatically.',
-  auth: { kind: 'api-key', hint: 'tl;dv API key.' },
+  description: 'List meetings, retrieve transcripts and highlights, and import recordings for transcription.',
+  auth: { kind: 'api-key', hint: 'tl;dv API key sent in the x-api-key header.' },
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://api.tldv.io/v1',
-  test: { method: 'GET', path: '/meetings' },
+  baseUrl: 'https://pasta.tldv.io',
+  credentialPlacement: { kind: 'header', header: 'x-api-key' },
+  test: { method: 'GET', path: '/v1alpha1/health' },
   capabilities: [
     {
       name: 'meetings.list',
       class: 'read',
-      description: 'List meetings with optional search and filtering.',
+      description: 'Search and list tl;dv meetings with pagination, date, participation, and meeting-type filters.',
       parameters: {
         type: 'object',
         properties: {
           query: { type: 'string' },
-          page: { type: 'integer' },
-          limit: { type: 'integer' },
+          page: { type: 'integer', minimum: 1 },
+          limit: { type: 'integer', minimum: 1 },
+          from: { type: 'string', description: 'ISO-8601 lower bound.' },
+          to: { type: 'string', description: 'ISO-8601 upper bound.' },
           onlyParticipated: { type: 'boolean' },
-          meetingType: { type: 'string' },
+          meetingType: { type: 'string', enum: ['internal', 'external'] },
         },
       },
       request: {
         method: 'GET',
-        path: '/meetings',
+        path: '/v1alpha1/meetings',
         query: {
           query: '{query}',
           page: '{page}',
           limit: '{limit}',
+          from: '{from}',
+          to: '{to}',
           onlyParticipated: '{onlyParticipated}',
           meetingType: '{meetingType}',
         },
@@ -39,18 +47,18 @@ export const tlDvConnector = declarativeRestConnector({
     {
       name: 'meetings.get',
       class: 'read',
-      description: 'Get details of a specific meeting.',
+      description: 'Get metadata for a tl;dv meeting by id.',
       parameters: {
         type: 'object',
         properties: { meetingId: { type: 'string' } },
         required: ['meetingId'],
       },
-      request: { method: 'GET', path: '/meetings/{meetingId}' },
+      request: { method: 'GET', path: '/v1alpha1/meetings/{meetingId}' },
     },
     {
       name: 'meetings.upload',
       class: 'mutation',
-      description: 'Upload a recording for transcription.',
+      description: 'Import a publicly reachable audio or video recording for asynchronous processing.',
       parameters: {
         type: 'object',
         properties: {
@@ -58,13 +66,16 @@ export const tlDvConnector = declarativeRestConnector({
           url: { type: 'string' },
           happenedAt: { type: 'string' },
           dryRun: { type: 'boolean' },
-          participants: { type: 'object' },
+          participants: {
+            type: 'array',
+            items: { type: 'string', description: 'Participant email address.' },
+          },
         },
         required: ['name', 'url'],
       },
       request: {
         method: 'POST',
-        path: '/meetings/upload',
+        path: '/v1alpha1/meetings/import',
         body: {
           name: '{name}',
           url: '{url}',
@@ -74,98 +85,29 @@ export const tlDvConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'transcripts.get',
       class: 'read',
-      description: 'Get the transcript of a meeting.',
+      description: 'Get the speaker-attributed transcript for a tl;dv meeting.',
       parameters: {
         type: 'object',
         properties: { meetingId: { type: 'string' } },
         required: ['meetingId'],
       },
-      request: { method: 'GET', path: '/meetings/{meetingId}/transcript' },
+      request: { method: 'GET', path: '/v1alpha1/meetings/{meetingId}/transcript' },
     },
     {
       name: 'highlights.get',
       class: 'read',
-      description: 'Get highlights from a meeting.',
+      description: 'Get highlights and notes for a tl;dv meeting.',
       parameters: {
         type: 'object',
         properties: { meetingId: { type: 'string' } },
         required: ['meetingId'],
       },
-      request: { method: 'GET', path: '/meetings/{meetingId}/highlights' },
-    },
-    {
-      name: 'meetings.delete',
-      class: 'mutation',
-      description: 'Delete a meeting/recording.',
-      parameters: {
-        type: 'object',
-        properties: { meetingId: { type: 'string' } },
-        required: ['meetingId'],
-      },
-      request: { method: 'DELETE', path: '/meetings/{meetingId}' },
-      cas: 'native-idempotency',
-      externalEffect: true,
-    },
-    {
-      name: 'highlights.create',
-      class: 'mutation',
-      description: 'Create a highlight clip on a meeting.',
-      parameters: {
-        type: 'object',
-        properties: {
-          meetingId: { type: 'string' },
-          title: { type: 'string' },
-          startTime: { type: 'number' },
-          endTime: { type: 'number' },
-          note: { type: 'string' },
-        },
-        required: ['meetingId', 'startTime', 'endTime'],
-      },
-      request: {
-        method: 'POST',
-        path: '/meetings/{meetingId}/highlights',
-        body: 'args',
-      },
-      cas: 'native-idempotency',
-      externalEffect: true,
-    },
-    {
-      name: 'share-links.create',
-      class: 'mutation',
-      description: 'Create a shareable link for a recording.',
-      parameters: {
-        type: 'object',
-        properties: {
-          meetingId: { type: 'string' },
-          expiresAt: { type: 'string' },
-          password: { type: 'string' },
-        },
-        required: ['meetingId'],
-      },
-      request: {
-        method: 'POST',
-        path: '/meetings/{meetingId}/share-links',
-        body: 'args',
-      },
-      cas: 'native-idempotency',
-      externalEffect: true,
-    },
-    {
-      name: 'summaries.regenerate',
-      class: 'mutation',
-      description: 'Regenerate the AI summary for a meeting.',
-      parameters: {
-        type: 'object',
-        properties: { meetingId: { type: 'string' } },
-        required: ['meetingId'],
-      },
-      request: { method: 'POST', path: '/meetings/{meetingId}/summary/regenerate' },
-      cas: 'native-idempotency',
-      externalEffect: true,
+      request: { method: 'GET', path: '/v1alpha1/meetings/{meetingId}/highlights' },
     },
   ],
 })

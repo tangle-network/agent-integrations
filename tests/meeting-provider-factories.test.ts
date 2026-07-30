@@ -6,12 +6,16 @@ import {
 } from '../src/connectors/adapters/index'
 
 describe('meeting intelligence factory pack', () => {
-  it('activates four executable meeting providers', () => {
+  it('activates eight executable meeting providers', () => {
     const expected = {
       granola: [],
       'fireflies-ai': [],
       gong: ['GONG_OAUTH_CLIENT_ID', 'GONG_OAUTH_CLIENT_SECRET'],
       fathom: ['FATHOM_OAUTH_CLIENT_ID', 'FATHOM_OAUTH_CLIENT_SECRET'],
+      avoma: [],
+      'tl-dv': [],
+      'meetgeek-ai': [],
+      'recall-ai': [],
     } as const
 
     for (const [kind, envNames] of Object.entries(expected)) {
@@ -25,6 +29,15 @@ describe('meeting intelligence factory pack', () => {
       const options = resolveConnectorAdapterFactoryOptions(definition!, env)
       expect(options, kind).not.toBeNull()
       expect(definition!.factory(options ?? {}).manifest.capabilities.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('keeps meeting products without a direct adapter out of the factory inventory', () => {
+    for (const kind of ['otter', 'read-ai', 'grain']) {
+      expect(
+        CONNECTOR_ADAPTER_FACTORIES.some((candidate) => candidate.kind === kind),
+        kind,
+      ).toBe(false)
     }
   })
 
