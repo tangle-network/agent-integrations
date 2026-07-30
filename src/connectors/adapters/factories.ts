@@ -4,10 +4,12 @@ import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
+import { basecampConnector } from './basecamp.js'
 import { boxConnector } from './box.js'
 import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { closeConnector } from './close.js'
+import { clickupConnector } from './clickup.js'
 import { copperConnector } from './copper.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
@@ -31,7 +33,9 @@ import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import { ironcladConnector } from './ironclad.js'
+import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
+import { linearConnector } from './linear.js'
 import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
@@ -45,6 +49,7 @@ import {
   microsoftTeams,
   type MicrosoftTeamsOptions,
 } from './microsoft-teams.js'
+import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
@@ -59,10 +64,12 @@ import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
+import { tallyConnector } from './tally.js'
+import { todoistConnector } from './todoist.js'
+import { trelloConnector } from './trello.js'
+import { typeformConnector } from './typeform.js'
 import { twitter, type TwitterOptions } from './twitter.js'
 import { twilioSmsConnector } from './twilio-sms.js'
-import { tallyConnector } from './tally.js'
-import { typeformConnector } from './typeform.js'
 import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
@@ -259,6 +266,28 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'ASANA_OAUTH_CLIENT_ID',
       clientSecret: 'ASANA_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => linearConnector, {
+      clientId: 'LINEAR_OAUTH_CLIENT_ID',
+      clientSecret: 'LINEAR_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mondayConnector, {
+      clientId: 'MONDAY_OAUTH_CLIENT_ID',
+      clientSecret: 'MONDAY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clickupConnector, {
+      clientId: 'CLICKUP_OAUTH_CLIENT_ID',
+      clientSecret: 'CLICKUP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => basecampConnector, {
+      clientId: 'BASECAMP_OAUTH_CLIENT_ID',
+      clientSecret: 'BASECAMP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => todoistConnector, {
+      clientId: 'TODOIST_OAUTH_CLIENT_ID',
+      clientSecret: 'TODOIST_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => trelloConnector, {}),
+    defineFactoryAdapter(() => jiraCloudConnector, {}),
     defineFactoryAdapter(() => ringcentralConnector, {
       clientId: 'RINGCENTRAL_OAUTH_CLIENT_ID',
       clientSecret: 'RINGCENTRAL_OAUTH_CLIENT_SECRET',

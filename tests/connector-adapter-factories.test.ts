@@ -46,6 +46,17 @@ describe('connector adapter factory registry', () => {
     }
   })
 
+  it('registers user-supplied task provider credentials without an app secret', () => {
+    for (const kind of ['trello', 'jira-cloud']) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual({})
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
+    }
+  })
+
   it('registers launch providers behind their OAuth application settings', () => {
     const expected = {
       salesforce: ['SALESFORCE_OAUTH_CLIENT_ID', 'SALESFORCE_OAUTH_CLIENT_SECRET'],
@@ -54,6 +65,11 @@ describe('connector adapter factory registry', () => {
       zoom: ['ZOOM_OAUTH_CLIENT_ID', 'ZOOM_OAUTH_CLIENT_SECRET'],
       calendly: ['CALENDLY_OAUTH_CLIENT_ID', 'CALENDLY_OAUTH_CLIENT_SECRET'],
       asana: ['ASANA_OAUTH_CLIENT_ID', 'ASANA_OAUTH_CLIENT_SECRET'],
+      linear: ['LINEAR_OAUTH_CLIENT_ID', 'LINEAR_OAUTH_CLIENT_SECRET'],
+      monday: ['MONDAY_OAUTH_CLIENT_ID', 'MONDAY_OAUTH_CLIENT_SECRET'],
+      clickup: ['CLICKUP_OAUTH_CLIENT_ID', 'CLICKUP_OAUTH_CLIENT_SECRET'],
+      basecamp: ['BASECAMP_OAUTH_CLIENT_ID', 'BASECAMP_OAUTH_CLIENT_SECRET'],
+      todoist: ['TODOIST_OAUTH_CLIENT_ID', 'TODOIST_OAUTH_CLIENT_SECRET'],
     } as const
 
     for (const [kind, envNames] of Object.entries(expected)) {
