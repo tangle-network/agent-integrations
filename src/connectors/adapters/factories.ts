@@ -147,6 +147,14 @@ import { chatwootConnector } from './chatwoot.js'
 import { matrixConnector } from './matrix.js'
 import { mattermostConnector } from './mattermost.js'
 import { telegramConnector } from './telegram.js'
+import { airtableConnector } from './airtable.js'
+import { datadogConnector } from './datadog.js'
+import { firebaseConnector } from './firebase.js'
+import { googleBigqueryConnector } from './google-bigquery.js'
+import { hightouchConnector } from './hightouch.js'
+import { metabaseConnector } from './metabase.js'
+import { segmentConnector } from './segment.js'
+import { supabaseConnector } from './supabase.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -269,6 +277,26 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => microsoftTodoConnector, microsoftOAuthEnvMap),
     defineFactoryAdapter(() => microsoftOnenoteConnector, microsoftOAuthEnvMap),
     defineFactoryAdapter(() => microsoftPowerBiConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => googleBigqueryConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => firebaseConnector, {
+      clientId: [
+        'FIREBASE_OAUTH_CLIENT_ID',
+        'GOOGLE_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'FIREBASE_OAUTH_CLIENT_SECRET',
+        'GOOGLE_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => supabaseConnector, {
+      clientId: 'SUPABASE_OAUTH_CLIENT_ID',
+      clientSecret: 'SUPABASE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => airtableConnector, {}),
+    defineFactoryAdapter(() => segmentConnector, {}),
+    defineFactoryAdapter(() => hightouchConnector, {}),
+    defineFactoryAdapter(() => datadogConnector, {}),
+    defineFactoryAdapter(() => metabaseConnector, {}),
     defineFactoryAdapter(
       () => microsoftDynamics365BusinessCentralConnector,
       microsoftOAuthEnvMap,
