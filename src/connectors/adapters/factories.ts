@@ -3,6 +3,8 @@ import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
 import { amazonS3Connector } from './amazon-s3.js'
+import { amazonSnsConnector } from './amazon-sns.js'
+import { amazonSqsConnector } from './amazon-sqs.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { auth0Connector } from './auth0.js'
@@ -59,6 +61,7 @@ import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
+import { httpConnector } from './http.js'
 import { intercomConnector } from './intercom.js'
 import { instagramBusinessConnector } from './instagram-business.js'
 import { insightlyConnector } from './insightly.js'
@@ -108,6 +111,7 @@ import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
+import { rssConnector } from './rss.js'
 import { salesforceConnector } from './salesforce.js'
 import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
@@ -349,6 +353,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     // credentials from each connection; OAuth providers are registered only
     // when the shared application credentials are present.
     defineFactoryAdapter(() => amazonS3Connector, {}),
+    defineFactoryAdapter(() => amazonSnsConnector, {}),
+    defineFactoryAdapter(() => amazonSqsConnector, {}),
+    defineFactoryAdapter(() => httpConnector, {}),
+    defineFactoryAdapter(() => rssConnector, {}),
     defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => backblazeConnector, {}),
     defineFactoryAdapter(() => cloudinaryConnector, {}),
