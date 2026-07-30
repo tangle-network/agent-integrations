@@ -24,6 +24,7 @@ import { confluenceConnector } from './confluence.js'
 import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
+import { circleConnector } from './circle.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
@@ -59,12 +60,14 @@ import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import { intercomConnector } from './intercom.js'
+import { instagramBusinessConnector } from './instagram-business.js'
 import { insightlyConnector } from './insightly.js'
 import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
 import { leadConnectorConnector } from './lead-connector.js'
 import { linearConnector } from './linear.js'
+import { linkedinConnector } from './linkedin.js'
 import {
   microsoft365PeopleConnector,
 } from './microsoft-365-people.js'
@@ -89,6 +92,7 @@ import {
 import { microsoftOnenoteConnector } from './microsoft-onenote.js'
 import { microsoftPowerBiConnector } from './microsoft-power-bi.js'
 import { microsoftTodoConnector } from './microsoft-todo.js'
+import { mastodonConnector } from './mastodon.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { netsuiteConnector } from './netsuite.js'
@@ -125,6 +129,7 @@ import {
 import { xeroConnector } from './xero.js'
 import { webflowConnector } from './webflow.js'
 import { wordpressConnector } from './wordpress.js'
+import { youtubeDataConnector } from './youtube-data.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
@@ -477,6 +482,23 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'LEAD_CONNECTOR_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => ninjapipeConnector, {}),
+    defineFactoryAdapter(() => instagramBusinessConnector, {
+      clientId: [
+        'INSTAGRAM_BUSINESS_OAUTH_CLIENT_ID',
+        'FACEBOOK_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'INSTAGRAM_BUSINESS_OAUTH_CLIENT_SECRET',
+        'FACEBOOK_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => linkedinConnector, {
+      clientId: 'LINKEDIN_OAUTH_CLIENT_ID',
+      clientSecret: 'LINKEDIN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mastodonConnector, {}),
+    defineFactoryAdapter(() => circleConnector, {}),
+    defineFactoryAdapter(() => youtubeDataConnector, googleOAuthEnvMap),
     // Revenue/accounting providers use customer-supplied access tokens or
     // credential bundles, so no shared deployment secret gates registration.
     defineFactoryAdapter(() => stripePackConnector, {}),

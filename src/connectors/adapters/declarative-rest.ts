@@ -1,3 +1,4 @@
+import { isIP } from 'node:net'
 import {
   type Capability,
   type CapabilityMutationResult,
@@ -57,6 +58,10 @@ export interface RestConnectorSpec {
    *  A suffix `.example.com` accepts `tenant.example.com`, never
    *  `example.com.attacker.test`. */
   allowedBaseUrlSuffixes?: readonly string[]
+  /** Require a user-supplied host to use HTTPS and reject literal/private
+   *  network targets. Use this for federated providers that cannot be pinned
+   *  to one vendor suffix, such as Mastodon. */
+  requirePublicHttpsBaseUrl?: boolean
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
@@ -307,6 +312,7 @@ export async function executeRestRequest(
     inv.source.metadata,
     spec.allowedBaseUrls,
     spec.allowedBaseUrlSuffixes,
+    spec.requirePublicHttpsBaseUrl,
   )
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Placeholder scope = the capability's arguments PLUS a reserved
@@ -470,6 +476,7 @@ function resolveBaseUrl(
   metadata: Record<string, unknown>,
   allowedBaseUrls?: readonly string[],
   allowedBaseUrlSuffixes?: readonly string[],
+  requirePublicHttpsBaseUrl?: boolean,
 ): string {
   let resolved: string
   if (typeof baseUrl === 'string') {
@@ -489,7 +496,56 @@ function resolveBaseUrl(
   if ((allowedBaseUrls || allowedBaseUrlSuffixes) && !exactAllowed && !suffixAllowed) {
     throw new Error('connection base URL is not an allowed provider endpoint')
   }
+  if (requirePublicHttpsBaseUrl && !isPublicHttpsUrl(resolved)) {
+    throw new Error('connection base URL must be a public HTTPS endpoint')
+  }
   return resolved
+}
+
+function isPublicHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) return false
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+    if (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.home.arpa')
+    ) {
+      return false
+    }
+    if (isIP(hostname) === 4) return isPublicIpv4(hostname)
+    if (isIP(hostname) === 6) return isPublicIpv6(hostname)
+    return hostname.includes('.')
+  } catch {
+    return false
+  }
+}
+
+function isPublicIpv4(hostname: string): boolean {
+  const [first, second] = hostname.split('.').map(Number)
+  if (first === 0 || first === 10 || first === 127 || first >= 224) return false
+  if (first === 100 && second >= 64 && second <= 127) return false
+  if (first === 169 && second === 254) return false
+  if (first === 172 && second >= 16 && second <= 31) return false
+  if (first === 192 && (second === 0 || second === 168)) return false
+  if (first === 198 && (second === 18 || second === 19)) return false
+  return true
+}
+
+function isPublicIpv6(hostname: string): boolean {
+  const normalized = hostname.toLowerCase()
+  return !(
+    normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    /^fe[89ab]/.test(normalized) ||
+    normalized.startsWith('ff') ||
+    normalized.startsWith('::ffff:')
+  )
 }
 
 function hasHttpsHostnameSuffix(value: string, suffix: string): boolean {
