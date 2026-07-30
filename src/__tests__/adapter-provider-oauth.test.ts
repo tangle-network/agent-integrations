@@ -172,11 +172,14 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
 
   it('completeAuth surfaces a provider_failure when the IdP responds non-2xx', async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response('{"error":"invalid_grant"}', {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: { 'content-type': 'application/json' },
-      }),
+      new Response(
+        '{"error":"invalid_grant","echo":"cid_live sec_live bad_code"}',
+        {
+          status: 400,
+          statusText: 'Bad Request',
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
     ) as unknown as typeof fetch
 
     const provider = createConnectorAdapterProvider({
@@ -200,8 +203,41 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     }
     expect(caught).toBeInstanceOf(IntegrationError)
     expect((caught as IntegrationError).code).toBe('provider_failure')
-    // The thrown message MUST NOT leak the client secret.
+    expect((caught as Error).message).toContain('[REDACTED]')
+    expect((caught as Error).message).not.toContain('cid_live')
     expect((caught as Error).message).not.toContain('sec_live')
+    expect((caught as Error).message).not.toContain('bad_code')
+  })
+
+  it('completeAuth redacts credentials from token-exchange transport errors', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('request failed with cid_live sec_live bad_code')
+    }) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter()],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: 'bad_code',
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(IntegrationError)
+    expect((caught as Error).message).toContain('[REDACTED]')
+    expect((caught as Error).message).not.toContain('cid_live')
+    expect((caught as Error).message).not.toContain('sec_live')
+    expect((caught as Error).message).not.toContain('bad_code')
   })
 
   it('completeAuth rejects when the token response is missing access_token', async () => {

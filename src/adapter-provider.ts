@@ -187,15 +187,23 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           body,
         })
       } catch (cause) {
+        const detail = redactSensitiveText(
+          (cause as Error)?.message ?? 'unknown',
+          [request.code, client.clientId, client.clientSecret],
+        )
         throw new IntegrationError(
-          `OAuth token exchange transport error for ${request.connectorId}: ${(cause as Error)?.message ?? 'unknown'}`,
+          `OAuth token exchange transport error for ${request.connectorId}: ${detail}`,
           'provider_failure',
         )
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
+        const detail = redactSensitiveText(
+          `${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
+          [request.code, client.clientId, client.clientSecret],
+        )
         throw new IntegrationError(
-          `OAuth token exchange failed for ${request.connectorId}: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
+          `OAuth token exchange failed for ${request.connectorId}: ${detail}`,
           'provider_failure',
         )
       }
@@ -412,6 +420,15 @@ function oauthManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Extract<
   if (auth.kind === 'oauth2') return auth
   if (auth.kind !== 'one_of') return undefined
   return auth.options.find((option): option is Extract<typeof option, { kind: 'oauth2' }> => option.kind === 'oauth2')
+}
+
+function redactSensitiveText(text: string, secrets: readonly string[]): string {
+  return secrets
+    .filter((secret) => secret.length > 0)
+    .reduce(
+      (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
+      text,
+    )
 }
 
 /** Project the declared `auth.tokenMetadata` mappings out of an OAuth
