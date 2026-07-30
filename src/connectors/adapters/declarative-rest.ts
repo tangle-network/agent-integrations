@@ -37,6 +37,10 @@ export interface RestConnectorSpec {
   category: ConnectorAdapter['manifest']['category']
   defaultConsistencyModel: ConnectorAdapter['manifest']['defaultConsistencyModel']
   baseUrl: string | { metadataKey: string; fallback?: string }
+  /** Exact upstream base URLs accepted after connection-metadata resolution.
+   *  Use this for regional SaaS hosts so a user-controlled metadata value
+   *  cannot redirect provider credentials to an arbitrary server. */
+  allowedBaseUrls?: readonly string[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
@@ -282,7 +286,11 @@ export async function executeRestRequest(
   const aws = placement.kind === 'aws-sigv4' ? parseAwsCredentialBundle(inv.source.credentials) : undefined
   const awsRegion = aws ? resolveAwsRegion(aws, inv.source.metadata, placement as { defaultRegion?: string }) : undefined
 
-  let baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
+  let baseUrl = resolveBaseUrl(
+    spec.baseUrl,
+    inv.source.metadata,
+    spec.allowedBaseUrls,
+  )
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Placeholder scope = the capability's arguments PLUS a reserved
   // `connection.*` namespace reading the connection's own metadata. Some
@@ -416,12 +424,36 @@ export async function executeRestRequest(
   return { data, etag: res.headers.get('etag') ?? undefined }
 }
 
-function resolveBaseUrl(baseUrl: RestConnectorSpec['baseUrl'], metadata: Record<string, unknown>): string {
-  if (typeof baseUrl === 'string') return baseUrl
-  const value = metadata[baseUrl.metadataKey]
-  if (typeof value === 'string' && value.trim()) return value
-  if (baseUrl.fallback) return baseUrl.fallback
-  throw new Error(`missing metadata.${baseUrl.metadataKey} base URL`)
+function resolveBaseUrl(
+  baseUrl: RestConnectorSpec['baseUrl'],
+  metadata: Record<string, unknown>,
+  allowedBaseUrls?: readonly string[],
+): string {
+  let resolved: string
+  if (typeof baseUrl === 'string') {
+    resolved = baseUrl
+  } else {
+    const value = metadata[baseUrl.metadataKey]
+    if (typeof value === 'string' && value.trim()) {
+      resolved = value
+    } else if (baseUrl.fallback) {
+      resolved = baseUrl.fallback
+    } else {
+      throw new Error(`missing metadata.${baseUrl.metadataKey} base URL`)
+    }
+  }
+  if (allowedBaseUrls && !allowedBaseUrls.some((candidate) => sameUrl(candidate, resolved))) {
+    throw new Error('connection base URL is not an allowed provider endpoint')
+  }
+  return resolved
+}
+
+function sameUrl(left: string, right: string): boolean {
+  try {
+    return new URL(left).href === new URL(right).href
+  } catch {
+    return false
+  }
 }
 
 function applyCredentials(

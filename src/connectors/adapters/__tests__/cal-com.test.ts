@@ -30,12 +30,13 @@ describe('cal-com adapter', () => {
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
     expect(auth.authorizationUrl).toBe('https://app.cal.com/auth/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://api.cal.com/v2/oauth/exchange')
+    expect(auth.tokenUrl).toBe('https://api.cal.com/v2/auth/oauth2/token')
     expect(auth.clientIdEnv).toBe('CALCOM_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('CALCOM_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('WRITE_BOOKING')
-    expect(auth.scopes).toContain('READ_BOOKING')
-    expect(auth.scopes).toContain('READ_EVENT_TYPE')
+    expect(auth.scopes).toContain('BOOKING_WRITE')
+    expect(auth.scopes).toContain('BOOKING_READ')
+    expect(auth.scopes).toContain('EVENT_TYPE_READ')
+    expect(auth.scopes).toContain('EVENT_TYPE_WRITE')
   })
 
   it('exposes the booking + event-type + schedules surface and the right read/mutation split', () => {
@@ -49,7 +50,6 @@ describe('cal-com adapter', () => {
       'bookings.get',
       'bookings.list',
       'bookings.reschedule',
-      'bookings.update',
       'event-types.create',
       'event-types.delete',
       'event-types.get',
@@ -74,7 +74,6 @@ describe('cal-com adapter', () => {
       'bookings.cancel',
       'bookings.create',
       'bookings.reschedule',
-      'bookings.update',
       'event-types.create',
       'event-types.delete',
       'schedules.create',
@@ -91,7 +90,7 @@ describe('cal-com adapter', () => {
     const invocation: ConnectorInvocation = {
       source,
       capabilityName: 'bookings.list',
-      args: { status: 'upcoming', take: 50 },
+      args: { status: 'upcoming', limit: 50 },
       idempotencyKey: 'bookings_1',
     }
 
@@ -101,12 +100,12 @@ describe('cal-com adapter', () => {
     expect(url.origin).toBe('https://api.cal.com')
     expect(url.pathname).toBe('/v2/bookings')
     expect(url.searchParams.get('status')).toBe('upcoming')
-    expect(url.searchParams.get('take')).toBe('50')
+    expect(url.searchParams.get('limit')).toBe('50')
     expect(url.searchParams.has('attendeeEmail')).toBe(false)
     expect(url.searchParams.has('eventTypeId')).toBe(false)
     expect((init as RequestInit).headers).toMatchObject({
       authorization: 'Bearer cal_token_xyz',
-      'cal-api-version': '2024-08-13',
+      'cal-api-version': '2026-05-01',
     })
   })
 
@@ -133,7 +132,7 @@ describe('cal-com adapter', () => {
     expect(init.headers).toMatchObject({
       authorization: 'Bearer cal_token_xyz',
       'content-type': 'application/json',
-      'cal-api-version': '2024-08-13',
+      'cal-api-version': '2026-02-25',
     })
     expect(JSON.parse(String(init.body))).toEqual(body)
   })
@@ -153,6 +152,7 @@ describe('cal-com adapter', () => {
     const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
     expect(url.pathname).toBe('/v2/bookings/bk_abc/cancel')
     expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({ 'cal-api-version': '2026-02-25' })
     expect(JSON.parse(String(init.body))).toEqual({ cancellationReason: 'attendee no longer available' })
   })
 })

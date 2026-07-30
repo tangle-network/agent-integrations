@@ -20,11 +20,13 @@ export const jotformConnector = declarativeRestConnector({
   },
   category: 'webhook',
   defaultConsistencyModel: 'authoritative',
-  // US default; EU customers should mint a connection against the EU host by
-  // overriding `baseUrl` via the connector instance (the metadata-keyed form
-  // is used by OAuth connectors; Jotform's per-region host is selected at
-  // connection time, so a static default is correct for the catalog manifest).
-  baseUrl: 'https://api.jotform.com',
+  // EU customers pin apiBaseUrl=https://eu-api.jotform.com in connection
+  // metadata; callers cannot override it per action.
+  baseUrl: { metadataKey: 'apiBaseUrl', fallback: 'https://api.jotform.com' },
+  allowedBaseUrls: [
+    'https://api.jotform.com',
+    'https://eu-api.jotform.com',
+  ],
   credentialPlacement: { kind: 'header', header: 'APIKEY' },
   defaultHeaders: { Accept: 'application/json' },
   // /user is the canonical "am I authenticated" probe — cheap, no side effects,
