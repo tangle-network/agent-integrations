@@ -22,8 +22,11 @@ import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { fathomConnector } from './fathom.js'
 import { firefliesAiConnector } from './fireflies-ai.js'
 import { filloutFormsConnector } from './fillout-forms.js'
+import { freshdeskConnector } from './freshdesk.js'
+import { frontConnector } from './front.js'
 import { gmail, type GmailOptions } from './gmail.js'
 import { gongConnector } from './gong.js'
+import { gorgiasConnector } from './gorgias.js'
 import {
   googleCalendar,
   type GoogleCalendarOptions,
@@ -38,7 +41,9 @@ import { googleTasksConnector } from './google-tasks.js'
 import { googlechatConnector } from './googlechat.js'
 import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
+import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
+import { intercomConnector } from './intercom.js'
 import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
@@ -90,6 +95,7 @@ import {
 import { xeroConnector } from './xero.js'
 import { webflowConnector } from './webflow.js'
 import { wordpressConnector } from './wordpress.js'
+import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
 
@@ -373,6 +379,30 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => billComConnector, {}),
     defineFactoryAdapter(() => netsuiteConnector, {}),
     defineFactoryAdapter(() => sageIntacctConnector, {}),
+    defineFactoryAdapter(() => frontConnector, {
+      clientId: 'FRONT_OAUTH_CLIENT_ID',
+      clientSecret: 'FRONT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zendeskConnector, {
+      clientId: 'ZENDESK_OAUTH_CLIENT_ID',
+      clientSecret: 'ZENDESK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => intercomConnector, {
+      clientId: 'INTERCOM_OAUTH_CLIENT_ID',
+      clientSecret: 'INTERCOM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => helpscoutConnector, {
+      clientId: 'HELPSCOUT_OAUTH_CLIENT_ID',
+      clientSecret: 'HELPSCOUT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => freshdeskConnector, {
+      clientId: 'FRESHDESK_OAUTH_CLIENT_ID',
+      clientSecret: 'FRESHDESK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => gorgiasConnector, {
+      clientId: 'GORGIAS_OAUTH_CLIENT_ID',
+      clientSecret: 'GORGIAS_OAUTH_CLIENT_SECRET',
+    }),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

@@ -22,6 +22,7 @@ export const zendeskConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'subdomainUrl' },
+  allowedBaseUrlSuffixes: ['.zendesk.com'],
   test: { method: 'GET', path: '/api/v2/users/me.json' },
   capabilities: [
     {
