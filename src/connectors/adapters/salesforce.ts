@@ -18,6 +18,7 @@ export const salesforceConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'instanceUrl' },
+  allowedBaseUrlSuffixes: ['.salesforce.com'],
   test: { method: 'GET', path: '/services/data/v61.0/' },
   capabilities: [
     {

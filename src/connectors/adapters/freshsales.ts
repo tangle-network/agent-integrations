@@ -19,6 +19,12 @@ export const freshsalesConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'bundleUrl' },
+  allowedBaseUrlSuffixes: ['.myfreshworks.com'],
+  credentialPlacement: {
+    kind: 'header',
+    header: 'Authorization',
+    prefix: 'Token token=',
+  },
   test: { method: 'GET', path: '/crm/sales/api/selector/owners' },
   capabilities: [
     {
