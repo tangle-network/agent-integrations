@@ -28,10 +28,14 @@ import {
   googleCalendar,
   type GoogleCalendarOptions,
 } from './google-calendar.js'
+import { googleContactsConnector } from './google-contacts.js'
 import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 import { googleForms, type GoogleFormsOptions } from './google-forms.js'
 import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
+import { googleSlidesConnector } from './google-slides.js'
+import { googleTasksConnector } from './google-tasks.js'
+import { googlechatConnector } from './googlechat.js'
 import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
@@ -160,6 +164,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       googleForms,
       googleOAuthEnvMap,
     ),
+    defineFactoryAdapter(() => googleContactsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleSlidesConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googlechatConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
     defineFactoryAdapter<SlackOptions>(slack, {
       clientId: 'SLACK_OAUTH_CLIENT_ID',
       clientSecret: 'SLACK_OAUTH_CLIENT_SECRET',

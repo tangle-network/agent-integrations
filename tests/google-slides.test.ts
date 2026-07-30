@@ -25,6 +25,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('google-slides adapter manifest', () => {
   it('classifies itself as the doc category and exposes the google-slides kind', () => {
     expect(googleSlidesConnector.manifest.kind).toBe('google-slides')
@@ -35,6 +37,14 @@ describe('google-slides adapter manifest', () => {
   it('declares oauth2 auth as documented in the catalog', () => {
     const auth = googleSlidesConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
+  })
+
+  it('uses OAuth refresh as health proof instead of calling a nonexistent presentations probe', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(googleSlidesConnector.test(source())).resolves.toEqual({ ok: true })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('covers the catalog action set plus write-side update + duplicate', () => {
@@ -69,8 +79,6 @@ describe('google-slides adapter manifest', () => {
 })
 
 describe('google-slides slides.duplicate', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('POSTs a duplicateObject batchUpdate to /v1/presentations/{id}:batchUpdate', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
