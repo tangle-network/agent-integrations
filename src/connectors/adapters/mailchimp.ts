@@ -35,6 +35,7 @@ export const mailchimpConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiEndpoint' },
+  allowedBaseUrlSuffixes: ['.api.mailchimp.com'],
   test: { method: 'GET', path: '/3.0/ping' },
   capabilities: [
     {

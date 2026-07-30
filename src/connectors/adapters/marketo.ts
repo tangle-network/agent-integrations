@@ -36,6 +36,7 @@ export const marketoConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'restEndpoint' },
+  allowedBaseUrlSuffixes: ['.mktorest.com'],
   test: { method: 'GET', path: '/rest/v1/stats/usage.json' },
   capabilities: [
     {

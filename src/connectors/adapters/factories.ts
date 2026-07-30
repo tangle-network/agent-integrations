@@ -98,6 +98,16 @@ import { wordpressConnector } from './wordpress.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
+import { apolloConnector } from './apollo.js'
+import { brazeConnector } from './braze.js'
+import { customerIoConnector } from './customer-io.js'
+import { klaviyoConnector } from './klaviyo.js'
+import { lemlistConnector } from './lemlist.js'
+import { mailchimpConnector } from './mailchimp.js'
+import { marketoConnector } from './marketo.js'
+import { outreachConnector } from './outreach.js'
+import { salesloftConnector } from './salesloft.js'
+import { smartleadConnector } from './smartlead.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -403,6 +413,31 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'GORGIAS_OAUTH_CLIENT_ID',
       clientSecret: 'GORGIAS_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => outreachConnector, {
+      clientId: 'OUTREACH_OAUTH_CLIENT_ID',
+      clientSecret: 'OUTREACH_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => salesloftConnector, {
+      clientId: 'SALESLOFT_OAUTH_CLIENT_ID',
+      clientSecret: 'SALESLOFT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mailchimpConnector, {
+      clientId: 'MAILCHIMP_OAUTH_CLIENT_ID',
+      clientSecret: 'MAILCHIMP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => marketoConnector, {
+      clientId: 'MARKETO_OAUTH_CLIENT_ID',
+      clientSecret: 'MARKETO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => klaviyoConnector, {
+      clientId: 'KLAVIYO_OAUTH_CLIENT_ID',
+      clientSecret: 'KLAVIYO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => apolloConnector, {}),
+    defineFactoryAdapter(() => customerIoConnector, {}),
+    defineFactoryAdapter(() => brazeConnector, {}),
+    defineFactoryAdapter(() => smartleadConnector, {}),
+    defineFactoryAdapter(() => lemlistConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

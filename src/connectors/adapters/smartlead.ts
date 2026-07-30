@@ -8,6 +8,7 @@ export const smartleadConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.smartlead.io',
+  credentialPlacement: { kind: 'query', parameter: 'api_key' },
   test: { method: 'GET', path: '/v1/campaigns' },
   capabilities: [
     {
