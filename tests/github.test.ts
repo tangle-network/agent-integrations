@@ -296,6 +296,100 @@ describe('github adapter', () => {
     expect(notMember.data).toEqual({ exists: false })
   })
 
+  // ---------- provider throttles and hard failures on reads ----------
+
+  it('repositories.get throws ProviderRateLimited on a 429 — never resolves as a successful read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: 'API rate limit exceeded' }), {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '2' },
+          }),
+      ),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'repositories.get',
+        args: { owner: 'octo', repo: 'hello' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toMatchObject({
+      name: 'ProviderRateLimited',
+      status: 429,
+      retryAfterMs: 2000,
+      body: { message: 'API rate limit exceeded' },
+      message: expect.stringMatching(/rate limit/),
+    })
+  })
+
+  it('repositories.get throws with status + body on a generic 5xx', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ message: 'Server Error' }), { status: 500 })),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'repositories.get',
+        args: { owner: 'octo', repo: 'hello' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/HTTP 500.*Server Error/)
+  })
+
+  it('repositories.get throws on a 409 conflict instead of returning the error body as data', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ message: 'Conflict' }), { status: 409 })),
+    )
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'repositories.get',
+        args: { owner: 'octo', repo: 'hello' },
+        idempotencyKey: 'k',
+      }),
+    ).rejects.toThrow(/HTTP 409/)
+  })
+
+  it('issues.create still reports a 429 as the rate-limited soft failure, not a commit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: 'API rate limit exceeded' }), {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '2' },
+          }),
+      ),
+    )
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'issues.create',
+      args: { owner: 'octo', repo: 'hello', title: 'throttled' },
+      idempotencyKey: 'k',
+    })
+    expect(result).toMatchObject({ status: 'rate-limited', retryAfterMs: 2000 })
+  })
+
+  it('test() reports a throttled health probe as ok: false, not green', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: 'API rate limit exceeded' }), {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '2' },
+          }),
+      ),
+    )
+    const result = await adapter.test(source())
+    expect(result.ok).toBe(false)
+  })
+
   it('read existence checks still surface CredentialsExpired on 401/403', async () => {
     vi.stubGlobal(
       'fetch',

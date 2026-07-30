@@ -483,6 +483,12 @@ export class ProviderConfigError extends Error {
   }
 }
 
+export interface ProviderRateLimitedInit extends ProviderHttpErrorInit {
+  /** Wall-clock ms the caller should wait before retrying — resolved from the
+   *  provider's `Retry-After` when one was sent. */
+  retryAfterMs?: number
+}
+
 /** Thrown when the provider throttles the call (quota / rate limit). Gmail and
  *  Calendar surface daily/per-user limits as HTTP 403 with a quota `reason`
  *  (`rateLimitExceeded`/`dailyLimitExceeded`/`userRateLimitExceeded`), NOT 429
@@ -494,15 +500,17 @@ export class ProviderRateLimited extends Error {
   readonly status: number
   readonly reason?: string
   readonly body?: unknown
+  readonly retryAfterMs?: number
   constructor(
     message: string,
     public readonly dataSourceId: string,
-    init: ProviderHttpErrorInit,
+    init: ProviderRateLimitedInit,
   ) {
     super(message)
     this.status = init.status
     this.reason = init.reason
     this.body = init.body
+    this.retryAfterMs = init.retryAfterMs
   }
 }
 
