@@ -346,7 +346,7 @@ function scopesFromManifest(
   const writePermission = permissions.find((permission) => permission.risk === 'write')
   const readPermission = permissions.find((permission) => permission.risk === 'read') ?? permissions[0]
   return providerScopes.map((providerScope): ScopeDescriptor => {
-    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|full|admin|readwrite)(?:$|[.\/_:-])/i.test(
+    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|full|readwrite)(?:$|[.\/_:-])/i.test(
       providerScope,
     )
     const base = (mutating ? writePermission : readPermission) ?? readPermission

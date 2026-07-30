@@ -232,6 +232,18 @@ describe('integration specs', () => {
     // request offline access and the tenant-bearing scopes.
     expect(resolveConnectorAuthSpec('xero')?.requestedScopes).toContain('offline_access')
   })
+
+  it('does not misclassify Zoom admin-qualified read scopes as write access', () => {
+    const zoom = getIntegrationSpec('zoom')
+    expect(zoom?.auth.mode).toBe('oauth2')
+    if (zoom?.auth.mode !== 'oauth2') throw new Error('expected Zoom OAuth2')
+    const byProviderScope = new Map(zoom.auth.scopes.map((scope) => [scope.providerScope, scope.risk]))
+    expect(byProviderScope.get('user:read:user:admin')).toBe('read')
+    expect(byProviderScope.get('meeting:read:meeting:admin')).toBe('read')
+    expect(byProviderScope.get('cloud_recording:read:recording:admin')).toBe('read')
+    expect(byProviderScope.get('meeting:update:meeting:admin')).toBe('write')
+    expect(byProviderScope.get('cloud_recording:delete:recording_file:admin')).toBe('write')
+  })
 })
 
 describe('integration overrides — per-kind setup richness', () => {
