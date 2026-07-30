@@ -32,9 +32,13 @@ describe('dropbox declarative adapter', () => {
     const auth = dropboxConnector.manifest.auth
     expect(auth.authorizationUrl).toBe('https://www.dropbox.com/oauth2/authorize')
     expect(auth.tokenUrl).toBe('https://api.dropboxapi.com/oauth2/token')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['account_info.read', 'files.metadata.read', 'sharing.read']),
-    )
+    expect(auth.scopes).toEqual([
+      'account_info.read',
+      'files.metadata.read',
+      'files.metadata.write',
+      'sharing.read',
+      'sharing.write',
+    ])
     expect(auth.clientIdEnv).toBe('DROPBOX_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('DROPBOX_OAUTH_CLIENT_SECRET')
   })
@@ -69,6 +73,16 @@ describe('dropbox declarative adapter', () => {
         (scope) => scope === 'files.metadata.write' || scope === 'sharing.write',
       )
       expect(writeScope).toBe(true)
+    }
+  })
+
+  it('requests every scope required by an exposed action during OAuth', () => {
+    if (dropboxConnector.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
+    const requested = new Set(dropboxConnector.manifest.auth.scopes)
+    for (const capability of dropboxConnector.manifest.capabilities) {
+      for (const scope of capability.requiredScopes ?? []) {
+        expect(requested.has(scope)).toBe(true)
+      }
     }
   })
 

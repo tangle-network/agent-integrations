@@ -33256,11 +33256,27 @@
           "dataClass": "private"
         },
         {
+          "normalized": "storage.write",
+          "providerScope": "files.metadata.write",
+          "title": "Dropbox write",
+          "reason": "Create or update Dropbox resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
           "normalized": "storage.read",
           "providerScope": "sharing.read",
           "title": "Dropbox read",
           "reason": "Read Dropbox data for user-authorized agent workflows.",
           "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.write",
+          "providerScope": "sharing.write",
+          "title": "Dropbox write",
+          "reason": "Create or update Dropbox resources after policy approval.",
+          "risk": "write",
           "dataClass": "private"
         }
       ],
