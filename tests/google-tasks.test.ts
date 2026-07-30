@@ -33,6 +33,9 @@ describe('google-tasks adapter manifest', () => {
     expect(googleTasksConnector.manifest.category).toBe('doc')
     expect(googleTasksConnector.manifest.defaultConsistencyModel).toBe('authoritative')
     expect(googleTasksConnector.manifest.auth.kind).toBe('oauth2')
+    if (googleTasksConnector.manifest.auth.kind !== 'oauth2') throw new Error('unreachable')
+    expect(googleTasksConnector.manifest.auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
+    expect(googleTasksConnector.manifest.auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
   })
 
   it('declares capabilities covering tasklists, tasks, read and write operations', () => {
