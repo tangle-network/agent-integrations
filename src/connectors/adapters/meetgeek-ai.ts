@@ -4,11 +4,9 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // https://api.meetgeek.ai/v1 and is authenticated with an API key carried in
 // the `Authorization: Bearer <key>` header. Docs: https://docs.meetgeek.ai/.
 //
-// The activepieces catalog enumerates six actions (Get Highlights, Get
-// Meeting Details, Get Meetings Summary Insights, Get Team Meetings, Get
-// Transcript, Upload Recording). We map each to its documented REST route.
-// `meetings.list` is the catalog's `get.team.meetings` — MeetGeek exposes a
-// single tenant scope per API key so "team meetings" is just the list route.
+// The catalog enumerates six actions (Get Highlights, Get Meeting Details,
+// Get Meeting Summary & AI Insights, Get Team Meetings, Get Transcript,
+// Upload Recording). Each route below matches MeetGeek's published client.
 
 export const meetgeekAiConnector = declarativeRestConnector({
   kind: 'meetgeek-ai',
@@ -22,43 +20,20 @@ export const meetgeekAiConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.meetgeek.ai/v1',
-  test: { method: 'GET', path: '/meetings', query: { limit: 1 } },
+  test: { method: 'GET', path: '/teams' },
   capabilities: [
     {
       name: 'meetings.list',
       class: 'read',
-      description:
-        'List meetings recorded on the authenticated workspace. Supports pagination via cursor and date filters.',
+      description: 'List past meetings belonging to a MeetGeek team.',
       parameters: {
         type: 'object',
         properties: {
-          limit: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 100,
-            description: 'Page size (max 100).',
-          },
-          cursor: { type: 'string', description: 'Opaque pagination cursor returned by a prior call.' },
-          fromDate: {
-            type: 'string',
-            description: 'Inclusive lower bound for meeting start (ISO 8601).',
-          },
-          toDate: {
-            type: 'string',
-            description: 'Inclusive upper bound for meeting start (ISO 8601).',
-          },
+          teamId: { type: 'string', description: 'MeetGeek team id.' },
         },
+        required: ['teamId'],
       },
-      request: {
-        method: 'GET',
-        path: '/meetings',
-        query: {
-          limit: '{limit}',
-          cursor: '{cursor}',
-          from_date: '{fromDate}',
-          to_date: '{toDate}',
-        },
-      },
+      request: { method: 'GET', path: '/teams/{teamId}/meetings' },
     },
     {
       name: 'meetings.get',
@@ -104,35 +79,15 @@ export const meetgeekAiConnector = declarativeRestConnector({
     {
       name: 'meetings.summaryInsights',
       class: 'read',
-      description:
-        'Return aggregate summary insights across a window of meetings (topics, sentiment, attendance, talk ratio).',
+      description: 'Return the summary and AI-generated insights for one MeetGeek meeting.',
       parameters: {
         type: 'object',
         properties: {
-          fromDate: {
-            type: 'string',
-            description: 'Inclusive lower bound for the analysis window (ISO 8601).',
-          },
-          toDate: {
-            type: 'string',
-            description: 'Inclusive upper bound for the analysis window (ISO 8601).',
-          },
-          templateName: {
-            type: 'string',
-            description:
-              'Optional MeetGeek meeting template (e.g. Sales Discovery, 1-on-1). Filters insights to meetings tagged with the template.',
-          },
+          meetingId: { type: 'string', description: 'The MeetGeek meeting id.' },
         },
+        required: ['meetingId'],
       },
-      request: {
-        method: 'GET',
-        path: '/insights/summary',
-        query: {
-          from_date: '{fromDate}',
-          to_date: '{toDate}',
-          template_name: '{templateName}',
-        },
-      },
+      request: { method: 'GET', path: '/meetings/{meetingId}/summary' },
     },
     {
       name: 'recordings.upload',
@@ -155,21 +110,16 @@ export const meetgeekAiConnector = declarativeRestConnector({
             type: 'string',
             description: 'Optional MeetGeek meeting template name used to drive analysis.',
           },
-          instruction: {
-            type: 'string',
-            description: 'Free-form instruction passed to MeetGeek for custom summarization.',
-          },
         },
         required: ['downloadUrl'],
       },
       request: {
         method: 'POST',
-        path: '/recordings',
+        path: '/upload',
         body: {
           download_url: '{downloadUrl}',
           language_code: '{languageCode}',
           template_name: '{templateName}',
-          instruction: '{instruction}',
         },
       },
       cas: 'native-idempotency',
