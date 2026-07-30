@@ -49,10 +49,18 @@ import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
 import { linearConnector } from './linear.js'
 import {
+  microsoft365PeopleConnector,
+} from './microsoft-365-people.js'
+import {
+  microsoft365PlannerConnector,
+} from './microsoft-365-planner.js'
+import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
 } from './microsoft-calendar.js'
+import { microsoftDynamics365BusinessCentralConnector } from './microsoft-dynamics-365-business-central.js'
 import { microsoftDynamicsCrmConnector } from './microsoft-dynamics-crm.js'
+import { microsoftExcel365Connector } from './microsoft-excel-365.js'
 import {
   microsoftGraph,
   type MicrosoftGraphOptions,
@@ -61,6 +69,9 @@ import {
   microsoftTeams,
   type MicrosoftTeamsOptions,
 } from './microsoft-teams.js'
+import { microsoftOnenoteConnector } from './microsoft-onenote.js'
+import { microsoftPowerBiConnector } from './microsoft-power-bi.js'
+import { microsoftTodoConnector } from './microsoft-todo.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { netsuiteConnector } from './netsuite.js'
@@ -218,6 +229,16 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     ),
     defineFactoryAdapter<SharePointOptions>(
       sharepoint,
+      microsoftOAuthEnvMap,
+    ),
+    defineFactoryAdapter(() => microsoftExcel365Connector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoft365PeopleConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoft365PlannerConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftTodoConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftOnenoteConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftPowerBiConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(
+      () => microsoftDynamics365BusinessCentralConnector,
       microsoftOAuthEnvMap,
     ),
     defineFactoryAdapter<WhatsappBusinessOptions>(whatsappBusiness, {
