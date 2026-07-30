@@ -553,8 +553,18 @@ function readStructuredCredentials(
 }
 
 function credentialToken(credentials: ConnectorCredentials): string {
-  if (credentials.kind === 'oauth2') return credentials.accessToken
-  if (credentials.kind === 'api-key') return credentials.apiKey
+  if (credentials.kind === 'oauth2') {
+    if (!credentials.accessToken.trim()) {
+      throw new Error('declarative REST connectors require a non-empty OAuth access token')
+    }
+    return credentials.accessToken
+  }
+  if (credentials.kind === 'api-key') {
+    if (!credentials.apiKey.trim()) {
+      throw new Error('declarative REST connectors require a non-empty API key')
+    }
+    return credentials.apiKey
+  }
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
 }
 

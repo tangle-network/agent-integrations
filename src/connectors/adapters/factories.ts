@@ -138,6 +138,10 @@ import { marketoConnector } from './marketo.js'
 import { outreachConnector } from './outreach.js'
 import { salesloftConnector } from './salesloft.js'
 import { smartleadConnector } from './smartlead.js'
+import { chatwootConnector } from './chatwoot.js'
+import { matrixConnector } from './matrix.js'
+import { mattermostConnector } from './mattermost.js'
+import { telegramConnector } from './telegram.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -218,6 +222,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'SLACK_OAUTH_CLIENT_ID',
       clientSecret: 'SLACK_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => telegramConnector, {}),
+    defineFactoryAdapter(() => mattermostConnector, {}),
+    defineFactoryAdapter(() => matrixConnector, {}),
+    defineFactoryAdapter(() => chatwootConnector, {}),
     defineFactoryAdapter<HubSpotOptions>(hubspot, {
       clientId: 'HUBSPOT_OAUTH_CLIENT_ID',
       clientSecret: 'HUBSPOT_OAUTH_CLIENT_SECRET',
