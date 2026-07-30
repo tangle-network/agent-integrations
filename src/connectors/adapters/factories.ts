@@ -1,9 +1,13 @@
 import type { ConnectorAdapter } from '../types.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
+import { affinityConnector } from './affinity.js'
 import { asanaConnector } from './asana.js'
+import { attioConnector } from './attio.js'
 import { boxConnector } from './box.js'
 import { calendlyConnector } from './calendly.js'
+import { closeConnector } from './close.js'
+import { copperConnector } from './copper.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
@@ -29,6 +33,7 @@ import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
 } from './microsoft-calendar.js'
+import { microsoftDynamicsCrmConnector } from './microsoft-dynamics-crm.js'
 import {
   microsoftGraph,
   type MicrosoftGraphOptions,
@@ -43,6 +48,7 @@ import { oneDrive, type OneDriveOptions } from './onedrive.js'
 import { oneSpanSignConnector } from './onespan-sign.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
+import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { salesforceConnector } from './salesforce.js'
@@ -57,6 +63,7 @@ import {
 } from './whatsapp-business.js'
 import { xeroConnector } from './xero.js'
 import { zoomConnector } from './zoom.js'
+import { zohoCrmConnector } from './zoho-crm.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -256,6 +263,28 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     }),
     defineFactoryAdapter(() => signNowConnector, {}),
     defineFactoryAdapter(() => oneSpanSignConnector, {}),
+    defineFactoryAdapter(() => affinityConnector, {}),
+    defineFactoryAdapter(() => copperConnector, {}),
+    defineFactoryAdapter(() => attioConnector, {
+      clientId: 'ATTIO_OAUTH_CLIENT_ID',
+      clientSecret: 'ATTIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pipedriveConnector, {
+      clientId: 'PIPEDRIVE_OAUTH_CLIENT_ID',
+      clientSecret: 'PIPEDRIVE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => closeConnector, {
+      clientId: 'CLOSE_OAUTH_CLIENT_ID',
+      clientSecret: 'CLOSE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zohoCrmConnector, {
+      clientId: 'ZOHO_CRM_OAUTH_CLIENT_ID',
+      clientSecret: 'ZOHO_CRM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => microsoftDynamicsCrmConnector, {
+      clientId: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_ID'],
+      clientSecret: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_SECRET'],
+    }),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

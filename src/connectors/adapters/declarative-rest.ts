@@ -319,7 +319,7 @@ export async function executeRestRequest(
     : requestHeaders
   const headers: Record<string, string> = {
     accept: 'application/json',
-    ...spec.defaultHeaders,
+    ...renderHeaders(spec.defaultHeaders ?? {}, scope, true),
     ...renderHeaders(renderableHeaders, scope),
   }
   if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
@@ -598,8 +598,16 @@ function renderScope(inv: ConnectorInvocation, credentialDefaults?: Record<strin
   return { ...credentialDefaults, ...inv.args, connection: inv.source.metadata }
 }
 
-function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, interpolate(value, args)]))
+function renderHeaders(
+  headers: Record<string, string>,
+  args: Record<string, unknown>,
+  rawExact = false,
+): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers).map(([key, value]) => {
+    const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
+    if (rawExact && exact) return [key, String(readRequiredPath(args, exact[1]))]
+    return [key, interpolate(value, args)]
+  }))
 }
 
 function renderObject(
