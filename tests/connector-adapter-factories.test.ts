@@ -119,4 +119,39 @@ describe('connector adapter factory registry', () => {
       }), kind).toBeNull()
     }
   })
+
+  it('fails closed until the shared Figma and Wrike OAuth apps are fully configured', () => {
+    const expected = {
+      figma: {
+        clientId: 'FIGMA_OAUTH_CLIENT_ID',
+        clientSecret: 'FIGMA_OAUTH_CLIENT_SECRET',
+      },
+      figjam: {
+        clientId: 'FIGMA_OAUTH_CLIENT_ID',
+        clientSecret: 'FIGMA_OAUTH_CLIENT_SECRET',
+      },
+      wrike: {
+        clientId: 'WRIKE_OAUTH_CLIENT_ID',
+        clientSecret: 'WRIKE_OAUTH_CLIENT_SECRET',
+      },
+    } as const
+
+    for (const [kind, envMap] of Object.entries(expected)) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual(envMap)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+    }
+  })
 })

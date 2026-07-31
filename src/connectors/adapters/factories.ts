@@ -97,6 +97,8 @@ import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { fathomConnector } from './fathom.js'
 import { fireberryConnector } from './fireberry.js'
 import { firefliesAiConnector } from './fireflies-ai.js'
+import { figjamConnector } from './figjam.js'
+import { figmaConnector } from './figma.js'
 import { filloutFormsConnector } from './fillout-forms.js'
 import { flowluConnector } from './flowlu.js'
 import { folkConnector } from './folk.js'
@@ -224,6 +226,7 @@ import {
 import { xeroConnector } from './xero.js'
 import { webflowConnector } from './webflow.js'
 import { wordpressConnector } from './wordpress.js'
+import { wrikeConnector } from './wrike.js'
 import { youtubeDataConnector } from './youtube-data.js'
 import { zapierConnector } from './zapier.js'
 import { zendeskConnector } from './zendesk.js'
@@ -304,6 +307,11 @@ function defineFactoryAdapter<TOptions extends object>(
 const googleOAuthEnvMap = {
   clientId: 'GOOGLE_OAUTH_CLIENT_ID',
   clientSecret: 'GOOGLE_OAUTH_CLIENT_SECRET',
+} as const
+
+const figmaOAuthEnvMap = {
+  clientId: 'FIGMA_OAUTH_CLIENT_ID',
+  clientSecret: 'FIGMA_OAUTH_CLIENT_SECRET',
 } as const
 
 const microsoftOAuthEnvMap = {
@@ -597,6 +605,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'ASANA_OAUTH_CLIENT_ID',
       clientSecret: 'ASANA_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => figmaConnector, figmaOAuthEnvMap),
+    defineFactoryAdapter(() => figjamConnector, figmaOAuthEnvMap),
     defineFactoryAdapter(() => linearConnector, {
       clientId: 'LINEAR_OAUTH_CLIENT_ID',
       clientSecret: 'LINEAR_OAUTH_CLIENT_SECRET',
@@ -622,6 +632,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => jiraCloudConnector, {
       clientId: 'ATLASSIAN_OAUTH_CLIENT_ID',
       clientSecret: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wrikeConnector, {
+      clientId: 'WRIKE_OAUTH_CLIENT_ID',
+      clientSecret: 'WRIKE_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => ringcentralConnector, {
       clientId: 'RINGCENTRAL_OAUTH_CLIENT_ID',
