@@ -151,6 +151,7 @@ import { mastodonConnector } from './mastodon.js'
 import { meetgeekAiConnector } from './meetgeek-ai.js'
 import { mollieConnector } from './mollie.js'
 import { mondayConnector } from './monday.js'
+import { mycaseConnector } from './mycase.js'
 import { notion, type NotionOptions } from './notion.js'
 import { n8nConnector } from './n8n.js'
 import { netsuiteConnector } from './netsuite.js'
@@ -601,6 +602,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => ironcladConnector, {
       clientId: 'IRONCLAD_OAUTH_CLIENT_ID',
       clientSecret: 'IRONCLAD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mycaseConnector, {
+      clientId: 'MYCASE_OAUTH_CLIENT_ID',
+      clientSecret: 'MYCASE_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => signNowConnector, {}),
     defineFactoryAdapter(() => oneSpanSignConnector, {}),

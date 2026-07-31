@@ -7,6 +7,7 @@ import type {
   IntegrationConnectorTrigger,
 } from './core-types.js'
 import { integrationSpecToConnector, listIntegrationSpecs } from './specs/registry.js'
+import { INTEGRATION_KIND_ALIASES } from './integration-kind-aliases.js'
 
 export type IntegrationSupportTier =
   | 'catalogOnly'
@@ -61,21 +62,7 @@ export interface ComposeIntegrationRegistryOptions {
   sourcePrecedence?: Record<string, number>
 }
 
-const DEFAULT_ALIASES: Record<string, string> = {
-  'notion-database': 'notion',
-  'microsoft-onedrive': 'onedrive',
-  'microsoft-sharepoint': 'sharepoint',
-  'microsoft-excel': 'microsoft-excel-365',
-  'aws-s3': 'amazon-s3',
-  'outlook-calendar': 'microsoft-calendar',
-  'microsoft-outlook-calendar': 'microsoft-calendar',
-  'microsoft-outlook': 'outlook-mail',
-  'gmail-mail': 'gmail',
-  'slack-bolt': 'slack',
-  stripe: 'stripe-pack',
-  twilio: 'twilio-sms',
-  'twilio-voice': 'twilio-sms',
-}
+const DEFAULT_ALIASES = INTEGRATION_KIND_ALIASES
 
 const DEFAULT_SOURCE_PRECEDENCE: Record<string, number> = {
   'first-party': 500,
