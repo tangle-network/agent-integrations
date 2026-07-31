@@ -73,6 +73,7 @@ import { justcallConnector } from './justcall.js'
 import { leadConnectorConnector } from './lead-connector.js'
 import { linearConnector } from './linear.js'
 import { linkedinConnector } from './linkedin.js'
+import { makeConnector } from './make.js'
 import {
   microsoft365PeopleConnector,
 } from './microsoft-365-people.js'
@@ -101,6 +102,7 @@ import { mastodonConnector } from './mastodon.js'
 import { meetgeekAiConnector } from './meetgeek-ai.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
+import { n8nConnector } from './n8n.js'
 import { netsuiteConnector } from './netsuite.js'
 import { ninjapipeConnector } from './ninjapipe.js'
 import { openPhoneConnector } from './open-phone.js'
@@ -110,6 +112,7 @@ import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
 import { paddleConnector } from './paddle.js'
 import { plaidConnector } from './plaid.js'
+import { pipedreamConnector } from './pipedream.js'
 import { pipedriveConnector } from './pipedrive.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { recallAiConnector } from './recall-ai.js'
@@ -139,6 +142,7 @@ import { xeroConnector } from './xero.js'
 import { webflowConnector } from './webflow.js'
 import { wordpressConnector } from './wordpress.js'
 import { youtubeDataConnector } from './youtube-data.js'
+import { zapierConnector } from './zapier.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
@@ -367,6 +371,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => amazonSqsConnector, {}),
     defineFactoryAdapter(() => httpConnector, {}),
     defineFactoryAdapter(() => rssConnector, {}),
+    defineFactoryAdapter(() => zapierConnector, {}),
+    defineFactoryAdapter(() => makeConnector, {}),
+    defineFactoryAdapter(() => n8nConnector, {}),
+    defineFactoryAdapter(() => pipedreamConnector, {}),
     defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => backblazeConnector, {}),
     defineFactoryAdapter(() => cloudinaryConnector, {}),

@@ -68,6 +68,41 @@ describe('n8n adapter manifest', () => {
   })
 })
 
+describe('n8n credential routing', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('sends the API key only through X-N8N-API-KEY', async () => {
+    let requestHeaders: Record<string, string> = {}
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestHeaders = init?.headers as Record<string, string>
+      return jsonResponse({ data: [] })
+    }))
+
+    await n8nConnector.executeRead!({
+      source: source(),
+      capabilityName: 'workflows.list',
+      args: {},
+      idempotencyKey: 'n8n-list-1',
+    })
+
+    expect(requestHeaders['X-N8N-API-KEY']).toBe('n8n_secret')
+    expect(requestHeaders.authorization).toBeUndefined()
+  })
+
+  it('rejects a local instance URL before sending the API key', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(n8nConnector.executeRead!({
+      source: source({ metadata: { instanceUrl: 'http://127.0.0.1:5678' } }),
+      capabilityName: 'workflows.list',
+      args: {},
+      idempotencyKey: 'n8n-rejected-private-host',
+    })).rejects.toThrow('connection base URL must be a public HTTPS endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('n8n workflows.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 

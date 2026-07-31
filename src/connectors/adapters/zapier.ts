@@ -6,14 +6,12 @@ import { declarativeRestConnector } from './declarative-rest.js'
 //      that URL and the Zap fires on each delivery.
 //   2. The REST Hooks API at https://api.zapier.com/v1 for programmatic Zap
 //      management. This adapter wraps the hook-trigger surface — the most
-//      common automation pattern. baseUrl is per-connection (the customer's
-//      hooks.zapier.com URL host) and the path is the per-Zap hook id.
+//      common automation pattern. Catch-hook calls accept only the two
+//      provider path segments, never an arbitrary URL.
 //
 // Auth: the catch-hook surface is unauthenticated by URL secrecy; the API
 // surface uses an account-scoped bearer token from the Zapier Developer
-// portal. We model the bearer-token surface — call sites that only need the
-// catch-hook can pass an empty token and use the `triggers.catch` action's
-// fully-qualified URL directly.
+// portal. We model the bearer-token surface for both provider-owned hosts.
 
 export const zapierConnector = declarativeRestConnector({
   kind: 'zapier',
@@ -32,24 +30,28 @@ export const zapierConnector = declarativeRestConnector({
       name: 'triggers.catch',
       class: 'mutation',
       description:
-        'POST a JSON payload to a Zapier Catch Hook URL. `hookPath` is the path portion of the per-Zap hook URL (e.g. `/hooks/catch/123456/abc/`). The Zap that owns the hook receives the body and runs its downstream steps.',
+        'POST a JSON payload to a Zapier Catch Hook. Supply the two path segments from the Zap-owned URL; the provider host is fixed so credentials cannot be redirected.',
       parameters: {
         type: 'object',
         properties: {
-          hookPath: {
+          accountId: {
             type: 'string',
-            description: 'Path portion of the Zapier catch-hook URL.',
+            description: 'Numeric account segment after `/hooks/catch/` in the Zapier hook URL.',
+          },
+          hookId: {
+            type: 'string',
+            description: 'Secret hook segment after the account id in the Zapier hook URL.',
           },
           payload: {
             type: 'object',
             description: 'Arbitrary JSON delivered to the Zap as the trigger event.',
           },
         },
-        required: ['hookPath', 'payload'],
+        required: ['accountId', 'hookId', 'payload'],
       },
       request: {
         method: 'POST',
-        path: '{hookPath}',
+        path: '/hooks/catch/{accountId}/{hookId}/',
         body: '{payload}',
       },
     },
