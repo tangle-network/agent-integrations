@@ -54,6 +54,30 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  neverbounce: {
+    consoleUrl: 'https://app.neverbounce.com/',
+    credentialFields: [
+      {
+        label: 'NeverBounce API key',
+        description: 'Create a dedicated API key in Apps > API. Verification calls consume account credits.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'key', title: 'Create a dedicated API key', detail: 'Open Apps > API in NeverBounce and create a key for Tangle Integration Hub.' },
+      { id: 'store', title: 'Store the API key', detail: 'Paste the key once. Tangle Hub seals it before persistence.' },
+      { id: 'test', title: 'Test account access', detail: 'The connection check reads account information without verifying an address or spending a verification credit.' },
+    ],
+    knownQuirks: [
+      { id: 'metered-verification', severity: 'warning', message: 'Every address verification can consume NeverBounce credits and remains approval-gated by default.' },
+      { id: 'query-auth', severity: 'warning', message: 'NeverBounce requires the API key in the request query string. Tangle redacts it from errors and logs.' },
+    ],
+    healthcheck: {
+      id: 'neverbounce.connection',
+      level: 'connection',
+      description: 'Read NeverBounce account information without consuming a verification credit.',
+    },
+  },
   rabbitmq: {
     credentialFields: [
       {

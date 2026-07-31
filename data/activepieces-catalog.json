@@ -78240,16 +78240,16 @@
     "description": "NeverBounce is an email verification service that improves deliverability and helps businesses adhere to strict deliverability guidelines.",
     "npmPackage": "@activepieces/piece-neverbounce",
     "version": "0.1.4",
-    "category": "chat",
+    "category": "crm",
     "auth": "api_key",
     "authFields": [
       {
-        "key": "email",
-        "label": "Email Address",
+        "key": "apiKey",
+        "label": "API key",
         "required": true,
-        "secret": false,
+        "secret": true,
         "kind": "text",
-        "description": "The email address to verify"
+        "description": "NeverBounce API key from Apps > API"
       }
     ],
     "domains": [
