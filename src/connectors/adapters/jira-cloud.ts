@@ -1,5 +1,15 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
+const JIRA_READ_SCOPE = 'read:jira-work'
+const JIRA_WRITE_SCOPE = 'write:jira-work'
+const JIRA_USER_SCOPE = 'read:jira-user'
+const jiraSiteProperty = {
+  cloudId: {
+    type: 'string',
+    description: 'Atlassian site id from resources.list.',
+  },
+}
+
 const issueIdOrKey = {
   type: 'object',
   properties: { issueIdOrKey: { type: 'string', description: 'Numeric issue ID or project key (e.g. PROJ-123).' } },
@@ -11,14 +21,42 @@ export const jiraCloudConnector = declarativeRestConnector({
   displayName: 'Jira Cloud',
   description: 'Issue tracking and project management on Jira Cloud — create, update, comment on, transition, and search issues via the REST API v3.',
   auth: {
-    kind: 'api-key',
-    hint: 'Jira Cloud API token (https://id.atlassian.com/manage-profile/security/api-tokens). The instance URL (e.g. https://example.atlassian.net) is supplied per data source as metadata.instanceUrl.',
+    kind: 'oauth2',
+    authorizationUrl: 'https://auth.atlassian.com/authorize',
+    tokenUrl: 'https://auth.atlassian.com/oauth/token',
+    scopes: [
+      'offline_access',
+      JIRA_READ_SCOPE,
+      JIRA_WRITE_SCOPE,
+      JIRA_USER_SCOPE,
+    ],
+    clientIdEnv: 'ATLASSIAN_OAUTH_CLIENT_ID',
+    clientSecretEnv: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    extraAuthParams: {
+      audience: 'api.atlassian.com',
+      prompt: 'consent',
+    },
   },
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: { metadataKey: 'instanceUrl' },
-  test: { method: 'GET', path: '/rest/api/3/myself' },
+  baseUrl: 'https://api.atlassian.com',
+  defaultHeaders: { accept: 'application/json' },
+  test: { method: 'GET', path: '/oauth/token/accessible-resources' },
   capabilities: [
+    {
+      name: 'resources.list',
+      class: 'read',
+      description:
+        'List Atlassian sites authorized for this connection. Use a returned id as the cloudId required by every Jira action.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      request: {
+        method: 'GET',
+        path: '/oauth/token/accessible-resources',
+      },
+    },
     {
       name: 'issues.create',
       class: 'mutation',
@@ -26,16 +64,28 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           fields: { type: 'object', description: 'Issue fields — must include project, summary, and issuetype.' },
           update: { type: 'object' },
           transition: { type: 'object' },
           properties: { type: 'array' },
           historyMetadata: { type: 'object' },
         },
-        required: ['fields'],
+        required: ['cloudId', 'fields'],
       },
-      request: { method: 'POST', path: '/rest/api/3/issue', body: 'args' },
+      request: {
+        method: 'POST',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue',
+        body: {
+          fields: '{fields}',
+          update: '{update}',
+          transition: '{transition}',
+          properties: '{properties}',
+          historyMetadata: '{historyMetadata}',
+        },
+      },
       cas: 'native-idempotency',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'issues.search',
@@ -44,6 +94,7 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           jql: { type: 'string', description: 'JQL query (see https://support.atlassian.com/jira-software-cloud/docs/use-advanced-search-with-jira-query-language-jql/).' },
           startAt: { type: 'integer', minimum: 0 },
           maxResults: { type: 'integer', minimum: 1, maximum: 100 },
@@ -51,11 +102,11 @@ export const jiraCloudConnector = declarativeRestConnector({
           expand: { type: 'string' },
           validateQuery: { type: 'string', enum: ['strict', 'warn', 'none', 'true', 'false'] },
         },
-        required: ['jql'],
+        required: ['cloudId', 'jql'],
       },
       request: {
         method: 'GET',
-        path: '/rest/api/3/search',
+        path: '/ex/jira/{cloudId}/rest/api/3/search',
         query: {
           jql: '{jql}',
           startAt: '{startAt}',
@@ -65,6 +116,7 @@ export const jiraCloudConnector = declarativeRestConnector({
           validateQuery: '{validateQuery}',
         },
       },
+      requiredScopes: [JIRA_READ_SCOPE],
     },
     {
       name: 'issues.get',
@@ -73,18 +125,20 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           fields: { type: 'string' },
           expand: { type: 'string', description: 'Comma-delimited expand list — e.g. "renderedFields,names,schema,transitions".' },
           properties: { type: 'string' },
         },
-        required: ['issueIdOrKey'],
+        required: ['cloudId', 'issueIdOrKey'],
       },
       request: {
         method: 'GET',
-        path: '/rest/api/3/issue/{issueIdOrKey}',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}',
         query: { fields: '{fields}', expand: '{expand}', properties: '{properties}' },
       },
+      requiredScopes: [JIRA_READ_SCOPE],
     },
     {
       name: 'issues.update',
@@ -93,6 +147,7 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           fields: { type: 'object' },
           update: { type: 'object' },
@@ -100,15 +155,16 @@ export const jiraCloudConnector = declarativeRestConnector({
           historyMetadata: { type: 'object' },
           notifyUsers: { type: 'boolean' },
         },
-        required: ['issueIdOrKey'],
+        required: ['cloudId', 'issueIdOrKey'],
       },
       request: {
         method: 'PUT',
-        path: '/rest/api/3/issue/{issueIdOrKey}',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}',
         query: { notifyUsers: '{notifyUsers}' },
         body: { fields: '{fields}', update: '{update}', properties: '{properties}', historyMetadata: '{historyMetadata}' },
       },
       cas: 'optimistic-read-verify',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'issues.assign',
@@ -117,17 +173,19 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           accountId: { type: ['string', 'null'] },
         },
-        required: ['issueIdOrKey'],
+        required: ['cloudId', 'issueIdOrKey'],
       },
       request: {
         method: 'PUT',
-        path: '/rest/api/3/issue/{issueIdOrKey}/assignee',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/assignee',
         body: { accountId: '{accountId}' },
       },
       cas: 'optimistic-read-verify',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'issues.transition',
@@ -136,20 +194,22 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           transition: { type: 'object', description: 'Object with at least { id: string }.' },
           fields: { type: 'object' },
           update: { type: 'object' },
           historyMetadata: { type: 'object' },
         },
-        required: ['issueIdOrKey', 'transition'],
+        required: ['cloudId', 'issueIdOrKey', 'transition'],
       },
       request: {
         method: 'POST',
-        path: '/rest/api/3/issue/{issueIdOrKey}/transitions',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/transitions',
         body: { transition: '{transition}', fields: '{fields}', update: '{update}', historyMetadata: '{historyMetadata}' },
       },
       cas: 'native-idempotency',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'issues.link',
@@ -158,19 +218,21 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           type: { type: 'object', description: 'Link type — { name: string } or { id: string }.' },
           inwardIssue: { type: 'object', description: '{ key: string } | { id: string }.' },
           outwardIssue: { type: 'object', description: '{ key: string } | { id: string }.' },
           comment: { type: 'object' },
         },
-        required: ['type', 'inwardIssue', 'outwardIssue'],
+        required: ['cloudId', 'type', 'inwardIssue', 'outwardIssue'],
       },
       request: {
         method: 'POST',
-        path: '/rest/api/3/issueLink',
+        path: '/ex/jira/{cloudId}/rest/api/3/issueLink',
         body: { type: '{type}', inwardIssue: '{inwardIssue}', outwardIssue: '{outwardIssue}', comment: '{comment}' },
       },
       cas: 'native-idempotency',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'issues.watchers.add',
@@ -179,17 +241,19 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           accountId: { type: 'string' },
         },
-        required: ['issueIdOrKey', 'accountId'],
+        required: ['cloudId', 'issueIdOrKey', 'accountId'],
       },
       request: {
         method: 'POST',
-        path: '/rest/api/3/issue/{issueIdOrKey}/watchers',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/watchers',
         body: '{accountId}',
       },
       cas: 'native-idempotency',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'comments.list',
@@ -198,19 +262,21 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           startAt: { type: 'integer', minimum: 0 },
           maxResults: { type: 'integer', minimum: 1, maximum: 100 },
           orderBy: { type: 'string', enum: ['created', '-created', '+created'] },
           expand: { type: 'string' },
         },
-        required: ['issueIdOrKey'],
+        required: ['cloudId', 'issueIdOrKey'],
       },
       request: {
         method: 'GET',
-        path: '/rest/api/3/issue/{issueIdOrKey}/comment',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/comment',
         query: { startAt: '{startAt}', maxResults: '{maxResults}', orderBy: '{orderBy}', expand: '{expand}' },
       },
+      requiredScopes: [JIRA_READ_SCOPE],
     },
     {
       name: 'comments.create',
@@ -219,19 +285,21 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           body: { type: ['object', 'string'], description: 'ADF document or plain string (wiki text via "expand=renderedBody" in subsequent fetch).' },
           visibility: { type: 'object' },
           properties: { type: 'array' },
         },
-        required: ['issueIdOrKey', 'body'],
+        required: ['cloudId', 'issueIdOrKey', 'body'],
       },
       request: {
         method: 'POST',
-        path: '/rest/api/3/issue/{issueIdOrKey}/comment',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/comment',
         body: { body: '{body}', visibility: '{visibility}', properties: '{properties}' },
       },
       cas: 'native-idempotency',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'comments.update',
@@ -240,20 +308,22 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           commentId: { type: 'string' },
           body: { type: ['object', 'string'] },
           visibility: { type: 'object' },
           properties: { type: 'array' },
         },
-        required: ['issueIdOrKey', 'commentId', 'body'],
+        required: ['cloudId', 'issueIdOrKey', 'commentId', 'body'],
       },
       request: {
         method: 'PUT',
-        path: '/rest/api/3/issue/{issueIdOrKey}/comment/{commentId}',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/comment/{commentId}',
         body: { body: '{body}', visibility: '{visibility}', properties: '{properties}' },
       },
       cas: 'optimistic-read-verify',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'comments.delete',
@@ -262,16 +332,18 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           issueIdOrKey: { type: 'string' },
           commentId: { type: 'string' },
         },
-        required: ['issueIdOrKey', 'commentId'],
+        required: ['cloudId', 'issueIdOrKey', 'commentId'],
       },
       request: {
         method: 'DELETE',
-        path: '/rest/api/3/issue/{issueIdOrKey}/comment/{commentId}',
+        path: '/ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/comment/{commentId}',
       },
       cas: 'optimistic-read-verify',
+      requiredScopes: [JIRA_WRITE_SCOPE],
     },
     {
       name: 'attachments.get',
@@ -279,13 +351,17 @@ export const jiraCloudConnector = declarativeRestConnector({
       description: 'Fetch attachment metadata by attachment ID.',
       parameters: {
         type: 'object',
-        properties: { attachmentId: { type: 'string' } },
-        required: ['attachmentId'],
+        properties: {
+          ...jiraSiteProperty,
+          attachmentId: { type: 'string' },
+        },
+        required: ['cloudId', 'attachmentId'],
       },
       request: {
         method: 'GET',
-        path: '/rest/api/3/attachment/{attachmentId}',
+        path: '/ex/jira/{cloudId}/rest/api/3/attachment/{attachmentId}',
       },
+      requiredScopes: [JIRA_READ_SCOPE],
     },
     {
       name: 'users.find',
@@ -294,15 +370,17 @@ export const jiraCloudConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
+          ...jiraSiteProperty,
           query: { type: 'string' },
           accountId: { type: 'string' },
           startAt: { type: 'integer', minimum: 0 },
           maxResults: { type: 'integer', minimum: 1, maximum: 1000 },
         },
+        required: ['cloudId'],
       },
       request: {
         method: 'GET',
-        path: '/rest/api/3/user/search',
+        path: '/ex/jira/{cloudId}/rest/api/3/user/search',
         query: {
           query: '{query}',
           accountId: '{accountId}',
@@ -310,6 +388,7 @@ export const jiraCloudConnector = declarativeRestConnector({
           maxResults: '{maxResults}',
         },
       },
+      requiredScopes: [JIRA_USER_SCOPE],
     },
   ],
 })

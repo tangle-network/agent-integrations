@@ -47,7 +47,7 @@ describe('connector adapter factory registry', () => {
   })
 
   it('registers user-supplied task provider credentials without an app secret', () => {
-    for (const kind of ['trello', 'jira-cloud']) {
+    for (const kind of ['trello']) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
       )
@@ -102,6 +102,7 @@ describe('connector adapter factory registry', () => {
       clickup: ['CLICKUP_OAUTH_CLIENT_ID', 'CLICKUP_OAUTH_CLIENT_SECRET'],
       basecamp: ['BASECAMP_OAUTH_CLIENT_ID', 'BASECAMP_OAUTH_CLIENT_SECRET'],
       todoist: ['TODOIST_OAUTH_CLIENT_ID', 'TODOIST_OAUTH_CLIENT_SECRET'],
+      'jira-cloud': ['ATLASSIAN_OAUTH_CLIENT_ID', 'ATLASSIAN_OAUTH_CLIENT_SECRET'],
     } as const
 
     for (const [kind, envNames] of Object.entries(expected)) {

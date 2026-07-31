@@ -56,6 +56,7 @@ const KIND_ALIASES: Record<string, string> = {
   'microsoft-excel': 'microsoft-excel-365',
   'aws-s3': 'amazon-s3',
   'notion-database': 'notion',
+  jira: 'jira-cloud',
   stripe: 'stripe-pack',
   twilio: 'twilio-sms',
 }
