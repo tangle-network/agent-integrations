@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { createConnectorAdapterProvider } from '../src/adapter-provider'
 import {
   CONNECTOR_ADAPTER_FACTORIES,
   resolveConnectorAdapterFactoryOptions,
@@ -153,5 +154,106 @@ describe('connector adapter factory registry', () => {
         [envMap.clientSecret]: 'client-secret',
       }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
     }
+  })
+
+  it('registers self-serve business operations OAuth providers with complete credentials only', () => {
+    const expected = {
+      harvest: {
+        clientId: 'HARVEST_OAUTH_CLIENT_ID',
+        clientSecret: 'HARVEST_OAUTH_CLIENT_SECRET',
+      },
+      'google-my-business': {
+        clientId: 'GOOGLE_OAUTH_CLIENT_ID',
+        clientSecret: 'GOOGLE_OAUTH_CLIENT_SECRET',
+      },
+    } as const
+
+    for (const [kind, envMap] of Object.entries(expected)) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual(envMap)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+    }
+  })
+
+  it('uses Harvest through the generic form-body authorization-code exchange', async () => {
+    const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'harvest',
+    )
+    expect(definition).toBeDefined()
+    const options = resolveConnectorAdapterFactoryOptions(definition!, {
+      HARVEST_OAUTH_CLIENT_ID: 'harvest-client-id',
+      HARVEST_OAUTH_CLIENT_SECRET: 'harvest-client-secret',
+    })
+    expect(options).toEqual({
+      clientId: 'harvest-client-id',
+      clientSecret: 'harvest-client-secret',
+    })
+
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(url).toBe('https://id.getharvest.com/api/v2/oauth2/token')
+      expect(init?.method).toBe('POST')
+      expect(init?.headers).toEqual({
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      })
+      const body = init?.body as URLSearchParams
+      expect(body.get('grant_type')).toBe('authorization_code')
+      expect(body.get('code')).toBe('harvest-code')
+      expect(body.get('client_id')).toBe('harvest-client-id')
+      expect(body.get('client_secret')).toBe('harvest-client-secret')
+      expect(body.get('redirect_uri')).toBe('https://id.tangle.tools/v1/hub/connections/oauth/callback')
+      return new Response(JSON.stringify({
+        access_token: 'harvest-access-token',
+        refresh_token: 'harvest-refresh-token',
+        expires_in: 3600,
+        scope: 'harvest:all',
+      }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as unknown as typeof fetch
+
+    const provider = createConnectorAdapterProvider({
+      adapters: [definition!.factory(options ?? {})],
+      resolveDataSource: () => ({ kind: 'harvest', id: 'harvest-source' }) as never,
+      resolveOAuthClient: () => options
+        ? { clientId: options.clientId, clientSecret: options.clientSecret }
+        : null,
+      fetchImpl,
+    })
+    const redirectUri = 'https://id.tangle.tools/v1/hub/connections/oauth/callback'
+    const started = await provider.startAuth!({
+      connectorId: 'harvest',
+      owner: { type: 'user', id: 'user_42' },
+      requestedScopes: [],
+      redirectUri,
+      state: 'harvest-state',
+    })
+    const authUrl = new URL(started.authUrl)
+    expect(authUrl.origin + authUrl.pathname).toBe('https://id.getharvest.com/oauth2/authorize')
+    expect(authUrl.searchParams.get('client_id')).toBe('harvest-client-id')
+    expect(authUrl.searchParams.get('state')).toBe('harvest-state')
+
+    const connection = await provider.completeAuth!({
+      connectorId: 'harvest',
+      owner: { type: 'user', id: 'user_42' },
+      code: 'harvest-code',
+      state: 'harvest-state',
+      redirectUri,
+    })
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    expect(connection.status).toBe('active')
+    expect(connection.grantedScopes).toEqual(['harvest:all'])
   })
 })
