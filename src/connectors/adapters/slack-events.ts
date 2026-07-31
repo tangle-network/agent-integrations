@@ -28,6 +28,7 @@ import {
 import { firstHeader, verifySlackSignature } from '../webhooks.js'
 
 export const slackEventsConnector: ConnectorAdapter = {
+  inboundOnly: true,
   manifest: {
     // NOTE: `slack` is owned by the OAuth bot connector in slack.ts (post_message,
     // lookup_user, list_channels). This adapter is the HMAC-only inbound-events

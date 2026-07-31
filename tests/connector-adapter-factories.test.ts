@@ -53,7 +53,7 @@ describe('connector adapter factory registry', () => {
     }
   })
 
-  it('keeps Stripe action discovery unique while retaining the legacy inbound receiver id', () => {
+  it('keeps inbound receivers out of public discovery while retaining their stable ids', () => {
     const publicAdapters = listBundledConnectorAdapters()
     const kinds = publicAdapters.map((adapter) => adapter.manifest.kind)
     expect(new Set(kinds).size).toBe(kinds.length)
@@ -69,9 +69,26 @@ describe('connector adapter factory registry', () => {
     expect(bundledAdapters.stripeWebhookReceiverConnector.inboundOnly).toBe(true)
     expect(publicAdapters).not.toContain(bundledAdapters.stripeWebhookReceiverConnector)
 
+    expect(bundledAdapters.slackEventsConnector.inboundOnly).toBe(true)
+    expect(publicAdapters).not.toContain(bundledAdapters.slackEventsConnector)
+
     expect(listBundledAdapterKinds()).toContain('stripe')
     expect(getBundledAdapterManifest('stripe')?.auth.kind).toBe('api-key')
     expect(listTangleNativeAdapterIds()).toContain('stripe')
+
+    expect(listBundledAdapterKinds()).toContain('slack')
+    expect(listBundledAdapterKinds()).not.toContain('slack-inbound')
+    expect(getBundledAdapterManifest('slack')?.auth.kind).toBe('oauth2')
+    expect(getBundledAdapterManifest('slack-inbound')).toBeUndefined()
+
+    const slackOAuthFactory = CONNECTOR_ADAPTER_FACTORIES.find(
+      (definition) => definition.kind === 'slack',
+    )
+    expect(slackOAuthFactory).toBeDefined()
+    expect(slackOAuthFactory!.factory({
+      clientId: 'slack-client-id',
+      clientSecret: 'slack-client-secret',
+    }).manifest.auth.kind).toBe('oauth2')
   })
 
   it('registers user-supplied task provider credentials without an app secret', () => {
