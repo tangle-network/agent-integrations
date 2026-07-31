@@ -93,30 +93,33 @@ const matrix = [
   }),
   ...firstParty
     .filter((id) => !catalog.some((entry) => entry.id === id))
-    .map((id) => ({
-      id,
-      title: id,
-      category: 'internal',
-      catalogAuth: null,
-      setupAuth: specsByKind.get(id)?.auth ?? 'custom',
-      runtimePackage: null,
-      actionCount: null,
-      triggerCount: null,
-      setupStatus: specsByKind.get(id)?.status ?? 'executable',
-      tangleContractStatus: 'native_backed',
-      implementationKind: 'native_adapter',
-      nativeAdapter: true,
-      catalogActionMappings: null,
-      quality: {
-        tangleContract: true,
-        authFieldsMapped: true,
-        actionNamesMapped: true,
-        triggerNamesMapped: true,
-        runtimePackageMapped: false,
+    .map((id) => {
+      const spec = specsByKind.get(canonicalIntegrationKind(id)) ?? specsByKind.get(id)
+      return {
+        id,
+        title: spec?.title ?? id,
+        category: spec?.category ?? 'internal',
+        catalogAuth: null,
+        setupAuth: spec?.auth ?? 'custom',
+        runtimePackage: null,
+        actionCount: spec?.actions.length ?? null,
+        triggerCount: spec?.triggers?.length ?? 0,
+        setupStatus: spec?.status ?? 'executable',
+        tangleContractStatus: 'native_backed',
+        implementationKind: 'native_adapter',
         nativeAdapter: true,
-      },
-      missing: [],
-    })),
+        catalogActionMappings: null,
+        quality: {
+          tangleContract: true,
+          authFieldsMapped: true,
+          actionNamesMapped: true,
+          triggerNamesMapped: true,
+          runtimePackageMapped: false,
+          nativeAdapter: true,
+        },
+        missing: [],
+      }
+    }),
   ...specs
     .filter((spec) => !catalogIds.has(spec.kind) && !firstPartySet.has(spec.kind))
     .map((spec) => ({

@@ -174,7 +174,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['mongodb', 'MongoDB', 'database', 'database', 'tier_1', 'database,nosql'],
   ['supabase', 'Supabase', 'database', 'database', 'tier_1', 'database,postgres'],
   ['firebase', 'Firebase', 'database', 'database', 'tier_1', 'database,google,app'],
-  ['redis', 'Redis', 'database', 'database', 'tier_2', 'database,cache'],
+  ['redis', 'Redis', 'database', 'database', 'tier_2', 'database,cache', 'custom'],
   ['aws-s3', 'Amazon S3', 'storage', 'storage', 'tier_0', 'files,aws,storage'],
   ['amazon-sns', 'Amazon SNS', 'webhook', 'webhook', 'tier_1', 'events,notifications,aws', 'api_key'],
   ['amazon-sqs', 'Amazon SQS', 'webhook', 'webhook', 'tier_1', 'events,queues,aws', 'api_key'],
