@@ -54,6 +54,23 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  duckdb: {
+    consoleSteps: [
+      { id: 'ready', title: 'Use the built-in runtime', detail: 'No provider account, endpoint, or credential is required. Each invocation uses a new in-memory database.' },
+      { id: 'query', title: 'Use query parameters', detail: 'Pass dynamic values through $1, $2, and the args array instead of interpolating them into SQL.' },
+    ],
+    knownQuirks: [
+      { id: 'ephemeral', severity: 'info', message: 'Tables exist only for one invocation and are discarded immediately afterward.' },
+      { id: 'external-access', severity: 'critical', message: 'File, network, extension, and attached-database access is disabled and locked before input tables are loaded.' },
+      { id: 'bounded-runtime', severity: 'warning', message: 'Input, output, rows, schema depth and width, memory, threads, and execution time are bounded for hosted Hub safety.' },
+      { id: 'integer-json', severity: 'info', message: 'DuckDB 64-bit integer results are serialized as decimal strings so JSON does not lose precision.' },
+    ],
+    healthcheck: {
+      id: 'duckdb.runtime',
+      level: 'connection',
+      description: 'Open a secured in-memory DuckDB instance and execute SELECT 1.',
+    },
+  },
   kafka: {
     credentialFields: [
       {

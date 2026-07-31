@@ -32,6 +32,7 @@ import { dappierConnector } from './dappier.js'
 import { deepgramConnector } from './deepgram.js'
 import { detectingAiConnector } from './detecting-ai.js'
 import { digitalPilotConnector } from './digital-pilot.js'
+import { duckdbConnector } from './duckdb.js'
 import { docsbotConnector } from './docsbot.js'
 import { dripConnector } from './drip.js'
 import { echowinConnector } from './echowin.js'
@@ -516,6 +517,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => httpConnector, {}),
     defineFactoryAdapter(() => rssConnector, {}),
     defineFactoryAdapter(() => kafkaConnector, {}),
+    defineFactoryAdapter(() => duckdbConnector, {}),
     defineFactoryAdapter(() => csvFilesConnector, {}),
     defineFactoryAdapter(() => excelFilesConnector, {}),
     defineFactoryAdapter(() => parquetFilesConnector, {}),
