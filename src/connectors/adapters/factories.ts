@@ -249,6 +249,7 @@ import { firebaseConnector } from './firebase.js'
 import { googleBigqueryConnector } from './google-bigquery.js'
 import { hightouchConnector } from './hightouch.js'
 import { metabaseConnector } from './metabase.js'
+import { mysqlConnector } from './mysql.js'
 import { segmentConnector } from './segment.js'
 import { supabaseConnector } from './supabase.js'
 import { builtwithConnector } from './builtwith.js'
@@ -456,6 +457,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => digitalOceanConnector, {}),
     defineFactoryAdapter(() => clicksendConnector, {}),
     defineFactoryAdapter(() => metabaseConnector, {}),
+    defineFactoryAdapter(() => mysqlConnector, {}),
     defineFactoryAdapter(
       () => microsoftDynamics365BusinessCentralConnector,
       microsoftOAuthEnvMap,
