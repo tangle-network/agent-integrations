@@ -129,6 +129,7 @@
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.2",
+    "amqplib": "2.0.1",
     "csv-parse": "7.0.1",
     "csv-stringify": "6.8.1",
     "hyparquet": "1.27.1",

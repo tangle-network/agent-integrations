@@ -54,6 +54,33 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  rabbitmq: {
+    credentialFields: [
+      {
+        label: 'RabbitMQ connection JSON',
+        description: 'JSON containing a public host, username, password, optional port/vhost, and optional CA or mutual-TLS credentials. Verified TLS is mandatory.',
+        example: '{"host":"rabbitmq.example.com","port":5671,"username":"tangle","password":"...","vhost":"/tenant"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted RabbitMQ user', detail: 'Grant only configure, write, and read permissions required for the intended virtual host and resources.' },
+      { id: 'tls', title: 'Expose a verified TLS listener', detail: 'Use an AMQPS listener on a public hostname with a valid certificate. Plain AMQP is rejected.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the host, virtual host, restricted user, password, and optional TLS material in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check verifies public routing, TLS certificate validation, and RabbitMQ authentication without publishing a message.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plaintext AMQP is rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'publisher-confirms', severity: 'info', message: 'Publish actions wait for broker confirmation and require the target queue or exchange to exist.' },
+      { id: 'consumer-runtime', severity: 'warning', message: 'The cataloged Message Received trigger still requires a durable polling worker that persists each event before acknowledging it.' },
+    ],
+    healthcheck: {
+      id: 'rabbitmq.connection',
+      level: 'connection',
+      description: 'Resolve a public host, negotiate verified TLS, authenticate, and close without publishing.',
+    },
+  },
   duckdb: {
     consoleSteps: [
       { id: 'ready', title: 'Use the built-in runtime', detail: 'No provider account, endpoint, or credential is required. Each invocation uses a new in-memory database.' },
