@@ -47,6 +47,7 @@ import { modelslabConnector } from './modelslab.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
+import { amazonEventBridgeConnector } from './amazon-eventbridge.js'
 import { amazonS3Connector } from './amazon-s3.js'
 import { amazonSnsConnector } from './amazon-sns.js'
 import { amazonSqsConnector } from './amazon-sqs.js'
@@ -495,6 +496,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     // File storage and knowledge providers. API-key providers receive their
     // credentials from each connection; OAuth providers are registered only
     // when the shared application credentials are present.
+    defineFactoryAdapter(() => amazonEventBridgeConnector, {}),
     defineFactoryAdapter(() => amazonS3Connector, {}),
     defineFactoryAdapter(() => amazonSnsConnector, {}),
     defineFactoryAdapter(() => amazonSqsConnector, {}),
