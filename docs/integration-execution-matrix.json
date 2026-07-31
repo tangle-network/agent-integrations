@@ -80005,9 +80005,9 @@
     "actionCount": 4,
     "triggerCount": 0,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 4,
     "quality": {
       "tangleContract": true,
@@ -80015,7 +80015,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "executable_setup_spec"
