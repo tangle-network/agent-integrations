@@ -167,6 +167,7 @@ import { mastodonConnector } from './mastodon.js'
 import { meetgeekAiConnector } from './meetgeek-ai.js'
 import { mollieConnector } from './mollie.js'
 import { mondayConnector } from './monday.js'
+import { mongodbConnector } from './mongodb.js'
 import { mycaseConnector } from './mycase.js'
 import { notion, type NotionOptions } from './notion.js'
 import { n8nConnector } from './n8n.js'
@@ -527,6 +528,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => redisConnector, {}),
     defineFactoryAdapter(() => redshiftConnector, {}),
     defineFactoryAdapter(() => postgresConnector, {}),
+    defineFactoryAdapter(() => mongodbConnector, {}),
     defineFactoryAdapter(() => csvFilesConnector, {}),
     defineFactoryAdapter(() => excelFilesConnector, {}),
     defineFactoryAdapter(() => parquetFilesConnector, {}),

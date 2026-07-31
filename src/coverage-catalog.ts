@@ -171,7 +171,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['redshift', 'Redshift', 'database', 'database', 'tier_1', 'warehouse,aws,data', 'custom'],
   ['postgres', 'Postgres', 'database', 'database', 'tier_0', 'database,sql', 'custom'],
   ['mysql', 'MySQL', 'database', 'database', 'tier_1', 'database,sql'],
-  ['mongodb', 'MongoDB', 'database', 'database', 'tier_1', 'database,nosql'],
+  ['mongodb', 'MongoDB', 'database', 'database', 'tier_1', 'database,nosql', 'custom'],
   ['supabase', 'Supabase', 'database', 'database', 'tier_1', 'database,postgres'],
   ['firebase', 'Firebase', 'database', 'database', 'tier_1', 'database,google,app'],
   ['redis', 'Redis', 'database', 'database', 'tier_2', 'database,cache', 'custom'],

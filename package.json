@@ -138,6 +138,7 @@
     "ipaddr.js": "2.4.0",
     "jose": "6.2.4",
     "kafkajs": "2.2.4",
+    "mongodb": "6.21.0",
     "mysql2": "3.23.2",
     "pg": "8.22.0",
     "read-excel-file": "9.3.5",

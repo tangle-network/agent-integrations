@@ -64358,7 +64358,7 @@
       "mode": "api_key",
       "credential": {
         "label": "mongodb API key",
-        "description": "MongoDB Data API key.",
+        "description": "JSON with a public MongoDB host, database, user, password, optional port/auth source, and optional TLS CA. Verified TLS is mandatory.",
         "secret": true
       },
       "placement": "bearer"
