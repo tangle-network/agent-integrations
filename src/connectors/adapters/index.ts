@@ -212,6 +212,7 @@ export { clioConnector } from './clio.js'
 // Observability / errors
 export { sentryConnector } from './sentry.js'
 export { datadogConnector } from './datadog.js'
+export { discourseConnector } from './discourse.js'
 // Incident response / on-call
 export { pagerdutyConnector } from './pagerduty.js'
 export { opsgenieConnector } from './opsgenie.js'

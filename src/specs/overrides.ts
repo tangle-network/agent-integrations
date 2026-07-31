@@ -54,6 +54,27 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  discourse: {
+    consoleUrl: 'https://meta.discourse.org/t/create-and-configure-an-api-key/230124',
+    credentialFields: [
+      {
+        label: 'Discourse API credential bundle',
+        description: 'JSON containing apiKey and apiUsername. Store the public HTTPS forum root as connection metadata baseUrl.',
+        example: '{"apiKey":"...","apiUsername":"system"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'key', title: 'Create a scoped API key', detail: 'In Admin > API > Keys, create a dedicated key with the smallest required scope and user level.' },
+      { id: 'username', title: 'Choose the acting user', detail: 'Use a dedicated service user whenever site-wide administrator authority is not required.' },
+      { id: 'host', title: 'Record the forum URL', detail: 'Store the public HTTPS forum root as connection metadata baseUrl.' },
+      { id: 'store', title: 'Store the credential bundle', detail: 'Save apiKey and apiUsername in the encrypted connection credential bundle.' },
+    ],
+    knownQuirks: [
+      { id: 'acting-user', severity: 'warning', message: 'Every action is attributed to Api-Username and limited by both that user and the key scopes. Use separate keys for automation with different authority.' },
+      { id: 'admin-actions', severity: 'warning', message: 'Category creation and moderation require staff or administrator authority and should remain approval-gated.' },
+    ],
+  },
   baserow: {
     consoleUrl: 'https://baserow.io/dashboard/settings/database-tokens',
     credentialFields: [
