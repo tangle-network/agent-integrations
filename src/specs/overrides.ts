@@ -54,6 +54,25 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  baserow: {
+    consoleUrl: 'https://baserow.io/dashboard/settings/database-tokens',
+    credentialFields: [
+      {
+        label: 'Baserow database token',
+        description: 'Create a dedicated database token and grant only the required tables and create/read/update/delete permissions.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'token', title: 'Create a database token', detail: 'Open workspace settings, create a dedicated token, and name it Tangle Integration Hub.' },
+      { id: 'permissions', title: 'Limit table permissions', detail: 'Grant only the tables and create, read, update, or delete operations required by approved workflows.' },
+      { id: 'store', title: 'Store the token', detail: 'Paste the token once. Tangle Hub seals it before persistence.' },
+    ],
+    knownQuirks: [
+      { id: 'token-scope', severity: 'info', message: 'Database tokens intentionally cannot create tables or manage webhooks. Those account-level operations require a short-lived user JWT and are not advertised by this connector.' },
+      { id: 'self-hosted-url', severity: 'info', message: 'For self-hosted Baserow, store the public HTTPS API root in connection metadata as baseUrl.' },
+    ],
+  },
   'ping-identity': {
     consoleUrl: 'https://console.pingone.com/',
     credentialFields: [

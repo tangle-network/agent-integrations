@@ -229,6 +229,7 @@ import { matrixConnector } from './matrix.js'
 import { mattermostConnector } from './mattermost.js'
 import { telegramConnector } from './telegram.js'
 import { airtableConnector } from './airtable.js'
+import { baserowConnector } from './baserow.js'
 import { datadogConnector } from './datadog.js'
 import { firebaseConnector } from './firebase.js'
 import { googleBigqueryConnector } from './google-bigquery.js'
@@ -392,6 +393,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'SUPABASE_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => airtableConnector, {}),
+    defineFactoryAdapter(() => baserowConnector, {}),
     defineFactoryAdapter(() => actualbudgetConnector, {}),
     defineFactoryAdapter(() => aianswerConnector, {}),
     defineFactoryAdapter(() => airparserConnector, {}),

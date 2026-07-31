@@ -75,6 +75,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['microsoft-excel-365', 'Microsoft Excel 365', 'database', 'database', 'tier_0', 'sheets,spreadsheet,microsoft,office,database'],
   ['notion', 'Notion', 'docs', 'docs', 'tier_0', 'docs,wiki,knowledge'],
   ['airtable', 'Airtable', 'database', 'database', 'tier_0', 'database,spreadsheet,ops'],
+  ['baserow', 'Baserow', 'database', 'database', 'tier_1', 'database,spreadsheet,ops,open-source', 'api_key'],
   ['coda', 'Coda', 'docs', 'docs', 'tier_1', 'docs,wiki,ops'],
   ['confluence', 'Confluence', 'docs', 'docs', 'tier_1', 'docs,wiki,atlassian'],
   ['sharepoint', 'SharePoint', 'storage', 'storage', 'tier_1', 'files,microsoft,enterprise'],
