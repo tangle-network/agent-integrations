@@ -54,6 +54,34 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  mongodb: {
+    credentialFields: [
+      {
+        label: 'MongoDB connection JSON',
+        description: 'JSON containing a public MongoDB host, database, user, password, optional port/auth source, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cluster.example.mongodb.net","port":27017,"database":"app","user":"tangle_reader","password":"...","authSource":"admin"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only MongoDB user', detail: 'Grant read on the intended database only. Do not grant write, cluster administration, JavaScript execution, or cross-database roles.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose one MongoDB node through a public TLS endpoint and restrict its firewall to Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only user, password, auth source, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed ping command.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes collection/index metadata, structured scalar document reads, and counts only. Raw queries, JavaScript, aggregation, writes, and administrative commands are unavailable.' },
+      { id: 'direct-node', severity: 'warning', message: 'The hosted adapter pins one public seed and disables topology discovery so a server cannot redirect Hub to unvalidated private nodes.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain MongoDB connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'bounded-results', severity: 'info', message: 'Document reads return at most 1,000 documents and 10 MiB and accept fixed scalar predicates instead of raw MongoDB query objects.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'Change-stream triggers remain unavailable until a durable worker persists resume tokens and deliveries.' },
+    ],
+    healthcheck: {
+      id: 'mongodb.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed ping command.',
+    },
+  },
   postgres: {
     credentialFields: [
       {

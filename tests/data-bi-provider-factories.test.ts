@@ -99,6 +99,7 @@ describe('data warehouse, database, and BI provider factories', () => {
       'metabase',
       'redshift',
       'postgres',
+      'mongodb',
     ]) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
@@ -117,7 +118,6 @@ describe('data warehouse, database, and BI provider factories', () => {
 
     for (const kind of [
       'snowflake',
-      'mongodb',
       'tableau',
       'databricks',
       'looker',
