@@ -13,7 +13,10 @@ export const amazonEventBridgeConnector = declarativeRestConnector({
     hint: 'AWS credentials as JSON: {"accessKeyId":"AKIA…","secretAccessKey":"…","region":"us-east-1"}. An optional "sessionToken" supports temporary STS credentials.',
   },
   category: 'other',
-  defaultConsistencyModel: 'authoritative',
+  // EventBridge accepts event batches asynchronously and may report per-entry
+  // failures in a successful HTTP response. The connection therefore cannot
+  // promise authoritative delivery or safe replay for publish operations.
+  defaultConsistencyModel: 'advisory',
   credentialPlacement: { kind: 'aws-sigv4', service: 'events' },
   baseUrl: 'https://events.{region}.amazonaws.com',
   defaultHeaders: {
