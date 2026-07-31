@@ -24783,15 +24783,17 @@
     "title": "Chess.com",
     "category": "workflow",
     "catalogAuth": "none",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "none"
+    },
     "authFields": [],
     "runtimePackage": "@activepieces/piece-chess-com",
     "actionCount": 3,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 3,
     "quality": {
       "tangleContract": true,
@@ -24799,11 +24801,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "circle",
