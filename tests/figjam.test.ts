@@ -16,9 +16,16 @@ describe('figjam adapter', () => {
     expect(auth.tokenUrl).toBe('https://api.figma.com/v1/oauth/token')
     expect(auth.clientIdEnv).toBe('FIGMA_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('FIGMA_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['files:read', 'file_comments:write', 'webhooks:write']),
-    )
+    expect(auth.scopes).toEqual([
+      'current_user:read',
+      'file_comments:read',
+      'file_comments:write',
+      'file_content:read',
+      'file_versions:read',
+      'projects:read',
+      'webhooks:write',
+    ])
+    expect(auth.scopes).not.toContain('files:read')
   })
 
   it('exposes board read + project listing + comment mutation capabilities', () => {
@@ -53,6 +60,18 @@ describe('figjam adapter', () => {
     for (const m of mutations) {
       if (m.class !== 'mutation') throw new Error('narrowing')
       expect(m.cas).toBe('native-idempotency')
+    }
+  })
+
+  it('only advertises capabilities covered by the configured OAuth scopes', () => {
+    const auth = figjamConnector.manifest.auth
+    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
+    const authScopes = new Set(auth.scopes)
+
+    for (const capability of figjamConnector.manifest.capabilities) {
+      for (const scope of capability.requiredScopes ?? []) {
+        expect(authScopes.has(scope), `${capability.name} requires unconfigured scope ${scope}`).toBe(true)
+      }
     }
   })
 
