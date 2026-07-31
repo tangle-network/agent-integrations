@@ -67,6 +67,12 @@ export { sageIntacctConnector } from './sage-intacct.js'
 export { webhookConnector } from './webhook.js'
 export { httpConnector } from './http.js'
 export { rssConnector } from './rss.js'
+export {
+  createKafkaConnector,
+  kafkaConnector,
+  publicKafkaSocketFactory,
+  type KafkaConnectorOptions,
+} from './kafka.js'
 export { csvFilesConnector } from './csv-files.js'
 export { excelFilesConnector } from './excel-files.js'
 export { parquetFilesConnector } from './parquet-files.js'

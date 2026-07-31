@@ -51468,18 +51468,24 @@
   },
   {
     "id": "kafka",
-    "title": "Apache Kafka",
-    "category": "webhook",
+    "title": "kafka",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "kafka API key",
+        "description": "JSON with brokers and optional SASL or mutual-TLS credentials. TLS is mandatory and broker addresses must resolve publicly.",
+        "secret": true
+      }
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -51487,11 +51493,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "kallabot-ai",

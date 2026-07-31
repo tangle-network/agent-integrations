@@ -19,6 +19,7 @@ describe('universal access provider packs', () => {
     'gcloud-pubsub',
     'azure-service-bus',
     'azure-event-grid',
+    'kafka',
     'sftp',
     'csv-files',
     'excel-files',
@@ -39,6 +40,7 @@ describe('universal access provider packs', () => {
     'gcloud-pubsub',
     'azure-service-bus',
     'azure-event-grid',
+    'kafka',
     'sftp',
     'csv-files',
     'excel-files',
@@ -64,13 +66,6 @@ describe('universal access provider packs', () => {
   it('keeps google-pubsub as an alias for the catalog Google Cloud Pub/Sub adapter', () => {
     const registry = buildDefaultIntegrationRegistry()
     expect(registry.byId.get('google-pubsub')).toBe(registry.byId.get('gcloud-pubsub'))
-  })
-
-  it('keeps Kafka contract-only until its transport is implemented', () => {
-    const kind = 'kafka'
-    const spec = getIntegrationSpec(kind)
-    expect(spec?.status).toBe('catalog')
-    expect(spec?.actions).toEqual([])
   })
 
   it('maps universal provider events into the shared event contract', () => {

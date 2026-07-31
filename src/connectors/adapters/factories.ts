@@ -132,6 +132,7 @@ import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
 import { justcallConnector } from './justcall.js'
+import { kafkaConnector } from './kafka.js'
 import { leadConnectorConnector } from './lead-connector.js'
 import { lemonSqueezyConnector } from './lemon-squeezy.js'
 import { linearConnector } from './linear.js'
@@ -512,6 +513,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => amazonSqsConnector, {}),
     defineFactoryAdapter(() => httpConnector, {}),
     defineFactoryAdapter(() => rssConnector, {}),
+    defineFactoryAdapter(() => kafkaConnector, {}),
     defineFactoryAdapter(() => csvFilesConnector, {}),
     defineFactoryAdapter(() => excelFilesConnector, {}),
     defineFactoryAdapter(() => parquetFilesConnector, {}),

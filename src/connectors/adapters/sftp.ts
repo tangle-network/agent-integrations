@@ -1,7 +1,5 @@
-import { lookup } from 'node:dns/promises'
 import { timingSafeEqual } from 'node:crypto'
 import { posix } from 'node:path'
-import ipaddr from 'ipaddr.js'
 import SftpClient from 'ssh2-sftp-client'
 import type { ConnectorAdapter, ResolvedDataSource } from '../types.js'
 import {
@@ -13,6 +11,7 @@ import {
   readBoundedInteger,
   readOptionalString,
 } from './file-payload.js'
+import { resolvePublicHostAddresses } from './public-network.js'
 
 interface SftpClientLike {
   connect(options: Parameters<SftpClient['connect']>[0]): Promise<unknown>
@@ -69,7 +68,7 @@ const MAX_PATH_LENGTH = 1_024
 
 export function createSftpConnector(options: SftpConnectorOptions = {}): ConnectorAdapter {
   const createClient = options.createClient ?? (() => new SftpClient())
-  const lookupHost = options.lookupHost ?? resolvePublicAddresses
+  const lookupHost = options.lookupHost ?? resolvePublicHostAddresses
 
   return {
     manifest: {
@@ -376,25 +375,6 @@ function validateHostname(host: string): void {
   ) {
     throw new Error('SFTP host must be a public hostname or IP address without a scheme')
   }
-}
-
-async function resolvePublicAddresses(host: string): Promise<string[]> {
-  const addresses = ipaddr.isValid(host)
-    ? [host]
-    : (await lookup(host, { all: true, verbatim: true })).map((entry) => entry.address)
-  if (addresses.length === 0 || addresses.some((address) => !isPublicAddress(address))) {
-    throw new Error('SFTP host is not a public network target')
-  }
-  return addresses
-}
-
-function isPublicAddress(value: string): boolean {
-  if (!ipaddr.isValid(value)) return false
-  let address = ipaddr.parse(value)
-  if (address.kind() === 'ipv6' && (address as ipaddr.IPv6).isIPv4MappedAddress()) {
-    address = (address as ipaddr.IPv6).toIPv4Address()
-  }
-  return address.range() === 'unicast'
 }
 
 function parseFingerprint(value: string): Buffer {
