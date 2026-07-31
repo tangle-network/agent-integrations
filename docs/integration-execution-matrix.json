@@ -92505,71 +92505,13 @@
     "category": "workflow",
     "catalogAuth": "api_key",
     "setupAuth": {
-      "mode": "oauth2",
-      "authorizationUrl": "https://api.supabase.com/v1/oauth/authorize",
-      "tokenUrl": "https://api.supabase.com/v1/oauth/token",
-      "clientIdEnv": "SUPABASE_OAUTH_CLIENT_ID",
-      "clientSecretEnv": "SUPABASE_OAUTH_CLIENT_SECRET",
-      "scopes": [
-        {
-          "normalized": "database.read",
-          "providerScope": "organizations:read",
-          "title": "Supabase read",
-          "reason": "Read Supabase data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.read",
-          "providerScope": "projects:read",
-          "title": "Supabase read",
-          "reason": "Read Supabase data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.write",
-          "providerScope": "projects:write",
-          "title": "Supabase write",
-          "reason": "Create or update Supabase resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.read",
-          "providerScope": "database:read",
-          "title": "Supabase read",
-          "reason": "Read Supabase data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.write",
-          "providerScope": "database:write",
-          "title": "Supabase write",
-          "reason": "Create or update Supabase resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.read",
-          "providerScope": "secrets:read",
-          "title": "Supabase read",
-          "reason": "Read Supabase data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.write",
-          "providerScope": "secrets:write",
-          "title": "Supabase write",
-          "reason": "Create or update Supabase resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/supabase/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "supabase API key",
+        "description": "Supabase Management API personal access token (Dashboard > Account > Access Tokens). Sent as an Authorization: Bearer token.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "authFields": [
       {

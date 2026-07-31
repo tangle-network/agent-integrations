@@ -76,18 +76,14 @@ describe('data warehouse, database, and BI provider factories', () => {
     })
   })
 
-  it('fails closed on partial Supabase OAuth settings', () => {
+  it('registers Supabase without central OAuth deployment credentials', () => {
     const supabase = CONNECTOR_ADAPTER_FACTORIES.find(
       (candidate) => candidate.kind === 'supabase',
     )
 
-    expect(supabase?.envMap).toEqual({
-      clientId: 'SUPABASE_OAUTH_CLIENT_ID',
-      clientSecret: 'SUPABASE_OAUTH_CLIENT_SECRET',
-    })
-    expect(resolveConnectorAdapterFactoryOptions(supabase!, {
-      SUPABASE_OAUTH_CLIENT_ID: 'client-id-only',
-    })).toBeNull()
+    expect(supabase?.envMap).toEqual({})
+    expect(resolveConnectorAdapterFactoryOptions(supabase!, {})).toEqual({})
+    expect(supabase?.factory({}).manifest.auth).toMatchObject({ kind: 'api-key' })
   })
 
   it('registers customer-token data providers without shared deployment secrets', () => {
