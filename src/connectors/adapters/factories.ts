@@ -59,6 +59,7 @@ import { avomaConnector } from './avoma.js'
 import { avalaraConnector } from './avalara.js'
 import { azureAdConnector } from './azure-ad.js'
 import { azureBlobStorageConnector } from './azure-blob-storage.js'
+import { azureEventGridConnector } from './azure-event-grid.js'
 import { azureServiceBusConnector } from './azure-service-bus.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
@@ -513,6 +514,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googlePubSubConnector, {}),
     defineFactoryAdapter(() => azureBlobStorageConnector, {}),
+    defineFactoryAdapter(() => azureEventGridConnector, {}),
     defineFactoryAdapter(() => azureServiceBusConnector, {}),
     defineFactoryAdapter(() => backblazeConnector, {}),
     defineFactoryAdapter(() => cloudinaryConnector, {}),

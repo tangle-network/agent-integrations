@@ -54,6 +54,32 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  'azure-event-grid': {
+    consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.EventGrid%2Ftopics',
+    credentialFields: [
+      {
+        label: 'Azure Event Grid credential bundle',
+        description: 'JSON containing the custom topic or domain endpoint, one topic access key, and a random delivery secret of at least 32 characters.',
+        example: '{"endpoint":"https://topic.region.eventgrid.azure.net/api/events","accessKey":"...","deliverySecret":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'topic', title: 'Select a custom topic or domain', detail: 'Open the customer-owned Event Grid topic or domain and copy its /api/events endpoint.' },
+      { id: 'key', title: 'Copy one topic access key', detail: 'Use either active key and rotate between the primary and secondary keys without downtime.' },
+      { id: 'secret', title: 'Generate a delivery secret', detail: 'Generate at least 32 random characters and store it with the endpoint and access key.' },
+      { id: 'subscription', title: 'Configure authenticated delivery', detail: 'On each event subscription, add x-tangle-eventgrid-secret as a static secret delivery header with the same value.' },
+    ],
+    knownQuirks: [
+      { id: 'static-health', severity: 'info', message: 'The setup check validates endpoint and credential structure. A live publish would create a real external event and remains approval-gated.' },
+      { id: 'delivery-secret', severity: 'critical', message: 'Inbound delivery is rejected unless the event subscription sends the matching x-tangle-eventgrid-secret static delivery header.' },
+    ],
+    healthcheck: {
+      id: 'azure-event-grid.credentials',
+      level: 'static',
+      description: 'Validate endpoint, topic key, and delivery-secret structure without publishing an event.',
+    },
+  },
   'azure-service-bus': {
     consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.ServiceBus%2Fnamespaces',
     credentialFields: [
