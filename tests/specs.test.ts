@@ -77,6 +77,7 @@ describe('integration specs', () => {
       authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
       tokenUrl: 'https://oauth2.googleapis.com/token',
       pkce: 'supported',
+      tokenClientAuthMethod: 'client_secret_post',
     })
     expect(google!.requestedScopes).toContain('https://www.googleapis.com/auth/calendar')
     expect(google!.requestedScopes.every((scope) => scope.length > 0)).toBe(true)

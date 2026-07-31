@@ -156,6 +156,7 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       scopes: string[]
       clientIdEnv: string
       clientSecretEnv: string
+      tokenClientAuthMethod: 'client_secret_post' | 'client_secret_basic'
       extraAuthParams?: Record<string, string>
     }
   | undefined {
@@ -174,6 +175,7 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       scopes: candidate.scopes,
       clientIdEnv: candidate.clientIdEnv,
       clientSecretEnv: candidate.clientSecretEnv,
+      tokenClientAuthMethod: candidate.tokenClientAuthMethod ?? 'client_secret_post',
       extraAuthParams: candidate.extraAuthParams,
     }
   }

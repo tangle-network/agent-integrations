@@ -93,6 +93,7 @@ import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
 import { dropboxConnector } from './dropbox.js'
+import { ebayConnector } from './ebay.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
 import { fathomConnector } from './fathom.js'
 import { fireberryConnector } from './fireberry.js'
@@ -213,6 +214,7 @@ import { shopifyConnector } from './shopify.js'
 import { squareConnector } from './square.js'
 import { stripePackConnector } from './stripe-pack.js'
 import { tallyConnector } from './tally.js'
+import { ticktickConnector } from './ticktick.js'
 import { tlDvConnector } from './tl-dv.js'
 import { todoistConnector } from './todoist.js'
 import { trelloConnector } from './trello.js'
@@ -794,6 +796,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'SHOPIFY_OAUTH_CLIENT_ID',
       clientSecret: 'SHOPIFY_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => ebayConnector, {
+      clientId: 'EBAY_OAUTH_CLIENT_ID',
+      clientSecret: 'EBAY_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => lemonSqueezyConnector, {}),
     defineFactoryAdapter(() => shippoConnector, {}),
     defineFactoryAdapter(() => billplzConnector, {}),
@@ -853,6 +859,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => brazeConnector, {}),
     defineFactoryAdapter(() => smartleadConnector, {}),
     defineFactoryAdapter(() => lemlistConnector, {}),
+    defineFactoryAdapter(() => ticktickConnector, {
+      clientId: 'TICKTICK_OAUTH_CLIENT_ID',
+      clientSecret: 'TICKTICK_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => builtwithConnector, {}),
     defineFactoryAdapter(() => fullenrichConnector, {}),
     defineFactoryAdapter(() => hunterConnector, {}),
