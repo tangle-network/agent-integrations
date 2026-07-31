@@ -152,6 +152,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['aircall', 'Aircall', 'chat', 'telephony', 'tier_1', 'voice,telephony,communications', 'api_key'],
   ['phony', 'ph0ny', 'chat', 'chat', 'tier_1', 'voice,telephony,communications', 'api_key'],
   ['discord', 'Discord', 'chat', 'chat', 'tier_1', 'chat,community'],
+  ['discourse', 'Discourse', 'chat', 'chat', 'tier_1', 'community,forum,support,knowledge', 'api_key'],
   ['telegram', 'Telegram', 'chat', 'chat', 'tier_1', 'chat,community'],
   ['whatsapp-business', 'WhatsApp Business', 'chat', 'chat', 'tier_1', 'chat,meta,customer-comms'],
   ['facebook-pages', 'Facebook Pages', 'workflow', 'marketing', 'tier_1', 'social,meta,marketing'],

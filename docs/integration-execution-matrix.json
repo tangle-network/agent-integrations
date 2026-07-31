@@ -32702,7 +32702,15 @@
     "title": "Discourse",
     "category": "chat",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "discourse API key",
+        "description": "JSON containing apiKey and apiUsername. Use a dedicated, narrowly scoped Discourse API key.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "group_id",
@@ -32802,10 +32810,10 @@
     "runtimePackage": "@activepieces/piece-discourse",
     "actionCount": 5,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 5,
     "quality": {
       "tangleContract": true,
@@ -32813,11 +32821,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "dittofeed",
