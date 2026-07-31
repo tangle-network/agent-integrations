@@ -54,6 +54,34 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  postgres: {
+    credentialFields: [
+      {
+        label: 'PostgreSQL connection JSON',
+        description: 'JSON containing a public PostgreSQL host, database, user, password, optional port, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"postgres.example.com","port":5432,"database":"app","user":"tangle_reader","password":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only PostgreSQL role', detail: 'Grant CONNECT on the database, USAGE on intended schemas, and SELECT on intended tables or views. Do not grant write, DDL, function execution, or replication privileges.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose PostgreSQL through a public TLS endpoint and restrict its firewall to the Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only role, password, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed current-database query.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes metadata and structured SELECT reads only. Arbitrary SQL, functions, writes, DDL, COPY, and replication are not available.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain PostgreSQL connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'bounded-results', severity: 'info', message: 'Reads return at most 10,000 rows and 10 MiB and use bounded scalar predicates instead of raw SQL.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'Database-change triggers remain unavailable until a durable logical-decoding or polling worker persists cursors and deliveries.' },
+    ],
+    healthcheck: {
+      id: 'postgres.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed current-database query.',
+    },
+  },
   neverbounce: {
     consoleUrl: 'https://app.neverbounce.com/',
     credentialFields: [
