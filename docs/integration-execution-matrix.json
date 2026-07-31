@@ -68913,6 +68913,38 @@
     "missing": []
   },
   {
+    "id": "onelogin",
+    "title": "onelogin",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "onelogin API key",
+        "description": "JSON credential bundle: {\"clientId\":\"...\",\"clientSecret\":\"...\",\"region\":\"us|eu\"}.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "onespan-sign",
     "title": "onespan-sign",
     "category": "internal",
@@ -75642,6 +75674,38 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "ping-identity",
+    "title": "ping-identity",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "ping-identity API key",
+        "description": "JSON credential bundle: {\"clientId\":\"...\",\"clientSecret\":\"...\",\"region\":\"us|ca|eu|au|asia\"}. Set environmentId in connection metadata.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
       "nativeAdapter": true
     },
     "missing": []
@@ -82386,6 +82450,38 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "scim",
+    "title": "scim",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "scim API key",
+        "description": "SCIM bearer token. Set baseUrl to the provider SCIM 2.0 root, for example https://tenant.example.com/scim/v2.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "scrapegrapghai",
