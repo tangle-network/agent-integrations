@@ -47,6 +47,20 @@ export const confluenceConnector = declarativeRestConnector({
   test: { method: 'GET', path: '/oauth/token/accessible-resources' },
   capabilities: [
     {
+      name: 'resources.list',
+      class: 'read',
+      description:
+        'List the Atlassian sites authorized for this connection. Returns each site cloudId, URL, name, avatar, and granted product scopes so callers can select the cloudId required by every page, space, and search action.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      request: {
+        method: 'GET',
+        path: '/oauth/token/accessible-resources',
+      },
+    },
+    {
       name: 'pages.list',
       class: 'read',
       description:
