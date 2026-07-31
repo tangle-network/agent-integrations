@@ -17,6 +17,7 @@ import { boxConnector } from './box.js'
 import { baremetricsConnector } from './baremetrics.js'
 import { brexConnector } from './brex.js'
 import { billComConnector } from './bill-com.js'
+import { billplzConnector } from './billplz.js'
 import { calComConnector } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { capsuleCrmConnector } from './capsule-crm.js'
@@ -28,6 +29,7 @@ import { confluenceConnector } from './confluence.js'
 import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
+import { cashfreePaymentsConnector } from './cashfree-payments.js'
 import { circleConnector } from './circle.js'
 import { checkoutConnector } from './checkout.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
@@ -74,6 +76,7 @@ import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
 import { justcallConnector } from './justcall.js'
 import { leadConnectorConnector } from './lead-connector.js'
+import { lemonSqueezyConnector } from './lemon-squeezy.js'
 import { linearConnector } from './linear.js'
 import { linkedinConnector } from './linkedin.js'
 import { makeConnector } from './make.js'
@@ -124,8 +127,10 @@ import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { rssConnector } from './rss.js'
 import { salesforceConnector } from './salesforce.js'
+import { saleorConnector } from './saleor.js'
 import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
+import { shippoConnector } from './shippo.js'
 import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
 import { sageIntacctConnector } from './sage-intacct.js'
@@ -140,6 +145,7 @@ import { twentyConnector } from './twenty.js'
 import { typeformConnector } from './typeform.js'
 import { twitter, type TwitterOptions } from './twitter.js'
 import { twilioSmsConnector } from './twilio-sms.js'
+import { voucheryIoConnector } from './vouchery-io.js'
 import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
@@ -608,6 +614,12 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'SHOPIFY_OAUTH_CLIENT_ID',
       clientSecret: 'SHOPIFY_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => lemonSqueezyConnector, {}),
+    defineFactoryAdapter(() => shippoConnector, {}),
+    defineFactoryAdapter(() => billplzConnector, {}),
+    defineFactoryAdapter(() => voucheryIoConnector, {}),
+    defineFactoryAdapter(() => saleorConnector, {}),
+    defineFactoryAdapter(() => cashfreePaymentsConnector, {}),
     defineFactoryAdapter(() => frontConnector, {
       clientId: 'FRONT_OAUTH_CLIENT_ID',
       clientSecret: 'FRONT_OAUTH_CLIENT_SECRET',
