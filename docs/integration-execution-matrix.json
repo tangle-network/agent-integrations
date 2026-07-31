@@ -66615,27 +66615,13 @@
     "category": "workflow",
     "catalogAuth": "api_key",
     "setupAuth": {
-      "mode": "oauth2",
-      "scopes": [
-        {
-          "normalized": "database.read",
-          "providerScope": "mysql.read",
-          "title": "MySQL read",
-          "reason": "Read MySQL data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "database.write",
-          "providerScope": "mysql.write",
-          "title": "MySQL write",
-          "reason": "Create or update MySQL resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/mysql/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "mysql API key",
+        "description": "JSON with host, port, user, password, optional database, and optional tlsCa. TLS and public network targets are mandatory.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "authFields": [
       {
@@ -66735,10 +66721,10 @@
     "runtimePackage": "@activepieces/piece-mysql",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -66746,11 +66732,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "n8n",

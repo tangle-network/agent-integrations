@@ -118,7 +118,6 @@ describe('data warehouse, database, and BI provider factories', () => {
       'postgres',
       'mongodb',
       'tableau',
-      'mysql',
       'redshift',
       'databricks',
       'looker',
