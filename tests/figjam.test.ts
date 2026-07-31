@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { figjamConnector } from '../src/connectors/adapters/figjam'
-import { validateConnectorManifest } from '../src/connectors/types'
+import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
 
 describe('figjam adapter', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('declares kind, category, and OAuth2 auth', () => {
     expect(figjamConnector.manifest.kind).toBe('figjam')
     expect(figjamConnector.manifest.category).toBe('doc')
@@ -22,20 +24,21 @@ describe('figjam adapter', () => {
       'file_comments:write',
       'file_content:read',
       'file_versions:read',
-      'projects:read',
+      'project_metadata:read',
       'webhooks:write',
     ])
     expect(auth.scopes).not.toContain('files:read')
+    expect(auth.scopes).not.toContain('projects:read')
   })
 
-  it('exposes board read + project listing + comment mutation capabilities', () => {
+  it('exposes board read + project metadata + comment mutation capabilities', () => {
     const caps = figjamConnector.manifest.capabilities
     expect(caps.length).toBeGreaterThanOrEqual(10)
     expect(caps.some((c) => c.class === 'read' && c.name === 'files.get')).toBe(true)
     expect(caps.some((c) => c.class === 'read' && c.name === 'files.nodes')).toBe(true)
     expect(caps.some((c) => c.class === 'read' && c.name === 'files.images')).toBe(true)
     expect(caps.some((c) => c.class === 'read' && c.name === 'files.comments.list')).toBe(true)
-    expect(caps.some((c) => c.class === 'read' && c.name === 'projects.files.list')).toBe(true)
+    expect(caps.some((c) => c.class === 'read' && c.name === 'projects.metadata.get')).toBe(true)
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'files.comments.create')).toBe(true)
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'files.comments.delete')).toBe(true)
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'webhooks.create')).toBe(true)
@@ -52,6 +55,48 @@ describe('figjam adapter', () => {
     expect(names).not.toContain('analytics.library.component_usages')
     expect(names).not.toContain('teams.components.list')
     expect(names).not.toContain('teams.styles.list')
+    expect(names).not.toContain('teams.projects.list')
+    expect(names).not.toContain('projects.files.list')
+
+    const projectMetadata = figjamConnector.manifest.capabilities.find(
+      (capability) => capability.name === 'projects.metadata.get',
+    )
+    expect(projectMetadata).toMatchObject({
+      class: 'read',
+      requiredScopes: ['project_metadata:read'],
+    })
+  })
+
+  it('routes project metadata through the public-OAuth-compatible endpoint', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('https://api.figma.com/v1/projects/67890/meta')
+      expect((init?.headers as Record<string, string>).authorization).toBe('Bearer figjam-token')
+      return new Response(JSON.stringify({ id: '67890', name: 'Workshop' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const source: ResolvedDataSource = {
+      id: 'figjam_1',
+      projectId: 'project_1',
+      publishedAgentId: null,
+      kind: 'figjam',
+      label: 'FigJam',
+      consistencyModel: 'authoritative',
+      scopes: ['project_metadata:read'],
+      metadata: {},
+      credentials: { kind: 'oauth2', accessToken: 'figjam-token' },
+      status: 'active',
+    }
+
+    await expect(figjamConnector.executeRead!({
+      source,
+      capabilityName: 'projects.metadata.get',
+      args: { project_id: '67890' },
+      idempotencyKey: 'figjam-meta-1',
+    })).resolves.toMatchObject({ data: { id: '67890', name: 'Workshop' } })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('all mutation capabilities declare native-idempotency CAS (Figma POSTs reject duplicate writes server-side)', () => {
