@@ -168,7 +168,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['segment', 'Segment', 'database', 'analytics', 'tier_1', 'analytics,cdp'],
   ['snowflake', 'Snowflake', 'database', 'database', 'tier_0', 'warehouse,data'],
   ['bigquery', 'BigQuery', 'database', 'database', 'tier_0', 'warehouse,google,data'],
-  ['redshift', 'Redshift', 'database', 'database', 'tier_1', 'warehouse,aws,data'],
+  ['redshift', 'Redshift', 'database', 'database', 'tier_1', 'warehouse,aws,data', 'custom'],
   ['postgres', 'Postgres', 'database', 'database', 'tier_0', 'database,sql'],
   ['mysql', 'MySQL', 'database', 'database', 'tier_1', 'database,sql'],
   ['mongodb', 'MongoDB', 'database', 'database', 'tier_1', 'database,nosql'],
