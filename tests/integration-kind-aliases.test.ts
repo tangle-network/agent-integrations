@@ -10,6 +10,7 @@ describe('integration kind aliases', () => {
     expect(canonicalIntegrationKind('microsoft-sharepoint')).toBe('sharepoint')
     expect(canonicalIntegrationKind('mycase-piece')).toBe('mycase')
     expect(canonicalIntegrationKind('telegram-bot')).toBe('telegram')
+    expect(canonicalIntegrationKind('bigquery')).toBe('google-bigquery')
   })
 
   it('preserves provider ids that are already canonical', () => {
