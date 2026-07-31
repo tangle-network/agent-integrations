@@ -42,6 +42,7 @@ describe('ticktick adapter manifest', () => {
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
     expect(auth.authorizationUrl).toMatch(/ticktick.com/)
     expect(auth.tokenUrl).toMatch(/ticktick.com/)
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_basic')
   })
 
   it('covers tasks and project surface plus new project CRUD and task move', () => {

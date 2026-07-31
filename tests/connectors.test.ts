@@ -278,6 +278,66 @@ describe('validateConnectorManifest', () => {
     ]))
   })
 
+  it('rejects an unknown OAuth token client authentication method', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: {
+        kind: 'oauth2',
+        authorizationUrl: 'https://x/auth',
+        tokenUrl: 'https://x/token',
+        scopes: ['calendar.read'],
+        clientIdEnv: 'CID',
+        clientSecretEnv: 'SECRET',
+        tokenClientAuthMethod: 'not-a-real-method',
+      } as never,
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [],
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      issues: [{
+        path: 'auth.tokenClientAuthMethod',
+        message: 'tokenClientAuthMethod must be client_secret_post or client_secret_basic',
+      }],
+    })
+  })
+
+  it('rejects an unknown OAuth token client authentication method inside a one_of option', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: {
+        kind: 'one_of',
+        preferred: 'oauth2',
+        options: [
+          {
+            kind: 'oauth2',
+            authorizationUrl: 'https://x/auth',
+            tokenUrl: 'https://x/token',
+            scopes: ['calendar.read'],
+            clientIdEnv: 'CID',
+            clientSecretEnv: 'SECRET',
+            tokenClientAuthMethod: 'not-a-real-method',
+          },
+          { kind: 'api-key', hint: 'Token' },
+        ],
+      } as never,
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [],
+    })
+
+    expect(result.issues).toContainEqual({
+      path: 'auth.options[0].tokenClientAuthMethod',
+      message: 'tokenClientAuthMethod must be client_secret_post or client_secret_basic',
+    })
+  })
+
   it('assertValidConnectorManifest throws with actionable paths', () => {
     expect(() => assertValidConnectorManifest({
       kind: '',

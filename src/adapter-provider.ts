@@ -4,6 +4,7 @@ import type {
   ConnectorAdapter,
   ConnectorCredentials,
   ConnectorInvocation,
+  OAuth2TokenClientAuthMethod,
   ResolvedDataSource,
   TokenMetadataSource,
 } from './connectors/types.js'
@@ -84,6 +85,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
+      resolveTokenClientAuthMethod(auth.tokenClientAuthMethod, request.connectorId)
       if (!options.resolveOAuthClient) {
         throw new IntegrationError(
           `OAuth client resolver missing on adapter provider; cannot start auth for ${request.connectorId}.`,
@@ -148,6 +150,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
+      const tokenClientAuthMethod = resolveTokenClientAuthMethod(
+        auth.tokenClientAuthMethod,
+        request.connectorId,
+      )
       if (!request.code) {
         throw new IntegrationError(
           `Authorization code missing on completeAuth for ${request.connectorId}.`,
@@ -176,10 +182,21 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code: request.code,
-        client_id: client.clientId,
-        client_secret: client.clientSecret,
         redirect_uri: request.redirectUri,
       })
+      const headers: Record<string, string> = {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      }
+      const redactionValues = [request.code, client.clientId, client.clientSecret]
+      if (tokenClientAuthMethod === 'client_secret_post') {
+        body.set('client_id', client.clientId)
+        body.set('client_secret', client.clientSecret)
+      } else {
+        const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret}`)}`
+        headers.authorization = authorization
+        redactionValues.push(authorization)
+      }
       const tokenUrl = resolveOAuthUrlTemplate(
         auth.tokenUrl,
         request.metadata,
@@ -189,16 +206,13 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       try {
         res = await fetchImpl(tokenUrl, {
           method: 'POST',
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-            accept: 'application/json',
-          },
+          headers,
           body,
         })
       } catch (cause) {
         const detail = redactSensitiveText(
           (cause as Error)?.message ?? 'unknown',
-          [request.code, client.clientId, client.clientSecret],
+          redactionValues,
         )
         throw new IntegrationError(
           `OAuth token exchange transport error for ${request.connectorId}: ${detail}`,
@@ -209,7 +223,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         const text = await res.text().catch(() => '')
         const detail = redactSensitiveText(
           `${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
-          [request.code, client.clientId, client.clientSecret],
+          redactionValues,
         )
         throw new IntegrationError(
           `OAuth token exchange failed for ${request.connectorId}: ${detail}`,
@@ -429,6 +443,39 @@ function oauthManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Extract<
   if (auth.kind === 'oauth2') return auth
   if (auth.kind !== 'one_of') return undefined
   return auth.options.find((option): option is Extract<typeof option, { kind: 'oauth2' }> => option.kind === 'oauth2')
+}
+
+/** Resolve the manifest value at the last possible point before an OAuth
+ * request. The runtime check matters because adapters can enter through JS or
+ * an `any` cast without first passing the static manifest validator. */
+function resolveTokenClientAuthMethod(
+  value: unknown,
+  connectorId: string,
+): OAuth2TokenClientAuthMethod {
+  if (value === undefined || value === 'client_secret_post') {
+    return 'client_secret_post'
+  }
+  if (value === 'client_secret_basic') return value
+  throw new IntegrationError(
+    `Connector ${connectorId} has an unsupported OAuth token client authentication method.`,
+    'config_missing',
+  )
+}
+
+/** Encodes UTF-8 credentials without importing Node's Buffer, so the adapter
+ * provider remains usable in browser and edge runtimes. */
+function base64Encode(value: string): string {
+  const btoa = globalThis.btoa
+  if (typeof btoa !== 'function') {
+    throw new IntegrationError(
+      'OAuth client_secret_basic requires a base64 encoder in this runtime.',
+      'config_missing',
+    )
+  }
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }
 
 function redactSensitiveText(text: string, secrets: readonly string[]): string {

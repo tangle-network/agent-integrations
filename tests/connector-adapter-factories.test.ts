@@ -187,6 +187,37 @@ describe('connector adapter factory registry', () => {
     }
   })
 
+  it('registers eBay and TickTick only after their Basic-auth OAuth apps are fully configured', () => {
+    const expected = {
+      ebay: {
+        clientId: 'EBAY_OAUTH_CLIENT_ID',
+        clientSecret: 'EBAY_OAUTH_CLIENT_SECRET',
+      },
+      ticktick: {
+        clientId: 'TICKTICK_OAUTH_CLIENT_ID',
+        clientSecret: 'TICKTICK_OAUTH_CLIENT_SECRET',
+      },
+    } as const
+
+    for (const [kind, envMap] of Object.entries(expected)) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual(envMap)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+    }
+  })
+
   it('uses Harvest through the generic form-body authorization-code exchange', async () => {
     const definition = CONNECTOR_ADAPTER_FACTORIES.find(
       (candidate) => candidate.kind === 'harvest',

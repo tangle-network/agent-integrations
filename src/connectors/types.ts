@@ -349,6 +349,15 @@ export interface RateLimitSpec {
  *  rather than silently capturing nothing. */
 export type TokenMetadataSource = string | { field: string; required?: boolean }
 
+/** How an OAuth token endpoint receives this application's client credentials.
+ *
+ * OAuth providers default to `client_secret_post`, which sends both values in
+ * the form body. `client_secret_basic` instead sends an HTTP Basic header and
+ * deliberately omits the credentials from that body. */
+export type OAuth2TokenClientAuthMethod =
+  | 'client_secret_post'
+  | 'client_secret_basic'
+
 type OAuth2AuthSpec = {
   kind: 'oauth2'
   /** OAuth2 grant type. Defaults to `'authorization_code'` (the interactive
@@ -375,6 +384,9 @@ type OAuth2AuthSpec = {
   clientIdEnv: string
   /** Env-var name holding the OAuth client_secret. */
   clientSecretEnv: string
+  /** OAuth client authentication for the authorization-code token exchange.
+   * Defaults to `client_secret_post` for backward compatibility. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   /** Optional extra params attached to the authorization URL (e.g.,
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
@@ -562,9 +574,7 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
 
 function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIssue[]): void {
   if (auth.kind === 'oauth2') {
-    if ((auth.grantType ?? 'authorization_code') === 'authorization_code' && !auth.authorizationUrl?.trim()) {
-      issues.push({ path: 'auth.authorizationUrl', message: 'authorization_code grant requires authorizationUrl' })
-    }
+    validateOAuth2AuthSpec(auth, issues, 'auth')
     return
   }
   if (auth.kind !== 'one_of') return
@@ -574,6 +584,31 @@ function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIss
   const optionKinds = new Set(auth.options.map((option) => option.kind))
   if (!optionKinds.has(auth.preferred)) {
     issues.push({ path: 'auth.preferred', message: 'one_of preferred auth must match an option kind' })
+  }
+  for (const [index, option] of auth.options.entries()) {
+    if (option.kind === 'oauth2') {
+      validateOAuth2AuthSpec(option, issues, `auth.options[${index}]`)
+    }
+  }
+}
+
+function validateOAuth2AuthSpec(
+  auth: OAuth2AuthSpec,
+  issues: ConnectorManifestValidationIssue[],
+  path: string,
+): void {
+  if ((auth.grantType ?? 'authorization_code') === 'authorization_code' && !auth.authorizationUrl?.trim()) {
+    issues.push({ path: `${path}.authorizationUrl`, message: 'authorization_code grant requires authorizationUrl' })
+  }
+  if (
+    auth.tokenClientAuthMethod !== undefined &&
+    auth.tokenClientAuthMethod !== 'client_secret_post' &&
+    auth.tokenClientAuthMethod !== 'client_secret_basic'
+  ) {
+    issues.push({
+      path: `${path}.tokenClientAuthMethod`,
+      message: 'tokenClientAuthMethod must be client_secret_post or client_secret_basic',
+    })
   }
 }
 

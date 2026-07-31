@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ebayConnector } from '../src/connectors/adapters/ebay.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
+import { resolveConnectorAuthSpec } from '../src/specs/index.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -40,6 +41,8 @@ describe('ebay adapter manifest', () => {
     expect(auth.tokenUrl).toBe('https://api.ebay.com/identity/v1/oauth2/token')
     expect(auth.clientIdEnv).toBe('EBAY_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('EBAY_OAUTH_CLIENT_SECRET')
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_basic')
+    expect(resolveConnectorAuthSpec('ebay')?.tokenClientAuthMethod).toBe('client_secret_basic')
     expect(auth.scopes).toEqual(
       expect.arrayContaining([
         'https://api.ebay.com/oauth/api_scope',

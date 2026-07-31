@@ -197,6 +197,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       expect((init?.headers as Record<string, string>)['content-type']).toBe(
         'application/x-www-form-urlencoded',
       )
+      expect((init?.headers as Record<string, string>).authorization).toBeUndefined()
       const body = init?.body as URLSearchParams
       expect(body.get('grant_type')).toBe('authorization_code')
       expect(body.get('code')).toBe('the_code')
@@ -239,6 +240,105 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     expect(conn.updatedAt).toBe(fixedNow.toISOString())
     expect(conn.expiresAt).toBe(new Date(fixedNow.getTime() + 3600 * 1000).toISOString())
     expect(conn.id).toMatch(/^conn_/)
+  })
+
+  it('completeAuth sends client_secret_basic credentials only in the Authorization header', async () => {
+    const basicAdapter = oauthAdapter()
+    if (basicAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(url).toBe('https://idp.example/token')
+      expect(init?.method).toBe('POST')
+      const headers = init?.headers as Record<string, string>
+      expect(headers).toEqual({
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+        authorization: 'Basic Y2lkX2xpdmU6c2VjX2xpdmU=',
+      })
+      const body = init?.body as URLSearchParams
+      expect(body.get('grant_type')).toBe('authorization_code')
+      expect(body.get('code')).toBe('the_code')
+      expect(body.get('redirect_uri')).toBe(REDIRECT)
+      expect(body.has('client_id')).toBe(false)
+      expect(body.has('client_secret')).toBe(false)
+      return tokenResponse({ access_token: 'acc_xyz' })
+    }) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [basicAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('redacts encoded client_secret_basic credentials from token-exchange failures', async () => {
+    const basicAdapter = oauthAdapter()
+    if (basicAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+    const authorization = 'Basic Y2lkX2xpdmU6c2VjX2xpdmU='
+    const fetchImpl = vi.fn(async () => new Response(
+      JSON.stringify({ error: 'invalid_client', detail: authorization }),
+      { status: 401, statusText: 'Unauthorized' },
+    )) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [basicAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: 'the_code',
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toMatchObject({
+      code: 'provider_failure',
+      message: expect.stringContaining('[REDACTED]'),
+    })
+    expect((caught as Error).message).not.toContain(authorization)
+  })
+
+  it('fails closed before fetching when an adapter supplies an unknown token client authentication method', async () => {
+    const malformedAdapter = oauthAdapter()
+    if (malformedAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    malformedAdapter.manifest.auth.tokenClientAuthMethod = 'not-a-real-method' as never
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [malformedAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    await expect(provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })).rejects.toMatchObject({
+      code: 'config_missing',
+      message: expect.stringContaining('unsupported OAuth token client authentication method'),
+    })
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('completeAuth surfaces a provider_failure when the IdP responds non-2xx', async () => {
