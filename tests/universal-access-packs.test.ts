@@ -9,13 +9,27 @@ import {
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('universal access provider packs', () => {
-  it.each(['http', 'rss', 'amazon-s3', 'amazon-sns', 'amazon-sqs'])('%s is executable from a shipped adapter', (kind) => {
+  it.each([
+    'http',
+    'rss',
+    'amazon-s3',
+    'amazon-sns',
+    'amazon-sqs',
+    'amazon-eventbridge',
+  ])('%s is executable from a shipped adapter', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('executable')
     expect(spec?.actions.length).toBeGreaterThan(0)
   })
 
-  it.each(['http', 'rss', 'amazon-s3', 'amazon-sns', 'amazon-sqs'])(
+  it.each([
+    'http',
+    'rss',
+    'amazon-s3',
+    'amazon-sns',
+    'amazon-sqs',
+    'amazon-eventbridge',
+  ])(
     '%s is runnable by Hub without a shared deployment secret',
     (kind) => {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
@@ -39,7 +53,6 @@ describe('universal access provider packs', () => {
     'excel-files',
     'parquet-files',
     'kafka',
-    'amazon-eventbridge',
     'google-pubsub',
     'azure-event-grid',
     'azure-service-bus',

@@ -3023,18 +3023,25 @@
   },
   {
     "id": "amazon-eventbridge",
-    "title": "Amazon EventBridge",
-    "category": "webhook",
+    "title": "amazon-eventbridge",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "amazon-eventbridge API key",
+        "description": "AWS credentials as JSON: {\"accessKeyId\":\"AKIA…\",\"secretAccessKey\":\"…\",\"region\":\"us-east-1\"}. An optional \"sessionToken\" supports temporary STS credentials.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -3042,11 +3049,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "amazon-s3",
