@@ -14,6 +14,7 @@ import type {
   ConnectorAdapter,
   ResolvedDataSource,
 } from '../src/connectors/types.js'
+import { getIntegrationSpec, resolveConnectorAuthSpec } from '../src/specs/index.js'
 
 function source(
   kind: string,
@@ -58,6 +59,21 @@ describe('data warehouse, database, and BI provider factories', () => {
       GOOGLE_OAUTH_CLIENT_ID: 'google-client',
       GOOGLE_OAUTH_CLIENT_SECRET: 'google-secret',
     })).toEqual({ clientId: 'google-client', clientSecret: 'google-secret' })
+  })
+
+  it('maps the catalog BigQuery id onto the executable Google adapter', () => {
+    const spec = getIntegrationSpec('bigquery')
+
+    expect(spec).toMatchObject({
+      kind: 'google-bigquery',
+      status: 'executable',
+    })
+    expect(spec?.actions.length).toBeGreaterThan(0)
+    expect(resolveConnectorAuthSpec('bigquery')).toMatchObject({
+      authKind: 'oauth2',
+      clientIdEnv: 'GOOGLE_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'GOOGLE_OAUTH_CLIENT_SECRET',
+    })
   })
 
   it('fails closed on partial Supabase OAuth settings', () => {

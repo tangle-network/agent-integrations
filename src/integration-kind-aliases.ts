@@ -10,6 +10,7 @@ export const INTEGRATION_KIND_ALIASES: Readonly<Record<string, string>> = {
   'microsoft-outlook': 'outlook-mail',
   'gmail-mail': 'gmail',
   'google-pubsub': 'gcloud-pubsub',
+  bigquery: 'google-bigquery',
   'slack-bolt': 'slack',
   'help-scout': 'helpscout',
   'mycase-piece': 'mycase',

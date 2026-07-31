@@ -15277,46 +15277,6 @@
     ]
   },
   {
-    "id": "bigquery",
-    "title": "BigQuery",
-    "category": "database",
-    "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "env": "GOOGLE_OAUTH_CLIENT_ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "env": "GOOGLE_OAUTH_CLIENT_SECRET",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
-    ]
-  },
-  {
     "id": "bika",
     "title": "Bika.ai",
     "category": "docs",
@@ -42663,7 +42623,30 @@
     "title": "Google BigQuery",
     "category": "database",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "database.read",
+          "providerScope": "https://www.googleapis.com/auth/bigquery",
+          "title": "BigQuery read",
+          "reason": "Read BigQuery data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/google/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -42683,7 +42666,7 @@
     "runtimePackage": "@activepieces/piece-google-bigquery",
     "actionCount": 9,
     "triggerCount": 4,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -42697,8 +42680,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
