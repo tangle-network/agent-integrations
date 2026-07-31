@@ -176,6 +176,7 @@ export { customerIoConnector } from './customer-io.js'
 // Scheduling
 export { calComConnector } from './cal-com.js'
 export { calendlyConnector } from './calendly.js'
+export { acuitySchedulingConnector } from './acuity-scheduling.js'
 export { zohoBookingsConnector } from './zoho-bookings.js'
 // Content
 export { contentfulConnector } from './contentful.js'

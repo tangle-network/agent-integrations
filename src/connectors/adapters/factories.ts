@@ -53,6 +53,7 @@ import { amazonSqsConnector } from './amazon-sqs.js'
 import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { auth0Connector } from './auth0.js'
+import { acuitySchedulingConnector } from './acuity-scheduling.js'
 import { avomaConnector } from './avoma.js'
 import { avalaraConnector } from './avalara.js'
 import { azureAdConnector } from './azure-ad.js'
@@ -515,6 +516,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => calendlyConnector, {
       clientId: 'CALENDLY_OAUTH_CLIENT_ID',
       clientSecret: 'CALENDLY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => acuitySchedulingConnector, {
+      clientId: 'ACUITY_OAUTH_CLIENT_ID',
+      clientSecret: 'ACUITY_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => calComConnector, {
       clientId: 'CALCOM_OAUTH_CLIENT_ID',
