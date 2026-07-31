@@ -54,6 +54,27 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  'gcloud-pubsub': {
+    consoleUrl: 'https://console.cloud.google.com/cloudpubsub',
+    credentialFields: [
+      {
+        label: 'Google Cloud service-account key JSON',
+        description: 'Create a dedicated service account, grant only the required Pub/Sub roles, and paste its downloaded JSON key.',
+        example: '{"type":"service_account","project_id":"...","client_email":"...","private_key":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'api', title: 'Enable the Pub/Sub API', detail: 'Enable Google Cloud Pub/Sub for the customer project.' },
+      { id: 'service-account', title: 'Create a service account', detail: 'Create a dedicated Tangle Integration Hub service account.' },
+      { id: 'roles', title: 'Grant narrow Pub/Sub roles', detail: 'Grant only viewer, publisher, subscriber, or editor access required by approved workflows.' },
+      { id: 'key', title: 'Create and store a JSON key', detail: 'Create one JSON key and save it in the encrypted connection credential field.' },
+    ],
+    knownQuirks: [
+      { id: 'at-least-once', severity: 'warning', message: 'Pub/Sub delivery is at-least-once by default. Consumers must deduplicate messages by a stable application identifier.' },
+      { id: 'pull-ack', severity: 'warning', message: 'Pulling a message starts its acknowledgement deadline. Acknowledge it only after downstream work succeeds.' },
+    ],
+  },
   'digital-ocean': {
     consoleUrl: 'https://cloud.digitalocean.com/account/api/tokens',
     credentialFields: [{ label: 'DigitalOcean personal access token', description: 'Create a dedicated token with only the read or write scopes required by approved workflows.', secret: true }],
