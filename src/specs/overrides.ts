@@ -54,6 +54,32 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  sftp: {
+    credentialFields: [
+      {
+        label: 'SFTP connection JSON',
+        description: 'JSON containing host, username, SHA-256 hostFingerprint, and password or privateKey; optional port, passphrase, and rootPath.',
+        example: '{"host":"sftp.example.com","username":"integration","password":"...","hostFingerprint":"SHA256:...","rootPath":"/incoming"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted SFTP account', detail: 'Use a customer-owned account limited to the directories and operations Tangle needs.' },
+      { id: 'fingerprint', title: 'Copy the server fingerprint', detail: 'Obtain the SHA-256 host-key fingerprint from the server administrator or a trusted out-of-band channel.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Paste the host, username, authentication secret, host fingerprint, and optional root path into the encrypted connection field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check verifies DNS, public routing, the pinned host key, authentication, and the configured root directory.' },
+    ],
+    knownQuirks: [
+      { id: 'public-endpoint', severity: 'warning', message: 'The hosted Hub rejects private and local SFTP targets. Expose a restricted public endpoint or use customer-hosted execution.' },
+      { id: 'host-key', severity: 'critical', message: 'Connections fail closed when the server host key differs from the stored SHA-256 fingerprint.' },
+      { id: 'root-scope', severity: 'critical', message: 'All paths are confined to rootPath, including after symbolic-link resolution.' },
+    ],
+    healthcheck: {
+      id: 'sftp.connection',
+      level: 'connection',
+      description: 'Connect, verify the pinned host key, authenticate, and read the current SFTP directory without modifying files.',
+    },
+  },
   'azure-event-grid': {
     consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.EventGrid%2Ftopics',
     credentialFields: [
