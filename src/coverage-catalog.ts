@@ -129,6 +129,8 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['ramp', 'Ramp', 'workflow', 'finance', 'tier_1', 'cards,expenses,finance', 'api_key'],
   ['brex', 'Brex', 'workflow', 'finance', 'tier_1', 'cards,expenses,finance', 'api_key'],
   ['bill-com', 'BILL', 'workflow', 'finance', 'tier_1', 'accounts-payable,bills,payments', 'api_key'],
+  ['avalara', 'Avalara AvaTax', 'workflow', 'finance', 'tier_1', 'tax,sales-tax,compliance,finance', 'api_key'],
+  ['taxjar', 'TaxJar', 'workflow', 'finance', 'tier_1', 'tax,sales-tax,compliance,finance', 'api_key'],
   ['shopify', 'Shopify', 'workflow', 'commerce', 'tier_0', 'ecommerce,orders,commerce'],
   ['woocommerce', 'WooCommerce', 'workflow', 'commerce', 'tier_1', 'ecommerce,orders,wordpress'],
   ['bigcommerce', 'BigCommerce', 'workflow', 'commerce', 'tier_1', 'ecommerce,orders'],

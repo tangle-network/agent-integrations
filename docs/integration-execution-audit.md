@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 232 |
-| Executable setup specs | 200 |
+| Setup specs | 234 |
+| Executable setup specs | 202 |
 | Catalog/setup-only specs | 32 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 504 |
-| Native adapter surfaces shipped | 596 |
+| Native adapter surfaces shipped | 598 |
 | Package-runtime backends | 165 |
 | Runtime manifest dependencies for catalog-only connectors | 174 |
 | Catalog-only connectors exposable behind runtime | 165 |
@@ -114,6 +114,7 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `auth0`
 - `autobound`
 - `autocalls`
+- `avalara`
 - `avian`
 - `avoma`
 - `azure-ad`
@@ -147,9 +148,8 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `braze`
 - `brex`
 - `brightdata`
-- `brilliant-directories`
 
-...and 516 more native adapter surfaces.
+...and 518 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -170,6 +170,7 @@ Executable setup specs:
 - `ask-handle`
 - `attio`
 - `auth0`
+- `avalara`
 - `bamboohr`
 - `bannerbear`
 - `base44`
@@ -329,6 +330,7 @@ Executable setup specs:
 - `snowflake`
 - `stripe-pack`
 - `supabase`
+- `taxjar`
 - `telegram`
 - `trello`
 - `twilio-sms`
@@ -360,8 +362,8 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 596 reviewed native adapter surfaces ship from this package; 504 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 232 setup specs exist; 200 are executable setup specs and 32 are catalog/setup-only. |
+| Native adapter execution | Done for listed native backends | 598 reviewed native adapter surfaces ship from this package; 504 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 234 setup specs exist; 202 are executable setup specs and 32 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 165 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
@@ -440,7 +442,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 596 native adapter surfaces. 504 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 598 native adapter surfaces. 504 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
