@@ -557,7 +557,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'TODOIST_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => trelloConnector, {}),
-    defineFactoryAdapter(() => jiraCloudConnector, {}),
+    defineFactoryAdapter(() => jiraCloudConnector, {
+      clientId: 'ATLASSIAN_OAUTH_CLIENT_ID',
+      clientSecret: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => ringcentralConnector, {
       clientId: 'RINGCENTRAL_OAUTH_CLIENT_ID',
       clientSecret: 'RINGCENTRAL_OAUTH_CLIENT_SECRET',

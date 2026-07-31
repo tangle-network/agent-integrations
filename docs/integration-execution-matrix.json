@@ -50375,49 +50375,57 @@
     ]
   },
   {
-    "id": "jira",
-    "title": "Jira",
-    "category": "workflow",
-    "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 2,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
-    ]
-  },
-  {
     "id": "jira-cloud",
     "title": "Jira Cloud",
     "category": "docs",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://auth.atlassian.com/authorize",
+      "tokenUrl": "https://auth.atlassian.com/oauth/token",
+      "clientIdEnv": "ATLASSIAN_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ATLASSIAN_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "project.read",
+          "providerScope": "offline_access",
+          "title": "Jira read",
+          "reason": "Read Jira data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.read",
+          "providerScope": "read:jira-work",
+          "title": "Jira read",
+          "reason": "Read Jira data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.write",
+          "providerScope": "write:jira-work",
+          "title": "Jira write",
+          "reason": "Create or update Jira resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "project.read",
+          "providerScope": "read:jira-user",
+          "title": "Jira read",
+          "reason": "Read Jira data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "audience": "api.atlassian.com",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/atlassian/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "instanceUrl",
@@ -50596,7 +50604,7 @@
     "runtimePackage": "@activepieces/piece-jira-cloud",
     "actionCount": 16,
     "triggerCount": 6,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -50610,8 +50618,7 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
