@@ -25645,14 +25645,13 @@
     "category": "docs",
     "catalogAuth": "oauth2",
     "setupAuth": {
-      "mode": "oauth2",
-      "authorizationUrl": "https://app.clickup.com/api",
-      "tokenUrl": "https://api.clickup.com/api/v2/oauth/token",
-      "clientIdEnv": "CLICKUP_OAUTH_CLIENT_ID",
-      "clientSecretEnv": "CLICKUP_OAUTH_CLIENT_SECRET",
-      "scopes": [],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/clickup/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "clickup API key",
+        "description": "ClickUp personal API token (starts with pk_).",
+        "secret": true
+      },
+      "placement": "header"
     },
     "authFields": [
       {
@@ -38467,7 +38466,7 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "projects:read",
+          "providerScope": "project_metadata:read",
           "title": "FigJam read",
           "reason": "Read FigJam data for user-authorized agent workflows.",
           "risk": "read",
@@ -38573,7 +38572,7 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "projects:read",
+          "providerScope": "project_metadata:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
           "risk": "read",

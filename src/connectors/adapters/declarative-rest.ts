@@ -20,6 +20,10 @@ import {
 
 export type RestCredentialPlacement =
   | { kind: 'bearer' }
+  /** Authorization header whose scheme depends on the selected auth mode.
+   *  Some providers use Bearer for OAuth but require a raw personal token in
+   *  the same header for API-key connections (for example ClickUp). */
+  | { kind: 'authorization-by-auth'; oauth2Prefix?: string; apiKeyPrefix?: string }
   /** HTTP Basic with the API key as the username and an empty password.
    *  Insightly uses this convention for its otherwise single-secret auth. */
   | { kind: 'basic-api-key' }
@@ -598,6 +602,12 @@ function applyCredentials(
 ): void {
   const token = credentialToken(credentials)
   if (placement.kind === 'bearer') headers.authorization = `Bearer ${token}`
+  if (placement.kind === 'authorization-by-auth') {
+    const prefix = credentials.kind === 'oauth2'
+      ? placement.oauth2Prefix ?? 'Bearer '
+      : placement.apiKeyPrefix ?? ''
+    headers.authorization = `${prefix}${token}`
+  }
   if (placement.kind === 'basic-api-key') {
     headers.authorization = `Basic ${Buffer.from(`${token}:`).toString('base64')}`
   }
