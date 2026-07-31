@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { amazonEventBridgeConnector } from '../src/connectors/adapters/amazon-eventbridge.js'
-import type { ResolvedDataSource } from '../src/connectors/types.js'
+import {
+  validateConnectorManifest,
+  type ResolvedDataSource,
+} from '../src/connectors/types.js'
 
 function source(): ResolvedDataSource {
   return {
@@ -58,6 +61,14 @@ describe('amazon-eventbridge adapter manifest', () => {
       expect(mutation.externalEffect, mutation.name).toBe(true)
       expect(mutation.cas, mutation.name).toBe('none')
     }
+  })
+
+  it('passes the shared manifest safety validator', () => {
+    expect(amazonEventBridgeConnector.manifest.defaultConsistencyModel).toBe('advisory')
+    expect(validateConnectorManifest(amazonEventBridgeConnector.manifest)).toEqual({
+      ok: true,
+      issues: [],
+    })
   })
 })
 
