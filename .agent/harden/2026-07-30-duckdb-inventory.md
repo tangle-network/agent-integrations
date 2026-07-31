@@ -4,7 +4,7 @@
 
 - Vitest runs the repository suite from `tests/`, `src/__tests__/`, `src/connectors/adapters/__tests__/`, and `src/delegated-tools/__tests__/`.
 - The DuckDB tests execute the real `@duckdb/node-api` engine in memory; they do not mock the database boundary.
-- The final merged-tree run passed 680/680 files and 5,072/5,072 tests.
+- The final merged-tree run passed 680/680 files and 5,073/5,073 tests.
 
 ## Evaluation and benchmark infrastructure
 

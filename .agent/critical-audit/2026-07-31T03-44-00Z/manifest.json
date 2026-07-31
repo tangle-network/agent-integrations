@@ -11,8 +11,8 @@
     "docs/integration-execution-audit.md",
     "docs/integration-execution-matrix.json"
   ],
-  "base": "72d3d708a2852d28677a1a27bbc1cb1fddd26c3e",
-  "head": "b2d9f5bba57161907a573e20c4b4b9de5fb5e8ca",
+  "base": "5cf0366c42ca17e27bf17c705d38185df1fcac73",
+  "head": "3e5037e",
   "project_type": "typescript-node",
   "flags": ["diff-only", "serial"],
   "findings_count_by_severity": {
