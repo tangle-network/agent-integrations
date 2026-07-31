@@ -78,6 +78,8 @@ export { excelFilesConnector } from './excel-files.js'
 export { parquetFilesConnector } from './parquet-files.js'
 export { duckdbConnector } from './duckdb.js'
 export { createRabbitMqConnector, rabbitMqConnector, type RabbitMqConnectorOptions } from './rabbitmq.js'
+export { createRedisConnector, redisConnector, type RedisConnectorOptions } from './redis.js'
+export { createRedshiftConnector, redshiftConnector, type RedshiftConnectorOptions } from './redshift.js'
 export {
   createSftpConnector,
   sftpConnector,

@@ -78,6 +78,62 @@ export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
       description: 'Read NeverBounce account information without consuming a verification credit.',
     },
   },
+  redshift: {
+    credentialFields: [
+      {
+        label: 'Redshift connection JSON',
+        description: 'JSON containing a public Redshift host, database, user, password, optional port, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cluster.region.redshift.amazonaws.com","port":5439,"database":"analytics","user":"tangle_reader","password":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only Redshift user', detail: 'Grant USAGE on intended schemas and SELECT on intended tables or views. Do not grant write, DDL, COPY, UNLOAD, or external-function privileges.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose the cluster through a public TLS endpoint and restrict its security group or firewall to the Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only user, password, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed current-database query.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes metadata and structured SELECT reads only. Arbitrary SQL, writes, DDL, COPY, UNLOAD, and external functions are not available.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain PostgreSQL connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'bounded-results', severity: 'info', message: 'Reads return at most 10,000 rows and 10 MiB and use bounded scalar predicates instead of raw SQL.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'The cataloged record-change trigger remains unavailable until an incremental polling worker persists its cursor and deliveries durably.' },
+    ],
+    healthcheck: {
+      id: 'redshift.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed current-database query.',
+    },
+  },
+  redis: {
+    credentialFields: [
+      {
+        label: 'Redis connection JSON',
+        description: 'JSON containing a public host, password, optional ACL username/database, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cache.example.com","port":6380,"username":"default","password":"...","database":0}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted Redis user', detail: 'Grant only PING, SCAN, TYPE, PTTL, GET, SET, DEL, and EVAL access for the intended key patterns.' },
+      { id: 'tls', title: 'Require verified TLS', detail: 'Use a public hostname with a valid certificate on the TLS listener. Plain Redis connections are rejected.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the host, port, restricted ACL credentials, database number, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check pins a public address, verifies the TLS hostname and certificate, authenticates, and sends PING.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plain Redis is rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'standalone', severity: 'warning', message: 'This pack targets one standalone or managed primary endpoint. Redis Cluster and Sentinel discovery are not followed.' },
+      { id: 'bounded-scan', severity: 'info', message: 'Key discovery uses bounded SCAN pages and never runs the blocking KEYS command.' },
+      { id: 'string-writes', severity: 'info', message: 'Writes are limited to conditional string set/delete operations. Arbitrary commands and unconditional deletes are not exposed.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'The cataloged key-change trigger remains unavailable until a durable subscriber can persist keyspace events before acknowledging delivery.' },
+    ],
+    healthcheck: {
+      id: 'redis.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, send PING, and close.',
+    },
+  },
   rabbitmq: {
     credentialFields: [
       {

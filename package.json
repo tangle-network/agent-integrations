@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.53.31",
+  "version": "0.53.32",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -116,6 +116,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "@types/pg": "8.20.0",
     "@types/ssh2-sftp-client": "9.0.6",
     "tsup": "^8.0.0",
     "typescript": "^5.9.3",
@@ -138,7 +139,9 @@
     "jose": "6.2.4",
     "kafkajs": "2.2.4",
     "mysql2": "3.23.2",
+    "pg": "8.22.0",
     "read-excel-file": "9.3.5",
+    "redis": "6.1.0",
     "ssh2-sftp-client": "12.1.1",
     "write-excel-file": "4.1.1"
   }

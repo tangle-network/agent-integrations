@@ -97,6 +97,7 @@ describe('data warehouse, database, and BI provider factories', () => {
       'hightouch',
       'datadog',
       'metabase',
+      'redshift',
     ]) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
@@ -118,7 +119,6 @@ describe('data warehouse, database, and BI provider factories', () => {
       'postgres',
       'mongodb',
       'tableau',
-      'redshift',
       'databricks',
       'looker',
     ]) {
