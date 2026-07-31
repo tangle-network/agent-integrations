@@ -41459,7 +41459,15 @@
     "title": "Service Key (JSON)",
     "category": "workflow",
     "catalogAuth": "custom",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "google-pubsub API key",
+        "description": "Google Cloud service-account key JSON. Enable the Pub/Sub API and grant only the topic, subscription, publisher, or subscriber roles required by approved workflows.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "json",
@@ -41500,10 +41508,10 @@
     "runtimePackage": "@activepieces/piece-gcloud-pubsub",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -41511,11 +41519,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "gemini",
@@ -43362,33 +43368,6 @@
     "missing": [
       "hosted_trigger_runtime",
       "executable_setup_spec"
-    ]
-  },
-  {
-    "id": "google-pubsub",
-    "title": "Google Pub/Sub",
-    "category": "webhook",
-    "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
     ]
   },
   {

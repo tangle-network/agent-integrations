@@ -16,6 +16,7 @@ describe('universal access provider packs', () => {
     'amazon-sns',
     'amazon-sqs',
     'amazon-eventbridge',
+    'gcloud-pubsub',
   ])('%s is executable from a shipped adapter', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('executable')
@@ -29,6 +30,7 @@ describe('universal access provider packs', () => {
     'amazon-sns',
     'amazon-sqs',
     'amazon-eventbridge',
+    'gcloud-pubsub',
   ])(
     '%s is runnable by Hub without a shared deployment secret',
     (kind) => {
@@ -47,13 +49,17 @@ describe('universal access provider packs', () => {
     expect(registry.byId.get('aws-s3')).toBe(registry.byId.get('amazon-s3'))
   })
 
+  it('keeps google-pubsub as an alias for the catalog Google Cloud Pub/Sub adapter', () => {
+    const registry = buildDefaultIntegrationRegistry()
+    expect(registry.byId.get('google-pubsub')).toBe(registry.byId.get('gcloud-pubsub'))
+  })
+
   it.each([
     'sftp',
     'csv-files',
     'excel-files',
     'parquet-files',
     'kafka',
-    'google-pubsub',
     'azure-event-grid',
     'azure-service-bus',
   ])('%s is contract-only until its transport is implemented', (kind) => {

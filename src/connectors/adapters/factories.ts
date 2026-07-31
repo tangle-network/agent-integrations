@@ -105,6 +105,7 @@ import {
   type GoogleCalendarOptions,
 } from './google-calendar.js'
 import { googleCloudStorageConnector } from './google-cloud-storage.js'
+import { googlePubSubConnector } from './google-pubsub.js'
 import { googleContactsConnector } from './google-contacts.js'
 import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
@@ -509,6 +510,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => n8nConnector, {}),
     defineFactoryAdapter(() => pipedreamConnector, {}),
     defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googlePubSubConnector, {}),
     defineFactoryAdapter(() => azureBlobStorageConnector, {}),
     defineFactoryAdapter(() => backblazeConnector, {}),
     defineFactoryAdapter(() => cloudinaryConnector, {}),
