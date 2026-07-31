@@ -6,6 +6,7 @@ import {
 
 const expectedProviders = {
   'amazon-s3': { actions: 9, env: [] },
+  'azure-blob-storage': { actions: 9, env: [] },
   'google-cloud-storage': {
     actions: 12,
     env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
@@ -24,7 +25,7 @@ const expectedProviders = {
 } as const
 
 describe('knowledge and file-storage provider factories', () => {
-  it('registers all seven direct adapters with their complete action surfaces', () => {
+  it('registers every direct adapter with its complete action surface', () => {
     for (const [kind, expected] of Object.entries(expectedProviders)) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
@@ -39,7 +40,7 @@ describe('knowledge and file-storage provider factories', () => {
   })
 
   it('registers connection-owned API credentials without deployment secrets', () => {
-    for (const kind of ['amazon-s3', 'backblaze', 'cloudinary', 'coda']) {
+    for (const kind of ['amazon-s3', 'azure-blob-storage', 'backblaze', 'cloudinary', 'coda']) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
       )
@@ -65,7 +66,6 @@ describe('knowledge and file-storage provider factories', () => {
       CONNECTOR_ADAPTER_FACTORIES.map((definition) => definition.kind),
     )
     for (const kind of [
-      'azure-blob-storage',
       'egnyte',
       'citrix-sharefile',
       'imanage',
