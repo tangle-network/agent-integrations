@@ -91,6 +91,8 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['salesforce', 'Salesforce', 'crm', 'crm', 'tier_0', 'crm,sales,enterprise'],
   ['pipedrive', 'Pipedrive', 'crm', 'crm', 'tier_1', 'crm,sales'],
   ['zoho-crm', 'Zoho CRM', 'crm', 'crm', 'tier_1', 'crm,sales'],
+  ['zoho-desk', 'Zoho Desk', 'crm', 'support', 'tier_1', 'support,tickets,crm,zoho'],
+  ['zoho-bookings', 'Zoho Bookings', 'calendar', 'calendar', 'tier_1', 'appointments,scheduling,calendar,zoho'],
   ['zoho-books', 'Zoho Books', 'workflow', 'finance', 'tier_1', 'accounting,invoices,finance,zoho'],
   ['zoho-invoice', 'Zoho Invoice', 'workflow', 'finance', 'tier_1', 'invoices,billing,finance,zoho'],
   ['zoho-mail', 'Zoho Mail', 'email', 'email', 'tier_1', 'email,inbox,zoho'],

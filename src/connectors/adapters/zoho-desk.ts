@@ -1,91 +1,85 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-// Zoho Desk uses OAuth2 for authentication and the Zoho-oauthtoken header prefix
-// (similar to Zoho CRM). The API endpoint is region-aware; accounts.zoho.com is the
-// default OAuth host. Like other Zoho services, region selection is handled via
-// metadata returned from the token endpoint (api_domain).
-
-const departmentParam = {
+const orgId = {
   type: 'string',
-  description: 'Department id or name to list tickets from. Omit to list all departments.',
+  description: 'Zoho Desk organization id. Discover it with organizations.list.',
 } as const
 
-const statusFilterParam = {
-  type: 'string',
-  description: 'Ticket status: Open, OnHold, Closed, Spam.',
-} as const
-
-const ticketDataParam = {
+const data = {
   type: 'object',
-  description: 'Ticket field object (subject, departmentId, contactId, description, etc.).',
+  description: 'Provider-native Zoho Desk request body.',
 } as const
+
+const orgHeader = { orgId: '{orgId}' } as const
 
 export const zohoDeskConnector = declarativeRestConnector({
   kind: 'zoho-desk',
   displayName: 'Zoho Desk',
-  description: 'List and search tickets, find contacts, and create or update Zoho Desk tickets.',
+  description: 'Discover organizations, manage support tickets, and find contacts in Zoho Desk.',
   auth: {
     kind: 'oauth2',
     authorizationUrl: 'https://accounts.zoho.com/oauth/v2/auth',
     tokenUrl: 'https://accounts.zoho.com/oauth/v2/token',
-    scopes: ['Desk.tickets.ALL', 'Desk.contacts.ALL', 'offline_access'],
-    clientIdEnv: 'ZOHO_DESK_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'ZOHO_DESK_OAUTH_CLIENT_SECRET',
+    scopes: [
+      'Desk.tickets.ALL',
+      'Desk.contacts.READ',
+      'Desk.search.READ',
+      'Desk.basic.READ',
+    ],
+    scopeSeparator: ',',
+    clientIdEnv: 'ZOHO_OAUTH_CLIENT_ID',
+    clientSecretEnv: 'ZOHO_OAUTH_CLIENT_SECRET',
+    extraAuthParams: { access_type: 'offline', prompt: 'consent' },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: { metadataKey: 'apiDomain', fallback: 'https://www.zohoapis.com' },
+  baseUrl: { metadataKey: 'deskApiDomain', fallback: 'https://desk.zoho.com' },
+  allowedBaseUrls: [
+    'https://desk.zoho.com',
+    'https://desk.zoho.eu',
+    'https://desk.zoho.in',
+    'https://desk.zoho.com.au',
+    'https://desk.zoho.jp',
+    'https://desk.zohocloud.ca',
+    'https://desk.zoho.com.cn',
+  ],
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Zoho-oauthtoken ' },
-  test: { method: 'GET', path: '/desk/v1/tickets', query: { limit: '1' } },
+  test: { method: 'GET', path: '/api/v1/organizations' },
   capabilities: [
+    {
+      name: 'organizations.list',
+      class: 'read',
+      description: 'List Zoho Desk organizations available to the connected user.',
+      parameters: { type: 'object', properties: {} },
+      request: { method: 'GET', path: '/api/v1/organizations' },
+      requiredScopes: ['Desk.basic.READ'],
+    },
     {
       name: 'tickets.list',
       class: 'read',
-      description: 'List all tickets in a department with optional status filter and pagination.',
+      description: 'List tickets within one Zoho Desk organization.',
       parameters: {
         type: 'object',
         properties: {
-          departmentId: departmentParam,
-          status: statusFilterParam,
+          orgId,
+          include: { type: 'string', description: 'Comma-separated related objects to include.' },
+          from: { type: 'integer', minimum: 0 },
           limit: { type: 'integer', minimum: 1, maximum: 100 },
-          offset: { type: 'integer', minimum: 0 },
+          status: { type: 'string' },
+          departmentId: { type: 'string' },
         },
-        required: [],
+        required: ['orgId'],
       },
       request: {
         method: 'GET',
-        path: '/desk/v1/tickets',
+        path: '/api/v1/tickets',
+        headers: orgHeader,
         query: {
-          departmentId: '{departmentId}',
+          include: '{include}',
+          from: '{from}',
+          limit: '{limit}',
           status: '{status}',
-          limit: '{limit}',
-          offset: '{offset}',
-        },
-      },
-      requiredScopes: ['Desk.tickets.ALL'],
-    },
-    {
-      name: 'tickets.search',
-      class: 'read',
-      description: 'Search tickets by subject or description text.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: { type: 'string', description: 'Search query string.' },
-          departmentId: departmentParam,
-          limit: { type: 'integer', minimum: 1, maximum: 100 },
-          offset: { type: 'integer', minimum: 0 },
-        },
-        required: ['query'],
-      },
-      request: {
-        method: 'GET',
-        path: '/desk/v1/search/tickets',
-        query: {
-          query: '{query}',
           departmentId: '{departmentId}',
-          limit: '{limit}',
-          offset: '{offset}',
         },
       },
       requiredScopes: ['Desk.tickets.ALL'],
@@ -93,82 +87,56 @@ export const zohoDeskConnector = declarativeRestConnector({
     {
       name: 'tickets.get',
       class: 'read',
-      description: 'Get a ticket by id.',
+      description: 'Read one ticket by id.',
       parameters: {
         type: 'object',
-        properties: {
-          ticketId: { type: 'string', description: 'Ticket id.' },
-        },
-        required: ['ticketId'],
+        properties: { orgId, ticketId: { type: 'string' } },
+        required: ['orgId', 'ticketId'],
       },
-      request: {
-        method: 'GET',
-        path: '/desk/v1/tickets/{ticketId}',
-      },
+      request: { method: 'GET', path: '/api/v1/tickets/{ticketId}', headers: orgHeader },
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
       name: 'tickets.create',
       class: 'mutation',
-      description: 'Create a new ticket.',
+      description: 'Create a ticket in one Zoho Desk organization.',
       parameters: {
         type: 'object',
-        properties: {
-          subject: { type: 'string', description: 'Ticket subject.' },
-          departmentId: { type: 'string', description: 'Department id where the ticket will be created.' },
-          contactId: { type: 'string', description: 'Contact id of the customer.' },
-          description: { type: 'string', description: 'Ticket description.' },
-          data: ticketDataParam,
-        },
-        required: ['subject', 'departmentId'],
+        properties: { orgId, data },
+        required: ['orgId', 'data'],
       },
-      request: {
-        method: 'POST',
-        path: '/desk/v1/tickets',
-        body: '{data}',
-      },
+      request: { method: 'POST', path: '/api/v1/tickets', headers: orgHeader, body: '{data}' },
       cas: 'native-idempotency',
+      externalEffect: true,
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
       name: 'tickets.update',
       class: 'mutation',
-      description: 'Update an existing ticket by id.',
+      description: 'Update an existing ticket.',
       parameters: {
         type: 'object',
-        properties: {
-          ticketId: { type: 'string', description: 'Ticket id to update.' },
-          data: { type: 'object', description: 'Fields to update (subject, status, description, etc.).' },
-        },
-        required: ['ticketId', 'data'],
+        properties: { orgId, ticketId: { type: 'string' }, data },
+        required: ['orgId', 'ticketId', 'data'],
       },
-      request: {
-        method: 'PATCH',
-        path: '/desk/v1/tickets/{ticketId}',
-        body: '{data}',
-      },
+      request: { method: 'PATCH', path: '/api/v1/tickets/{ticketId}', headers: orgHeader, body: '{data}' },
       cas: 'optimistic-read-verify',
+      externalEffect: true,
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
-      // Zoho Desk's PATCH /tickets/{id} with `status: "Closed"` is the canonical
-      // close path; there is no dedicated /close endpoint. We surface it as a
-      // distinct capability rather than nudging callers through tickets.update
-      // because closure is a workflow-trigger boundary (SLA timers, satisfaction
-      // surveys, escalations) and deserves its own audit trail.
       name: 'tickets.close',
       class: 'mutation',
-      description: 'Close a ticket by setting its status to Closed. Triggers downstream SLA/notification automations.',
+      description: 'Close a ticket.',
       parameters: {
         type: 'object',
-        properties: {
-          ticketId: { type: 'string', description: 'Ticket id to close.' },
-        },
-        required: ['ticketId'],
+        properties: { orgId, ticketId: { type: 'string' } },
+        required: ['orgId', 'ticketId'],
       },
       request: {
         method: 'PATCH',
-        path: '/desk/v1/tickets/{ticketId}',
+        path: '/api/v1/tickets/{ticketId}',
+        headers: orgHeader,
         body: { status: 'Closed' },
       },
       cas: 'native-idempotency',
@@ -176,26 +144,18 @@ export const zohoDeskConnector = declarativeRestConnector({
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
-      // Assignment to an agent is also a PATCH against the ticket, with a
-      // single `assigneeId` field. Zoho documents `assigneeId` on the ticket
-      // PATCH body — assignment is not a separate route. We require the
-      // assignee id because reassigning to "unassigned" is a different write
-      // (set assigneeId: null) and we don't want to silently null on a missing
-      // arg.
       name: 'tickets.assign',
       class: 'mutation',
-      description: 'Assign a ticket to an agent by user id (uses the ticket PATCH route with assigneeId).',
+      description: 'Assign a ticket to an agent.',
       parameters: {
         type: 'object',
-        properties: {
-          ticketId: { type: 'string', description: 'Ticket id to assign.' },
-          assigneeId: { type: 'string', description: 'Agent user id to assign the ticket to.' },
-        },
-        required: ['ticketId', 'assigneeId'],
+        properties: { orgId, ticketId: { type: 'string' }, assigneeId: { type: 'string' } },
+        required: ['orgId', 'ticketId', 'assigneeId'],
       },
       request: {
         method: 'PATCH',
-        path: '/desk/v1/tickets/{ticketId}',
+        path: '/api/v1/tickets/{ticketId}',
+        headers: orgHeader,
         body: { assigneeId: '{assigneeId}' },
       },
       cas: 'native-idempotency',
@@ -203,63 +163,51 @@ export const zohoDeskConnector = declarativeRestConnector({
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
-      // Comments are first-class resources under /tickets/{id}/comments.
-      // `isPublic` controls whether the comment is visible to the requester or
-      // internal-only; `contentType` lets the caller pick html/plainText. We
-      // leave it on the caller rather than defaulting because Zoho's editor
-      // produces both shapes and a silent default would change rendering.
       name: 'tickets.add-comment',
       class: 'mutation',
-      description: 'Add a comment to a ticket. `isPublic` controls visibility (false = internal).',
+      description: 'Add a public or internal comment to a ticket.',
       parameters: {
         type: 'object',
         properties: {
-          ticketId: { type: 'string', description: 'Ticket id to comment on.' },
-          content: { type: 'string', description: 'Comment body.' },
-          isPublic: { type: 'boolean', description: 'True for customer-visible, false for internal note.' },
-          contentType: { type: 'string', enum: ['html', 'plainText'], description: 'Body format (defaults to plainText if omitted).' },
+          orgId,
+          ticketId: { type: 'string' },
+          content: { type: 'string' },
+          isPublic: { type: 'boolean' },
+          contentType: { type: 'string', enum: ['html', 'plainText'] },
         },
-        required: ['ticketId', 'content', 'isPublic'],
+        required: ['orgId', 'ticketId', 'content', 'isPublic'],
       },
       request: {
-        // contentType is optional but the bare-placeholder body template
-        // requires every key to resolve. body: 'args' lets us pass the
-        // resolved arg bag (content + isPublic + optional contentType) without
-        // tripping readRequiredPath on the optional field. Zoho silently
-        // ignores extra `ticketId` in the body since it's already on the path.
         method: 'POST',
-        path: '/desk/v1/tickets/{ticketId}/comments',
-        body: 'args',
+        path: '/api/v1/tickets/{ticketId}/comments',
+        headers: orgHeader,
+        body: {
+          content: '{content}',
+          isPublic: '{isPublic}',
+          contentType: '{contentType}',
+        },
       },
       cas: 'native-idempotency',
       externalEffect: true,
       requiredScopes: ['Desk.tickets.ALL'],
     },
     {
-      // Merge consumes a primary ticket and a list of secondary ids. Zoho's
-      // mergeTickets endpoint expects { ids: [...secondaries] } — the surviving
-      // ticket id goes in the path. We keep the body shape verbatim instead of
-      // aliasing to e.g. {tickets: [...]} so callers can match the Zoho docs
-      // 1:1 when debugging merge failures.
       name: 'tickets.merge',
       class: 'mutation',
-      description: 'Merge duplicate tickets into a single primary ticket. The primary id goes on the path; secondary ids in the body.',
+      description: 'Merge duplicate tickets into a primary ticket.',
       parameters: {
         type: 'object',
         properties: {
-          ticketId: { type: 'string', description: 'Surviving (primary) ticket id.' },
-          ids: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Duplicate ticket ids to merge into the primary.',
-            minItems: 1,
-          },
+          orgId,
+          ticketId: { type: 'string', description: 'Primary ticket id.' },
+          ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
         },
-        required: ['ticketId', 'ids'],
+        required: ['orgId', 'ticketId', 'ids'],
       },
       request: {
         method: 'POST',
-        path: '/desk/v1/tickets/{ticketId}/mergeTickets',
+        path: '/api/v1/tickets/{ticketId}/mergeTickets',
+        headers: orgHeader,
         body: { ids: '{ids}' },
       },
       cas: 'native-idempotency',
@@ -269,28 +217,19 @@ export const zohoDeskConnector = declarativeRestConnector({
     {
       name: 'contacts.find',
       class: 'read',
-      description: 'Find a contact by email or search query.',
+      description: 'Find contacts by exact email address.',
       parameters: {
         type: 'object',
-        properties: {
-          email: { type: 'string', description: 'Contact email to search by.' },
-          query: { type: 'string', description: 'Search query string.' },
-          limit: { type: 'integer', minimum: 1, maximum: 100 },
-          offset: { type: 'integer', minimum: 0 },
-        },
-        required: [],
+        properties: { orgId, email: { type: 'string' } },
+        required: ['orgId', 'email'],
       },
       request: {
         method: 'GET',
-        path: '/desk/v1/contacts',
-        query: {
-          email: '{email}',
-          query: '{query}',
-          limit: '{limit}',
-          offset: '{offset}',
-        },
+        path: '/api/v1/contacts/search',
+        headers: orgHeader,
+        query: { email: '{email}' },
       },
-      requiredScopes: ['Desk.contacts.ALL'],
+      requiredScopes: ['Desk.contacts.READ', 'Desk.search.READ'],
     },
   ],
 })

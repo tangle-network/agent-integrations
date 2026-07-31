@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 188 |
-| Executable setup specs | 154 |
+| Setup specs | 190 |
+| Executable setup specs | 156 |
 | Catalog/setup-only specs | 34 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
@@ -301,9 +301,11 @@ Executable setup specs:
 - `youtube`
 - `zapier`
 - `zendesk`
+- `zoho-bookings`
 - `zoho-books`
 - `zoho-campaigns`
 - `zoho-crm`
+- `zoho-desk`
 - `zoho-invoice`
 - `zoho-mail`
 - `zoom`
@@ -315,7 +317,7 @@ Executable setup specs:
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
 | Native adapter execution | Done for listed native backends | 552 reviewed native adapter surfaces ship from this package; 453 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 188 setup specs exist; 154 are executable setup specs and 34 are catalog/setup-only. |
+| OAuth/API-key setup metadata | Partial | 190 setup specs exist; 156 are executable setup specs and 34 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 216 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |

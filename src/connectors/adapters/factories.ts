@@ -151,6 +151,8 @@ import { youtubeDataConnector } from './youtube-data.js'
 import { zapierConnector } from './zapier.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
+import { zohoBookingsConnector } from './zoho-bookings.js'
+import { zohoDeskConnector } from './zoho-desk.js'
 import { zohoCrmConnector } from './zoho-crm.js'
 import { zohoBooksConnector } from './zoho-books.js'
 import { zohoCampaignsConnector } from './zoho-campaigns.js'
@@ -524,6 +526,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'CLOSE_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => zohoCrmConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoDeskConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoBookingsConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoBooksConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoInvoiceConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoMailConnector, zohoOAuthEnvMap),

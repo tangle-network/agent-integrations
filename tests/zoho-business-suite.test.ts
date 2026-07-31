@@ -4,9 +4,11 @@ import {
   CONNECTOR_ADAPTER_FACTORIES,
   biginByZohoConnector,
   resolveConnectorAdapterFactoryOptions,
+  zohoBookingsConnector,
   zohoBooksConnector,
   zohoCampaignsConnector,
   zohoCrmConnector,
+  zohoDeskConnector,
   zohoInvoiceConnector,
   zohoMailConnector,
 } from '../src/connectors/adapters/index.js'
@@ -15,6 +17,8 @@ import type { ResolvedDataSource } from '../src/connectors/types.js'
 const suite = [
   zohoCrmConnector,
   biginByZohoConnector,
+  zohoDeskConnector,
+  zohoBookingsConnector,
   zohoBooksConnector,
   zohoInvoiceConnector,
   zohoMailConnector,
@@ -46,7 +50,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Zoho shared OAuth application', () => {
-  it('registers six provider packs behind one canonical OAuth app', () => {
+  it('registers eight provider packs behind one canonical OAuth app', () => {
     const expectedEnvMap = {
       clientId: [
         'ZOHO_OAUTH_CLIENT_ID',
