@@ -21,8 +21,10 @@ import {
   type StartAuthRequest,
   type StartAuthResult,
 } from './index.js'
-import * as bundledAdapters from './connectors/adapters/index.js'
-import type { ConnectorAdapter } from './connectors/types.js'
+import {
+  CONNECTOR_ADAPTER_FACTORIES,
+  listBundledConnectorAdapters,
+} from './connectors/index.js'
 import { canonicalIntegrationKind } from './integration-kind-aliases.js'
 
 export {
@@ -179,26 +181,14 @@ export interface TangleIntegrationCatalogFreshnessResult {
 
 export function listTangleNativeAdapterIds(): string[] {
   const ids = new Set<string>(
-    bundledAdapters.CONNECTOR_ADAPTER_FACTORIES.map(
+    CONNECTOR_ADAPTER_FACTORIES.map(
       (definition) => definition.kind,
     ),
   )
-  for (const value of Object.values(bundledAdapters)) {
-    if (isConnectorAdapter(value)) {
-      ids.add(value.manifest.kind)
-    }
+  for (const adapter of listBundledConnectorAdapters()) {
+    ids.add(adapter.manifest.kind)
   }
   return [...ids].sort()
-}
-
-function isConnectorAdapter(value: unknown): value is ConnectorAdapter {
-  return Boolean(
-    value
-      && typeof value === 'object'
-      && 'manifest' in value
-      && (value as { manifest?: unknown }).manifest
-      && typeof (value as { manifest: { kind?: unknown } }).manifest.kind === 'string',
-  )
 }
 
 export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogEntry[] {

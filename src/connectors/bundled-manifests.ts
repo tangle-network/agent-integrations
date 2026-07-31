@@ -56,10 +56,36 @@ function manifestFromFactory(
 let cachedManifests: ConnectorManifest[] | undefined
 let cachedByKind: Map<string, ConnectorManifest> | undefined
 
+/**
+ * Direct adapter instances that public catalog and action hosts may register.
+ *
+ * Factory adapters are intentionally absent: their construction requires
+ * product-owned OAuth configuration. Inbound-only adapters remain available
+ * as named exports for webhook hosts, but never compete with action adapters
+ * for a public connector kind.
+ */
+export function listBundledConnectorAdapters(): ConnectorAdapter[] {
+  const byKind = new Map<string, ConnectorAdapter>()
+  const exportByKind = new Map<string, string>()
+  for (const [exportName, value] of Object.entries(bundledAdapters)) {
+    if (!isConnectorAdapter(value) || value.inboundOnly) continue
+    const kind = value.manifest.kind
+    const existingExport = exportByKind.get(kind)
+    if (existingExport) {
+      throw new Error(
+        `Duplicate public connector adapter kind "${kind}" exported by "${existingExport}" and "${exportName}".`,
+      )
+    }
+    exportByKind.set(kind, exportName)
+    byKind.set(kind, value)
+  }
+  return [...byKind.values()]
+}
+
 function buildRegistry(): Map<string, ConnectorManifest> {
   const byKind = new Map<string, ConnectorManifest>()
-  for (const value of Object.values(bundledAdapters)) {
-    if (isConnectorAdapter(value)) byKind.set(value.manifest.kind, value.manifest)
+  for (const adapter of listBundledConnectorAdapters()) {
+    byKind.set(adapter.manifest.kind, adapter.manifest)
   }
   for (const definition of CONNECTOR_ADAPTER_FACTORIES) {
     if (byKind.has(definition.kind)) continue
