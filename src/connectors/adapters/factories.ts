@@ -85,6 +85,7 @@ import { taxjarConnector } from './taxjar.js'
 import { cashfreePaymentsConnector } from './cashfree-payments.js'
 import { circleConnector } from './circle.js'
 import { checkoutConnector } from './checkout.js'
+import { chessComConnector } from './chess-com.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
@@ -507,6 +508,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => amazonSqsConnector, {}),
     defineFactoryAdapter(() => httpConnector, {}),
     defineFactoryAdapter(() => rssConnector, {}),
+    defineFactoryAdapter(() => chessComConnector, {}),
     defineFactoryAdapter(() => zapierConnector, {}),
     defineFactoryAdapter(() => makeConnector, {}),
     defineFactoryAdapter(() => n8nConnector, {}),
