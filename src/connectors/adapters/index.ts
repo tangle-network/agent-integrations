@@ -79,6 +79,7 @@ export { facebookPagesConnector } from './facebook-pages.js'
 export { instagramBusinessConnector } from './instagram-business.js'
 export { linkedinConnector } from './linkedin.js'
 export { telegramConnector, TELEGRAM_FILE_DOWNLOAD_ROOT } from './telegram.js'
+export { oktaConnector } from './okta.js'
 
 // Direct adapters that need only per-connection credentials.
 export { actualbudgetConnector } from './actualbudget.js'

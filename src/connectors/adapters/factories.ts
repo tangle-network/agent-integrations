@@ -1,4 +1,5 @@
 import type { ConnectorAdapter } from '../types.js'
+import { oktaConnector } from './okta.js'
 import { actualbudgetConnector } from './actualbudget.js'
 import { aianswerConnector } from './aianswer.js'
 import { airparserConnector } from './airparser.js'
@@ -640,6 +641,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'AUTH0_OAUTH_CLIENT_ID',
       clientSecret: 'AUTH0_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => oktaConnector, {}),
     defineFactoryAdapter(() => twentyConnector, {}),
     defineFactoryAdapter(() => folkConnector, {}),
     defineFactoryAdapter(() => freshsalesConnector, {}),
