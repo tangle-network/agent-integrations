@@ -54,6 +54,19 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  'digital-ocean': {
+    consoleUrl: 'https://cloud.digitalocean.com/account/api/tokens',
+    credentialFields: [{ label: 'DigitalOcean personal access token', description: 'Create a dedicated token with only the read or write scopes required by approved workflows.', secret: true }],
+    consoleSteps: [
+      { id: 'token', title: 'Create a scoped token', detail: 'Create a dedicated token under API > Tokens with the smallest required scopes.' },
+      { id: 'projects', title: 'Limit resource ownership', detail: 'Use dedicated projects and tags so connected automation touches only intended resources.' },
+      { id: 'store', title: 'Store the token', detail: 'Paste the token once. Tangle Hub seals it before persistence.' },
+    ],
+    knownQuirks: [
+      { id: 'billable-resources', severity: 'critical', message: 'Droplet, database, volume, and app creation can incur immediate charges. Keep all create, resize, action, and delete operations approval-gated.' },
+      { id: 'irreversible-delete', severity: 'critical', message: 'Resource deletion can permanently destroy data. Require explicit destructive-action approval and verified backups.' },
+    ],
+  },
   clicksend: {
     consoleUrl: 'https://dashboard.clicksend.com/#/account/subaccounts',
     credentialFields: [

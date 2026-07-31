@@ -234,6 +234,7 @@ import { airtableConnector } from './airtable.js'
 import { baserowConnector } from './baserow.js'
 import { datadogConnector } from './datadog.js'
 import { discourseConnector } from './discourse.js'
+import { digitalOceanConnector } from './digital-ocean.js'
 import { clicksendConnector } from './clicksend.js'
 import { firebaseConnector } from './firebase.js'
 import { googleBigqueryConnector } from './google-bigquery.js'
@@ -443,6 +444,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => hightouchConnector, {}),
     defineFactoryAdapter(() => datadogConnector, {}),
     defineFactoryAdapter(() => discourseConnector, {}),
+    defineFactoryAdapter(() => digitalOceanConnector, {}),
     defineFactoryAdapter(() => clicksendConnector, {}),
     defineFactoryAdapter(() => metabaseConnector, {}),
     defineFactoryAdapter(

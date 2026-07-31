@@ -183,6 +183,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['google-cloud-storage', 'Google Cloud Storage', 'storage', 'storage', 'tier_1', 'files,gcp,storage'],
   ['azure-blob-storage', 'Azure Blob Storage', 'storage', 'storage', 'tier_1', 'files,azure,storage'],
   ['vercel', 'Vercel', 'workflow', 'dev', 'tier_1', 'deployments,dev'],
+  ['digital-ocean', 'DigitalOcean', 'workflow', 'dev', 'tier_1', 'cloud,infrastructure,compute,database,storage', 'api_key'],
   ['netlify', 'Netlify', 'workflow', 'dev', 'tier_2', 'deployments,dev'],
   ['cloudflare', 'Cloudflare', 'workflow', 'dev', 'tier_1', 'edge,dev,dns'],
   ['sentry', 'Sentry', 'workflow', 'dev', 'tier_1', 'errors,observability,dev'],
