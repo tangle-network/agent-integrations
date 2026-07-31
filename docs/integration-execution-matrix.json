@@ -109010,7 +109010,37 @@
     "title": "Zoho Bookings",
     "category": "calendar",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "calendar.write",
+          "providerScope": "zohobookings.data.CREATE",
+          "title": "Zoho Bookings write",
+          "reason": "Create or update Zoho Bookings resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.read",
+          "providerScope": "zohobookings.data.READ",
+          "title": "Zoho Bookings read",
+          "reason": "Read Zoho Bookings data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-bookings/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109030,7 +109060,7 @@
     "runtimePackage": "@activepieces/piece-zoho-bookings",
     "actionCount": 5,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -109043,9 +109073,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "zoho-books",
@@ -109266,7 +109294,53 @@
     "title": "Zoho Desk",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "support.read",
+          "providerScope": "Desk.tickets.ALL",
+          "title": "Zoho Desk read",
+          "reason": "Read Zoho Desk data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "support.read",
+          "providerScope": "Desk.contacts.READ",
+          "title": "Zoho Desk read",
+          "reason": "Read Zoho Desk data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "support.read",
+          "providerScope": "Desk.search.READ",
+          "title": "Zoho Desk read",
+          "reason": "Read Zoho Desk data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "support.read",
+          "providerScope": "Desk.basic.READ",
+          "title": "Zoho Desk read",
+          "reason": "Read Zoho Desk data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-desk/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109286,7 +109360,7 @@
     "runtimePackage": "@activepieces/piece-zoho-desk",
     "actionCount": 3,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -109299,9 +109373,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "zoho-invoice",

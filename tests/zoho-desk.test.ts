@@ -10,8 +10,8 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     kind: 'zoho-desk',
     label: 'Zoho Desk test',
     consistencyModel: 'authoritative',
-    scopes: ['Desk.tickets.ALL'],
-    metadata: { apiDomain: 'https://desk.zoho.com' },
+    scopes: ['Desk.tickets.ALL', 'Desk.contacts.READ', 'Desk.search.READ', 'Desk.basic.READ'],
+    metadata: { deskApiDomain: 'https://desk.zoho.com' },
     credentials: { kind: 'oauth2', accessToken: 'desk_tok_1' },
     status: 'active',
     ...overrides,
@@ -19,182 +19,219 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
-  if (status === 204 || status === 205 || status === 304) {
-    return new Response(null, { status })
-  }
   return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
+    status: init.status ?? 200,
+    headers: { 'content-type': 'application/json', ...init.headers },
   })
 }
 
 describe('zoho-desk adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the zoho-desk kind', () => {
+  it('uses the shared Zoho OAuth app and exact comma-delimited Desk scopes', () => {
     expect(zohoDeskConnector.manifest.kind).toBe('zoho-desk')
     expect(zohoDeskConnector.manifest.category).toBe('crm')
     expect(zohoDeskConnector.manifest.defaultConsistencyModel).toBe('authoritative')
+    expect(zohoDeskConnector.manifest.auth).toMatchObject({
+      kind: 'oauth2',
+      clientIdEnv: 'ZOHO_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'ZOHO_OAUTH_CLIENT_SECRET',
+      scopes: ['Desk.tickets.ALL', 'Desk.contacts.READ', 'Desk.search.READ', 'Desk.basic.READ'],
+      scopeSeparator: ',',
+      extraAuthParams: { access_type: 'offline', prompt: 'consent' },
+    })
   })
 
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = zohoDeskConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
+  it('exposes organization discovery and the documented ticket and contact operations', () => {
+    const names = zohoDeskConnector.manifest.capabilities.map((capability) => capability.name).sort()
+    expect(names).toEqual([
+      'contacts.find',
+      'organizations.list',
+      'tickets.add-comment',
+      'tickets.assign',
+      'tickets.close',
+      'tickets.create',
+      'tickets.get',
+      'tickets.list',
+      'tickets.merge',
+      'tickets.update',
+    ])
 
-  it('covers the full activepieces action set + the write-side additions', () => {
-    const names = zohoDeskConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'tickets.list',
-        'tickets.search',
-        'tickets.get',
-        'tickets.create',
-        'tickets.update',
-        'tickets.close',
-        'tickets.assign',
-        'tickets.add-comment',
-        'tickets.merge',
-        'contacts.find',
-      ].sort(),
+    const mutations = zohoDeskConnector.manifest.capabilities.filter(
+      (capability) => capability.class === 'mutation',
     )
-    const reads = zohoDeskConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = zohoDeskConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['tickets.list', 'tickets.search', 'tickets.get', 'contacts.find'].sort())
-    expect(mutations).toEqual(
-      ['tickets.create', 'tickets.update', 'tickets.close', 'tickets.assign', 'tickets.add-comment', 'tickets.merge'].sort(),
-    )
-  })
-
-  it('marks the new write-side capabilities as native-idempotency external effect', () => {
-    const byName = new Map(zohoDeskConnector.manifest.capabilities.map((c) => [c.name, c]))
-    for (const name of ['tickets.close', 'tickets.assign', 'tickets.add-comment', 'tickets.merge']) {
-      const cap = byName.get(name)
-      if (!cap || cap.class !== 'mutation') throw new Error(`expected mutation ${name}`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
+    expect(mutations).toHaveLength(6)
+    for (const capability of mutations) expect(capability.externalEffect, capability.name).toBe(true)
   })
 })
 
-describe('zoho-desk new mutations', () => {
+describe('zoho-desk organization isolation and execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('closes a ticket with PATCH + status: Closed', async () => {
-    let url: string | undefined
-    let method: string | undefined
-    let body: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      url = String(input)
-      method = init?.method
-      body = init?.body as string | undefined
-      return jsonResponse({ id: 'T1', status: 'Closed' })
+  it('discovers organizations without requiring an organization header', async () => {
+    let request: { url?: string; orgId?: string | null } = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      request = {
+        url: String(input),
+        orgId: new Headers(init?.headers).get('orgId'),
+      }
+      return jsonResponse({ data: [{ id: 'org_1' }] })
+    }))
+
+    await zohoDeskConnector.executeRead!({
+      source: source(),
+      capabilityName: 'organizations.list',
+      args: {},
+      idempotencyKey: 'read-1',
     })
-    vi.stubGlobal('fetch', fetchMock)
+
+    expect(request).toEqual({
+      url: 'https://desk.zoho.com/api/v1/organizations',
+      orgId: null,
+    })
+  })
+
+  it('sends the required orgId header on ticket reads and keeps it out of the query', async () => {
+    let request: { url?: string; orgId?: string | null; authorization?: string | null } = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers)
+      request = {
+        url: String(input),
+        orgId: headers.get('orgId'),
+        authorization: headers.get('authorization'),
+      }
+      return jsonResponse({ data: [] })
+    }))
+
+    await zohoDeskConnector.executeRead!({
+      source: source({ metadata: { deskApiDomain: 'https://desk.zoho.eu' } }),
+      capabilityName: 'tickets.list',
+      args: { orgId: 'org_123', status: 'Open', limit: 50 },
+      idempotencyKey: 'read-2',
+    })
+
+    expect(request).toEqual({
+      url: 'https://desk.zoho.eu/api/v1/tickets?limit=50&status=Open',
+      orgId: 'org_123',
+      authorization: 'Zoho-oauthtoken desk_tok_1',
+    })
+  })
+
+  it('closes a ticket with the organization header and provider-native body', async () => {
+    let request: { url?: string; orgId?: string | null; method?: string; body?: unknown } = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      request = {
+        url: String(input),
+        orgId: new Headers(init?.headers).get('orgId'),
+        method: init?.method,
+        body: JSON.parse(String(init?.body)),
+      }
+      return jsonResponse({ id: 'ticket_1', status: 'Closed' })
+    }))
 
     const result = await zohoDeskConnector.executeMutation!({
       source: source(),
       capabilityName: 'tickets.close',
-      args: { ticketId: 'T1' },
-      idempotencyKey: 'k-1',
+      args: { orgId: 'org_123', ticketId: 'ticket_1' },
+      idempotencyKey: 'write-1',
     })
 
+    expect(request).toEqual({
+      url: 'https://desk.zoho.com/api/v1/tickets/ticket_1',
+      orgId: 'org_123',
+      method: 'PATCH',
+      body: { status: 'Closed' },
+    })
     expect(result.status).toBe('committed')
-    expect(method).toBe('PATCH')
-    expect(url).toContain('https://desk.zoho.com/desk/v1/tickets/T1')
-    expect(JSON.parse(body ?? '{}')).toEqual({ status: 'Closed' })
   })
 
-  it('assigns a ticket with PATCH + assigneeId', async () => {
-    let url: string | undefined
-    let body: string | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        url = String(input)
-        body = init?.body as string | undefined
-        return jsonResponse({ id: 'T2', assigneeId: 'U9' })
-      }),
-    )
-
-    await zohoDeskConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'tickets.assign',
-      args: { ticketId: 'T2', assigneeId: 'U9' },
-      idempotencyKey: 'k-1',
-    })
-
-    expect(url).toContain('/desk/v1/tickets/T2')
-    expect(JSON.parse(body ?? '{}')).toEqual({ assigneeId: 'U9' })
-  })
-
-  it('posts a public comment via /comments', async () => {
-    let url: string | undefined
-    let body: string | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        url = String(input)
-        body = init?.body as string | undefined
-        return jsonResponse({ id: 'CMT_1' }, { status: 201 })
-      }),
-    )
+  it('adds a comment without leaking path or organization arguments into the body', async () => {
+    let request: { url?: string; orgId?: string | null; body?: unknown } = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      request = {
+        url: String(input),
+        orgId: new Headers(init?.headers).get('orgId'),
+        body: JSON.parse(String(init?.body)),
+      }
+      return jsonResponse({ id: 'comment_1' }, { status: 201 })
+    }))
 
     await zohoDeskConnector.executeMutation!({
       source: source(),
       capabilityName: 'tickets.add-comment',
-      args: { ticketId: 'T3', content: 'On it.', isPublic: true, contentType: 'plainText' },
-      idempotencyKey: 'k-1',
+      args: {
+        orgId: 'org_123',
+        ticketId: 'ticket_1',
+        content: 'On it.',
+        isPublic: true,
+        contentType: 'plainText',
+      },
+      idempotencyKey: 'write-2',
     })
 
-    expect(url).toContain('/desk/v1/tickets/T3/comments')
-    // body: 'args' passes the arg bag through, so ticketId rides along; Zoho
-    // ignores duplicate path-already-bound fields in the body.
-    expect(JSON.parse(body ?? '{}')).toEqual({
-      ticketId: 'T3',
-      content: 'On it.',
-      isPublic: true,
-      contentType: 'plainText',
+    expect(request).toEqual({
+      url: 'https://desk.zoho.com/api/v1/tickets/ticket_1/comments',
+      orgId: 'org_123',
+      body: { content: 'On it.', isPublic: true, contentType: 'plainText' },
     })
   })
 
-  it('merges duplicate tickets via /mergeTickets', async () => {
-    let url: string | undefined
-    let body: string | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        url = String(input)
-        body = init?.body as string | undefined
-        return jsonResponse({ id: 'T_PRIMARY' })
-      }),
-    )
+  it('merges duplicate tickets with an array body and the organization header', async () => {
+    let body: unknown
+    let orgId: string | null = null
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body))
+      orgId = new Headers(init?.headers).get('orgId')
+      return jsonResponse({ id: 'ticket_primary' })
+    }))
 
     await zohoDeskConnector.executeMutation!({
       source: source(),
       capabilityName: 'tickets.merge',
-      args: { ticketId: 'T_PRIMARY', ids: ['T_DUP_A', 'T_DUP_B'] },
-      idempotencyKey: 'k-1',
+      args: {
+        orgId: 'org_123',
+        ticketId: 'ticket_primary',
+        ids: ['ticket_duplicate_1', 'ticket_duplicate_2'],
+      },
+      idempotencyKey: 'write-3',
     })
 
-    expect(url).toContain('/desk/v1/tickets/T_PRIMARY/mergeTickets')
-    expect(JSON.parse(body ?? '{}')).toEqual({ ids: ['T_DUP_A', 'T_DUP_B'] })
+    expect(orgId).toBe('org_123')
+    expect(body).toEqual({ ids: ['ticket_duplicate_1', 'ticket_duplicate_2'] })
   })
 
-  it('surfaces CredentialsExpired on 401 for the new mutation set', async () => {
+  it('requires orgId before sending an organization-scoped request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(zohoDeskConnector.executeRead!({
+      source: source(),
+      capabilityName: 'tickets.get',
+      args: { ticketId: 'ticket_1' },
+      idempotencyKey: 'read-3',
+    })).rejects.toThrow('missing required argument: orgId')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects lookalike regional hosts before sending credentials', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(zohoDeskConnector.executeRead!({
+      source: source({ metadata: { deskApiDomain: 'https://desk.zoho.eu.attacker.test' } }),
+      capabilityName: 'organizations.list',
+      args: {},
+      idempotencyKey: 'read-4',
+    })).rejects.toThrow('connection base URL is not an allowed provider endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('surfaces expired credentials on organization-scoped mutations', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zohoDeskConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tickets.close',
-        args: { ticketId: 'T1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+
+    await expect(zohoDeskConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'tickets.assign',
+      args: { orgId: 'org_123', ticketId: 'ticket_1', assigneeId: 'agent_1' },
+      idempotencyKey: 'write-4',
+    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
