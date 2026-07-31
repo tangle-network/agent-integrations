@@ -260,6 +260,7 @@ import { supabaseConnector } from './supabase.js'
 import { builtwithConnector } from './builtwith.js'
 import { fullenrichConnector } from './fullenrich.js'
 import { hunterConnector } from './hunter.js'
+import { neverbounceConnector } from './neverbounce.js'
 import { theirstackConnector } from './theirstack.js'
 import { zerobounceConnector } from './zerobounce.js'
 
@@ -820,6 +821,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => builtwithConnector, {}),
     defineFactoryAdapter(() => fullenrichConnector, {}),
     defineFactoryAdapter(() => hunterConnector, {}),
+    defineFactoryAdapter(() => neverbounceConnector, {}),
     defineFactoryAdapter(() => theirstackConnector, {}),
     defineFactoryAdapter(() => zerobounceConnector, {}),
   ]

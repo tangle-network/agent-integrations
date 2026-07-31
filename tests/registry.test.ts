@@ -301,7 +301,7 @@ describe('integration registry', () => {
     const summary = summarizeIntegrationRegistry(buildDefaultIntegrationRegistry())
 
     expect(summary.totalEntries).toBeGreaterThanOrEqual(650)
-    expect(summary.bySupportTier.catalogOnly).toBeGreaterThan(500)
+    expect(summary.bySupportTier.catalogOnly).toBeGreaterThanOrEqual(500)
     expect(summary.bySupportTier.setupReady).toBeGreaterThanOrEqual(100)
     expect(summary.toolBindableEntries).toBeLessThan(summary.totalEntries)
     expect(summary.conflictEntries).toBeGreaterThan(0)

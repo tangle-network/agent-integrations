@@ -270,6 +270,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['flow-parser', 'FlowParser', 'workflow', 'workflow', 'long_tail', 'parsing,automation,workflow', 'api_key'],
   ['gamma', 'Gamma', 'docs', 'docs', 'tier_2', 'presentations,docs,ai', 'api_key'],
   ['gender-api', 'Gender API', 'database', 'analytics', 'long_tail', 'enrichment,identity,analytics', 'api_key'],
+  ['neverbounce', 'NeverBounce', 'crm', 'sales', 'tier_1', 'email,verification,deliverability,enrichment', 'api_key'],
   ['generatebanners', 'GenerateBanners', 'docs', 'marketing', 'long_tail', 'images,banners,marketing', 'api_key'],
   ['giftbit', 'Giftbit', 'workflow', 'commerce', 'long_tail', 'rewards,gift-cards,commerce', 'api_key'],
   ['modelslab', 'ModelsLab', 'workflow', 'ai', 'long_tail', 'images,media,ai', 'api_key'],
