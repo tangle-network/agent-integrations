@@ -153,7 +153,7 @@ export const mondayConnector = declarativeRestConnector({
   auth: {
     kind: 'oauth2',
     authorizationUrl: 'https://auth.monday.com/oauth2/authorize',
-    tokenUrl: 'https://auth.monday.com/oauth2/token',
+    tokenUrl: 'https://auth.monday.com/oauth_ms/oauth/token',
     scopes: [
       'me:read',
       'boards:read',

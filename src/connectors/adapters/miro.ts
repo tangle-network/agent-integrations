@@ -12,8 +12,7 @@ import { declarativeRestConnector } from './declarative-rest.js'
 //
 // Scopes are space-delimited in the authorization URL. We request the set
 // needed to drive the capability surface below: read boards and their items,
-// create / update / delete items, run board content search, and read team /
-// organization metadata for board placement decisions.
+// create / update / delete items, and run board content search.
 //
 // Identifier nomenclature (Miro's docs are precise about these):
 //   - board_id : opaque 13-char board id from the board URL after `/app/board/`.
@@ -41,8 +40,6 @@ export const miroConnector = declarativeRestConnector({
       'boards:read',
       'boards:write',
       'identity:read',
-      'team:read',
-      'organizations:read',
     ],
     clientIdEnv: 'MIRO_OAUTH_CLIENT_ID',
     clientSecretEnv: 'MIRO_OAUTH_CLIENT_SECRET',
@@ -218,53 +215,6 @@ export const miroConnector = declarativeRestConnector({
         query: { limit: '{limit}', offset: '{offset}' },
       },
       requiredScopes: ['boards:read'],
-    },
-    {
-      name: 'organizations.get',
-      class: 'read',
-      description: 'Read an organization (Enterprise plan).',
-      parameters: {
-        type: 'object',
-        properties: { org_id: { type: 'string' } },
-        required: ['org_id'],
-      },
-      request: { method: 'GET', path: '/v2/orgs/{org_id}' },
-      requiredScopes: ['organizations:read'],
-    },
-    {
-      name: 'organizations.teams.list',
-      class: 'read',
-      description: 'List teams in an organization (Enterprise plan).',
-      parameters: {
-        type: 'object',
-        properties: {
-          org_id: { type: 'string' },
-          limit: { type: 'integer', minimum: 1, maximum: 100 },
-          cursor: { type: 'string' },
-        },
-        required: ['org_id'],
-      },
-      request: {
-        method: 'GET',
-        path: '/v2/orgs/{org_id}/teams',
-        query: { limit: '{limit}', cursor: '{cursor}' },
-      },
-      requiredScopes: ['organizations:read'],
-    },
-    {
-      name: 'teams.get',
-      class: 'read',
-      description: 'Fetch a single team by id.',
-      parameters: {
-        type: 'object',
-        properties: {
-          org_id: { type: 'string' },
-          team_id: { type: 'string' },
-        },
-        required: ['org_id', 'team_id'],
-      },
-      request: { method: 'GET', path: '/v2/orgs/{org_id}/teams/{team_id}' },
-      requiredScopes: ['team:read'],
     },
     {
       name: 'boards.create',

@@ -62378,29 +62378,13 @@
           "reason": "Read Miro data for user-authorized agent workflows.",
           "risk": "read",
           "dataClass": "private"
-        },
-        {
-          "normalized": "docs.read",
-          "providerScope": "team:read",
-          "title": "Miro read",
-          "reason": "Read Miro data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "docs.read",
-          "providerScope": "organizations:read",
-          "title": "Miro read",
-          "reason": "Read Miro data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/miro/callback",
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": 24,
+    "actionCount": 21,
     "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -64152,7 +64136,7 @@
     "setupAuth": {
       "mode": "oauth2",
       "authorizationUrl": "https://auth.monday.com/oauth2/authorize",
-      "tokenUrl": "https://auth.monday.com/oauth2/token",
+      "tokenUrl": "https://auth.monday.com/oauth_ms/oauth/token",
       "clientIdEnv": "MONDAY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MONDAY_OAUTH_CLIENT_SECRET",
       "scopes": [
