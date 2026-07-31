@@ -6,12 +6,8 @@ export const baremetricsConnector = declarativeRestConnector({
   description:
     'Create and update customers, plans, and subscriptions in Baremetrics, the analytics and metrics platform for subscription businesses.',
   auth: {
-    kind: 'oauth2',
-    authorizationUrl: 'https://baremetrics.com/oauth/authorize',
-    tokenUrl: 'https://api.baremetrics.com/v1/oauth/token',
-    scopes: ['read', 'write'],
-    clientIdEnv: 'BAREMETRICS_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'BAREMETRICS_OAUTH_CLIENT_SECRET',
+    kind: 'api-key',
+    hint: 'Baremetrics API key from Settings → API. Sent as a bearer token.',
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',

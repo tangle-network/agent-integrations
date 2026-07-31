@@ -16,6 +16,7 @@ export const invoiceninjaConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl', fallback: 'https://invoicing.co' },
+  requirePublicHttpsBaseUrl: true,
   credentialPlacement: { kind: 'header', header: 'X-API-TOKEN' },
   defaultHeaders: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
   test: { method: 'GET', path: '/api/v1/ping' },
