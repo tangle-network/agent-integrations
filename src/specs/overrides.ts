@@ -54,6 +54,34 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  redis: {
+    credentialFields: [
+      {
+        label: 'Redis connection JSON',
+        description: 'JSON containing a public host, password, optional ACL username/database, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cache.example.com","port":6380,"username":"default","password":"...","database":0}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted Redis user', detail: 'Grant only PING, SCAN, TYPE, PTTL, GET, SET, DEL, and EVAL access for the intended key patterns.' },
+      { id: 'tls', title: 'Require verified TLS', detail: 'Use a public hostname with a valid certificate on the TLS listener. Plain Redis connections are rejected.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the host, port, restricted ACL credentials, database number, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check pins a public address, verifies the TLS hostname and certificate, authenticates, and sends PING.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plain Redis is rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'standalone', severity: 'warning', message: 'This pack targets one standalone or managed primary endpoint. Redis Cluster and Sentinel discovery are not followed.' },
+      { id: 'bounded-scan', severity: 'info', message: 'Key discovery uses bounded SCAN pages and never runs the blocking KEYS command.' },
+      { id: 'string-writes', severity: 'info', message: 'Writes are limited to conditional string set/delete operations. Arbitrary commands and unconditional deletes are not exposed.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'The cataloged key-change trigger remains unavailable until a durable subscriber can persist keyspace events before acknowledging delivery.' },
+    ],
+    healthcheck: {
+      id: 'redis.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, send PING, and close.',
+    },
+  },
   rabbitmq: {
     credentialFields: [
       {

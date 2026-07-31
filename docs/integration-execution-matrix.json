@@ -507,8 +507,8 @@
   },
   {
     "id": "adobe-creative-cloud",
-    "title": "adobe-creative-cloud",
-    "category": "internal",
+    "title": "Adobe Creative Cloud",
+    "category": "storage",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -570,8 +570,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 15,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -595,7 +595,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -619,7 +619,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -637,8 +637,8 @@
   },
   {
     "id": "affinity",
-    "title": "affinity",
-    "category": "internal",
+    "title": "Affinity",
+    "category": "crm",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -650,8 +650,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 30,
+    "triggerCount": 6,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -3023,8 +3023,8 @@
   },
   {
     "id": "amazon-eventbridge",
-    "title": "amazon-eventbridge",
-    "category": "internal",
+    "title": "Amazon EventBridge",
+    "category": "webhook",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -3036,8 +3036,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -10451,7 +10451,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -10507,8 +10507,8 @@
   },
   {
     "id": "anthropic",
-    "title": "anthropic",
-    "category": "internal",
+    "title": "Anthropic",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -10520,8 +10520,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 13,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -12377,7 +12377,7 @@
   },
   {
     "id": "auth0",
-    "title": "auth0",
+    "title": "Auth0",
     "category": "internal",
     "catalogAuth": null,
     "setupAuth": {
@@ -12624,8 +12624,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 28,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -12649,7 +12649,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -12808,8 +12808,8 @@
   },
   {
     "id": "avalara",
-    "title": "avalara",
-    "category": "internal",
+    "title": "Avalara AvaTax",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -12821,8 +12821,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -13459,8 +13459,8 @@
   },
   {
     "id": "azure-event-grid",
-    "title": "azure-event-grid",
-    "category": "internal",
+    "title": "Azure Event Grid",
+    "category": "webhook",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -13472,8 +13472,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -13606,8 +13606,8 @@
   },
   {
     "id": "azure-service-bus",
-    "title": "azure-service-bus",
-    "category": "internal",
+    "title": "Azure Service Bus",
+    "category": "webhook",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -13619,8 +13619,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 12,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -14073,8 +14073,8 @@
   },
   {
     "id": "basecamp",
-    "title": "basecamp",
-    "category": "internal",
+    "title": "Basecamp",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -14087,8 +14087,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 21,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -14725,7 +14725,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -15352,8 +15352,8 @@
   },
   {
     "id": "bill-com",
-    "title": "bill-com",
-    "category": "internal",
+    "title": "BILL",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -15365,8 +15365,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 4,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -16972,8 +16972,8 @@
   },
   {
     "id": "braze",
-    "title": "braze",
-    "category": "internal",
+    "title": "Braze",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -16985,8 +16985,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -17004,8 +17004,8 @@
   },
   {
     "id": "brex",
-    "title": "brex",
-    "category": "internal",
+    "title": "Brex",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -17017,8 +17017,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -17042,7 +17042,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -17909,7 +17909,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -18891,8 +18891,8 @@
   },
   {
     "id": "canva",
-    "title": "canva",
-    "category": "internal",
+    "title": "Canva",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -19018,8 +19018,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 29,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -25126,7 +25126,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -25649,8 +25649,8 @@
   },
   {
     "id": "clio",
-    "title": "clio",
-    "category": "internal",
+    "title": "Clio",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -25663,8 +25663,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 17,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -26897,7 +26897,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -27138,7 +27138,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -27520,7 +27520,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -28970,7 +28970,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -29225,15 +29225,15 @@
   },
   {
     "id": "csv-files",
-    "title": "csv-files",
-    "category": "internal",
+    "title": "CSV Files",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "none"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -31459,7 +31459,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -31931,8 +31931,8 @@
   },
   {
     "id": "dialpad",
-    "title": "dialpad",
-    "category": "internal",
+    "title": "Dialpad",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -31962,8 +31962,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 5,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -33253,7 +33253,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -34577,8 +34577,8 @@
   },
   {
     "id": "ebay",
-    "title": "ebay",
-    "category": "internal",
+    "title": "eBay",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -34640,8 +34640,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 13,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -36679,8 +36679,8 @@
   },
   {
     "id": "etsy",
-    "title": "etsy",
-    "category": "internal",
+    "title": "Etsy",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -36766,8 +36766,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 15,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -37031,15 +37031,15 @@
   },
   {
     "id": "excel-files",
-    "title": "excel-files",
-    "category": "internal",
+    "title": "Excel Files",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "none"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -37424,7 +37424,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -38374,8 +38374,8 @@
   },
   {
     "id": "figjam",
-    "title": "figjam",
-    "category": "internal",
+    "title": "FigJam",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -38445,8 +38445,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 13,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -38709,7 +38709,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -38727,8 +38727,8 @@
   },
   {
     "id": "firebase",
-    "title": "firebase",
-    "category": "internal",
+    "title": "Firebase",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -38762,8 +38762,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -41281,7 +41281,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -41556,8 +41556,8 @@
   },
   {
     "id": "gemini",
-    "title": "gemini",
-    "category": "internal",
+    "title": "Google Gemini",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -41569,8 +41569,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 14,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -42464,8 +42464,8 @@
   },
   {
     "id": "gong",
-    "title": "gong",
-    "category": "internal",
+    "title": "Gong",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -42527,8 +42527,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 3,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -42573,8 +42573,8 @@
   },
   {
     "id": "google-analytics",
-    "title": "google-analytics",
-    "category": "internal",
+    "title": "Google Analytics",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -42601,8 +42601,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -43311,8 +43311,8 @@
   },
   {
     "id": "google-meet",
-    "title": "google-meet",
-    "category": "internal",
+    "title": "Google Meet",
+    "category": "calendar",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -43363,8 +43363,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -43979,8 +43979,8 @@
   },
   {
     "id": "gorgias",
-    "title": "gorgias",
-    "category": "internal",
+    "title": "Gorgias",
+    "category": "crm",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -44066,8 +44066,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -45270,8 +45270,8 @@
   },
   {
     "id": "gusto",
-    "title": "gusto",
-    "category": "internal",
+    "title": "Gusto",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -45373,8 +45373,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 21,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -45868,8 +45868,8 @@
   },
   {
     "id": "hellosign",
-    "title": "hellosign",
-    "category": "internal",
+    "title": "Dropbox Sign",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -45907,8 +45907,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 4,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -46002,8 +46002,8 @@
   },
   {
     "id": "helpscout",
-    "title": "helpscout",
-    "category": "internal",
+    "title": "Help Scout",
+    "category": "crm",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -46041,8 +46041,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 7,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -46415,7 +46415,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -46439,7 +46439,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -47174,15 +47174,15 @@
   },
   {
     "id": "http",
-    "title": "http",
-    "category": "internal",
+    "title": "HTTP / REST / OpenAPI Request",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "none"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -47834,8 +47834,8 @@
   },
   {
     "id": "huggingface",
-    "title": "huggingface",
-    "category": "internal",
+    "title": "Hugging Face",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -47847,8 +47847,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 14,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -50090,8 +50090,8 @@
   },
   {
     "id": "ironclad",
-    "title": "ironclad",
-    "category": "internal",
+    "title": "Ironclad",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -50121,8 +50121,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 17,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -51431,7 +51431,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -51449,8 +51449,8 @@
   },
   {
     "id": "kafka",
-    "title": "kafka",
-    "category": "internal",
+    "title": "Apache Kafka",
+    "category": "webhook",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -51461,8 +51461,8 @@
       }
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 10,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -53779,7 +53779,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -53846,7 +53846,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -53870,7 +53870,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -59622,8 +59622,8 @@
   },
   {
     "id": "make",
-    "title": "make",
-    "category": "internal",
+    "title": "Make",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -59635,8 +59635,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -59951,8 +59951,8 @@
   },
   {
     "id": "marketo",
-    "title": "marketo",
-    "category": "internal",
+    "title": "Marketo",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -59965,8 +59965,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -61077,8 +61077,8 @@
   },
   {
     "id": "microsoft-calendar",
-    "title": "microsoft-calendar",
-    "category": "internal",
+    "title": "Outlook Calendar",
+    "category": "calendar",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -61108,8 +61108,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 4,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -61420,7 +61420,7 @@
   },
   {
     "id": "microsoft-graph",
-    "title": "microsoft-graph",
+    "title": "Microsoft Graph",
     "category": "internal",
     "catalogAuth": null,
     "setupAuth": {
@@ -61483,8 +61483,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -62345,8 +62345,8 @@
   },
   {
     "id": "miro",
-    "title": "miro",
-    "category": "internal",
+    "title": "Miro",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -62400,8 +62400,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 24,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -63403,7 +63403,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -66492,8 +66492,8 @@
   },
   {
     "id": "mycase",
-    "title": "mycase",
-    "category": "internal",
+    "title": "MyCase",
+    "category": "crm",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -66506,8 +66506,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 35,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -66744,7 +66744,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -67618,7 +67618,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -67888,7 +67888,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -68914,8 +68914,8 @@
   },
   {
     "id": "onedrive",
-    "title": "onedrive",
-    "category": "internal",
+    "title": "OneDrive",
+    "category": "storage",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -68945,8 +68945,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -68964,7 +68964,7 @@
   },
   {
     "id": "onelogin",
-    "title": "onelogin",
+    "title": "OneLogin",
     "category": "internal",
     "catalogAuth": null,
     "setupAuth": {
@@ -68977,8 +68977,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 9,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -69002,7 +69002,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -70187,8 +70187,8 @@
   },
   {
     "id": "opsgenie",
-    "title": "opsgenie",
-    "category": "internal",
+    "title": "Opsgenie",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -70266,8 +70266,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 21,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -71201,8 +71201,8 @@
   },
   {
     "id": "outlook-mail",
-    "title": "outlook-mail",
-    "category": "internal",
+    "title": "Outlook Mail",
+    "category": "email",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -71248,8 +71248,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -71273,7 +71273,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -72463,15 +72463,15 @@
   },
   {
     "id": "parquet-files",
-    "title": "parquet-files",
-    "category": "internal",
+    "title": "Parquet Files",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "none"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -72855,7 +72855,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -74913,8 +74913,8 @@
   },
   {
     "id": "phony",
-    "title": "phony",
-    "category": "internal",
+    "title": "ph0ny",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -74926,8 +74926,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 9,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -75729,7 +75729,7 @@
   },
   {
     "id": "ping-identity",
-    "title": "ping-identity",
+    "title": "Ping Identity",
     "category": "internal",
     "catalogAuth": null,
     "setupAuth": {
@@ -75742,8 +75742,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 11,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -75804,8 +75804,8 @@
   },
   {
     "id": "pipedream",
-    "title": "pipedream",
-    "category": "internal",
+    "title": "Pipedream",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -75817,8 +75817,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 10,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -76007,8 +76007,8 @@
   },
   {
     "id": "plaid",
-    "title": "plaid",
-    "category": "internal",
+    "title": "Plaid",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -76020,8 +76020,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -76513,7 +76513,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -76976,8 +76976,8 @@
   },
   {
     "id": "postmark",
-    "title": "postmark",
-    "category": "internal",
+    "title": "Postmark",
+    "category": "email",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -76989,8 +76989,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 18,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -79659,8 +79659,8 @@
   },
   {
     "id": "ramp",
-    "title": "ramp",
-    "category": "internal",
+    "title": "Ramp",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -79672,8 +79672,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -80417,26 +80417,22 @@
     "title": "Redis",
     "category": "database",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "redis API key",
+        "description": "JSON with a public Redis host, password, optional ACL username/database, and optional TLS CA. Verified TLS is mandatory.",
         "secret": true
-      }
-    ],
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
+    "actionCount": 5,
     "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -80444,11 +80440,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "redshift",
@@ -81369,8 +81363,8 @@
   },
   {
     "id": "ringcentral",
-    "title": "ringcentral",
-    "category": "internal",
+    "title": "RingCentral",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -81432,8 +81426,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 6,
+    "triggerCount": 5,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -81451,8 +81445,8 @@
   },
   {
     "id": "rippling",
-    "title": "rippling",
-    "category": "internal",
+    "title": "Rippling",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -81530,8 +81524,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 13,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82035,8 +82029,8 @@
   },
   {
     "id": "sage-intacct",
-    "title": "sage-intacct",
-    "category": "internal",
+    "title": "Sage Intacct",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -82048,8 +82042,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 5,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82213,7 +82207,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82237,7 +82231,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82255,8 +82249,8 @@
   },
   {
     "id": "sanity",
-    "title": "sanity",
-    "category": "internal",
+    "title": "Sanity",
+    "category": "docs",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -82286,8 +82280,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82509,7 +82503,7 @@
   },
   {
     "id": "scim",
-    "title": "scim",
+    "title": "SCIM",
     "category": "internal",
     "catalogAuth": null,
     "setupAuth": {
@@ -82522,8 +82516,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 12,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82607,7 +82601,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82758,7 +82752,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -82916,7 +82910,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -83961,8 +83955,8 @@
   },
   {
     "id": "sentry",
-    "title": "sentry",
-    "category": "internal",
+    "title": "Sentry",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -84048,8 +84042,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 24,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -84253,7 +84247,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -84976,8 +84970,8 @@
   },
   {
     "id": "sftp",
-    "title": "sftp",
-    "category": "internal",
+    "title": "SFTP",
+    "category": "storage",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -84988,8 +84982,8 @@
       }
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 7,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -85007,8 +85001,8 @@
   },
   {
     "id": "sharepoint",
-    "title": "sharepoint",
-    "category": "internal",
+    "title": "SharePoint",
+    "category": "storage",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -85046,8 +85040,8 @@
       "pkce": "supported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 18,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -86313,7 +86307,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -86337,7 +86331,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -87955,7 +87949,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -89085,7 +89079,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -92490,8 +92484,8 @@
   },
   {
     "id": "stripe-pack",
-    "title": "stripe-pack",
-    "category": "internal",
+    "title": "Stripe",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -92504,8 +92498,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 9,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -94703,8 +94697,8 @@
   },
   {
     "id": "taxjar",
-    "title": "taxjar",
-    "category": "internal",
+    "title": "TaxJar",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -94716,8 +94710,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 12,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -95262,8 +95256,8 @@
   },
   {
     "id": "telegram",
-    "title": "telegram",
-    "category": "internal",
+    "title": "Telegram",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -95275,8 +95269,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 22,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -96169,7 +96163,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -98169,8 +98163,8 @@
   },
   {
     "id": "twilio-sms",
-    "title": "twilio-sms",
-    "category": "internal",
+    "title": "Twilio",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -98182,8 +98176,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 7,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -100736,7 +100730,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -104201,7 +104195,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -105103,8 +105097,8 @@
   },
   {
     "id": "weaviate",
-    "title": "weaviate",
-    "category": "internal",
+    "title": "Weaviate",
+    "category": "database",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -105116,8 +105110,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 19,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -105270,8 +105264,8 @@
   },
   {
     "id": "webhook",
-    "title": "webhook",
-    "category": "internal",
+    "title": "Generic Webhook",
+    "category": "webhook",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "hmac",
@@ -105283,8 +105277,8 @@
       "signatureHeader": "webhook-signature"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 2,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -106431,8 +106425,8 @@
   },
   {
     "id": "whatsapp-business",
-    "title": "whatsapp-business",
-    "category": "internal",
+    "title": "WhatsApp Business",
+    "category": "chat",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
@@ -106470,8 +106464,8 @@
       "pkce": "unsupported"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 8,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -106644,7 +106638,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -108550,8 +108544,8 @@
   },
   {
     "id": "zapier",
-    "title": "zapier",
-    "category": "internal",
+    "title": "Zapier",
+    "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
       "mode": "api_key",
@@ -108563,8 +108557,8 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": null,
+    "actionCount": 5,
+    "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -109526,7 +109520,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -110412,7 +110406,7 @@
     "setupAuth": "custom",
     "runtimePackage": null,
     "actionCount": null,
-    "triggerCount": null,
+    "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
