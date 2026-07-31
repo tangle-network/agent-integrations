@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   auth0Connector,
   CONNECTOR_ADAPTER_FACTORIES,
+  oktaConnector,
   resolveConnectorAdapterFactoryOptions,
 } from '../src/connectors/adapters/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
@@ -54,6 +55,16 @@ describe('identity and administration provider factories', () => {
     expect(auth0?.factory({}).manifest.capabilities.length).toBeGreaterThan(0)
   })
 
+  it('registers Okta with customer-supplied tenant URL and API token credentials', () => {
+    const okta = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'okta',
+    )
+
+    expect(okta?.envMap).toEqual({})
+    expect(okta?.factory({})).toBe(oktaConnector)
+    expect(resolveConnectorAdapterFactoryOptions(okta!, {})).toEqual({})
+  })
+
   it('accepts the shared Microsoft application for Azure AD and fails closed on partial OAuth settings', () => {
     const azureAd = CONNECTOR_ADAPTER_FACTORIES.find(
       (candidate) => candidate.kind === 'azure-ad',
@@ -80,7 +91,6 @@ describe('identity and administration provider factories', () => {
     )
 
     for (const kind of [
-      'okta',
       'google-directory',
       'ping-identity',
       'onelogin',

@@ -185,7 +185,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['new-relic', 'New Relic', 'database', 'analytics', 'tier_2', 'observability,logs,metrics'],
   ['pagerduty', 'PagerDuty', 'workflow', 'project', 'tier_1', 'incident,on-call'],
   ['opsgenie', 'Opsgenie', 'workflow', 'project', 'tier_2', 'incident,on-call,atlassian'],
-  ['okta', 'Okta', 'internal', 'workflow', 'tier_1', 'identity,security'],
+  ['okta', 'Okta', 'internal', 'workflow', 'tier_1', 'identity,security', 'api_key'],
   ['auth0', 'Auth0', 'internal', 'workflow', 'tier_1', 'identity,security'],
   ['workday', 'Workday', 'workflow', 'hr', 'tier_1', 'hr,finance,enterprise'],
   ['bamboohr', 'BambooHR', 'workflow', 'hr', 'tier_1', 'hr,people'],

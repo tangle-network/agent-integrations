@@ -67971,27 +67971,13 @@
     "category": "docs",
     "catalogAuth": "api_key",
     "setupAuth": {
-      "mode": "oauth2",
-      "scopes": [
-        {
-          "normalized": "workflow.read",
-          "providerScope": "okta.read",
-          "title": "Okta read",
-          "reason": "Read Okta data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "internal"
-        },
-        {
-          "normalized": "workflow.write",
-          "providerScope": "okta.write",
-          "title": "Okta write",
-          "reason": "Create or update Okta resources after policy approval.",
-          "risk": "write",
-          "dataClass": "internal"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/okta/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "okta API key",
+        "description": "Okta API token. Set domain to the full HTTPS URL of the Okta organization.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "authFields": [
       {
@@ -68094,10 +68080,10 @@
     "runtimePackage": "@activepieces/piece-okta",
     "actionCount": 9,
     "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 9,
     "quality": {
       "tangleContract": true,
@@ -68105,11 +68091,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
