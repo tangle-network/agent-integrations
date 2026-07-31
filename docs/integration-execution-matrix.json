@@ -13601,18 +13601,25 @@
   },
   {
     "id": "azure-service-bus",
-    "title": "Azure Service Bus",
-    "category": "webhook",
+    "title": "azure-service-bus",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "azure-service-bus API key",
+        "description": "Azure Service Bus connection string containing Endpoint, SharedAccessKeyName, and SharedAccessKey. EntityPath is supported and restricts this connection to that queue or topic.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -13620,11 +13627,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "backblaze",
