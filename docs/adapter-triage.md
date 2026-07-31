@@ -39,14 +39,15 @@ behavior behind the `ConnectorAdapter` contract.
 | `airtable` | API key | read/write | first-party executable |
 | `asana` | API key | read/write | first-party executable |
 | `webhook` | HMAC | read/write | first-party executable |
-| `stripe` | HMAC | inbound events | first-party executable |
+| `stripe` | API key actions; HMAC inbound-only | read/write + inbound events | first-party executable |
 | `slack-inbound` | HMAC | inbound events | first-party executable |
 
 Aliases matter when comparing coverage:
 
 - `outlook-calendar` maps to `microsoft-calendar`.
 - `notion-database` maps to `notion`.
-- `stripe` maps to `stripe-pack` for outbound payment actions.
+- `stripe` is the public API-key action adapter; its HMAC receiver is
+  inbound-only.
 - `twilio` maps to `twilio-sms`.
 
 ## Direct Adapter Execution Path
@@ -76,8 +77,9 @@ Four Tier 0 entries are canonicalized aliases:
 
 - `outlook-calendar` should resolve to `microsoft-calendar`.
 - `notion-database` should resolve to `notion`.
-- `stripe` should resolve to `stripe-pack` for outbound payment actions and
-  `stripe` for inbound webhooks.
+- `stripe` resolves to the API-key action adapter in public discovery. The
+  legacy HMAC receiver keeps the same `stripe` ID but is explicitly
+  inbound-only and must be registered by a webhook host.
 - `twilio` should resolve to `twilio-sms`.
 
 ## Tier 0 Promotion Queue

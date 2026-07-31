@@ -9,7 +9,10 @@
  *
  * This connector is for the connected account owner: they paste their
  * `whsec_*` and the consuming product listens on a per-data-source URL such
- * as /api/webhooks/inbound/stripe/:dataSourceId.
+ * as /api/webhooks/inbound/stripe/:dataSourceId. It retains the legacy
+ * `stripe` kind so existing inbound configuration keeps working, while its
+ * `inboundOnly` marker keeps it out of public action discovery. The
+ * `stripeWebhookProvider` HTTP provider id is also `stripe`.
  *
  * Signature scheme: Stripe's `t=<unix>,v1=<hmac>` header. HMAC is
  * sha256(`${t}.${rawBody}`) keyed by the customer's webhook secret. We use
@@ -26,6 +29,7 @@ import {
 import { firstHeader, verifyStripeSignature } from '../webhooks.js'
 
 export const stripeWebhookReceiverConnector: ConnectorAdapter = {
+  inboundOnly: true,
   manifest: {
     kind: 'stripe',
     displayName: 'Stripe (inbound events)',

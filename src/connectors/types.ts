@@ -233,6 +233,12 @@ export interface EventHandlerResult {
 export interface ConnectorAdapter {
   /** Manifest entry the registry uses to render UI + validate args. */
   manifest: ConnectorManifest
+  /**
+   * True when this adapter only receives provider events and must not appear
+   * in public connector or action discovery. Hosts can still register it
+   * explicitly for their inbound route, which preserves its stable kind id.
+   */
+  inboundOnly?: boolean
   /** Read invocation. Required when manifest.capabilities contains reads.
    *  Should return whatever shape the capability declared
    *  in its parameters output schema. */

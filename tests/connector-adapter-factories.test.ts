@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createConnectorAdapterProvider } from '../src/adapter-provider'
+import * as bundledAdapters from '../src/connectors/adapters/index'
 import {
   CONNECTOR_ADAPTER_FACTORIES,
   resolveConnectorAdapterFactoryOptions,
 } from '../src/connectors/adapters/index'
+import {
+  getBundledAdapterManifest,
+  listBundledAdapterKinds,
+  listBundledConnectorAdapters,
+} from '../src/connectors/bundled-manifests'
 import { listTangleNativeAdapterIds } from '../src/tangle-catalog'
 
 describe('connector adapter factory registry', () => {
@@ -45,6 +51,27 @@ describe('connector adapter factory registry', () => {
     for (const definition of CONNECTOR_ADAPTER_FACTORIES) {
       expect(nativeIds.has(definition.kind), definition.kind).toBe(true)
     }
+  })
+
+  it('keeps Stripe action discovery unique while retaining the legacy inbound receiver id', () => {
+    const publicAdapters = listBundledConnectorAdapters()
+    const kinds = publicAdapters.map((adapter) => adapter.manifest.kind)
+    expect(new Set(kinds).size).toBe(kinds.length)
+
+    const publicStripe = publicAdapters.find((adapter) => adapter.manifest.kind === 'stripe')
+    expect(publicStripe).toBe(bundledAdapters.stripeConnector)
+    expect(publicStripe?.manifest.auth.kind).toBe('api-key')
+    expect(publicStripe?.manifest.capabilities.map((capability) => capability.name)).toEqual(
+      expect.arrayContaining(['customers.create', 'payment-intents.create']),
+    )
+
+    expect(bundledAdapters.stripeWebhookReceiverConnector.manifest.kind).toBe('stripe')
+    expect(bundledAdapters.stripeWebhookReceiverConnector.inboundOnly).toBe(true)
+    expect(publicAdapters).not.toContain(bundledAdapters.stripeWebhookReceiverConnector)
+
+    expect(listBundledAdapterKinds()).toContain('stripe')
+    expect(getBundledAdapterManifest('stripe')?.auth.kind).toBe('api-key')
+    expect(listTangleNativeAdapterIds()).toContain('stripe')
   })
 
   it('registers user-supplied task provider credentials without an app secret', () => {
