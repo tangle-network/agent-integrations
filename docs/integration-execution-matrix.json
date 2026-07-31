@@ -79504,7 +79504,15 @@
     "title": "RabbitMQ",
     "category": "workflow",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "rabbitmq API key",
+        "description": "JSON with a public RabbitMQ host, username, password, virtual host, and optional TLS client credentials.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "exchange",
@@ -79590,10 +79598,10 @@
     "runtimePackage": "@activepieces/piece-rabbitmq",
     "actionCount": 2,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 2,
     "quality": {
       "tangleContract": true,
@@ -79601,11 +79609,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {

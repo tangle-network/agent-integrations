@@ -77,6 +77,7 @@ export { csvFilesConnector } from './csv-files.js'
 export { excelFilesConnector } from './excel-files.js'
 export { parquetFilesConnector } from './parquet-files.js'
 export { duckdbConnector } from './duckdb.js'
+export { createRabbitMqConnector, rabbitMqConnector, type RabbitMqConnectorOptions } from './rabbitmq.js'
 export {
   createSftpConnector,
   sftpConnector,
