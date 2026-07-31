@@ -4,28 +4,39 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // OAuth2 endpoints from https://clickup.com/api/developer-portal/authentication/#oauth-flow
 //   authorize: https://app.clickup.com/api (browser; query string carries client_id, redirect_uri, state)
 //   token:     https://api.clickup.com/api/v2/oauth/token (server exchange; POSTs client_id+client_secret+code)
-// ClickUp's OAuth surface is "all-or-nothing" — there are no named scopes the
-// app can request; the workspace authorization screen lists what the app will
-// be able to read or change for the selected Workspace and the user toggles
-// Workspace access per consent. We model that as an empty `scopes` array so
-// the auth manifest is honest about what we ask for (nothing scope-named) and
-// the action set documents the data the connector actually touches.
+// ClickUp supports both OAuth for public apps and personal API tokens for
+// direct workspace connections. Its current workspace UI can expose a personal
+// token even when the documented "Create new app" control is unavailable, so
+// keep OAuth as an option without making a shared OAuth application a launch
+// dependency. ClickUp has no named OAuth scopes; workspace access is selected
+// on the provider consent screen.
 export const clickupConnector = declarativeRestConnector({
   kind: 'clickup',
   displayName: 'ClickUp',
   description:
     'Read and mutate ClickUp workspaces, spaces, folders, lists, tasks, comments, and time entries via the ClickUp REST v2 API.',
   auth: {
-    kind: 'oauth2',
-    authorizationUrl: 'https://app.clickup.com/api',
-    tokenUrl: 'https://api.clickup.com/api/v2/oauth/token',
-    scopes: [],
-    clientIdEnv: 'CLICKUP_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'CLICKUP_OAUTH_CLIENT_SECRET',
+    kind: 'one_of',
+    preferred: 'api-key',
+    options: [
+      {
+        kind: 'api-key',
+        hint: 'ClickUp personal API token (starts with pk_).',
+      },
+      {
+        kind: 'oauth2',
+        authorizationUrl: 'https://app.clickup.com/api',
+        tokenUrl: 'https://api.clickup.com/api/v2/oauth/token',
+        scopes: [],
+        clientIdEnv: 'CLICKUP_OAUTH_CLIENT_ID',
+        clientSecretEnv: 'CLICKUP_OAUTH_CLIENT_SECRET',
+      },
+    ],
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.clickup.com/api/v2',
+  credentialPlacement: { kind: 'authorization-by-auth' },
   // GET /user — returns the authorized user; used as a cheap liveness probe.
   test: { method: 'GET', path: '/user' },
   capabilities: [

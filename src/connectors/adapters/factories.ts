@@ -586,10 +586,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'MONDAY_OAUTH_CLIENT_ID',
       clientSecret: 'MONDAY_OAUTH_CLIENT_SECRET',
     }),
-    defineFactoryAdapter(() => clickupConnector, {
-      clientId: 'CLICKUP_OAUTH_CLIENT_ID',
-      clientSecret: 'CLICKUP_OAUTH_CLIENT_SECRET',
-    }),
+    defineFactoryAdapter(() => clickupConnector, {}),
     defineFactoryAdapter(() => basecampConnector, {
       clientId: 'BASECAMP_OAUTH_CLIENT_ID',
       clientSecret: 'BASECAMP_OAUTH_CLIENT_SECRET',
