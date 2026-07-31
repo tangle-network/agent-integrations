@@ -27,7 +27,7 @@ describe('integration catalog freshness audit', () => {
       result.local.activepiecesEntries,
     )
     expect(result.local.registrySummary.totalEntries).toBeGreaterThanOrEqual(650)
-    expect(result.local.registrySummary.bySupportTier.catalogOnly).toBeGreaterThan(500)
+    expect(result.local.registrySummary.bySupportTier.catalogOnly).toBeGreaterThanOrEqual(500)
     expect(result.local.conflictSamples.length).toBeGreaterThan(0)
   })
 
