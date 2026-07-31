@@ -134,6 +134,7 @@
     "hyparquet-writer": "0.16.1",
     "ipaddr.js": "2.4.0",
     "jose": "6.2.4",
+    "kafkajs": "2.2.4",
     "read-excel-file": "9.3.5",
     "ssh2-sftp-client": "12.1.1",
     "write-excel-file": "4.1.1"

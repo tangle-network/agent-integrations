@@ -54,6 +54,33 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  kafka: {
+    credentialFields: [
+      {
+        label: 'Kafka connection JSON',
+        description: 'JSON containing public broker host:port entries and optional SASL or mutual-TLS credentials. TLS is always required.',
+        example: '{"brokers":["broker.example.com:9093"],"saslMechanism":"scram-sha-512","saslUsername":"...","saslPassword":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted Kafka principal', detail: 'Grant only the topics, groups, and administrative operations required by approved Tangle workflows.' },
+      { id: 'network', title: 'Expose TLS broker endpoints', detail: 'Use public TLS endpoints whose advertised broker addresses also resolve publicly.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Paste brokers plus SASL or mutual-TLS credentials into the encrypted connection field.' },
+      { id: 'test', title: 'Test topic discovery', detail: 'The connection check verifies public routing, TLS certificates, authentication, and topic-list permission without producing a record.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plaintext Kafka is rejected. TLS 1.2 or newer and valid broker certificates are mandatory.' },
+      { id: 'public-brokers', severity: 'warning', message: 'Every bootstrap and advertised broker address must resolve publicly for hosted Hub execution.' },
+      { id: 'consumer-rebalance', severity: 'warning', message: 'A bounded consume joins the supplied consumer group and may rebalance its members, so it always requires approval.' },
+      { id: 'explicit-commit', severity: 'critical', message: 'Bounded consume never commits offsets automatically. Commit the returned next offsets only after downstream work succeeds.' },
+    ],
+    healthcheck: {
+      id: 'kafka.connection',
+      level: 'connection',
+      description: 'Connect over TLS, authenticate, and list topics without producing or consuming records.',
+    },
+  },
   sftp: {
     credentialFields: [
       {
