@@ -76,6 +76,7 @@ export {
 export { csvFilesConnector } from './csv-files.js'
 export { excelFilesConnector } from './excel-files.js'
 export { parquetFilesConnector } from './parquet-files.js'
+export { duckdbConnector } from './duckdb.js'
 export {
   createSftpConnector,
   sftpConnector,

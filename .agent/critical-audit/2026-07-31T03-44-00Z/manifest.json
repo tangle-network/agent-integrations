@@ -1,0 +1,25 @@
+{
+  "scope": [
+    "src/connectors/adapters/duckdb.ts",
+    "tests/duckdb.test.ts",
+    "src/connectors/adapters/factories.ts",
+    "src/connectors/adapters/index.ts",
+    "src/coverage-catalog.ts",
+    "src/specs/overrides.ts",
+    "package.json",
+    "pnpm-lock.yaml",
+    "docs/integration-execution-audit.md",
+    "docs/integration-execution-matrix.json"
+  ],
+  "base": "2a560656cf14c02ae174a810f088f0db0a55a4d2",
+  "head": "working-tree",
+  "project_type": "typescript-node",
+  "flags": ["diff-only", "serial"],
+  "findings_count_by_severity": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "fixed_during_audit": 2
+  }
+}
