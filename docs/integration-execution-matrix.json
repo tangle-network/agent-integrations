@@ -76566,7 +76566,7 @@
       "mode": "api_key",
       "credential": {
         "label": "postgres API key",
-        "description": "PostgreSQL connection credentials.",
+        "description": "JSON with a public PostgreSQL host, database, user, password, optional port, and optional TLS CA. Verified TLS is mandatory.",
         "secret": true
       },
       "placement": "bearer"

@@ -186,6 +186,7 @@ import { quickbooksConnector } from './quickbooks.js'
 import { rabbitMqConnector } from './rabbitmq.js'
 import { redisConnector } from './redis.js'
 import { redshiftConnector } from './redshift.js'
+import { postgresConnector } from './postgres.js'
 import { recallAiConnector } from './recall-ai.js'
 import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
@@ -524,6 +525,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => rabbitMqConnector, {}),
     defineFactoryAdapter(() => redisConnector, {}),
     defineFactoryAdapter(() => redshiftConnector, {}),
+    defineFactoryAdapter(() => postgresConnector, {}),
     defineFactoryAdapter(() => csvFilesConnector, {}),
     defineFactoryAdapter(() => excelFilesConnector, {}),
     defineFactoryAdapter(() => parquetFilesConnector, {}),

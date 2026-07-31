@@ -38,9 +38,19 @@ interface RedshiftClientLike {
 
 type CreateRedshiftClient = (config: ClientConfig) => RedshiftClientLike
 
-export interface RedshiftConnectorOptions {
+export interface PostgresWireReadConnectorOptions {
   createClient?: CreateRedshiftClient
   resolveHost?: (host: string) => Promise<string[]>
+}
+
+export interface RedshiftConnectorOptions extends PostgresWireReadConnectorOptions {}
+
+export interface PostgresWireReadProviderDefinition {
+  kind: string
+  displayName: string
+  description: string
+  authHint: string
+  defaultPort: number
 }
 
 interface RedshiftCredentials {
@@ -60,30 +70,45 @@ interface RedshiftQuery {
   values: unknown[]
 }
 
+const REDSHIFT_PROVIDER: PostgresWireReadProviderDefinition = {
+  kind: 'redshift',
+  displayName: 'Amazon Redshift',
+  description: 'Inspect Redshift schemas and tables and run bounded structured row reads over the verified PostgreSQL wire protocol.',
+  authHint: 'JSON with a public Redshift host, database, user, password, optional port, and optional TLS CA. Verified TLS is mandatory.',
+  defaultPort: 5439,
+}
+
 export function createRedshiftConnector(options: RedshiftConnectorOptions = {}): ConnectorAdapter {
+  return createPostgresWireReadConnector(REDSHIFT_PROVIDER, options)
+}
+
+export function createPostgresWireReadConnector(
+  provider: PostgresWireReadProviderDefinition,
+  options: PostgresWireReadConnectorOptions = {},
+): ConnectorAdapter {
   const createClient = options.createClient ?? defaultCreateClient
   const resolveHost = options.resolveHost ?? resolvePublicHostAddresses
 
   return {
     manifest: {
-      kind: 'redshift',
-      displayName: 'Amazon Redshift',
-      description: 'Inspect Redshift schemas and tables and run bounded structured row reads over the verified PostgreSQL wire protocol.',
+      kind: provider.kind,
+      displayName: provider.displayName,
+      description: provider.description,
       auth: {
         kind: 'api-key',
-        hint: 'JSON with a public Redshift host, database, user, password, optional port, and optional TLS CA. Verified TLS is mandatory.',
+        hint: provider.authHint,
       },
       defaultConsistencyModel: 'authoritative',
       category: 'database',
       rateLimit: { requests: 120, windowMs: 60_000, scope: 'data-source' },
       capabilities: [
-        readCapability('redshift.schemas.list', 'List schemas visible to the connected Redshift user.', emptySchema()),
-        readCapability('redshift.tables.list', 'List tables and views in one schema.', {
+        readCapability(`${provider.kind}.schemas.list`, `List schemas visible to the connected ${provider.displayName} user.`, emptySchema()),
+        readCapability(`${provider.kind}.tables.list`, 'List tables and views in one schema.', {
           type: 'object',
           properties: { schema: identifierSchema('Schema name; defaults to public.') },
           additionalProperties: false,
         }),
-        readCapability('redshift.tables.describe', 'Read ordered column metadata for one table or view.', {
+        readCapability(`${provider.kind}.tables.describe`, 'Read ordered column metadata for one table or view.', {
           type: 'object',
           properties: {
             schema: identifierSchema('Schema name; defaults to public.'),
@@ -92,7 +117,7 @@ export function createRedshiftConnector(options: RedshiftConnectorOptions = {}):
           required: ['table'],
           additionalProperties: false,
         }),
-        readCapability('redshift.rows.select', 'Read bounded rows using an identifier-safe query builder with scalar predicates.', {
+        readCapability(`${provider.kind}.rows.select`, 'Read bounded rows using an identifier-safe query builder with scalar predicates.', {
           type: 'object',
           properties: {
             schema: identifierSchema('Schema name; defaults to public.'),
@@ -142,22 +167,22 @@ export function createRedshiftConnector(options: RedshiftConnectorOptions = {}):
 
     async test(source) {
       try {
-        await withClient(source, createClient, resolveHost, async (client) => {
+        await withClient(source, provider, createClient, resolveHost, async (client) => {
           await client.query({ text: 'SELECT current_database() AS database_name, current_user AS user_name', values: [] })
         })
         return { ok: true }
       } catch (error) {
-        return { ok: false, reason: safeErrorMessage(error, credentialSecrets(source)) }
+        return { ok: false, reason: safeErrorMessage(error, credentialSecrets(source, provider)) }
       }
     },
 
     async executeRead(inv) {
-      const query = buildQuery(inv)
-      const data = await withClient(inv.source, createClient, resolveHost, async (client) => {
+      const query = buildQuery(inv, provider)
+      const data = await withClient(inv.source, provider, createClient, resolveHost, async (client) => {
         await client.query({ text: 'BEGIN READ ONLY', values: [] })
         try {
           const result = await client.query(query)
-          return boundedResult(result)
+          return boundedResult(result, provider.displayName)
         } finally {
           await client.query({ text: 'ROLLBACK', values: [] }).catch(() => undefined)
         }
@@ -175,13 +200,14 @@ function defaultCreateClient(config: ClientConfig): RedshiftClientLike {
 
 async function withClient<T>(
   source: ResolvedDataSource,
+  provider: PostgresWireReadProviderDefinition,
   createClient: CreateRedshiftClient,
   resolveHost: (host: string) => Promise<string[]>,
   run: (client: RedshiftClientLike) => Promise<T>,
 ): Promise<T> {
-  const credentials = readCredentials(source)
+  const credentials = readCredentials(source, provider)
   const addresses = await resolveHost(credentials.host)
-  if (addresses.length === 0) throw new Error('Redshift host did not resolve')
+  if (addresses.length === 0) throw new Error(`${provider.displayName} host did not resolve`)
   let client: RedshiftClientLike | undefined
   try {
     client = createClient({
@@ -214,30 +240,33 @@ async function withClient<T>(
   }
 }
 
-function readCredentials(source: ResolvedDataSource): RedshiftCredentials {
+function readCredentials(
+  source: ResolvedDataSource,
+  provider: PostgresWireReadProviderDefinition,
+): RedshiftCredentials {
   let raw: unknown
   if (source.credentials.kind === 'custom') raw = source.credentials.values
   else if (source.credentials.kind === 'api-key') {
     try {
       raw = JSON.parse(source.credentials.apiKey)
     } catch {
-      throw new Error('Redshift credential must be valid JSON')
+      throw new Error(`${provider.displayName} credential must be valid JSON`)
     }
   } else {
-    throw new Error('Redshift requires a structured credential bundle')
+    throw new Error(`${provider.displayName} requires a structured credential bundle`)
   }
-  if (!isPlainRecord(raw)) throw new Error('Redshift credential must be a JSON object')
-  const host = readHost(raw.host)
-  const user = readCredentialString(raw.user ?? raw.username, 'user', 128)
-  const password = readCredentialString(raw.password, 'password', 4_096)
-  const database = readCredentialString(raw.database, 'database', MAX_IDENTIFIER_BYTES)
+  if (!isPlainRecord(raw)) throw new Error(`${provider.displayName} credential must be a JSON object`)
+  const host = readHost(raw.host, provider.displayName)
+  const user = readCredentialString(raw.user ?? raw.username, 'user', 128, provider.displayName)
+  const password = readCredentialString(raw.password, 'password', 4_096, provider.displayName)
+  const database = readCredentialString(raw.database, 'database', MAX_IDENTIFIER_BYTES, provider.displayName)
   const tlsCa = readOptionalString(raw.tlsCa, 'tlsCa')
   if (tlsCa && Buffer.byteLength(tlsCa, 'utf8') > MAX_TLS_CA_BYTES) {
-    throw new Error(`Redshift tlsCa exceeds the ${MAX_TLS_CA_BYTES}-byte limit`)
+    throw new Error(`${provider.displayName} tlsCa exceeds the ${MAX_TLS_CA_BYTES}-byte limit`)
   }
   return {
     host,
-    port: readBoundedInteger(raw.port, 5439, 1, 65_535, 'port'),
+    port: readBoundedInteger(raw.port, provider.defaultPort, 1, 65_535, 'port'),
     user,
     password,
     database,
@@ -248,30 +277,30 @@ function readCredentials(source: ResolvedDataSource): RedshiftCredentials {
   }
 }
 
-function buildQuery(inv: ConnectorInvocation): RedshiftQuery {
-  if (inv.capabilityName === 'redshift.schemas.list') {
+function buildQuery(inv: ConnectorInvocation, provider: PostgresWireReadProviderDefinition): RedshiftQuery {
+  if (inv.capabilityName === `${provider.kind}.schemas.list`) {
     return {
-      text: "SELECT schema_name AS \"schemaName\", schema_owner AS \"schemaOwner\" FROM information_schema.schemata WHERE schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' ORDER BY schema_name",
+      text: `SELECT schema_name AS "schemaName", schema_owner AS "schemaOwner" FROM information_schema.schemata WHERE schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' ORDER BY schema_name LIMIT ${MAX_RESULT_ROWS + 1}`,
       values: [],
     }
   }
-  if (inv.capabilityName === 'redshift.tables.list') {
+  if (inv.capabilityName === `${provider.kind}.tables.list`) {
     return {
-      text: 'SELECT table_schema AS "schemaName", table_name AS "tableName", table_type AS "tableType" FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name',
+      text: `SELECT table_schema AS "schemaName", table_name AS "tableName", table_type AS "tableType" FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name LIMIT ${MAX_RESULT_ROWS + 1}`,
       values: [readSchema(inv.args.schema)],
     }
   }
-  if (inv.capabilityName === 'redshift.tables.describe') {
+  if (inv.capabilityName === `${provider.kind}.tables.describe`) {
     return {
-      text: 'SELECT table_schema AS "schemaName", table_name AS "tableName", column_name AS "columnName", ordinal_position AS "ordinalPosition", column_default AS "columnDefault", is_nullable AS "isNullable", data_type AS "dataType", character_maximum_length AS "characterMaximumLength", numeric_precision AS "numericPrecision", numeric_scale AS "numericScale" FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position',
+      text: `SELECT table_schema AS "schemaName", table_name AS "tableName", column_name AS "columnName", ordinal_position AS "ordinalPosition", column_default AS "columnDefault", is_nullable AS "isNullable", data_type AS "dataType", character_maximum_length AS "characterMaximumLength", numeric_precision AS "numericPrecision", numeric_scale AS "numericScale" FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position LIMIT ${MAX_RESULT_ROWS + 1}`,
       values: [readSchema(inv.args.schema), readIdentifier(inv.args.table, 'table')],
     }
   }
-  if (inv.capabilityName === 'redshift.rows.select') return buildRowSelect(inv.args)
-  throw new Error(`Unknown Redshift read capability: ${inv.capabilityName}`)
+  if (inv.capabilityName === `${provider.kind}.rows.select`) return buildRowSelect(inv.args, provider.displayName)
+  throw new Error(`Unknown ${provider.displayName} read capability: ${inv.capabilityName}`)
 }
 
-function buildRowSelect(args: Record<string, unknown>): RedshiftQuery {
+function buildRowSelect(args: Record<string, unknown>, providerLabel: string): RedshiftQuery {
   const schema = readSchema(args.schema)
   const table = readIdentifier(args.table, 'table')
   const columns = readIdentifierArray(args.columns, 'columns', MAX_COLUMNS, true)
@@ -287,7 +316,7 @@ function buildRowSelect(args: Record<string, unknown>): RedshiftQuery {
     values.push(filter.value)
     return `${column} ${sqlOperator(filter.operator)} $${values.length}`
   })
-  assertParameterBytes(values)
+  assertParameterBytes(values, providerLabel)
   const where = predicates.length > 0 ? ` WHERE ${predicates.join(' AND ')}` : ''
   const order = orderBy.length > 0
     ? ` ORDER BY ${orderBy.map((entry) => `${quoteIdentifier(entry.column)} ${entry.direction.toUpperCase()}`).join(', ')}`
@@ -338,15 +367,15 @@ function readIdentifierArray(value: unknown, label: string, max: number, require
   return identifiers
 }
 
-function boundedResult(result: RedshiftQueryResult): unknown {
+function boundedResult(result: RedshiftQueryResult, providerLabel: string): unknown {
   if (!Array.isArray(result.rows) || result.rows.length > MAX_RESULT_ROWS) {
-    throw new Error(`Redshift result exceeds ${MAX_RESULT_ROWS} rows`)
+    throw new Error(`${providerLabel} result exceeds ${MAX_RESULT_ROWS} rows`)
   }
   if (
     result.rowCount !== null &&
     (!Number.isSafeInteger(result.rowCount) || result.rowCount < 0 || result.rowCount > MAX_RESULT_ROWS)
   ) {
-    throw new Error('Redshift result returned a malformed row count')
+    throw new Error(`${providerLabel} result returned a malformed row count`)
   }
   const data = {
     rows: jsonSafe(result.rows),
@@ -360,14 +389,14 @@ function boundedResult(result: RedshiftQueryResult): unknown {
   }
   const serialized = JSON.stringify(data)
   if (Buffer.byteLength(serialized, 'utf8') > MAX_RESULT_BYTES) {
-    throw new Error(`Redshift result exceeds the ${MAX_RESULT_BYTES}-byte limit`)
+    throw new Error(`${providerLabel} result exceeds the ${MAX_RESULT_BYTES}-byte limit`)
   }
   return data
 }
 
-function assertParameterBytes(values: unknown[]): void {
+function assertParameterBytes(values: unknown[], providerLabel: string): void {
   if (Buffer.byteLength(JSON.stringify(values), 'utf8') > MAX_PARAMETERS_BYTES) {
-    throw new Error(`Redshift filter values exceed the ${MAX_PARAMETERS_BYTES}-byte limit`)
+    throw new Error(`${providerLabel} filter values exceed the ${MAX_PARAMETERS_BYTES}-byte limit`)
   }
 }
 
@@ -395,11 +424,11 @@ function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
 }
 
-function readHost(value: unknown): string {
-  const host = readCredentialString(value, 'host', 253)
+function readHost(value: unknown, providerLabel: string): string {
+  const host = readCredentialString(value, 'host', 253, providerLabel)
   const ipVersion = isIP(host)
   if (ipVersion !== 0) {
-    if (!isPublicNetworkAddress(host)) throw new Error('Redshift host is not a public network target')
+    if (!isPublicNetworkAddress(host)) throw new Error(`${providerLabel} host is not a public network target`)
     return host
   }
   const normalized = host.toLowerCase()
@@ -409,14 +438,14 @@ function readHost(value: unknown): string {
     normalized.endsWith('.local') ||
     /[\s/@:\[\]]/.test(host)
   ) {
-    throw new Error('Redshift host must be a public hostname or IP address without a scheme or port')
+    throw new Error(`${providerLabel} host must be a public hostname or IP address without a scheme or port`)
   }
   return host
 }
 
-function readCredentialString(value: unknown, label: string, maxLength: number): string {
+function readCredentialString(value: unknown, label: string, maxLength: number, providerLabel: string): string {
   if (typeof value !== 'string' || value.length === 0 || value.length > maxLength || (label !== 'password' && /[\u0000-\u001f\u007f]/.test(value))) {
-    throw new Error(`Redshift credential ${label} must be a non-empty string under ${maxLength} characters`)
+    throw new Error(`${providerLabel} credential ${label} must be a non-empty string under ${maxLength} characters`)
   }
   return value
 }
@@ -429,9 +458,9 @@ function safeErrorMessage(error: unknown, secrets: string[]): string {
   return message
 }
 
-function credentialSecrets(source: ResolvedDataSource): string[] {
+function credentialSecrets(source: ResolvedDataSource, provider: PostgresWireReadProviderDefinition): string[] {
   try {
-    return readCredentials(source).secrets
+    return readCredentials(source, provider).secrets
   } catch {
     return []
   }
