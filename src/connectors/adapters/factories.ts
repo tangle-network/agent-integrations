@@ -1,5 +1,8 @@
 import type { ConnectorAdapter } from '../types.js'
 import { oktaConnector } from './okta.js'
+import { oneloginConnector } from './onelogin.js'
+import { pingIdentityConnector } from './ping-identity.js'
+import { scimConnector } from './scim.js'
 import { actualbudgetConnector } from './actualbudget.js'
 import { aianswerConnector } from './aianswer.js'
 import { airparserConnector } from './airparser.js'
@@ -653,6 +656,9 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'AUTH0_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => oktaConnector, {}),
+    defineFactoryAdapter(() => pingIdentityConnector, {}),
+    defineFactoryAdapter(() => oneloginConnector, {}),
+    defineFactoryAdapter(() => scimConnector, {}),
     defineFactoryAdapter(() => twentyConnector, {}),
     defineFactoryAdapter(() => folkConnector, {}),
     defineFactoryAdapter(() => freshsalesConnector, {}),

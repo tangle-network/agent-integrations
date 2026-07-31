@@ -54,6 +54,55 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  'ping-identity': {
+    consoleUrl: 'https://console.pingone.com/',
+    credentialFields: [
+      {
+        label: 'PingOne worker credential bundle',
+        description: 'JSON containing clientId, clientSecret, and region (us, ca, eu, au, or asia). Store the PingOne environment id as connection metadata.',
+        example: '{"clientId":"...","clientSecret":"...","region":"us"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'worker-app', title: 'Create a worker application', detail: 'Create a dedicated PingOne worker application with the minimum user and group administration roles.' },
+      { id: 'environment', title: 'Record environment and region', detail: 'Copy the PingOne environment id and select its deployment region.' },
+      { id: 'credentials', title: 'Store worker credentials', detail: 'Save the client id and client secret in the encrypted connection credential bundle.' },
+    ],
+  },
+  onelogin: {
+    consoleUrl: 'https://admin.us.onelogin.com/api_credentials',
+    credentialFields: [
+      {
+        label: 'OneLogin API credential bundle',
+        description: 'JSON containing clientId, clientSecret, and region (us or eu).',
+        example: '{"clientId":"...","clientSecret":"...","region":"us"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'credentials', title: 'Create API credentials', detail: 'Create dedicated OneLogin API credentials with Manage users or the smallest sufficient privilege.' },
+      { id: 'region', title: 'Select tenant region', detail: 'Choose us or eu to pin both token and API requests to the tenant region.' },
+      { id: 'store', title: 'Store credentials', detail: 'Save the client id and client secret in the encrypted connection credential bundle.' },
+    ],
+  },
+  scim: {
+    credentialFields: [
+      {
+        label: 'SCIM bearer token',
+        description: 'Long-lived bearer token issued by the customer SCIM service provider.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'endpoint', title: 'Record the SCIM base URL', detail: 'Use the public HTTPS SCIM 2.0 root, including any tenant path such as /scim/v2.' },
+      { id: 'token', title: 'Create a provisioning token', detail: 'Issue a dedicated least-privileged bearer token for users, groups, and membership operations.' },
+      { id: 'test', title: 'Test ServiceProviderConfig', detail: 'Verify the endpoint and token can read the SCIM ServiceProviderConfig resource.' },
+    ],
+    knownQuirks: [
+      { id: 'provider-variance', severity: 'warning', message: 'SCIM providers vary in supported filters, PATCH paths, and ETag behavior; use provider-native PatchOp payloads when a service diverges from RFC 7644.' },
+    ],
+  },
   affinity: {
     consoleUrl: 'https://support.affinity.co/s/article/How-to-Create-and-Manage-API-Keys',
     credentialFields: [

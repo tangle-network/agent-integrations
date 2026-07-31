@@ -48,6 +48,11 @@ export {
   type RestRequestSpec,
   type RestCredentialPlacement,
 } from './declarative-rest.js'
+export {
+  clientCredentialsRestConnector,
+  type ClientCredentialsRegion,
+  type ClientCredentialsRestSpec,
+} from './client-credentials-rest.js'
 
 export { twilioSmsConnector } from './twilio-sms.js'
 export { phonyConnector } from './phony.js'
@@ -80,6 +85,9 @@ export { instagramBusinessConnector } from './instagram-business.js'
 export { linkedinConnector } from './linkedin.js'
 export { telegramConnector, TELEGRAM_FILE_DOWNLOAD_ROOT } from './telegram.js'
 export { oktaConnector } from './okta.js'
+export { pingIdentityConnector } from './ping-identity.js'
+export { oneloginConnector } from './onelogin.js'
+export { scimConnector } from './scim.js'
 
 // Direct adapters that need only per-connection credentials.
 export { actualbudgetConnector } from './actualbudget.js'

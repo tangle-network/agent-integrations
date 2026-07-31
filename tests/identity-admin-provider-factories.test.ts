@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   auth0Connector,
   CONNECTOR_ADAPTER_FACTORIES,
+  oneloginConnector,
   oktaConnector,
+  pingIdentityConnector,
   resolveConnectorAdapterFactoryOptions,
+  scimConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -65,6 +68,19 @@ describe('identity and administration provider factories', () => {
     expect(resolveConnectorAdapterFactoryOptions(okta!, {})).toEqual({})
   })
 
+  it('registers Ping Identity, OneLogin, and SCIM with connection-owned credentials', () => {
+    for (const [kind, connector] of [
+      ['ping-identity', pingIdentityConnector],
+      ['onelogin', oneloginConnector],
+      ['scim', scimConnector],
+    ] as const) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
+      expect(definition?.envMap).toEqual({})
+      expect(definition?.factory({})).toBe(connector)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {})).toEqual({})
+    }
+  })
+
   it('accepts the shared Microsoft application for Azure AD and fails closed on partial OAuth settings', () => {
     const azureAd = CONNECTOR_ADAPTER_FACTORIES.find(
       (candidate) => candidate.kind === 'azure-ad',
@@ -92,9 +108,6 @@ describe('identity and administration provider factories', () => {
 
     for (const kind of [
       'google-directory',
-      'ping-identity',
-      'onelogin',
-      'scim',
       'saml',
     ]) {
       expect(executableKinds.has(kind), kind).toBe(false)
