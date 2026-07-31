@@ -80449,26 +80449,22 @@
     "title": "Redshift",
     "category": "database",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "redshift API key",
+        "description": "JSON with a public Redshift host, database, user, password, optional port, and optional TLS CA. Verified TLS is mandatory.",
         "secret": true
-      }
-    ],
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
+    "actionCount": 4,
     "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -80476,11 +80472,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "reoon-verifier",
