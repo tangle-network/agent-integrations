@@ -22,19 +22,19 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 240 |
-| Executable setup specs | 209 |
+| Setup specs | 241 |
+| Executable setup specs | 210 |
 | Catalog/setup-only specs | 31 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
 | Contracts with mapped actions | 669 |
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
-| Native adapter backends | 508 |
-| Native adapter surfaces shipped | 605 |
-| Package-runtime backends | 161 |
-| Runtime manifest dependencies for catalog-only connectors | 170 |
-| Catalog-only connectors exposable behind runtime | 161 |
+| Native adapter backends | 509 |
+| Native adapter surfaces shipped | 606 |
+| Package-runtime backends | 160 |
+| Runtime manifest dependencies for catalog-only connectors | 169 |
+| Catalog-only connectors exposable behind runtime | 160 |
 | Catalog-only actions exposable behind runtime | 685 |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
@@ -149,7 +149,7 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `box`
 - `brave-search`
 
-...and 525 more native adapter surfaces.
+...and 526 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -199,6 +199,7 @@ Executable setup specs:
 - `claude`
 - `clearoutphone`
 - `clickfunnels`
+- `clicksend`
 - `clickup`
 - `clio`
 - `close`
@@ -369,9 +370,9 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 605 reviewed native adapter surfaces ship from this package; 508 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 240 setup specs exist; 209 are executable setup specs and 31 are catalog/setup-only. |
-| Direct adapter backlog | Tracked | 161 contracts still need native/direct adapters before they should be product-executable. |
+| Native adapter execution | Done for listed native backends | 606 reviewed native adapter surfaces ship from this package; 509 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 241 setup specs exist; 210 are executable setup specs and 31 are catalog/setup-only. |
+| Direct adapter backlog | Tracked | 160 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
 | Long-tail credential mapping | Mostly mapped | 648 connectors have auth field metadata. 0 custom-auth connectors still need exact manual auth fields. |
@@ -383,7 +384,7 @@ Executable setup specs:
 
 | Bucket | Count | What it means |
 | --- | ---: | --- |
-| Contracts needing native/direct adapters | 161 | Connector has a Tangle contract but no reviewed direct adapter yet. |
+| Contracts needing native/direct adapters | 160 | Connector has a Tangle contract but no reviewed direct adapter yet. |
 | Commercial/setup-only provider contracts | 30 | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
 | Catalog connectors with zero upstream action names | 0 | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
@@ -408,7 +409,6 @@ Examples needing native/direct adapter ports:
 - `chatfly` -> `@activepieces/piece-chatfly`
 - `chess-com` -> `@activepieces/piece-chess-com`
 - `clarifai` -> `@activepieces/piece-clarifai`
-- `clicksend` -> `@activepieces/piece-clicksend`
 - `coralogix` -> `@activepieces/piece-coralogix`
 - `cursor` -> `@activepieces/piece-cursor`
 - `cyberark` -> `@activepieces/piece-cyberark`
@@ -431,13 +431,14 @@ Examples needing native/direct adapter ports:
 - `goodmem` -> `@activepieces/piece-goodmem`
 - `gravityforms` -> `@activepieces/piece-gravityforms`
 - `grok-xai` -> `@activepieces/piece-grok-xai`
+- `groq` -> `@activepieces/piece-groq`
 
 Manual custom auth mapping gap: none.
 
 ## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
-   All 669 catalog entries have Tangle-owned contracts. 508 use native adapter backends; 161 are backlog for native ports.
+   All 669 catalog entries have Tangle-owned contracts. 509 use native adapter backends; 160 are backlog for native ports.
 
 2. **Action-name mapping exists for cataloged actions.**
    Done for cataloged actions: the catalog currently has 3790 actions and 3790 upstream action-name mappings in the checked-in catalog. Direct adapters should preserve stable Tangle action ids when porting demanded backlog connectors.
@@ -449,13 +450,13 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 605 native adapter surfaces. 508 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 606 native adapter surfaces. 509 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
 - It is accurate to say: **we have 669 first-class Tangle integration contracts.**
 - It is accurate to say: **product execution should use direct/native adapters.**
-- It is accurate to say: **the remaining 161 catalog-only contracts are backlog, not runtime-ready product surface.**
+- It is accurate to say: **the remaining 160 catalog-only contracts are backlog, not runtime-ready product surface.**
 
 ## Native Port Gate
 

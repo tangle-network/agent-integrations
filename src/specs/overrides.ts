@@ -54,6 +54,26 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  clicksend: {
+    consoleUrl: 'https://dashboard.clicksend.com/#/account/subaccounts',
+    credentialFields: [
+      {
+        label: 'ClickSend API credential bundle',
+        description: 'JSON containing username and apiKey from the ClickSend dashboard.',
+        example: '{"username":"...","apiKey":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Use a dedicated subaccount', detail: 'Create a restricted subaccount for Tangle Integration Hub when account isolation is required.' },
+      { id: 'credentials', title: 'Copy API credentials', detail: 'Copy the ClickSend username and API key into the encrypted credential bundle.' },
+      { id: 'sender', title: 'Configure approved senders', detail: 'Register and approve sender names or numbers before enabling outbound workflows.' },
+    ],
+    knownQuirks: [
+      { id: 'paid-delivery', severity: 'warning', message: 'Outbound SMS and voice delivery incurs provider charges. Connection health and read operations do not send messages; keep outbound actions approval-gated.' },
+      { id: 'sender-rules', severity: 'warning', message: 'Sender ID, consent, quiet-hours, and opt-out rules vary by destination country and remain the customer’s responsibility.' },
+    ],
+  },
   discourse: {
     consoleUrl: 'https://meta.discourse.org/t/create-and-configure-an-api-key/230124',
     credentialFields: [
