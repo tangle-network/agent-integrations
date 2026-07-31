@@ -16,6 +16,7 @@ import { bikaConnector } from './bika.js'
 import { buttondownConnector } from './buttondown.js'
 import { cambAiConnector } from './camb-ai.js'
 import { cartloomConnector } from './cartloom.js'
+import { csvFilesConnector } from './csv-files.js'
 import { chainAwareConnector } from './chain-aware.js'
 import { chaindeskConnector } from './chaindesk.js'
 import { chatAidConnector } from './chat-aid.js'
@@ -35,6 +36,7 @@ import { docsbotConnector } from './docsbot.js'
 import { dripConnector } from './drip.js'
 import { echowinConnector } from './echowin.js'
 import { elevenlabsConnector } from './elevenlabs.js'
+import { excelFilesConnector } from './excel-files.js'
 import { everhourConnector } from './everhour.js'
 import { featheryConnector } from './feathery.js'
 import { fellowConnector } from './fellow.js'
@@ -176,12 +178,14 @@ import { paddleConnector } from './paddle.js'
 import { plaidConnector } from './plaid.js'
 import { pipedreamConnector } from './pipedream.js'
 import { pipedriveConnector } from './pipedrive.js'
+import { parquetFilesConnector } from './parquet-files.js'
 import { quickbooksConnector } from './quickbooks.js'
 import { recallAiConnector } from './recall-ai.js'
 import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
 import { rssConnector } from './rss.js'
 import { salesforceConnector } from './salesforce.js'
+import { sftpConnector } from './sftp.js'
 import { saleorConnector } from './saleor.js'
 import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
@@ -507,6 +511,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => amazonSqsConnector, {}),
     defineFactoryAdapter(() => httpConnector, {}),
     defineFactoryAdapter(() => rssConnector, {}),
+    defineFactoryAdapter(() => csvFilesConnector, {}),
+    defineFactoryAdapter(() => excelFilesConnector, {}),
+    defineFactoryAdapter(() => parquetFilesConnector, {}),
+    defineFactoryAdapter(() => sftpConnector, {}),
     defineFactoryAdapter(() => zapierConnector, {}),
     defineFactoryAdapter(() => makeConnector, {}),
     defineFactoryAdapter(() => n8nConnector, {}),

@@ -67,6 +67,14 @@ export { sageIntacctConnector } from './sage-intacct.js'
 export { webhookConnector } from './webhook.js'
 export { httpConnector } from './http.js'
 export { rssConnector } from './rss.js'
+export { csvFilesConnector } from './csv-files.js'
+export { excelFilesConnector } from './excel-files.js'
+export { parquetFilesConnector } from './parquet-files.js'
+export {
+  createSftpConnector,
+  sftpConnector,
+  type SftpConnectorOptions,
+} from './sftp.js'
 export { amazonS3Connector } from './amazon-s3.js'
 export { azureBlobStorageConnector } from './azure-blob-storage.js'
 export { azureEventGridConnector } from './azure-event-grid.js'

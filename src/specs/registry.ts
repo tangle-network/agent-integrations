@@ -467,6 +467,7 @@ function apiKeyFieldFor(kind: string) {
 }
 
 function apiKeyPlacementFor(kind: string): ApiKeyAuthSpec['placement'] {
+  if (kind === 'sftp') return undefined
   if (kind === 'gitlab') return 'header'
   return 'bearer'
 }

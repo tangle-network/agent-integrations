@@ -29266,18 +29266,19 @@
   },
   {
     "id": "csv-files",
-    "title": "CSV Files",
-    "category": "database",
+    "title": "csv-files",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "none",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "none"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -29285,11 +29286,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "cursor",
@@ -37073,18 +37072,19 @@
   },
   {
     "id": "excel-files",
-    "title": "Excel Files",
-    "category": "database",
+    "title": "excel-files",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "none",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "none"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -37092,11 +37092,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "extracta-ai",
@@ -72432,18 +72430,19 @@
   },
   {
     "id": "parquet-files",
-    "title": "Parquet Files",
-    "category": "database",
+    "title": "parquet-files",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "none",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "none"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -72451,11 +72450,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "parser-expert",
@@ -84939,18 +84936,24 @@
   },
   {
     "id": "sftp",
-    "title": "SFTP",
-    "category": "storage",
+    "title": "sftp",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "sftp API key",
+        "description": "JSON with host, username, SHA-256 hostFingerprint, and password or privateKey; optional port, passphrase, and rootPath.",
+        "secret": true
+      }
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -84958,11 +84961,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "sharepoint",

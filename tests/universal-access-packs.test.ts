@@ -19,6 +19,10 @@ describe('universal access provider packs', () => {
     'gcloud-pubsub',
     'azure-service-bus',
     'azure-event-grid',
+    'sftp',
+    'csv-files',
+    'excel-files',
+    'parquet-files',
   ])('%s is executable from a shipped adapter', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('executable')
@@ -35,6 +39,10 @@ describe('universal access provider packs', () => {
     'gcloud-pubsub',
     'azure-service-bus',
     'azure-event-grid',
+    'sftp',
+    'csv-files',
+    'excel-files',
+    'parquet-files',
   ])(
     '%s is runnable by Hub without a shared deployment secret',
     (kind) => {
@@ -58,13 +66,8 @@ describe('universal access provider packs', () => {
     expect(registry.byId.get('google-pubsub')).toBe(registry.byId.get('gcloud-pubsub'))
   })
 
-  it.each([
-    'sftp',
-    'csv-files',
-    'excel-files',
-    'parquet-files',
-    'kafka',
-  ])('%s is contract-only until its transport is implemented', (kind) => {
+  it('keeps Kafka contract-only until its transport is implemented', () => {
+    const kind = 'kafka'
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('catalog')
     expect(spec?.actions).toEqual([])
