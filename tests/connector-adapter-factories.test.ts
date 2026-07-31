@@ -85,7 +85,7 @@ describe('connector adapter factory registry', () => {
     }
   })
 
-  it('registers launch providers behind their OAuth application settings', () => {
+  it('registers launch and expanded Google providers behind their OAuth application settings', () => {
     const expected = {
       salesforce: ['SALESFORCE_OAUTH_CLIENT_ID', 'SALESFORCE_OAUTH_CLIENT_SECRET'],
       dropbox: ['DROPBOX_OAUTH_CLIENT_ID', 'DROPBOX_OAUTH_CLIENT_SECRET'],
@@ -97,6 +97,9 @@ describe('connector adapter factory registry', () => {
       'google-slides': ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
       googlechat: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
       'google-tasks': ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+      'google-analytics': ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+      'google-meet': ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+      'google-search-console': ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
       linear: ['LINEAR_OAUTH_CLIENT_ID', 'LINEAR_OAUTH_CLIENT_SECRET'],
       miro: ['MIRO_OAUTH_CLIENT_ID', 'MIRO_OAUTH_CLIENT_SECRET'],
       monday: ['MONDAY_OAUTH_CLIENT_ID', 'MONDAY_OAUTH_CLIENT_SECRET'],
