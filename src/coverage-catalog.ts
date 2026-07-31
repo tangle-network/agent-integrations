@@ -281,6 +281,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['csv-files', 'CSV Files', 'database', 'database', 'tier_0', 'files,csv,imports', 'none'],
   ['excel-files', 'Excel Files', 'database', 'database', 'tier_0', 'files,excel,imports', 'none'],
   ['parquet-files', 'Parquet Files', 'database', 'database', 'tier_1', 'files,parquet,imports', 'none'],
+  ['duckdb', 'DuckDB', 'database', 'database', 'tier_1', 'database,sql,json,analytics', 'none'],
   ['kafka', 'Apache Kafka', 'webhook', 'webhook', 'tier_1', 'events,streams,kafka', 'custom'],
   ['amazon-eventbridge', 'Amazon EventBridge', 'webhook', 'webhook', 'tier_1', 'events,aws,eventbridge', 'custom'],
   ['google-pubsub', 'Google Pub/Sub', 'webhook', 'webhook', 'tier_1', 'events,google,pubsub', 'custom'],
