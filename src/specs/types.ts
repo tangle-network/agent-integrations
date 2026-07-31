@@ -6,6 +6,7 @@ import type {
   IntegrationConnectorTrigger,
   IntegrationDataClass,
 } from '../index.js'
+import type { OAuth2TokenClientAuthMethod } from '../connectors/types.js'
 
 export type IntegrationAuthMode = 'oauth2' | 'api_key' | 'hmac' | 'none' | 'custom'
 
@@ -70,6 +71,9 @@ export interface OAuth2AuthSpec {
   tokenUrl?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  /** OAuth client authentication at the token endpoint. Defaults to
+   * `client_secret_post` when omitted. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   scopes: ScopeDescriptor[]
   extraAuthParams?: Record<string, string>
   redirectUriTemplate: string

@@ -40,6 +40,7 @@ export const ebayConnector = declarativeRestConnector({
     ],
     clientIdEnv: 'EBAY_OAUTH_CLIENT_ID',
     clientSecretEnv: 'EBAY_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_basic',
   },
   category: 'commerce',
   defaultConsistencyModel: 'authoritative',

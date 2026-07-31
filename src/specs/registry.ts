@@ -84,6 +84,7 @@ export interface ConnectorAuthSpec {
   redirectUriTemplate?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  tokenClientAuthMethod?: 'client_secret_post' | 'client_secret_basic'
   extraAuthParams?: Record<string, string>
 }
 
@@ -102,6 +103,7 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
       redirectUriTemplate: auth.redirectUriTemplate,
       clientIdEnv: auth.clientIdEnv,
       clientSecretEnv: auth.clientSecretEnv,
+      tokenClientAuthMethod: auth.tokenClientAuthMethod,
       extraAuthParams: auth.extraAuthParams,
     }
   }
@@ -286,6 +288,7 @@ function authFor(
     tokenUrl: real?.tokenUrl ?? f.tokenUrl,
     clientIdEnv: real?.clientIdEnv ?? f.credentialFields.find((field) => !field.secret)?.env,
     clientSecretEnv: real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
+    tokenClientAuthMethod: real?.tokenClientAuthMethod ?? 'client_secret_post',
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
     redirectUriTemplate: (f.redirectUriTemplate ?? 'https://{host}/api/integrations/oauth/{kind}/callback').replace('{kind}', spec.id),
