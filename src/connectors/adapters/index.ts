@@ -213,6 +213,7 @@ export { clioConnector } from './clio.js'
 export { sentryConnector } from './sentry.js'
 export { datadogConnector } from './datadog.js'
 export { discourseConnector } from './discourse.js'
+export { clicksendConnector } from './clicksend.js'
 // Incident response / on-call
 export { pagerdutyConnector } from './pagerduty.js'
 export { opsgenieConnector } from './opsgenie.js'

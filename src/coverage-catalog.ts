@@ -146,6 +146,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['sendgrid', 'SendGrid', 'email', 'email', 'tier_1', 'email,transactional'],
   ['postmark', 'Postmark', 'email', 'email', 'tier_1', 'email,transactional'],
   ['twilio', 'Twilio', 'chat', 'chat', 'tier_0', 'sms,voice,communications'],
+  ['clicksend', 'ClickSend', 'chat', 'telephony', 'tier_1', 'sms,voice,communications,contact-lists', 'api_key'],
   ['open-phone', 'OpenPhone', 'chat', 'telephony', 'tier_0', 'sms,voice,telephony,communications', 'api_key'],
   ['ringcentral', 'RingCentral', 'chat', 'telephony', 'tier_0', 'voice,sms,telephony,communications'],
   ['dialpad', 'Dialpad', 'chat', 'telephony', 'tier_0', 'voice,sms,telephony,communications'],
