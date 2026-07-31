@@ -110,12 +110,15 @@ import {
   googleCalendar,
   type GoogleCalendarOptions,
 } from './google-calendar.js'
+import { googleAnalyticsConnector } from './google-analytics.js'
 import { googleCloudStorageConnector } from './google-cloud-storage.js'
 import { googlePubSubConnector } from './google-pubsub.js'
 import { googleContactsConnector } from './google-contacts.js'
 import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 import { googleForms, type GoogleFormsOptions } from './google-forms.js'
+import { googleMeetConnector } from './google-meet.js'
+import { googleSearchConsoleConnector } from './google-search-console.js'
 import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
 import { googleSlidesConnector } from './google-slides.js'
 import { googleTasksConnector } from './google-tasks.js'
@@ -354,6 +357,9 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => googleSlidesConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googlechatConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleAnalyticsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleMeetConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleSearchConsoleConnector, googleOAuthEnvMap),
     defineFactoryAdapter<SlackOptions>(slack, {
       clientId: 'SLACK_OAUTH_CLIENT_ID',
       clientSecret: 'SLACK_OAUTH_CLIENT_SECRET',
