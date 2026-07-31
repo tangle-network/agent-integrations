@@ -166,6 +166,7 @@ import { microsoftTodoConnector } from './microsoft-todo.js'
 import { mastodonConnector } from './mastodon.js'
 import { meetgeekAiConnector } from './meetgeek-ai.js'
 import { mollieConnector } from './mollie.js'
+import { miroConnector } from './miro.js'
 import { mondayConnector } from './monday.js'
 import { mongodbConnector } from './mongodb.js'
 import { mycaseConnector } from './mycase.js'
@@ -596,6 +597,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => linearConnector, {
       clientId: 'LINEAR_OAUTH_CLIENT_ID',
       clientSecret: 'LINEAR_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => miroConnector, {
+      clientId: 'MIRO_OAUTH_CLIENT_ID',
+      clientSecret: 'MIRO_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => mondayConnector, {
       clientId: 'MONDAY_OAUTH_CLIENT_ID',

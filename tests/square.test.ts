@@ -42,6 +42,7 @@ describe('square adapter manifest', () => {
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
     expect(auth.authorizationUrl).toMatch(/connect\.squareup\.com/)
     expect(auth.tokenUrl).toMatch(/connect\.squareup\.com/)
+    expect(auth.scopes).toContain('ITEMS_WRITE')
   })
 
   it('covers customers, payments, invoices, and catalog capability surface', () => {

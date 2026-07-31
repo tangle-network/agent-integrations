@@ -14,7 +14,7 @@ describe('monday adapter manifest', () => {
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
     expect(auth.authorizationUrl).toBe('https://auth.monday.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://auth.monday.com/oauth2/token')
+    expect(auth.tokenUrl).toBe('https://auth.monday.com/oauth_ms/oauth/token')
     expect(auth.clientIdEnv).toBe('MONDAY_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('MONDAY_OAUTH_CLIENT_SECRET')
     expect(auth.scopes).toContain('boards:read')
