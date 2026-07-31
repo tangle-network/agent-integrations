@@ -20,6 +20,8 @@ export const n8nConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'instanceUrl' },
+  requirePublicHttpsBaseUrl: true,
+  credentialPlacement: { kind: 'header', header: 'X-N8N-API-KEY' },
   test: { method: 'GET', path: '/api/v1/workflows' },
   capabilities: [
     {

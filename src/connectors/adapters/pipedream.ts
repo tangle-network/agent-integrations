@@ -78,18 +78,21 @@ export const pipedreamConnector = declarativeRestConnector({
       name: 'http.trigger',
       class: 'mutation',
       description:
-        'POST a JSON payload to a Pipedream HTTP-source workflow URL. `endpointUrl` is the full https://<id>.m.pipedream.net URL the workflow published; the body becomes the trigger event.',
+        'POST a JSON payload to a Pipedream HTTP-source workflow endpoint. Supply only its endpoint id; the provider host is fixed so credentials cannot be redirected.',
       parameters: {
         type: 'object',
         properties: {
-          endpointUrl: { type: 'string' },
+          endpointId: {
+            type: 'string',
+            description: 'Subdomain id from the published `https://<id>.m.pipedream.net` endpoint.',
+          },
           payload: { type: 'object' },
         },
-        required: ['endpointUrl', 'payload'],
+        required: ['endpointId', 'payload'],
       },
       request: {
         method: 'POST',
-        path: '{endpointUrl}',
+        path: 'https://{endpointId}.m.pipedream.net/',
         body: '{payload}',
       },
     },

@@ -209,3 +209,37 @@ describe('zapier NLA actions', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
+
+describe('zapier catch-hook routing', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('cannot replace the Zapier host with a model-supplied URL', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(zapierConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'triggers.catch',
+      args: { hookPath: 'https://attacker.example/collect', payload: { secret: 'no' } },
+      idempotencyKey: 'zapier-rejected-host',
+    })).rejects.toThrow(/accountId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('builds catch hooks from fixed Zapier host path segments', async () => {
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ status: 'success' })
+    }))
+
+    await zapierConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'triggers.catch',
+      args: { accountId: '123456', hookId: 'abcDEF', payload: { event: 'created' } },
+      idempotencyKey: 'zapier-catch-1',
+    })
+
+    expect(requestUrl).toBe('https://hooks.zapier.com/hooks/catch/123456/abcDEF/')
+  })
+})
