@@ -276,6 +276,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['webhook', 'Generic Webhook', 'webhook', 'webhook', 'tier_0', 'webhook,http,events', 'none'],
   ['http', 'HTTP / REST / OpenAPI Request', 'workflow', 'webhook', 'tier_0', 'http,api,rest,openapi,webhook', 'none'],
   ['rss', 'RSS', 'webhook', 'webhook', 'tier_1', 'feeds,content', 'none'],
+  ['chess-com', 'Chess.com', 'workflow', 'workflow', 'long_tail', 'chess,games,public-data', 'none'],
   ['sftp', 'SFTP', 'storage', 'storage', 'tier_0', 'files,sftp,imports,commercial-api', 'custom'],
   ['csv-files', 'CSV Files', 'database', 'database', 'tier_0', 'files,csv,imports', 'none'],
   ['excel-files', 'Excel Files', 'database', 'database', 'tier_0', 'files,excel,imports', 'none'],

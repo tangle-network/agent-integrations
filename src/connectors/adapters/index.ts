@@ -75,6 +75,7 @@ export {
   sftpConnector,
   type SftpConnectorOptions,
 } from './sftp.js'
+export { chessComConnector } from './chess-com.js'
 export { amazonS3Connector } from './amazon-s3.js'
 export { azureBlobStorageConnector } from './azure-blob-storage.js'
 export { azureEventGridConnector } from './azure-event-grid.js'

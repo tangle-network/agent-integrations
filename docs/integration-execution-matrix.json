@@ -24783,15 +24783,17 @@
     "title": "Chess.com",
     "category": "workflow",
     "catalogAuth": "none",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "none"
+    },
     "authFields": [],
     "runtimePackage": "@activepieces/piece-chess-com",
     "actionCount": 3,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 3,
     "quality": {
       "tangleContract": true,
@@ -24799,11 +24801,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "circle",
@@ -38427,7 +38427,15 @@
       "scopes": [
         {
           "normalized": "docs.read",
-          "providerScope": "files:read",
+          "providerScope": "current_user:read",
+          "title": "FigJam read",
+          "reason": "Read FigJam data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "file_comments:read",
           "title": "FigJam read",
           "reason": "Read FigJam data for user-authorized agent workflows.",
           "risk": "read",
@@ -38439,6 +38447,30 @@
           "title": "FigJam write",
           "reason": "Create or update FigJam resources after policy approval.",
           "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "file_content:read",
+          "title": "FigJam read",
+          "reason": "Read FigJam data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "file_versions:read",
+          "title": "FigJam read",
+          "reason": "Read FigJam data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "projects:read",
+          "title": "FigJam read",
+          "reason": "Read FigJam data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "private"
         },
         {
@@ -38485,7 +38517,7 @@
       "scopes": [
         {
           "normalized": "docs.read",
-          "providerScope": "files:read",
+          "providerScope": "current_user:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
           "risk": "read",
@@ -38493,7 +38525,7 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "file_variables:read",
+          "providerScope": "file_comments:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
           "risk": "read",
@@ -38509,6 +38541,14 @@
         },
         {
           "normalized": "docs.read",
+          "providerScope": "file_content:read",
+          "title": "Figma read",
+          "reason": "Read Figma data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
           "providerScope": "file_dev_resources:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
@@ -38517,7 +38557,31 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "library_analytics:read",
+          "providerScope": "file_versions:read",
+          "title": "Figma read",
+          "reason": "Read Figma data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "library_content:read",
+          "title": "Figma read",
+          "reason": "Read Figma data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "projects:read",
+          "title": "Figma read",
+          "reason": "Read Figma data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "team_library_content:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
           "risk": "read",
