@@ -120,6 +120,7 @@ import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 import { googleForms, type GoogleFormsOptions } from './google-forms.js'
 import { googleMeetConnector } from './google-meet.js'
+import { googleMyBusinessConnector } from './google-my-business.js'
 import { googleSearchConsoleConnector } from './google-search-console.js'
 import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
 import { googleSlidesConnector } from './google-slides.js'
@@ -127,6 +128,7 @@ import { googleTasksConnector } from './google-tasks.js'
 import { googlechatConnector } from './googlechat.js'
 import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
+import { harvestConnector } from './harvest.js'
 import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
 import { httpConnector } from './http.js'
@@ -367,6 +369,11 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleAnalyticsConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleMeetConnector, googleOAuthEnvMap),
+    // Business Profile uses the existing Google OAuth app. Keeping the
+    // credentials as one pair prevents a partial dedicated configuration from
+    // being combined with a shared secret; enable the Business Profile APIs on
+    // that Google Cloud project before connecting an account.
+    defineFactoryAdapter(() => googleMyBusinessConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleSearchConsoleConnector, googleOAuthEnvMap),
     defineFactoryAdapter<SlackOptions>(slack, {
       clientId: 'SLACK_OAUTH_CLIENT_ID',
@@ -793,6 +800,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => voucheryIoConnector, {}),
     defineFactoryAdapter(() => saleorConnector, {}),
     defineFactoryAdapter(() => cashfreePaymentsConnector, {}),
+    defineFactoryAdapter(() => harvestConnector, {
+      clientId: 'HARVEST_OAUTH_CLIENT_ID',
+      clientSecret: 'HARVEST_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => frontConnector, {
       clientId: 'FRONT_OAUTH_CLIENT_ID',
       clientSecret: 'FRONT_OAUTH_CLIENT_SECRET',
