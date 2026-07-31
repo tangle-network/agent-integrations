@@ -4,6 +4,7 @@ import {
   CONNECTOR_ADAPTER_FACTORIES,
   fullenrichConnector,
   hunterConnector,
+  neverbounceConnector,
   resolveConnectorAdapterFactoryOptions,
   theirstackConnector,
   zerobounceConnector,
@@ -17,6 +18,7 @@ const activatedProviders = [
   'builtwith',
   'fullenrich',
   'hunter',
+  'neverbounce',
   'theirstack',
   'zerobounce',
 ] as const
@@ -24,7 +26,7 @@ const activatedProviders = [
 afterEach(() => vi.unstubAllGlobals())
 
 describe('enrichment and research provider factories', () => {
-  it('activates five customer-funded providers with real health checks', () => {
+  it('activates six customer-funded providers with real health checks', () => {
     for (const kind of activatedProviders) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
@@ -78,6 +80,11 @@ describe('enrichment provider credential placement', () => {
       hunterConnector,
       'hunter',
       'https://api.hunter.io/v2/account?api_key=customer-api-key',
+    ],
+    [
+      neverbounceConnector,
+      'neverbounce',
+      'https://api.neverbounce.com/v4.2/account/info?key=customer-api-key',
     ],
     [
       zerobounceConnector,

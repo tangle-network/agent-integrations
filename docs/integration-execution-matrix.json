@@ -66900,26 +66900,34 @@
   {
     "id": "neverbounce",
     "title": "NeverBounce",
-    "category": "chat",
+    "category": "crm",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "neverbounce API key",
+        "description": "NeverBounce API key from Apps > API in the NeverBounce dashboard.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
-        "key": "email",
-        "label": "Email Address",
+        "key": "apiKey",
+        "label": "API key",
         "required": true,
-        "secret": false,
+        "secret": true,
         "kind": "text",
-        "description": "The email address to verify"
+        "description": "NeverBounce API key from Apps > API"
       }
     ],
     "runtimePackage": "@activepieces/piece-neverbounce",
     "actionCount": 1,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 1,
     "quality": {
       "tangleContract": true,
@@ -66927,11 +66935,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "new-relic",

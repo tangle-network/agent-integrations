@@ -65,6 +65,7 @@ export const ACTIVEPIECES_OVERRIDES: Record<string, ActivepiecesPieceOverride> =
   pipedrive: { category: 'crm' },
   intercom: { category: 'crm' },
   zendesk: { category: 'crm' },
+  neverbounce: { category: 'crm' },
 
   stripe: {
     category: 'crm',
