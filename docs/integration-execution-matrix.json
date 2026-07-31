@@ -351,7 +351,25 @@
     "title": "Acuity Scheduling",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://acuityscheduling.com/oauth2/authorize",
+      "tokenUrl": "https://acuityscheduling.com/oauth2/token",
+      "clientIdEnv": "ACUITY_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ACUITY_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "calendar.read",
+          "providerScope": "api-v1",
+          "title": "Acuity Scheduling read",
+          "reason": "Read Acuity Scheduling data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/acuity-scheduling/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -371,10 +389,10 @@
     "runtimePackage": "@activepieces/piece-acuity-scheduling",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -382,11 +400,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "acumbamail",

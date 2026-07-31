@@ -206,6 +206,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['ironclad', 'Ironclad', 'docs', 'docs', 'tier_1', 'legal,contracts'],
   ['lexisnexis', 'LexisNexis', 'docs', 'docs', 'tier_2', 'legal,research'],
   ['calendly', 'Calendly', 'calendar', 'calendar', 'tier_0', 'scheduling,calendar'],
+  ['acuity-scheduling', 'Acuity Scheduling', 'calendar', 'calendar', 'tier_1', 'appointments,scheduling,calendar'],
   ['cal-com', 'Cal.com', 'calendar', 'calendar', 'tier_1', 'scheduling,calendar'],
   ['zoom', 'Zoom', 'calendar', 'calendar', 'tier_0', 'meetings,video,calendar'],
   ['granola', 'Granola', 'docs', 'meeting', 'tier_0', 'meetings,notes,transcripts', 'api_key'],
