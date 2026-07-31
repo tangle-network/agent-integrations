@@ -55,8 +55,8 @@ describe('complete CRM provider factory pack', () => {
         clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
       },
       'bigin-by-zoho': {
-        clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
-        clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+        clientId: ['ZOHO_OAUTH_CLIENT_ID', 'ZOHO_CRM_OAUTH_CLIENT_ID', 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID'],
+        clientSecret: ['ZOHO_OAUTH_CLIENT_SECRET', 'ZOHO_CRM_OAUTH_CLIENT_SECRET', 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET'],
       },
       'lead-connector': {
         clientId: 'LEAD_CONNECTOR_OAUTH_CLIENT_ID',

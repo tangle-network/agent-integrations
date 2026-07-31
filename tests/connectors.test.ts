@@ -180,6 +180,22 @@ describe('startOAuthFlow / consumePendingFlow', () => {
     expect(url.searchParams.get('state')).toBe(out.state)
   })
 
+  it('supports provider-specific comma-delimited OAuth scopes', () => {
+    const out = startOAuthFlow({
+      projectId: 'p1',
+      kind: 'zoho-books',
+      label: 'Books',
+      authorizationUrl: 'https://accounts.zoho.com/oauth/v2/auth',
+      scopes: ['ZohoBooks.fullaccess.all', 'ZohoInvoice.fullaccess.all'],
+      scopeSeparator: ',',
+      clientId: 'CID',
+      redirectUri: 'https://app.example.com/cb',
+    })
+    expect(new URL(out.authorizationUrl).searchParams.get('scope')).toBe(
+      'ZohoBooks.fullaccess.all,ZohoInvoice.fullaccess.all',
+    )
+  })
+
   it('round-trips a pending flow', async () => {
     const out = startOAuthFlow({
       projectId: 'p1', kind: 'k', label: 'l',
