@@ -54,6 +54,32 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  'azure-service-bus': {
+    consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.ServiceBus%2Fnamespaces',
+    credentialFields: [
+      {
+        label: 'Azure Service Bus connection string',
+        description: 'Use a dedicated shared access policy with only Send, Listen, or Manage rights required by approved workflows. EntityPath may restrict the connection to one queue or topic.',
+        example: 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=...;SharedAccessKey=...;EntityPath=optional',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'namespace', title: 'Select the customer namespace', detail: 'Open the existing Azure Service Bus namespace or create one under the customer subscription.' },
+      { id: 'policy', title: 'Create a narrow shared access policy', detail: 'Grant only Send, Listen, or Manage rights required by approved workflows.' },
+      { id: 'entity', title: 'Prefer an entity-scoped connection', detail: 'Use a queue or topic EntityPath when namespace-wide discovery is not required.' },
+      { id: 'store', title: 'Store the connection string', detail: 'Copy the primary or secondary connection string into the encrypted connection credential field.' },
+    ],
+    knownQuirks: [
+      { id: 'destructive-receive', severity: 'critical', message: 'Receive-and-delete permanently removes the message as it is returned. Use it only when downstream handling can tolerate loss after a process failure.' },
+      { id: 'format-only-health', severity: 'info', message: 'The setup health check validates connection-string structure without consuming or sending a message. Live permissions are confirmed on the first approved operation.' },
+    ],
+    healthcheck: {
+      id: 'azure-service-bus.credentials',
+      level: 'static',
+      description: 'Validate the Azure Service Bus connection-string structure without sending or consuming a message.',
+    },
+  },
   'gcloud-pubsub': {
     consoleUrl: 'https://console.cloud.google.com/cloudpubsub',
     credentialFields: [
