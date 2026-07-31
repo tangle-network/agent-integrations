@@ -13261,27 +13261,13 @@
     "category": "storage",
     "catalogAuth": "custom",
     "setupAuth": {
-      "mode": "oauth2",
-      "scopes": [
-        {
-          "normalized": "storage.read",
-          "providerScope": "azure-blob-storage.read",
-          "title": "Azure Blob Storage read",
-          "reason": "Read Azure Blob Storage data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "storage.write",
-          "providerScope": "azure-blob-storage.write",
-          "title": "Azure Blob Storage write",
-          "reason": "Create or update Azure Blob Storage resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/azure-blob-storage/callback",
-      "pkce": "unsupported"
+      "mode": "api_key",
+      "credential": {
+        "label": "azure-blob-storage API key",
+        "description": "Azure Storage connection string containing AccountName and either AccountKey or SharedAccessSignature. Store it only in the encrypted credential field. Public Azure cloud endpoints are supported; development-storage and arbitrary custom endpoints are rejected.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "authFields": [
       {
@@ -13368,10 +13354,10 @@
     "runtimePackage": "@activepieces/piece-azure-blob-storage",
     "actionCount": 9,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 9,
     "quality": {
       "tangleContract": true,
@@ -13379,11 +13365,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "azure-communication-services",

@@ -57,6 +57,7 @@ import { acuitySchedulingConnector } from './acuity-scheduling.js'
 import { avomaConnector } from './avoma.js'
 import { avalaraConnector } from './avalara.js'
 import { azureAdConnector } from './azure-ad.js'
+import { azureBlobStorageConnector } from './azure-blob-storage.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
 import { biginByZohoConnector } from './bigin-by-zoho.js'
@@ -500,6 +501,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => n8nConnector, {}),
     defineFactoryAdapter(() => pipedreamConnector, {}),
     defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => azureBlobStorageConnector, {}),
     defineFactoryAdapter(() => backblazeConnector, {}),
     defineFactoryAdapter(() => cloudinaryConnector, {}),
     defineFactoryAdapter(() => codaConnector, {}),
