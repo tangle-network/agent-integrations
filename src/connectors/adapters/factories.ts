@@ -69,6 +69,7 @@ import { insightlyConnector } from './insightly.js'
 import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
+import { justcallConnector } from './justcall.js'
 import { leadConnectorConnector } from './lead-connector.js'
 import { linearConnector } from './linear.js'
 import { linkedinConnector } from './linkedin.js'
@@ -446,6 +447,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => aircallConnector, {}),
     defineFactoryAdapter(() => openPhoneConnector, {}),
     defineFactoryAdapter(() => twilioSmsConnector, {}),
+    defineFactoryAdapter(() => justcallConnector, {}),
     defineFactoryAdapter(() => granolaConnector, {}),
     defineFactoryAdapter(() => firefliesAiConnector, {}),
     defineFactoryAdapter(() => gongConnector, {
