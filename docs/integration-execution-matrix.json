@@ -109052,7 +109052,29 @@
     "title": "Location",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "finance.read",
+          "providerScope": "ZohoBooks.fullaccess.all",
+          "title": "Zoho Books read",
+          "reason": "Read Zoho Books data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-books/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109072,10 +109094,10 @@
     "runtimePackage": "@activepieces/piece-zoho-books",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -109083,18 +109105,46 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "zoho-campaigns",
     "title": "Zoho Campaigns",
     "category": "email",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "ZohoCampaigns.campaign.ALL",
+          "title": "Zoho Campaigns read",
+          "reason": "Read Zoho Campaigns data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "ZohoCampaigns.contact.ALL",
+          "title": "Zoho Campaigns read",
+          "reason": "Read Zoho Campaigns data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-campaigns/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109114,10 +109164,10 @@
     "runtimePackage": "@activepieces/piece-zoho-campaigns",
     "actionCount": 10,
     "triggerCount": 3,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 10,
     "quality": {
       "tangleContract": true,
@@ -109125,11 +109175,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -109141,8 +109190,8 @@
       "mode": "oauth2",
       "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
-      "clientIdEnv": "ZOHO_CRM_OAUTH_CLIENT_ID",
-      "clientSecretEnv": "ZOHO_CRM_OAUTH_CLIENT_SECRET",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
       "scopes": [
         {
           "normalized": "crm.read",
@@ -109167,16 +109216,12 @@
           "reason": "Read Zoho CRM data for user-authorized agent workflows.",
           "risk": "read",
           "dataClass": "private"
-        },
-        {
-          "normalized": "crm.read",
-          "providerScope": "offline_access",
-          "title": "Zoho CRM read",
-          "reason": "Read Zoho CRM data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
         }
       ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-crm/callback",
       "pkce": "unsupported"
     },
@@ -109263,7 +109308,29 @@
     "title": "Region",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "finance.read",
+          "providerScope": "ZohoInvoice.fullaccess.all",
+          "title": "Zoho Invoice read",
+          "reason": "Read Zoho Invoice data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-invoice/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109283,10 +109350,10 @@
     "runtimePackage": "@activepieces/piece-zoho-invoice",
     "actionCount": 0,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -109294,11 +109361,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -109306,7 +109372,53 @@
     "title": "Zoho Mail",
     "category": "chat",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.zoho.com/oauth/v2/auth",
+      "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
+      "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "email.read",
+          "providerScope": "ZohoMail.accounts.READ",
+          "title": "Zoho Mail read",
+          "reason": "Read Zoho Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.read",
+          "providerScope": "ZohoMail.messages.ALL",
+          "title": "Zoho Mail read",
+          "reason": "Read Zoho Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.read",
+          "providerScope": "ZohoMail.folders.ALL",
+          "title": "Zoho Mail read",
+          "reason": "Read Zoho Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.read",
+          "providerScope": "ZohoMail.organization.accounts.READ",
+          "title": "Zoho Mail read",
+          "reason": "Read Zoho Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-mail/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -109326,10 +109438,10 @@
     "runtimePackage": "@activepieces/piece-zoho-mail",
     "actionCount": 7,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 7,
     "quality": {
       "tangleContract": true,
@@ -109337,11 +109449,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {

@@ -1,0 +1,261 @@
+import { declarativeRestConnector } from './declarative-rest.js'
+
+const organizationId = {
+  type: 'string',
+  description: 'Zoho Books organization id. Discover it with organizations.list.',
+} as const
+
+const data = {
+  type: 'object',
+  description: 'Provider-native Zoho Books request body.',
+} as const
+
+export const zohoBooksConnector = declarativeRestConnector({
+  kind: 'zoho-books',
+  displayName: 'Zoho Books',
+  description: 'Manage Zoho Books organizations, contacts, invoices, and customer payments.',
+  auth: {
+    kind: 'oauth2',
+    authorizationUrl: 'https://accounts.zoho.com/oauth/v2/auth',
+    tokenUrl: 'https://accounts.zoho.com/oauth/v2/token',
+    scopes: ['ZohoBooks.fullaccess.all'],
+    scopeSeparator: ',',
+    clientIdEnv: 'ZOHO_OAUTH_CLIENT_ID',
+    clientSecretEnv: 'ZOHO_OAUTH_CLIENT_SECRET',
+    extraAuthParams: { access_type: 'offline', prompt: 'consent' },
+    tokenMetadata: {
+      apiDomain: { field: 'api_domain', required: true },
+    },
+  },
+  category: 'commerce',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: { metadataKey: 'apiDomain', fallback: 'https://www.zohoapis.com' },
+  allowedBaseUrlSuffixes: [
+    '.zohoapis.com',
+    '.zohoapis.eu',
+    '.zohoapis.in',
+    '.zohoapis.com.au',
+    '.zohoapis.jp',
+    '.zohoapis.ca',
+    '.zohocloud.ca',
+    '.zohoapis.com.cn',
+    '.zohoapis.sa',
+  ],
+  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Zoho-oauthtoken ' },
+  test: { method: 'GET', path: '/books/v3/organizations' },
+  capabilities: [
+    {
+      name: 'organizations.list',
+      class: 'read',
+      description: 'List organizations available to the connected Zoho Books user.',
+      parameters: { type: 'object', properties: {} },
+      request: { method: 'GET', path: '/books/v3/organizations' },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'contacts.list',
+      class: 'read',
+      description: 'List customers and vendors in a Zoho Books organization.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organization_id: organizationId,
+          contact_type: { type: 'string', enum: ['customer', 'vendor'] },
+          search_text: { type: 'string' },
+          page: { type: 'integer', minimum: 1 },
+          per_page: { type: 'integer', minimum: 1, maximum: 200 },
+        },
+        required: ['organization_id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/books/v3/contacts',
+        query: {
+          organization_id: '{organization_id}',
+          contact_type: '{contact_type}',
+          search_text: '{search_text}',
+          page: '{page}',
+          per_page: '{per_page}',
+        },
+      },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'contacts.get',
+      class: 'read',
+      description: 'Read one Zoho Books contact.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, contactId: { type: 'string' } },
+        required: ['organization_id', 'contactId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/books/v3/contacts/{contactId}',
+        query: { organization_id: '{organization_id}' },
+      },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'contacts.create',
+      class: 'mutation',
+      description: 'Create a customer or vendor in Zoho Books.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, data },
+        required: ['organization_id', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/books/v3/contacts',
+        query: { organization_id: '{organization_id}' },
+        body: '{data}',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'contacts.update',
+      class: 'mutation',
+      description: 'Update an existing Zoho Books contact.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, contactId: { type: 'string' }, data },
+        required: ['organization_id', 'contactId', 'data'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/books/v3/contacts/{contactId}',
+        query: { organization_id: '{organization_id}' },
+        body: '{data}',
+      },
+      cas: 'optimistic-read-verify',
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'invoices.list',
+      class: 'read',
+      description: 'List invoices with optional customer and status filters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organization_id: organizationId,
+          customer_id: { type: 'string' },
+          status: { type: 'string' },
+          page: { type: 'integer', minimum: 1 },
+          per_page: { type: 'integer', minimum: 1, maximum: 200 },
+        },
+        required: ['organization_id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/books/v3/invoices',
+        query: {
+          organization_id: '{organization_id}',
+          customer_id: '{customer_id}',
+          status: '{status}',
+          page: '{page}',
+          per_page: '{per_page}',
+        },
+      },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'invoices.get',
+      class: 'read',
+      description: 'Read one Zoho Books invoice.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, invoiceId: { type: 'string' } },
+        required: ['organization_id', 'invoiceId'],
+      },
+      request: {
+        method: 'GET',
+        path: '/books/v3/invoices/{invoiceId}',
+        query: { organization_id: '{organization_id}' },
+      },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'invoices.create',
+      class: 'mutation',
+      description: 'Create an invoice in Zoho Books.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, data },
+        required: ['organization_id', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/books/v3/invoices',
+        query: { organization_id: '{organization_id}' },
+        body: '{data}',
+      },
+      cas: 'native-idempotency',
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'invoices.update',
+      class: 'mutation',
+      description: 'Update a Zoho Books invoice.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, invoiceId: { type: 'string' }, data },
+        required: ['organization_id', 'invoiceId', 'data'],
+      },
+      request: {
+        method: 'PUT',
+        path: '/books/v3/invoices/{invoiceId}',
+        query: { organization_id: '{organization_id}' },
+        body: '{data}',
+      },
+      cas: 'optimistic-read-verify',
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'invoices.send',
+      class: 'mutation',
+      description: 'Email an existing invoice to its configured recipients.',
+      parameters: {
+        type: 'object',
+        properties: { organization_id: organizationId, invoiceId: { type: 'string' }, data },
+        required: ['organization_id', 'invoiceId', 'data'],
+      },
+      request: {
+        method: 'POST',
+        path: '/books/v3/invoices/{invoiceId}/email',
+        query: { organization_id: '{organization_id}' },
+        body: '{data}',
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+    {
+      name: 'customer-payments.list',
+      class: 'read',
+      description: 'List customer payments in a Zoho Books organization.',
+      parameters: {
+        type: 'object',
+        properties: {
+          organization_id: organizationId,
+          customer_id: { type: 'string' },
+          page: { type: 'integer', minimum: 1 },
+          per_page: { type: 'integer', minimum: 1, maximum: 200 },
+        },
+        required: ['organization_id'],
+      },
+      request: {
+        method: 'GET',
+        path: '/books/v3/customerpayments',
+        query: {
+          organization_id: '{organization_id}',
+          customer_id: '{customer_id}',
+          page: '{page}',
+          per_page: '{per_page}',
+        },
+      },
+      requiredScopes: ['ZohoBooks.fullaccess.all'],
+    },
+  ],
+})

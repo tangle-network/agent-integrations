@@ -146,6 +146,10 @@ import { zapierConnector } from './zapier.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoCrmConnector } from './zoho-crm.js'
+import { zohoBooksConnector } from './zoho-books.js'
+import { zohoCampaignsConnector } from './zoho-campaigns.js'
+import { zohoInvoiceConnector } from './zoho-invoice.js'
+import { zohoMailConnector } from './zoho-mail.js'
 import { apolloConnector } from './apollo.js'
 import { brazeConnector } from './braze.js'
 import { customerIoConnector } from './customer-io.js'
@@ -216,6 +220,19 @@ const microsoftOAuthEnvMap = {
   clientSecret: [
     'MICROSOFT_OAUTH_CLIENT_SECRET',
     'MS_OAUTH_CLIENT_SECRET',
+  ],
+} as const
+
+const zohoOAuthEnvMap = {
+  clientId: [
+    'ZOHO_OAUTH_CLIENT_ID',
+    'ZOHO_CRM_OAUTH_CLIENT_ID',
+    'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+  ],
+  clientSecret: [
+    'ZOHO_OAUTH_CLIENT_SECRET',
+    'ZOHO_CRM_OAUTH_CLIENT_SECRET',
+    'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
   ],
 } as const
 
@@ -500,10 +517,11 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'CLOSE_OAUTH_CLIENT_ID',
       clientSecret: 'CLOSE_OAUTH_CLIENT_SECRET',
     }),
-    defineFactoryAdapter(() => zohoCrmConnector, {
-      clientId: 'ZOHO_CRM_OAUTH_CLIENT_ID',
-      clientSecret: 'ZOHO_CRM_OAUTH_CLIENT_SECRET',
-    }),
+    defineFactoryAdapter(() => zohoCrmConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoBooksConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoInvoiceConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoMailConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoCampaignsConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => microsoftDynamicsCrmConnector, {
       clientId: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_ID'],
       clientSecret: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_SECRET'],
@@ -532,10 +550,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => insightlyConnector, {}),
-    defineFactoryAdapter(() => biginByZohoConnector, {
-      clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
-      clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
-    }),
+    defineFactoryAdapter(() => biginByZohoConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => fireberryConnector, {}),
     defineFactoryAdapter(() => flowluConnector, {}),
     defineFactoryAdapter(() => leadConnectorConnector, {

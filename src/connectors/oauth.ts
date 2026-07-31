@@ -75,6 +75,8 @@ export interface StartOAuthInput {
   label: string
   authorizationUrl: string
   scopes: string[]
+  /** OAuth defaults to spaces; set `,` for providers such as Zoho. */
+  scopeSeparator?: ' ' | ','
   clientId: string
   redirectUri: string
   /** Optional extra query params; Google needs `access_type=offline` and
@@ -120,7 +122,7 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id', input.clientId)
   url.searchParams.set('redirect_uri', input.redirectUri)
-  url.searchParams.set('scope', input.scopes.join(' '))
+  url.searchParams.set('scope', input.scopes.join(input.scopeSeparator ?? ' '))
   url.searchParams.set('state', state)
   url.searchParams.set('code_challenge', codeChallenge)
   url.searchParams.set('code_challenge_method', 'S256')

@@ -112,7 +112,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       url.searchParams.set('client_id', client.clientId)
       url.searchParams.set('redirect_uri', request.redirectUri)
       if (scopes.length > 0) {
-        url.searchParams.set('scope', scopes.join(' '))
+        url.searchParams.set('scope', scopes.join(auth.scopeSeparator ?? ' '))
       }
       const state = request.state ?? randomState()
       url.searchParams.set('state', state)

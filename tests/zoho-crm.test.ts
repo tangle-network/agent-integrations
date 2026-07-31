@@ -33,10 +33,13 @@ describe('zoho-crm declarative adapter', () => {
     expect(auth.authorizationUrl).toBe('https://accounts.zoho.com/oauth/v2/auth')
     expect(auth.tokenUrl).toBe('https://accounts.zoho.com/oauth/v2/token')
     expect(auth.scopes).toEqual(
-      expect.arrayContaining(['ZohoCRM.modules.ALL', 'ZohoCRM.users.READ', 'offline_access']),
+      expect.arrayContaining(['ZohoCRM.modules.ALL', 'ZohoCRM.users.READ']),
     )
-    expect(auth.clientIdEnv).toBe('ZOHO_CRM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZOHO_CRM_OAUTH_CLIENT_SECRET')
+    expect(auth.scopes).not.toContain('offline_access')
+    expect(auth.scopeSeparator).toBe(',')
+    expect(auth.extraAuthParams).toEqual({ access_type: 'offline', prompt: 'consent' })
+    expect(auth.clientIdEnv).toBe('ZOHO_OAUTH_CLIENT_ID')
+    expect(auth.clientSecretEnv).toBe('ZOHO_OAUTH_CLIENT_SECRET')
   })
 
   it('declares the canonical CRM action surface for the catalog', () => {

@@ -365,6 +365,9 @@ type OAuth2AuthSpec = {
   /** Scopes requested in the authorization grant. The user UI shows
    *  these so the customer knows what's being shared. */
   scopes: string[]
+  /** Separator used when serializing multiple scopes into the authorization
+   *  URL. OAuth defaults to spaces; Zoho requires comma-delimited scopes. */
+  scopeSeparator?: ' ' | ','
   /** Whether the connector supports incremental authorization (Google
    *  does; many don't). */
   incremental?: boolean
