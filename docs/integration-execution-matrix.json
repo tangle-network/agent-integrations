@@ -13459,18 +13459,25 @@
   },
   {
     "id": "azure-event-grid",
-    "title": "Azure Event Grid",
-    "category": "webhook",
+    "title": "azure-event-grid",
+    "category": "internal",
     "catalogAuth": null,
-    "setupAuth": "custom",
-    "authFields": [],
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "azure-event-grid API key",
+        "description": "JSON containing endpoint, accessKey, and deliverySecret. endpoint is the Azure custom topic or domain /api/events URL. Configure deliverySecret as the static x-tangle-eventgrid-secret delivery header on each Event Grid subscription.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 1,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -13478,11 +13485,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "azure-openai",

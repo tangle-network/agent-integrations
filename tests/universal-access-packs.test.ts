@@ -18,6 +18,7 @@ describe('universal access provider packs', () => {
     'amazon-eventbridge',
     'gcloud-pubsub',
     'azure-service-bus',
+    'azure-event-grid',
   ])('%s is executable from a shipped adapter', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('executable')
@@ -33,6 +34,7 @@ describe('universal access provider packs', () => {
     'amazon-eventbridge',
     'gcloud-pubsub',
     'azure-service-bus',
+    'azure-event-grid',
   ])(
     '%s is runnable by Hub without a shared deployment secret',
     (kind) => {
@@ -62,7 +64,6 @@ describe('universal access provider packs', () => {
     'excel-files',
     'parquet-files',
     'kafka',
-    'azure-event-grid',
   ])('%s is contract-only until its transport is implemented', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('catalog')
