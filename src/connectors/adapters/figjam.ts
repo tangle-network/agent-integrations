@@ -31,8 +31,12 @@ export const figjamConnector = declarativeRestConnector({
     authorizationUrl: 'https://www.figma.com/oauth',
     tokenUrl: 'https://api.figma.com/v1/oauth/token',
     scopes: [
-      'files:read',
+      'current_user:read',
+      'file_comments:read',
       'file_comments:write',
+      'file_content:read',
+      'file_versions:read',
+      'projects:read',
       'webhooks:write',
     ],
     clientIdEnv: 'FIGMA_OAUTH_CLIENT_ID',
@@ -49,7 +53,7 @@ export const figjamConnector = declarativeRestConnector({
       description: 'Return the authenticated Figma/FigJam user.',
       parameters: { type: 'object', properties: {}, required: [] },
       request: { method: 'GET', path: '/v1/me' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['current_user:read'],
     },
     {
       name: 'files.get',
@@ -78,7 +82,7 @@ export const figjamConnector = declarativeRestConnector({
           plugin_data: '{plugin_data}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.nodes',
@@ -100,7 +104,7 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/nodes',
         query: { ids: '{ids}', version: '{version}', depth: '{depth}', geometry: '{geometry}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.images',
@@ -135,7 +139,7 @@ export const figjamConnector = declarativeRestConnector({
           version: '{version}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.image_fills',
@@ -147,7 +151,7 @@ export const figjamConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/images' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.versions.list',
@@ -168,7 +172,7 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/versions',
         query: { page_size: '{page_size}', before: '{before}', after: '{after}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_versions:read'],
     },
     {
       name: 'files.comments.list',
@@ -187,7 +191,7 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/comments',
         query: { as_md: '{as_md}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_comments:read'],
     },
     {
       name: 'teams.projects.list',
@@ -199,7 +203,7 @@ export const figjamConnector = declarativeRestConnector({
         required: ['team_id'],
       },
       request: { method: 'GET', path: '/v1/teams/{team_id}/projects' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['projects:read'],
     },
     {
       name: 'projects.files.list',
@@ -216,7 +220,7 @@ export const figjamConnector = declarativeRestConnector({
         method: 'GET',
         path: '/v1/projects/{project_id}/files',
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['projects:read'],
     },
     {
       name: 'files.comments.create',
