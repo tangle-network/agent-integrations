@@ -78,9 +78,11 @@ describe('billplz cancel.bill', () => {
   it('sends DELETE /v3/bills/{id} and returns a committed mutation result', async () => {
     let requestMethod: string | undefined
     let requestUrl: string | undefined
+    let authorization: string | null = null
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       requestUrl = String(input)
       requestMethod = init?.method
+      authorization = new Headers(init?.headers).get('authorization')
       return jsonResponse({ id: 'bill-123' })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -94,6 +96,7 @@ describe('billplz cancel.bill', () => {
 
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toContain('/v3/bills/bill-123')
+    expect(authorization).toBe(`Basic ${Buffer.from('bp-secret:').toString('base64')}`)
     expect(result.status).toBe('committed')
     if (result.status !== 'committed') return
     expect(result.idempotentReplay).toBe(false)

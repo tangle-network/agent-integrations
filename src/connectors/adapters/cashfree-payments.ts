@@ -7,9 +7,9 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // orchestration time via source.metadata.baseUrl override (resolveBaseUrl).
 //
 // Auth model: Cashfree requires both x-client-id and x-client-secret on every
-// request. The catalog declares `api_key` auth. We carry the client secret as
-// the credential and require the client id from source.metadata.clientId so a
-// single api-key credential can express both PG and Payouts scopes per tenant.
+// request. Both values stay in the encrypted credential envelope as either
+// custom values or an API-key JSON object; connection metadata never carries
+// credential material.
 export const cashfreePaymentsConnector = declarativeRestConnector({
   kind: 'cashfree-payments',
   displayName: 'Cashfree Payments',
@@ -17,15 +17,26 @@ export const cashfreePaymentsConnector = declarativeRestConnector({
     'Cashfree Payments integration for processing payments, refunds, and managing payment links and cashgrams.',
   auth: {
     kind: 'api-key',
-    hint: 'Cashfree client secret. Set source.metadata.clientId to the matching x-client-id; override metadata.baseUrl for sandbox/payouts hosts.',
+    hint: 'Cashfree credential JSON with clientId and clientSecret.',
   },
   category: 'commerce',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl', fallback: 'https://api.cashfree.com/pg' },
-  credentialPlacement: { kind: 'header', header: 'x-client-secret' },
+  allowedBaseUrls: [
+    'https://api.cashfree.com/pg',
+    'https://sandbox.cashfree.com/pg',
+    'https://payout-api.cashfree.com/payout',
+    'https://payout-gamma.cashfree.com/payout',
+  ],
+  credentialPlacement: {
+    kind: 'structured-headers',
+    fields: {
+      clientId: 'x-client-id',
+      clientSecret: 'x-client-secret',
+    },
+  },
   defaultHeaders: {
     'x-api-version': '2023-08-01',
-    'x-client-id': '{metadata.clientId}',
   },
   test: { method: 'GET', path: '/orders/__connector_probe__' },
   capabilities: [

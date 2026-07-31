@@ -11,6 +11,7 @@ export const saleorConnector = declarativeRestConnector({
   category: 'commerce',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiUrl' },
+  requirePublicHttpsBaseUrl: true,
   test: { method: 'POST', path: '/', body: { query: '{ shop { name } }' } },
   capabilities: [
     {
