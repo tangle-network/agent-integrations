@@ -1,4 +1,45 @@
 import type { ConnectorAdapter } from '../types.js'
+import { actualbudgetConnector } from './actualbudget.js'
+import { aianswerConnector } from './aianswer.js'
+import { airparserConnector } from './airparser.js'
+import { anyhookWebsocketConnector } from './anyhook-websocket.js'
+import { apifyConnector } from './apify.js'
+import { askHandleConnector } from './ask-handle.js'
+import { bannerbearConnector } from './bannerbear.js'
+import { base44Connector } from './base44.js'
+import { beehiivConnector } from './beehiiv.js'
+import { bikaConnector } from './bika.js'
+import { buttondownConnector } from './buttondown.js'
+import { cambAiConnector } from './camb-ai.js'
+import { cartloomConnector } from './cartloom.js'
+import { chainAwareConnector } from './chain-aware.js'
+import { chaindeskConnector } from './chaindesk.js'
+import { chatAidConnector } from './chat-aid.js'
+import { chatsistantConnector } from './chatsistant.js'
+import { claudeConnector } from './claude.js'
+import { clearoutphoneConnector } from './clearoutphone.js'
+import { clickfunnelsConnector } from './clickfunnels.js'
+import { codyConnector } from './cody.js'
+import { contextualAiConnector } from './contextual-ai.js'
+import { contiguityConnector } from './contiguity.js'
+import { couchbaseConnector } from './couchbase.js'
+import { dappierConnector } from './dappier.js'
+import { deepgramConnector } from './deepgram.js'
+import { detectingAiConnector } from './detecting-ai.js'
+import { digitalPilotConnector } from './digital-pilot.js'
+import { docsbotConnector } from './docsbot.js'
+import { dripConnector } from './drip.js'
+import { echowinConnector } from './echowin.js'
+import { elevenlabsConnector } from './elevenlabs.js'
+import { everhourConnector } from './everhour.js'
+import { featheryConnector } from './feathery.js'
+import { fellowConnector } from './fellow.js'
+import { flowParserConnector } from './flow-parser.js'
+import { gammaConnector } from './gamma.js'
+import { genderApiConnector } from './gender-api.js'
+import { generatebannersConnector } from './generatebanners.js'
+import { giftbitConnector } from './giftbit.js'
+import { modelslabConnector } from './modelslab.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
@@ -342,6 +383,47 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'SUPABASE_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => airtableConnector, {}),
+    defineFactoryAdapter(() => actualbudgetConnector, {}),
+    defineFactoryAdapter(() => aianswerConnector, {}),
+    defineFactoryAdapter(() => airparserConnector, {}),
+    defineFactoryAdapter(() => anyhookWebsocketConnector, {}),
+    defineFactoryAdapter(() => apifyConnector, {}),
+    defineFactoryAdapter(() => askHandleConnector, {}),
+    defineFactoryAdapter(() => bannerbearConnector, {}),
+    defineFactoryAdapter(() => base44Connector, {}),
+    defineFactoryAdapter(() => beehiivConnector, {}),
+    defineFactoryAdapter(() => bikaConnector, {}),
+    defineFactoryAdapter(() => buttondownConnector, {}),
+    defineFactoryAdapter(() => cambAiConnector, {}),
+    defineFactoryAdapter(() => cartloomConnector, {}),
+    defineFactoryAdapter(() => chainAwareConnector, {}),
+    defineFactoryAdapter(() => chaindeskConnector, {}),
+    defineFactoryAdapter(() => chatAidConnector, {}),
+    defineFactoryAdapter(() => chatsistantConnector, {}),
+    defineFactoryAdapter(() => claudeConnector, {}),
+    defineFactoryAdapter(() => clearoutphoneConnector, {}),
+    defineFactoryAdapter(() => clickfunnelsConnector, {}),
+    defineFactoryAdapter(() => codyConnector, {}),
+    defineFactoryAdapter(() => contextualAiConnector, {}),
+    defineFactoryAdapter(() => contiguityConnector, {}),
+    defineFactoryAdapter(() => couchbaseConnector, {}),
+    defineFactoryAdapter(() => dappierConnector, {}),
+    defineFactoryAdapter(() => deepgramConnector, {}),
+    defineFactoryAdapter(() => detectingAiConnector, {}),
+    defineFactoryAdapter(() => digitalPilotConnector, {}),
+    defineFactoryAdapter(() => docsbotConnector, {}),
+    defineFactoryAdapter(() => dripConnector, {}),
+    defineFactoryAdapter(() => echowinConnector, {}),
+    defineFactoryAdapter(() => elevenlabsConnector, {}),
+    defineFactoryAdapter(() => everhourConnector, {}),
+    defineFactoryAdapter(() => featheryConnector, {}),
+    defineFactoryAdapter(() => fellowConnector, {}),
+    defineFactoryAdapter(() => flowParserConnector, {}),
+    defineFactoryAdapter(() => gammaConnector, {}),
+    defineFactoryAdapter(() => genderApiConnector, {}),
+    defineFactoryAdapter(() => generatebannersConnector, {}),
+    defineFactoryAdapter(() => giftbitConnector, {}),
+    defineFactoryAdapter(() => modelslabConnector, {}),
     defineFactoryAdapter(() => segmentConnector, {}),
     defineFactoryAdapter(() => hightouchConnector, {}),
     defineFactoryAdapter(() => datadogConnector, {}),
