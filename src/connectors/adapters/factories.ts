@@ -183,6 +183,7 @@ import { pipedreamConnector } from './pipedream.js'
 import { pipedriveConnector } from './pipedrive.js'
 import { parquetFilesConnector } from './parquet-files.js'
 import { quickbooksConnector } from './quickbooks.js'
+import { rabbitMqConnector } from './rabbitmq.js'
 import { recallAiConnector } from './recall-ai.js'
 import { rampConnector } from './ramp.js'
 import { ringcentralConnector } from './ringcentral.js'
@@ -516,6 +517,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => rssConnector, {}),
     defineFactoryAdapter(() => kafkaConnector, {}),
     defineFactoryAdapter(() => duckdbConnector, {}),
+    defineFactoryAdapter(() => rabbitMqConnector, {}),
     defineFactoryAdapter(() => csvFilesConnector, {}),
     defineFactoryAdapter(() => excelFilesConnector, {}),
     defineFactoryAdapter(() => parquetFilesConnector, {}),
