@@ -14110,7 +14110,15 @@
     "title": "Baserow",
     "category": "docs",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "baserow API key",
+        "description": "Baserow database token. Grant only the tables and create/read/update/delete permissions this connection needs.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "view_id",
@@ -14313,10 +14321,10 @@
     "runtimePackage": "@activepieces/piece-baserow",
     "actionCount": 13,
     "triggerCount": 7,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 13,
     "quality": {
       "tangleContract": true,
@@ -14324,11 +14332,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
