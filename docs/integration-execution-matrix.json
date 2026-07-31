@@ -12786,6 +12786,38 @@
     ]
   },
   {
+    "id": "avalara",
+    "title": "avalara",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "avalara API key",
+        "description": "JSON credential bundle: {\"accountId\":\"...\",\"licenseKey\":\"...\"}. Use apiBaseUrl metadata for the sandbox host when needed.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "avian",
     "title": "Avian",
     "category": "workflow",
@@ -94512,6 +94544,38 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "taxjar",
+    "title": "taxjar",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "taxjar API key",
+        "description": "TaxJar SmartCalcs API token from Account → TaxJar API.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "teable",

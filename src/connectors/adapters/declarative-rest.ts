@@ -23,7 +23,10 @@ export type RestCredentialPlacement =
   /** HTTP Basic with the API key as the username and an empty password.
    *  Insightly uses this convention for its otherwise single-secret auth. */
   | { kind: 'basic-api-key' }
-  | { kind: 'header'; header: string; prefix?: string }
+  | { kind: 'header'; header: string; prefix?: string; suffix?: string }
+  /** HTTP Basic from a JSON credential bundle. The two named fields are
+   *  encoded as `username:password` without exposing either in metadata. */
+  | { kind: 'basic-structured'; usernameField: string; passwordField: string }
   | { kind: 'query'; parameter: string }
   /** Multi-part credentials stored as either `custom.values` or a JSON object
    *  in the api-key field. Keys are copied into provider headers. This keeps
@@ -356,6 +359,11 @@ export async function executeRestRequest(
   const structuredCredentials =
     placement.kind === 'structured-headers' || placement.kind === 'structured-json-body'
       ? readStructuredCredentials(inv.source.credentials, placement.fields)
+      : placement.kind === 'basic-structured'
+        ? readStructuredCredentials(inv.source.credentials, {
+            [placement.usernameField]: placement.usernameField,
+            [placement.passwordField]: placement.passwordField,
+          })
       : undefined
   if (placement.kind === 'structured-headers') {
     for (const [credentialName, headerName] of Object.entries(placement.fields)) {
@@ -402,6 +410,10 @@ export async function executeRestRequest(
       region: awsRegion!,
       bundle: aws!,
     })
+  } else if (placement.kind === 'basic-structured') {
+    const username = structuredCredentials![placement.usernameField]!
+    const password = structuredCredentials![placement.passwordField]!
+    headers.authorization = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
   } else if (placement.kind !== 'structured-headers' && placement.kind !== 'structured-json-body') {
     applyCredentials(headers, url, placement, inv.source.credentials)
   }
@@ -423,7 +435,11 @@ export async function executeRestRequest(
   // would have had a landed write reclassified as a failure. ~200 connectors
   // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
-    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
     return {
       data: parseBodyText(text),
       outcome: 'conflict',
@@ -433,7 +449,11 @@ export async function executeRestRequest(
     }
   }
   if (res.status === 429) {
-    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
     return {
       data: parseBodyText(text),
       outcome: 'rate-limited',
@@ -452,7 +472,11 @@ export async function executeRestRequest(
     return { data: { exists: res.status === 204 } }
   }
   if (!res.ok) {
-    const text = redactCredentialText(await safeErrorText(res), inv.source.credentials)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
   const text = await res.text()
@@ -577,7 +601,9 @@ function applyCredentials(
   if (placement.kind === 'basic-api-key') {
     headers.authorization = `Basic ${Buffer.from(`${token}:`).toString('base64')}`
   }
-  if (placement.kind === 'header') headers[placement.header] = `${placement.prefix ?? ''}${token}`
+  if (placement.kind === 'header') {
+    headers[placement.header] = `${placement.prefix ?? ''}${token}${placement.suffix ?? ''}`
+  }
   if (placement.kind === 'query') url.searchParams.set(placement.parameter, token)
 }
 
@@ -624,7 +650,11 @@ function credentialToken(credentials: ConnectorCredentials): string {
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
 }
 
-function redactCredentialText(text: string, credentials: ConnectorCredentials): string {
+function redactCredentialText(
+  text: string,
+  credentials: ConnectorCredentials,
+  additionalSecrets: Array<string | undefined> = [],
+): string {
   const candidates = credentials.kind === 'oauth2'
     ? [credentials.accessToken, credentials.refreshToken]
     : credentials.kind === 'api-key'
@@ -632,7 +662,7 @@ function redactCredentialText(text: string, credentials: ConnectorCredentials): 
       : credentials.kind === 'custom'
         ? Object.values(credentials.values)
       : []
-  const secrets = candidates.filter(
+  const secrets = [...candidates, ...additionalSecrets].filter(
     (secret): secret is string => typeof secret === 'string' && secret.length > 0,
   )
   return secrets.reduce<string>(

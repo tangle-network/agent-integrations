@@ -51,6 +51,7 @@ import { asanaConnector } from './asana.js'
 import { attioConnector } from './attio.js'
 import { auth0Connector } from './auth0.js'
 import { avomaConnector } from './avoma.js'
+import { avalaraConnector } from './avalara.js'
 import { azureAdConnector } from './azure-ad.js'
 import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
@@ -72,6 +73,7 @@ import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
 import { recurlyConnector } from './recurly.js'
+import { taxjarConnector } from './taxjar.js'
 import { cashfreePaymentsConnector } from './cashfree-payments.js'
 import { circleConnector } from './circle.js'
 import { checkoutConnector } from './checkout.js'
@@ -689,6 +691,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => stripePackConnector, {}),
     defineFactoryAdapter(() => chargebeeConnector, {}),
     defineFactoryAdapter(() => recurlyConnector, {}),
+    defineFactoryAdapter(() => avalaraConnector, {}),
+    defineFactoryAdapter(() => taxjarConnector, {}),
     defineFactoryAdapter(() => paddleConnector, {}),
     defineFactoryAdapter(() => plaidConnector, {}),
     defineFactoryAdapter(() => rampConnector, {}),
