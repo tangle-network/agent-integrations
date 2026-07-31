@@ -71,6 +71,7 @@ import { confluenceConnector } from './confluence.js'
 import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
+import { recurlyConnector } from './recurly.js'
 import { cashfreePaymentsConnector } from './cashfree-payments.js'
 import { circleConnector } from './circle.js'
 import { checkoutConnector } from './checkout.js'
@@ -682,6 +683,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     // credential bundles, so no shared deployment secret gates registration.
     defineFactoryAdapter(() => stripePackConnector, {}),
     defineFactoryAdapter(() => chargebeeConnector, {}),
+    defineFactoryAdapter(() => recurlyConnector, {}),
     defineFactoryAdapter(() => paddleConnector, {}),
     defineFactoryAdapter(() => plaidConnector, {}),
     defineFactoryAdapter(() => rampConnector, {}),
