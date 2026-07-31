@@ -16,6 +16,7 @@ import {
   getBundledAdapterManifest,
 } from '../connectors/bundled-manifests.js'
 import type { ConnectorManifest } from '../connectors/types.js'
+import { canonicalIntegrationKind } from '../integration-kind-aliases.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
 import { getIntegrationOverride } from './overrides.js'
 import type {
@@ -51,16 +52,6 @@ function bundledManifestFor(kind: string, coverageId: string) {
   return getBundledAdapterManifest(kind) ?? getBundledAdapterManifest(coverageId)
 }
 
-const KIND_ALIASES: Record<string, string> = {
-  'outlook-calendar': 'microsoft-calendar',
-  'microsoft-excel': 'microsoft-excel-365',
-  'aws-s3': 'amazon-s3',
-  'notion-database': 'notion',
-  jira: 'jira-cloud',
-  stripe: 'stripe-pack',
-  twilio: 'twilio-sms',
-}
-
 export function listIntegrationSpecs(): IntegrationSpec[] {
   const connectors = new Map(buildIntegrationCoverageConnectors({ providerId: 'spec' }).map((c) => [c.id, c]))
   return listIntegrationCoverageSpecs().map((coverage) => {
@@ -71,8 +62,8 @@ export function listIntegrationSpecs(): IntegrationSpec[] {
 }
 
 export function getIntegrationSpec(kind: string): IntegrationSpec | undefined {
-  const canonical = KIND_ALIASES[kind] ?? kind
-  return listIntegrationSpecs().find((spec) => spec.kind === canonical || KIND_ALIASES[spec.kind] === canonical)
+  const canonical = canonicalIntegrationKind(kind)
+  return listIntegrationSpecs().find((spec) => canonicalIntegrationKind(spec.kind) === canonical)
 }
 
 /** Auth-driving descriptor the hub uses to start a connect flow per provider
@@ -148,7 +139,7 @@ export function integrationSpecToConnector(spec: IntegrationSpec, providerId = '
 }
 
 function specFromCoverage(coverage: IntegrationCoverageSpec, connector: IntegrationConnector): IntegrationSpec {
-  const kind = KIND_ALIASES[coverage.id] ?? coverage.id
+  const kind = canonicalIntegrationKind(coverage.id)
   const family = familyFor(coverage)
   const familySpec = getIntegrationFamily(family)
   const manifest = bundledManifestFor(kind, coverage.id)

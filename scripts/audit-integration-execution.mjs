@@ -5,6 +5,7 @@ import {
   listTangleIntegrationContracts,
   listTangleNativeAdapterIds,
   listIntegrationSpecs,
+  canonicalIntegrationKind,
 } from '../dist/index.js'
 
 const catalog = JSON.parse(readFileSync('data/activepieces-catalog.json', 'utf8'))
@@ -16,9 +17,9 @@ const connectors = buildTangleIntegrationCatalogConnectors({
 })
 const contracts = listTangleIntegrationContracts()
 const firstParty = listTangleNativeAdapterIds()
-const firstPartySet = new Set(firstParty)
+const firstPartySet = new Set(firstParty.map(canonicalIntegrationKind))
 const catalogIds = new Set(catalog.map((entry) => entry.id))
-const catalogRuntimeConnectors = connectors.filter((connector) => !firstPartySet.has(connector.id))
+const catalogRuntimeConnectors = connectors.filter((connector) => !firstPartySet.has(canonicalIntegrationKind(connector.id)))
 const runtimePackageManifest = buildTangleCatalogRuntimePackageManifest({
   agentIntegrationsVersion: pkg.version,
 })
@@ -64,10 +65,10 @@ const specsByKind = new Map(specs.map((spec) => [spec.kind, spec]))
 const contractsById = new Map(contracts.map((contract) => [contract.id, contract]))
 const matrix = [
   ...catalog.map((entry) => {
-    const spec = specsByKind.get(entry.id)
+    const spec = specsByKind.get(canonicalIntegrationKind(entry.id))
     const contract = contractsById.get(entry.id)
     const catalogActionMappings = entry.actions.filter((action) => action.upstreamName).length
-    const firstPartyExecutable = firstPartySet.has(entry.id)
+    const firstPartyExecutable = firstPartySet.has(canonicalIntegrationKind(entry.id))
     return {
       id: entry.id,
       title: entry.title,

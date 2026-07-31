@@ -197,6 +197,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['pandadoc', 'PandaDoc', 'docs', 'docs', 'tier_1', 'contracts,signature,sales'],
   ['hellosign', 'Dropbox Sign', 'docs', 'docs', 'tier_2', 'contracts,signature'],
   ['clio', 'Clio', 'workflow', 'project', 'tier_1', 'legal,practice-management'],
+  ['mycase', 'MyCase', 'crm', 'project', 'tier_1', 'legal,practice-management,cases'],
   ['ironclad', 'Ironclad', 'docs', 'docs', 'tier_1', 'legal,contracts'],
   ['lexisnexis', 'LexisNexis', 'docs', 'docs', 'tier_2', 'legal,research'],
   ['calendly', 'Calendly', 'calendar', 'calendar', 'tier_0', 'scheduling,calendar'],

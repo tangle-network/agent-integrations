@@ -23,6 +23,7 @@ import {
 } from './index.js'
 import * as bundledAdapters from './connectors/adapters/index.js'
 import type { ConnectorAdapter } from './connectors/types.js'
+import { canonicalIntegrationKind } from './integration-kind-aliases.js'
 
 export {
   type ActivepiecesCatalogEntry,
@@ -205,9 +206,9 @@ export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogE
 }
 
 export function listTangleIntegrationContracts(): TangleIntegrationContract[] {
-  const nativeAdapterIds = new Set(listTangleNativeAdapterIds())
+  const nativeAdapterIds = new Set(listTangleNativeAdapterIds().map(canonicalIntegrationKind))
   return listActivepiecesCatalogEntries().map((entry) => {
-    const nativeAdapter = nativeAdapterIds.has(entry.id)
+    const nativeAdapter = nativeAdapterIds.has(canonicalIntegrationKind(entry.id))
     return {
       id: entry.id,
       title: entry.title,

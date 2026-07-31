@@ -45835,7 +45835,41 @@
     "title": "Help Scout",
     "category": "crm",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://secure.helpscout.net/authentication/authorizeClientApplication",
+      "tokenUrl": "https://api.helpscout.net/v2/oauth2/token",
+      "clientIdEnv": "HELPSCOUT_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "HELPSCOUT_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "support.read",
+          "providerScope": "tickets.search.read",
+          "title": "Help Scout read",
+          "reason": "Read Help Scout data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "support.write",
+          "providerScope": "tickets.reply.write",
+          "title": "Help Scout write",
+          "reason": "Create or update Help Scout resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "support.read",
+          "providerScope": "customers.read",
+          "title": "Help Scout read",
+          "reason": "Read Help Scout data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/helpscout/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -45855,10 +45889,10 @@
     "runtimePackage": "@activepieces/piece-help-scout",
     "actionCount": 8,
     "triggerCount": 4,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 8,
     "quality": {
       "tangleContract": true,
@@ -45866,11 +45900,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -61374,7 +61407,33 @@
     "title": "Microsoft OneDrive",
     "category": "storage",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "storage.read",
+          "providerScope": "https://graph.microsoft.com/Files.Read",
+          "title": "OneDrive read",
+          "reason": "Read OneDrive data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.read",
+          "providerScope": "offline_access",
+          "title": "OneDrive read",
+          "reason": "Read OneDrive data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -61394,10 +61453,10 @@
     "runtimePackage": "@activepieces/piece-microsoft-onedrive",
     "actionCount": 4,
     "triggerCount": 1,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 4,
     "quality": {
       "tangleContract": true,
@@ -61405,11 +61464,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -61501,7 +61559,49 @@
     "title": "Microsoft Outlook",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "email.read",
+          "providerScope": "https://graph.microsoft.com/Mail.Read",
+          "title": "Outlook Mail read",
+          "reason": "Read Outlook Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.read",
+          "providerScope": "https://graph.microsoft.com/Mail.Send",
+          "title": "Outlook Mail read",
+          "reason": "Read Outlook Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.write",
+          "providerScope": "https://graph.microsoft.com/Mail.ReadWrite",
+          "title": "Outlook Mail write",
+          "reason": "Create or update Outlook Mail resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "email.read",
+          "providerScope": "offline_access",
+          "title": "Outlook Mail read",
+          "reason": "Read Outlook Mail data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -61521,10 +61621,10 @@
     "runtimePackage": "@activepieces/piece-microsoft-outlook",
     "actionCount": 11,
     "triggerCount": 3,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 11,
     "quality": {
       "tangleContract": true,
@@ -61532,11 +61632,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -61544,7 +61643,33 @@
     "title": "Microsoft Outlook Calendar",
     "category": "docs",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "calendar.write",
+          "providerScope": "https://graph.microsoft.com/Calendars.ReadWrite",
+          "title": "Outlook Calendar write",
+          "reason": "Create or update Outlook Calendar resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "calendar.read",
+          "providerScope": "offline_access",
+          "title": "Outlook Calendar read",
+          "reason": "Read Outlook Calendar data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -61564,10 +61689,10 @@
     "runtimePackage": "@activepieces/piece-microsoft-outlook-calendar",
     "actionCount": 3,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 3,
     "quality": {
       "tangleContract": true,
@@ -61575,11 +61700,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "microsoft-power-bi",
@@ -61660,7 +61783,41 @@
     "title": "Microsoft SharePoint",
     "category": "storage",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopes": [
+        {
+          "normalized": "storage.write",
+          "providerScope": "https://graph.microsoft.com/Sites.ReadWrite.All",
+          "title": "SharePoint write",
+          "reason": "Create or update SharePoint resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.write",
+          "providerScope": "https://graph.microsoft.com/Files.ReadWrite.All",
+          "title": "SharePoint write",
+          "reason": "Create or update SharePoint resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "storage.read",
+          "providerScope": "offline_access",
+          "title": "SharePoint read",
+          "reason": "Read SharePoint data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -61680,10 +61837,10 @@
     "runtimePackage": "@activepieces/piece-microsoft-sharepoint",
     "actionCount": 15,
     "triggerCount": 8,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 15,
     "quality": {
       "tangleContract": true,
@@ -61691,11 +61848,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -66237,11 +66393,53 @@
     ]
   },
   {
+    "id": "mycase",
+    "title": "mycase",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://auth.mycase.com/login_sessions/new",
+      "tokenUrl": "https://auth.mycase.com/tokens",
+      "clientIdEnv": "MYCASE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MYCASE_OAUTH_CLIENT_SECRET",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": null,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "mycase-piece",
     "title": "MyCase",
     "category": "workflow",
     "catalogAuth": "oauth2",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://auth.mycase.com/login_sessions/new",
+      "tokenUrl": "https://auth.mycase.com/tokens",
+      "clientIdEnv": "MYCASE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "MYCASE_OAUTH_CLIENT_SECRET",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "access_token",
@@ -66261,10 +66459,10 @@
     "runtimePackage": "@activepieces/piece-mycase-piece",
     "actionCount": 37,
     "triggerCount": 5,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 37,
     "quality": {
       "tangleContract": true,
@@ -66272,11 +66470,10 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
-      "executable_setup_spec"
+      "hosted_trigger_runtime"
     ]
   },
   {
@@ -82202,9 +82399,9 @@
     "actionCount": 3,
     "triggerCount": 0,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 3,
     "quality": {
       "tangleContract": true,
@@ -82212,7 +82409,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "executable_setup_spec"
@@ -91693,7 +91890,16 @@
     "title": "Secret API Key",
     "category": "crm",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "stripe API key",
+        "description": "Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions and write on invoices + checkout + subscriptions + billing portal.",
+        "example": "sk_live_...",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "cancel_at_period_end",
@@ -92079,7 +92285,7 @@
     "runtimePackage": "@activepieces/piece-stripe",
     "actionCount": 18,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -92092,9 +92298,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "stripe-pack",
@@ -94873,7 +95077,15 @@
     "title": "Bot Token",
     "category": "chat",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "telegram API key",
+        "description": "Paste the bot token issued by @BotFather (format: \"123456789:AAExxxxx...\"). The token IS the credential — Telegram has no OAuth grant.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "instructions",
@@ -95107,10 +95319,10 @@
     "runtimePackage": "@activepieces/piece-telegram-bot",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 0,
     "quality": {
       "tangleContract": true,
@@ -95118,11 +95330,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "telnyx",
@@ -97613,7 +97823,15 @@
     "title": "Account SID",
     "category": "chat",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "twilio API key",
+        "description": "Paste your Twilio credentials as \"AccountSid:AuthToken\" (e.g. \"AC123…:abc…\"). API-key style \"AccountSid:KeySid:Secret\" is also accepted.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
     "authFields": [
       {
         "key": "recording_sid",
@@ -97714,7 +97932,7 @@
     "runtimePackage": "@activepieces/piece-twilio",
     "actionCount": 0,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -97727,9 +97945,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "twilio-sms",

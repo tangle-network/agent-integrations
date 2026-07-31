@@ -193,6 +193,7 @@ export { adobeCreativeCloudConnector } from './adobe-creative-cloud.js'
 export { linearConnector } from './linear.js'
 export { trelloConnector } from './trello.js'
 export { mondayConnector } from './monday.js'
+export { mycaseConnector } from './mycase.js'
 export { clickupConnector } from './clickup.js'
 export { basecampConnector } from './basecamp.js'
 // Legal practice management
