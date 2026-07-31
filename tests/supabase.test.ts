@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { supabaseConnector } from '../src/connectors/adapters/supabase.js'
-import type { ResolvedDataSource } from '../src/connectors/types.js'
+import {
+  validateConnectorManifest,
+  type ResolvedDataSource,
+} from '../src/connectors/types.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -12,7 +15,7 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     consistencyModel: 'authoritative',
     scopes: [],
     metadata: {},
-    credentials: { kind: 'oauth2', accessToken: 'sbp_token' },
+    credentials: { kind: 'api-key', apiKey: 'sbp_personal_access_token' },
     status: 'active',
     ...overrides,
   }
@@ -34,14 +37,18 @@ describe('supabase adapter manifest', () => {
     expect(supabaseConnector.manifest.kind).toBe('supabase')
     expect(supabaseConnector.manifest.category).toBe('other')
     expect(supabaseConnector.manifest.defaultConsistencyModel).toBe('authoritative')
+    expect(validateConnectorManifest(supabaseConnector.manifest)).toEqual({
+      ok: true,
+      issues: [],
+    })
   })
 
-  it('declares oauth2 auth with Supabase Management API endpoints', () => {
+  it('requires a customer-supplied Management API personal access token', () => {
     const auth = supabaseConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/api\.supabase\.com/)
-    expect(auth.tokenUrl).toMatch(/api\.supabase\.com/)
+    expect(auth).toEqual({
+      kind: 'api-key',
+      hint: expect.stringContaining('personal access token'),
+    })
   })
 
   it('exposes both pre-existing and new write-side capabilities', () => {
@@ -79,12 +86,29 @@ describe('supabase adapter manifest', () => {
       expect(cap.externalEffect).toBe(true)
     }
   })
+
+  it('does not advertise OAuth scopes and treats arbitrary SQL as an approved mutation', () => {
+    const query = supabaseConnector.manifest.capabilities.find(
+      (capability) => capability.name === 'database.query',
+    )
+
+    expect(query).toMatchObject({
+      class: 'mutation',
+      cas: 'native-idempotency',
+      externalEffect: true,
+    })
+    expect(
+      supabaseConnector.manifest.capabilities.every(
+        (capability) => capability.requiredScopes === undefined,
+      ),
+    ).toBe(true)
+  })
 })
 
 describe('supabase projects.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('issues DELETE /v1/projects/{ref} with bearer auth', async () => {
+  it('sends the customer personal access token as bearer auth', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let authHeader: string | undefined
@@ -106,7 +130,7 @@ describe('supabase projects.delete', () => {
 
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/projects/abcdefghijklmnop')
-    expect(authHeader).toBe('Bearer sbp_token')
+    expect(authHeader).toBe('Bearer sbp_personal_access_token')
     expect(result.status).toBe('committed')
   })
 

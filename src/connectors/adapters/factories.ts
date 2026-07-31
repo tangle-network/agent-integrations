@@ -411,10 +411,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
         'GOOGLE_OAUTH_CLIENT_SECRET',
       ],
     }),
-    defineFactoryAdapter(() => supabaseConnector, {
-      clientId: 'SUPABASE_OAUTH_CLIENT_ID',
-      clientSecret: 'SUPABASE_OAUTH_CLIENT_SECRET',
-    }),
+    defineFactoryAdapter(() => supabaseConnector, {}),
     defineFactoryAdapter(() => airtableConnector, {}),
     defineFactoryAdapter(() => baserowConnector, {}),
     defineFactoryAdapter(() => actualbudgetConnector, {}),
