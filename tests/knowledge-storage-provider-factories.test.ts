@@ -14,7 +14,7 @@ const expectedProviders = {
   cloudinary: { actions: 5, env: [] },
   coda: { actions: 15, env: [] },
   confluence: {
-    actions: 9,
+    actions: 10,
     env: ['ATLASSIAN_OAUTH_CLIENT_ID', 'ATLASSIAN_OAUTH_CLIENT_SECRET'],
   },
   contentful: {
