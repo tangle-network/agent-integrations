@@ -107,7 +107,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         request.requestedScopes && request.requestedScopes.length > 0
           ? request.requestedScopes
           : auth.scopes
-      const url = new URL(auth.authorizationUrl)
+      const url = new URL(resolveOAuthUrlTemplate(
+        auth.authorizationUrl,
+        request.metadata,
+        request.connectorId,
+      ))
       url.searchParams.set('response_type', 'code')
       url.searchParams.set('client_id', client.clientId)
       url.searchParams.set('redirect_uri', request.redirectUri)
@@ -176,9 +180,14 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         client_secret: client.clientSecret,
         redirect_uri: request.redirectUri,
       })
+      const tokenUrl = resolveOAuthUrlTemplate(
+        auth.tokenUrl,
+        request.metadata,
+        request.connectorId,
+      )
       let res: Response
       try {
-        res = await fetchImpl(auth.tokenUrl, {
+        res = await fetchImpl(tokenUrl, {
           method: 'POST',
           headers: {
             'content-type': 'application/x-www-form-urlencoded',
@@ -429,6 +438,53 @@ function redactSensitiveText(text: string, secrets: readonly string[]): string {
       (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
       text,
     )
+}
+
+/** Resolve provider-owned tenant labels embedded in OAuth URLs.
+ *
+ * Shopify and Gorgias put the merchant name in the hostname. Only one DNS
+ * label is accepted for each placeholder, so connection metadata cannot turn
+ * a provider URL into an arbitrary credential destination.
+ */
+function resolveOAuthUrlTemplate(
+  template: string,
+  metadata: Record<string, unknown> | undefined,
+  connectorId: string,
+): string {
+  const placeholders = [...template.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)]
+  let resolved = template
+  for (const match of placeholders) {
+    const key = match[1]
+    const raw = metadata?.[key]
+    if (typeof raw !== 'string' || !isDnsLabel(raw.trim())) {
+      throw new IntegrationError(
+        `OAuth URL for ${connectorId} requires metadata.${key} as a valid tenant label.`,
+        'config_missing',
+      )
+    }
+    resolved = resolved.replaceAll(match[0], raw.trim().toLowerCase())
+  }
+
+  let url: URL
+  try {
+    url = new URL(resolved)
+  } catch {
+    throw new IntegrationError(
+      `OAuth URL for ${connectorId} is invalid.`,
+      'config_missing',
+    )
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new IntegrationError(
+      `OAuth URL for ${connectorId} must be HTTPS without embedded credentials.`,
+      'config_missing',
+    )
+  }
+  return url.toString()
+}
+
+function isDnsLabel(value: string): boolean {
+  return value.length > 0 && value.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(value)
 }
 
 /** Project the declared `auth.tokenMetadata` mappings out of an OAuth

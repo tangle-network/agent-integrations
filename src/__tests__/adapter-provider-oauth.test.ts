@@ -49,6 +49,23 @@ function apiKeyAdapter(): ConnectorAdapter {
   }
 }
 
+function tenantOAuthAdapter(): ConnectorAdapter {
+  const adapter = oauthAdapter()
+  if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2 adapter')
+  return {
+    ...adapter,
+    manifest: {
+      ...adapter.manifest,
+      kind: 'tenant-oauth',
+      auth: {
+        ...adapter.manifest.auth,
+        authorizationUrl: 'https://{shop}.provider.example/oauth/authorize',
+        tokenUrl: 'https://{shop}.provider.example/oauth/token',
+      },
+    },
+  }
+}
+
 function tokenResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -83,6 +100,60 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     expect(result.providerId).toBe('first-party')
     expect(result.connectorId).toBe('demo-oauth')
     expect(result.state).toBe('state_fixed_for_test')
+  })
+
+  it('resolves a tenant OAuth hostname from a validated metadata label', async () => {
+    const fetchImpl = vi.fn(async () => tokenResponse({ access_token: 'acc_xyz' })) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [tenantOAuthAdapter()],
+      resolveDataSource: () => ({ kind: 'tenant-oauth', id: 'ds_tenant' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      state: 'state_tenant',
+      metadata: { shop: 'Acme-Store' },
+    })
+    expect(new URL(started.authUrl).hostname).toBe('acme-store.provider.example')
+
+    await provider.completeAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      code: 'code_tenant',
+      state: 'state_tenant',
+      redirectUri: REDIRECT,
+      metadata: { shop: 'Acme-Store' },
+    })
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://acme-store.provider.example/oauth/token',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it.each([
+    [{}, 'requires metadata.shop'],
+    [{ shop: 'acme.provider.example' }, 'valid tenant label'],
+    [{ shop: 'acme@attacker.test' }, 'valid tenant label'],
+    [{ shop: '-acme' }, 'valid tenant label'],
+  ])('rejects missing or unsafe tenant OAuth metadata', async (metadata, message) => {
+    const provider = createConnectorAdapterProvider({
+      adapters: [tenantOAuthAdapter()],
+      resolveDataSource: () => ({ kind: 'tenant-oauth', id: 'ds_tenant' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+    })
+
+    await expect(provider.startAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      metadata,
+    })).rejects.toMatchObject({ code: 'config_missing', message: expect.stringContaining(message) })
   })
 
   it('startAuth refuses non-oauth2 (api-key) adapters with auth_not_supported', async () => {

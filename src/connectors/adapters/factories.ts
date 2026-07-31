@@ -14,6 +14,7 @@ import { basecampConnector } from './basecamp.js'
 import { backblazeConnector } from './backblaze.js'
 import { biginByZohoConnector } from './bigin-by-zoho.js'
 import { boxConnector } from './box.js'
+import { baremetricsConnector } from './baremetrics.js'
 import { brexConnector } from './brex.js'
 import { billComConnector } from './bill-com.js'
 import { calComConnector } from './cal-com.js'
@@ -28,6 +29,7 @@ import { contentfulConnector } from './contentful.js'
 import { copperConnector } from './copper.js'
 import { chargebeeConnector } from './chargebee.js'
 import { circleConnector } from './circle.js'
+import { checkoutConnector } from './checkout.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
 import { docusignConnector } from './docusign.js'
 import { dialpadConnector } from './dialpad.js'
@@ -66,6 +68,7 @@ import { httpConnector } from './http.js'
 import { intercomConnector } from './intercom.js'
 import { instagramBusinessConnector } from './instagram-business.js'
 import { insightlyConnector } from './insightly.js'
+import { invoiceninjaConnector } from './invoiceninja.js'
 import { ironcladConnector } from './ironclad.js'
 import { jiraCloudConnector } from './jira-cloud.js'
 import { jotformConnector } from './jotform.js'
@@ -100,6 +103,7 @@ import { microsoftPowerBiConnector } from './microsoft-power-bi.js'
 import { microsoftTodoConnector } from './microsoft-todo.js'
 import { mastodonConnector } from './mastodon.js'
 import { meetgeekAiConnector } from './meetgeek-ai.js'
+import { mollieConnector } from './mollie.js'
 import { mondayConnector } from './monday.js'
 import { notion, type NotionOptions } from './notion.js'
 import { n8nConnector } from './n8n.js'
@@ -125,6 +129,8 @@ import { sharepoint, type SharePointOptions } from './sharepoint.js'
 import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
 import { sageIntacctConnector } from './sage-intacct.js'
+import { shopifyConnector } from './shopify.js'
+import { squareConnector } from './square.js'
 import { stripePackConnector } from './stripe-pack.js'
 import { tallyConnector } from './tally.js'
 import { tlDvConnector } from './tl-dv.js'
@@ -586,6 +592,18 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => billComConnector, {}),
     defineFactoryAdapter(() => netsuiteConnector, {}),
     defineFactoryAdapter(() => sageIntacctConnector, {}),
+    defineFactoryAdapter(() => checkoutConnector, {}),
+    defineFactoryAdapter(() => mollieConnector, {}),
+    defineFactoryAdapter(() => invoiceninjaConnector, {}),
+    defineFactoryAdapter(() => baremetricsConnector, {}),
+    defineFactoryAdapter(() => squareConnector, {
+      clientId: 'SQUARE_OAUTH_CLIENT_ID',
+      clientSecret: 'SQUARE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => shopifyConnector, {
+      clientId: 'SHOPIFY_OAUTH_CLIENT_ID',
+      clientSecret: 'SHOPIFY_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => frontConnector, {
       clientId: 'FRONT_OAUTH_CLIENT_ID',
       clientSecret: 'FRONT_OAUTH_CLIENT_SECRET',
