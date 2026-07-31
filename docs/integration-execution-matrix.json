@@ -38467,7 +38467,7 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "projects:read",
+          "providerScope": "project_metadata:read",
           "title": "FigJam read",
           "reason": "Read FigJam data for user-authorized agent workflows.",
           "risk": "read",
@@ -38573,7 +38573,7 @@
         },
         {
           "normalized": "docs.read",
-          "providerScope": "projects:read",
+          "providerScope": "project_metadata:read",
           "title": "Figma read",
           "reason": "Read Figma data for user-authorized agent workflows.",
           "risk": "read",

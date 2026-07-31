@@ -14,12 +14,12 @@ import { declarativeRestConnector } from './declarative-rest.js'
 //   - file_key  : the 22-character key from https://www.figma.com/file/<file_key>/<title>
 //   - node_id   : a comma-delimited list when used on /v1/files/<file_key>/nodes
 //   - team_id   : numeric team id (https://www.figma.com/files/team/<team_id>)
-//   - project_id: numeric project id under a team
+//   - project_id: numeric project id visible to the authenticated user
 //   - comment_id: returned from /v1/files/<file_key>/comments
 export const figmaConnector = declarativeRestConnector({
   kind: 'figma',
   displayName: 'Figma',
-  description: 'Read Figma files, components, comments, and team projects; post comments back into the design source of truth.',
+  description: 'Read Figma files, components, comments, and project metadata; post comments back into the design source of truth.',
   auth: {
     kind: 'oauth2',
     authorizationUrl: 'https://www.figma.com/oauth',
@@ -32,7 +32,7 @@ export const figmaConnector = declarativeRestConnector({
       'file_dev_resources:read',
       'file_versions:read',
       'library_content:read',
-      'projects:read',
+      'project_metadata:read',
       'team_library_content:read',
       'webhooks:write',
     ],
@@ -248,35 +248,16 @@ export const figmaConnector = declarativeRestConnector({
       requiredScopes: ['file_comments:read'],
     },
     {
-      name: 'teams.projects.list',
+      name: 'projects.metadata.get',
       class: 'read',
-      description: 'List projects inside a Figma team.',
+      description: 'Get metadata for a Figma project visible to the authenticated user.',
       parameters: {
         type: 'object',
-        properties: { team_id: { type: 'string' } },
-        required: ['team_id'],
-      },
-      request: { method: 'GET', path: '/v1/teams/{team_id}/projects' },
-      requiredScopes: ['projects:read'],
-    },
-    {
-      name: 'projects.files.list',
-      class: 'read',
-      description: 'List Figma files inside a project.',
-      parameters: {
-        type: 'object',
-        properties: {
-          project_id: { type: 'string' },
-          branch_data: { type: 'boolean' },
-        },
+        properties: { project_id: { type: 'string' } },
         required: ['project_id'],
       },
-      request: {
-        method: 'GET',
-        path: '/v1/projects/{project_id}/files',
-        query: { branch_data: '{branch_data}' },
-      },
-      requiredScopes: ['projects:read'],
+      request: { method: 'GET', path: '/v1/projects/{project_id}/meta' },
+      requiredScopes: ['project_metadata:read'],
     },
     {
       name: 'teams.components.list',
