@@ -128,6 +128,7 @@ import { googleSlidesConnector } from './google-slides.js'
 import { googleTasksConnector } from './google-tasks.js'
 import { googlechatConnector } from './googlechat.js'
 import { granolaConnector } from './granola.js'
+import { gustoConnector } from './gusto.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
 import { harvestConnector } from './harvest.js'
 import { helpscoutConnector } from './helpscout.js'
@@ -521,6 +522,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => xeroConnector, {
       clientId: 'XERO_OAUTH_CLIENT_ID',
       clientSecret: 'XERO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => gustoConnector, {
+      clientId: 'GUSTO_OAUTH_CLIENT_ID',
+      clientSecret: 'GUSTO_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => salesforceConnector, {
       clientId: 'SALESFORCE_OAUTH_CLIENT_ID',

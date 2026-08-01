@@ -46,6 +46,30 @@ describe('connector adapter factory registry', () => {
     ).toBeNull()
   })
 
+  it('registers Gusto only after its OAuth app has a complete client pair', () => {
+    const gusto = CONNECTOR_ADAPTER_FACTORIES.find(
+      (definition) => definition.kind === 'gusto',
+    )
+    expect(gusto).toBeDefined()
+    expect(gusto!.envMap).toEqual({
+      clientId: 'GUSTO_OAUTH_CLIENT_ID',
+      clientSecret: 'GUSTO_OAUTH_CLIENT_SECRET',
+    })
+    expect(resolveConnectorAdapterFactoryOptions(gusto!, {
+      GUSTO_OAUTH_CLIENT_ID: 'client-id',
+    })).toBeNull()
+    expect(resolveConnectorAdapterFactoryOptions(gusto!, {
+      GUSTO_OAUTH_CLIENT_SECRET: 'client-secret',
+    })).toBeNull()
+    expect(resolveConnectorAdapterFactoryOptions(gusto!, {
+      GUSTO_OAUTH_CLIENT_ID: 'client-id',
+      GUSTO_OAUTH_CLIENT_SECRET: 'client-secret',
+    })).toEqual({
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+    })
+  })
+
   it('includes factory adapters in the native adapter inventory', () => {
     const nativeIds = new Set(listTangleNativeAdapterIds())
     for (const definition of CONNECTOR_ADAPTER_FACTORIES) {
