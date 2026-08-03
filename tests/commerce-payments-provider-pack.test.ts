@@ -52,7 +52,7 @@ describe('commerce and payments provider factories', () => {
   })
 
   it('keeps providers with unsupported credential or enterprise onboarding flows hidden', () => {
-    for (const kind of ['zuora', 'pinch-payments']) {
+    for (const kind of ['pinch-payments']) {
       expect(
         CONNECTOR_ADAPTER_FACTORIES.some((candidate) => candidate.kind === kind),
         kind,

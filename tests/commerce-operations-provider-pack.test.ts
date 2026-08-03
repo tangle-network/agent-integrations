@@ -34,7 +34,6 @@ describe('commerce operations provider factories', () => {
 
   it('keeps providers with incomplete auth flows hidden', () => {
     for (const kind of [
-      'bigcommerce',
       'woocommerce',
       'just-invoice',
       'quickzu',

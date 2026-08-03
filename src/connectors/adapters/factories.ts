@@ -47,6 +47,43 @@ import { genderApiConnector } from './gender-api.js'
 import { generatebannersConnector } from './generatebanners.js'
 import { giftbitConnector } from './giftbit.js'
 import { modelslabConnector } from './modelslab.js'
+import { adobeCreativeCloudConnector } from './adobe-creative-cloud.js'
+import { adpConnector } from './adp.js'
+import { bexioConnector } from './bexio.js'
+import { bigcommerceConnector } from './bigcommerce.js'
+import { canvaConnector } from './canva.js'
+import { clicdataConnector } from './clicdata.js'
+import { clioConnector } from './clio.js'
+import { cloudconvertConnector } from './cloudconvert.js'
+import { constantContactConnector } from './constant-contact.js'
+import { demandbaseConnector } from './demandbase.js'
+import { discordConnector } from './discord.js'
+import { formstackConnector } from './formstack.js'
+import { freeAgentConnector } from './free-agent.js'
+import { giteaConnector } from './gitea.js'
+import { gustoConnector } from './gusto.js'
+import { instaChartsConnector } from './insta-charts.js'
+import { leverConnector } from './lever.js'
+import { lightfunnelsConnector } from './lightfunnels.js'
+import { netlifyConnector } from './netlify.js'
+import { niftyConnector } from './nifty.js'
+import { opsgenieConnector } from './opsgenie.js'
+import { pagerdutyConnector } from './pagerduty.js'
+import { paychexConnector } from './paychex.js'
+import { pushbulletConnector } from './pushbullet.js'
+import { redditConnector } from './reddit.js'
+import { ripplingConnector } from './rippling.js'
+import { sanityConnector } from './sanity.js'
+import { sendpulseConnector } from './sendpulse.js'
+import { snowflakeConnector } from './snowflake.js'
+import { teableConnector } from './teable.js'
+import { tenzoConnector } from './tenzo.js'
+import { vercelConnector } from './vercel.js'
+import { videoaskConnector } from './videoask.js'
+import { wootricConnector } from './wootric.js'
+import { workdayConnector } from './workday.js'
+import { zoominfoConnector } from './zoominfo.js'
+import { zuoraConnector } from './zuora.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
@@ -859,6 +896,157 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => brazeConnector, {}),
     defineFactoryAdapter(() => smartleadConnector, {}),
     defineFactoryAdapter(() => lemlistConnector, {}),
+    // Additional OAuth2 packs. Keep each manifest's declared env names as
+    // the deployment contract so a provider cannot accidentally resolve a
+    // different application's credentials.
+    defineFactoryAdapter(() => adobeCreativeCloudConnector, {
+      clientId: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_ID',
+      clientSecret: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => adpConnector, {
+      clientId: 'ADP_OAUTH_CLIENT_ID',
+      clientSecret: 'ADP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => bexioConnector, {
+      clientId: 'BEXIO_OAUTH_CLIENT_ID',
+      clientSecret: 'BEXIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => bigcommerceConnector, {
+      clientId: 'BIGCOMMERCE_OAUTH_CLIENT_ID',
+      clientSecret: 'BIGCOMMERCE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => canvaConnector, {
+      clientId: 'CANVA_OAUTH_CLIENT_ID',
+      clientSecret: 'CANVA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clicdataConnector, {
+      clientId: 'CLICDATA_OAUTH_CLIENT_ID',
+      clientSecret: 'CLICDATA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clioConnector, {
+      clientId: 'CLIO_OAUTH_CLIENT_ID',
+      clientSecret: 'CLIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => cloudconvertConnector, {
+      clientId: 'CLOUDCONVERT_OAUTH_CLIENT_ID',
+      clientSecret: 'CLOUDCONVERT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => constantContactConnector, {
+      clientId: 'CONSTANT_CONTACT_OAUTH_CLIENT_ID',
+      clientSecret: 'CONSTANT_CONTACT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => demandbaseConnector, {
+      clientId: 'DEMANDBASE_OAUTH_CLIENT_ID',
+      clientSecret: 'DEMANDBASE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => discordConnector, {
+      clientId: 'DISCORD_OAUTH_CLIENT_ID',
+      clientSecret: 'DISCORD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => formstackConnector, {
+      clientId: 'FORMSTACK_OAUTH_CLIENT_ID',
+      clientSecret: 'FORMSTACK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => freeAgentConnector, {
+      clientId: 'FREE_AGENT_OAUTH_CLIENT_ID',
+      clientSecret: 'FREE_AGENT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => giteaConnector, {
+      clientId: 'GITEA_OAUTH_CLIENT_ID',
+      clientSecret: 'GITEA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => gustoConnector, {
+      clientId: 'GUSTO_OAUTH_CLIENT_ID',
+      clientSecret: 'GUSTO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => instaChartsConnector, {
+      clientId: 'INSTACHARTS_OAUTH_CLIENT_ID',
+      clientSecret: 'INSTACHARTS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => leverConnector, {
+      clientId: 'LEVER_OAUTH_CLIENT_ID',
+      clientSecret: 'LEVER_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => lightfunnelsConnector, {
+      clientId: 'LIGHTFUNNELS_OAUTH_CLIENT_ID',
+      clientSecret: 'LIGHTFUNNELS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => netlifyConnector, {
+      clientId: 'NETLIFY_OAUTH_CLIENT_ID',
+      clientSecret: 'NETLIFY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => niftyConnector, {
+      clientId: 'NIFTY_OAUTH_CLIENT_ID',
+      clientSecret: 'NIFTY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => opsgenieConnector, {
+      clientId: 'OPSGENIE_OAUTH_CLIENT_ID',
+      clientSecret: 'OPSGENIE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pagerdutyConnector, {
+      clientId: 'PAGERDUTY_OAUTH_CLIENT_ID',
+      clientSecret: 'PAGERDUTY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => paychexConnector, {
+      clientId: 'PAYCHEX_OAUTH_CLIENT_ID',
+      clientSecret: 'PAYCHEX_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pushbulletConnector, {
+      clientId: 'PUSHBULLET_OAUTH_CLIENT_ID',
+      clientSecret: 'PUSHBULLET_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => redditConnector, {
+      clientId: 'REDDIT_OAUTH_CLIENT_ID',
+      clientSecret: 'REDDIT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ripplingConnector, {
+      clientId: 'RIPPLING_OAUTH_CLIENT_ID',
+      clientSecret: 'RIPPLING_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => sanityConnector, {
+      clientId: 'SANITY_OAUTH_CLIENT_ID',
+      clientSecret: 'SANITY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => sendpulseConnector, {
+      clientId: 'SENDPULSE_CLIENT_ID',
+      clientSecret: 'SENDPULSE_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => snowflakeConnector, {
+      clientId: 'SNOWFLAKE_OAUTH_CLIENT_ID',
+      clientSecret: 'SNOWFLAKE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => teableConnector, {
+      clientId: 'TEABLE_OAUTH_CLIENT_ID',
+      clientSecret: 'TEABLE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => tenzoConnector, {
+      clientId: 'TENZO_OAUTH_CLIENT_ID',
+      clientSecret: 'TENZO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => vercelConnector, {
+      clientId: 'VERCEL_OAUTH_CLIENT_ID',
+      clientSecret: 'VERCEL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => videoaskConnector, {
+      clientId: 'VIDEOASK_OAUTH_CLIENT_ID',
+      clientSecret: 'VIDEOASK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wootricConnector, {
+      clientId: 'WOOTRIC_OAUTH_CLIENT_ID',
+      clientSecret: 'WOOTRIC_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => workdayConnector, {
+      clientId: 'WORKDAY_OAUTH_CLIENT_ID',
+      clientSecret: 'WORKDAY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zoominfoConnector, {
+      clientId: 'ZOOMINFO_OAUTH_CLIENT_ID',
+      clientSecret: 'ZOOMINFO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zuoraConnector, {
+      clientId: 'ZUORA_OAUTH_CLIENT_ID',
+      clientSecret: 'ZUORA_OAUTH_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => ticktickConnector, {
       clientId: 'TICKTICK_OAUTH_CLIENT_ID',
       clientSecret: 'TICKTICK_OAUTH_CLIENT_SECRET',
