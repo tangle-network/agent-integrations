@@ -113,7 +113,6 @@ describe('data warehouse, database, and BI provider factories', () => {
     )
 
     for (const kind of [
-      'snowflake',
       'tableau',
       'databricks',
       'looker',

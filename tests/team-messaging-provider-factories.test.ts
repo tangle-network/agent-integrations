@@ -52,7 +52,7 @@ describe('team messaging provider factories', () => {
       CONNECTOR_ADAPTER_FACTORIES.map((definition) => definition.kind),
     )
 
-    for (const kind of ['discord', 'line', 'wecom', 'drift', 'whatsapp']) {
+    for (const kind of ['line', 'wecom', 'drift', 'whatsapp']) {
       expect(executableKinds.has(kind), kind).toBe(false)
     }
     expect(executableKinds.has('whatsapp-business')).toBe(true)

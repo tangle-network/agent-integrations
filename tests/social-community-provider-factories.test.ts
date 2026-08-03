@@ -95,9 +95,7 @@ describe('social and community provider factories', () => {
     for (const kind of [
       'facebook-pages',
       'facebook-leads',
-      'reddit',
       'bluesky',
-      'discord',
       'tiktok',
       'pinterest',
     ]) {

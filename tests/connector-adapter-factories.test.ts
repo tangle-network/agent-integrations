@@ -165,6 +165,184 @@ describe('connector adapter factory registry', () => {
     }
   })
 
+  it('wires every direct OAuth2 blocker to its manifest credential pair', () => {
+    const expected = {
+      'adobe-creative-cloud': {
+        clientId: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_ID',
+        clientSecret: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_SECRET',
+      },
+      adp: {
+        clientId: 'ADP_OAUTH_CLIENT_ID',
+        clientSecret: 'ADP_OAUTH_CLIENT_SECRET',
+      },
+      bexio: {
+        clientId: 'BEXIO_OAUTH_CLIENT_ID',
+        clientSecret: 'BEXIO_OAUTH_CLIENT_SECRET',
+      },
+      bigcommerce: {
+        clientId: 'BIGCOMMERCE_OAUTH_CLIENT_ID',
+        clientSecret: 'BIGCOMMERCE_OAUTH_CLIENT_SECRET',
+      },
+      canva: {
+        clientId: 'CANVA_OAUTH_CLIENT_ID',
+        clientSecret: 'CANVA_OAUTH_CLIENT_SECRET',
+      },
+      clicdata: {
+        clientId: 'CLICDATA_OAUTH_CLIENT_ID',
+        clientSecret: 'CLICDATA_OAUTH_CLIENT_SECRET',
+      },
+      clio: {
+        clientId: 'CLIO_OAUTH_CLIENT_ID',
+        clientSecret: 'CLIO_OAUTH_CLIENT_SECRET',
+      },
+      cloudconvert: {
+        clientId: 'CLOUDCONVERT_OAUTH_CLIENT_ID',
+        clientSecret: 'CLOUDCONVERT_OAUTH_CLIENT_SECRET',
+      },
+      'constant-contact': {
+        clientId: 'CONSTANT_CONTACT_OAUTH_CLIENT_ID',
+        clientSecret: 'CONSTANT_CONTACT_OAUTH_CLIENT_SECRET',
+      },
+      demandbase: {
+        clientId: 'DEMANDBASE_OAUTH_CLIENT_ID',
+        clientSecret: 'DEMANDBASE_OAUTH_CLIENT_SECRET',
+      },
+      discord: {
+        clientId: 'DISCORD_OAUTH_CLIENT_ID',
+        clientSecret: 'DISCORD_OAUTH_CLIENT_SECRET',
+      },
+      formstack: {
+        clientId: 'FORMSTACK_OAUTH_CLIENT_ID',
+        clientSecret: 'FORMSTACK_OAUTH_CLIENT_SECRET',
+      },
+      'free-agent': {
+        clientId: 'FREE_AGENT_OAUTH_CLIENT_ID',
+        clientSecret: 'FREE_AGENT_OAUTH_CLIENT_SECRET',
+      },
+      gitea: {
+        clientId: 'GITEA_OAUTH_CLIENT_ID',
+        clientSecret: 'GITEA_OAUTH_CLIENT_SECRET',
+      },
+      gusto: {
+        clientId: 'GUSTO_OAUTH_CLIENT_ID',
+        clientSecret: 'GUSTO_OAUTH_CLIENT_SECRET',
+      },
+      'insta-charts': {
+        clientId: 'INSTACHARTS_OAUTH_CLIENT_ID',
+        clientSecret: 'INSTACHARTS_OAUTH_CLIENT_SECRET',
+      },
+      lever: {
+        clientId: 'LEVER_OAUTH_CLIENT_ID',
+        clientSecret: 'LEVER_OAUTH_CLIENT_SECRET',
+      },
+      lightfunnels: {
+        clientId: 'LIGHTFUNNELS_OAUTH_CLIENT_ID',
+        clientSecret: 'LIGHTFUNNELS_OAUTH_CLIENT_SECRET',
+      },
+      netlify: {
+        clientId: 'NETLIFY_OAUTH_CLIENT_ID',
+        clientSecret: 'NETLIFY_OAUTH_CLIENT_SECRET',
+      },
+      nifty: {
+        clientId: 'NIFTY_OAUTH_CLIENT_ID',
+        clientSecret: 'NIFTY_OAUTH_CLIENT_SECRET',
+      },
+      opsgenie: {
+        clientId: 'OPSGENIE_OAUTH_CLIENT_ID',
+        clientSecret: 'OPSGENIE_OAUTH_CLIENT_SECRET',
+      },
+      pagerduty: {
+        clientId: 'PAGERDUTY_OAUTH_CLIENT_ID',
+        clientSecret: 'PAGERDUTY_OAUTH_CLIENT_SECRET',
+      },
+      paychex: {
+        clientId: 'PAYCHEX_OAUTH_CLIENT_ID',
+        clientSecret: 'PAYCHEX_OAUTH_CLIENT_SECRET',
+      },
+      pushbullet: {
+        clientId: 'PUSHBULLET_OAUTH_CLIENT_ID',
+        clientSecret: 'PUSHBULLET_OAUTH_CLIENT_SECRET',
+      },
+      reddit: {
+        clientId: 'REDDIT_OAUTH_CLIENT_ID',
+        clientSecret: 'REDDIT_OAUTH_CLIENT_SECRET',
+      },
+      rippling: {
+        clientId: 'RIPPLING_OAUTH_CLIENT_ID',
+        clientSecret: 'RIPPLING_OAUTH_CLIENT_SECRET',
+      },
+      sanity: {
+        clientId: 'SANITY_OAUTH_CLIENT_ID',
+        clientSecret: 'SANITY_OAUTH_CLIENT_SECRET',
+      },
+      sendpulse: {
+        clientId: 'SENDPULSE_CLIENT_ID',
+        clientSecret: 'SENDPULSE_CLIENT_SECRET',
+      },
+      snowflake: {
+        clientId: 'SNOWFLAKE_OAUTH_CLIENT_ID',
+        clientSecret: 'SNOWFLAKE_OAUTH_CLIENT_SECRET',
+      },
+      teable: {
+        clientId: 'TEABLE_OAUTH_CLIENT_ID',
+        clientSecret: 'TEABLE_OAUTH_CLIENT_SECRET',
+      },
+      tenzo: {
+        clientId: 'TENZO_OAUTH_CLIENT_ID',
+        clientSecret: 'TENZO_OAUTH_CLIENT_SECRET',
+      },
+      vercel: {
+        clientId: 'VERCEL_OAUTH_CLIENT_ID',
+        clientSecret: 'VERCEL_OAUTH_CLIENT_SECRET',
+      },
+      videoask: {
+        clientId: 'VIDEOASK_OAUTH_CLIENT_ID',
+        clientSecret: 'VIDEOASK_OAUTH_CLIENT_SECRET',
+      },
+      wootric: {
+        clientId: 'WOOTRIC_OAUTH_CLIENT_ID',
+        clientSecret: 'WOOTRIC_OAUTH_CLIENT_SECRET',
+      },
+      workday: {
+        clientId: 'WORKDAY_OAUTH_CLIENT_ID',
+        clientSecret: 'WORKDAY_OAUTH_CLIENT_SECRET',
+      },
+      zoominfo: {
+        clientId: 'ZOOMINFO_OAUTH_CLIENT_ID',
+        clientSecret: 'ZOOMINFO_OAUTH_CLIENT_SECRET',
+      },
+      zuora: {
+        clientId: 'ZUORA_OAUTH_CLIENT_ID',
+        clientSecret: 'ZUORA_OAUTH_CLIENT_SECRET',
+      },
+    } as const
+
+    for (const [kind, envMap] of Object.entries(expected)) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition!.envMap, kind).toEqual(envMap)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientSecret]: 'client-secret',
+      }), kind).toBeNull()
+      const options = resolveConnectorAdapterFactoryOptions(definition!, {
+        [envMap.clientId]: 'client-id',
+        [envMap.clientSecret]: 'client-secret',
+      })
+      expect(options, kind).toEqual({
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+      })
+      const adapter = definition!.factory(options ?? {})
+      expect(adapter.manifest.kind, kind).toBe(kind)
+      expect(adapter.manifest.auth.kind, kind).toBe('oauth2')
+    }
+  })
+
   it('fails closed until the shared Figma and Wrike OAuth apps are fully configured', () => {
     const expected = {
       figma: {
