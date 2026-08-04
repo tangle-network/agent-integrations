@@ -48,8 +48,11 @@ export const biginByZohoConnector = declarativeRestConnector({
       'ZohoBigin.settings.READ',
     ],
     scopeSeparator: ',',
-    clientIdEnv: 'ZOHO_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'ZOHO_OAUTH_CLIENT_SECRET',
+    // Bigin is a separate Zoho product and OAuth application from Zoho CRM.
+    // Keep its client pair explicit so a configured CRM app cannot shadow it
+    // through the shared Zoho service aliases.
+    clientIdEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+    clientSecretEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
     extraAuthParams: { access_type: 'offline', prompt: 'consent' },
     tokenMetadata: {
       apiDomain: { field: 'api_domain', required: true },
