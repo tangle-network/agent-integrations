@@ -10,7 +10,13 @@ describe('pushbullet adapter manifest', () => {
 
   it('declares oauth2 auth as documented in the catalog', () => {
     const auth = pushbulletConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
+    expect(auth).toEqual(
+      expect.objectContaining({
+        kind: 'oauth2',
+        authorizationUrl: 'https://www.pushbullet.com/authorize',
+        tokenUrl: 'https://api.pushbullet.com/oauth2/token',
+      }),
+    )
   })
 
   it('covers the catalog action set: sending links and notes', () => {
