@@ -22,8 +22,8 @@ describe('bigin-by-zoho declarative adapter', () => {
     expect(auth.scopes).not.toContain('offline_access')
     expect(auth.scopeSeparator).toBe(',')
     expect(auth.extraAuthParams).toEqual({ access_type: 'offline', prompt: 'consent' })
-    expect(auth.clientIdEnv).toBe('ZOHO_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZOHO_OAUTH_CLIENT_SECRET')
+    expect(auth.clientIdEnv).toBe('BIGIN_BY_ZOHO_OAUTH_CLIENT_ID')
+    expect(auth.clientSecretEnv).toBe('BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET')
   })
 
   it('covers the catalog action surface for companies, contacts, tasks, calls, events, and pipelines', () => {

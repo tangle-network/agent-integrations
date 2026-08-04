@@ -376,6 +376,11 @@ const zohoOAuthEnvMap = {
   ],
 } as const
 
+const biginByZohoOAuthEnvMap = {
+  clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+  clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+} as const
+
 /**
  * Credential-dependent adapter factories and their deployment configuration.
  *
@@ -782,7 +787,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => insightlyConnector, {}),
-    defineFactoryAdapter(() => biginByZohoConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => biginByZohoConnector, biginByZohoOAuthEnvMap),
     defineFactoryAdapter(() => fireberryConnector, {}),
     defineFactoryAdapter(() => flowluConnector, {}),
     defineFactoryAdapter(() => leadConnectorConnector, {

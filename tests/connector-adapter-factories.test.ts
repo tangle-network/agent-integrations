@@ -53,6 +53,33 @@ describe('connector adapter factory registry', () => {
     }
   })
 
+  it('keeps Bigin OAuth credentials separate from the Zoho CRM aliases', () => {
+    const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'bigin-by-zoho',
+    )
+    expect(definition).toBeDefined()
+    expect(definition!.envMap).toEqual({
+      clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+      clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+    })
+
+    const options = resolveConnectorAdapterFactoryOptions(definition!, {
+      ZOHO_CRM_OAUTH_CLIENT_ID: 'crm-client',
+      ZOHO_CRM_OAUTH_CLIENT_SECRET: 'crm-secret',
+      BIGIN_BY_ZOHO_OAUTH_CLIENT_ID: 'bigin-client',
+      BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET: 'bigin-secret',
+    })
+    expect(options).toEqual({
+      clientId: 'bigin-client',
+      clientSecret: 'bigin-secret',
+    })
+    expect(definition!.factory(options!).manifest.auth).toMatchObject({
+      kind: 'oauth2',
+      clientIdEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+    })
+  })
+
   it('keeps inbound receivers out of public discovery while retaining their stable ids', () => {
     const publicAdapters = listBundledConnectorAdapters()
     const kinds = publicAdapters.map((adapter) => adapter.manifest.kind)
