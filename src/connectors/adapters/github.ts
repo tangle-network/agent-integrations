@@ -123,6 +123,257 @@ export const githubConnector = declarativeRestConnector({
       request: { method: 'GET', path: '/orgs/{org}/members/{user}', existenceCheck: true },
     },
     {
+      name: 'pulls.get',
+      class: 'read',
+      description: 'Read a single pull request, including its head/base refs and the repository it targets.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          pull_number: { type: 'integer', description: 'The pull request number within the repository.' },
+        },
+        required: ['owner', 'repo', 'pull_number'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/pulls/{pull_number}' },
+    },
+    {
+      name: 'pulls.list',
+      class: 'read',
+      description: 'List pull requests in a repository, newest first by default.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          state: { type: 'string', enum: ['open', 'closed', 'all'], description: 'Defaults to open.' },
+          sort: { type: 'string', enum: ['created', 'updated', 'popularity', 'long-running'] },
+          direction: { type: 'string', enum: ['asc', 'desc'] },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/pulls',
+        query: { state: '{state}', sort: '{sort}', direction: '{direction}', per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'pulls.listFiles',
+      class: 'read',
+      description: 'List the files a pull request changes, with per-file patches. Page with per_page — a large PR exceeds a single response budget.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          pull_number: { type: 'integer' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+          page: { type: 'integer', minimum: 1 },
+        },
+        required: ['owner', 'repo', 'pull_number'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/pulls/{pull_number}/files',
+        query: { per_page: '{per_page}', page: '{page}' },
+      },
+    },
+    {
+      name: 'pulls.listReviews',
+      class: 'read',
+      description: 'List the reviews already submitted on a pull request, so a reviewer does not repeat existing findings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          pull_number: { type: 'integer' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo', 'pull_number'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/pulls/{pull_number}/reviews',
+        query: { per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'pulls.listReviewComments',
+      class: 'read',
+      description: 'List the inline review comments on a pull request.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          pull_number: { type: 'integer' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo', 'pull_number'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/pulls/{pull_number}/comments',
+        query: { per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'issues.get',
+      class: 'read',
+      description: 'Read a single issue by number.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          issue_number: { type: 'integer' },
+        },
+        required: ['owner', 'repo', 'issue_number'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/issues/{issue_number}' },
+    },
+    {
+      name: 'issues.list',
+      class: 'read',
+      description: 'List issues in a repository. GitHub includes pull requests here; filter on the `pull_request` key when that matters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          state: { type: 'string', enum: ['open', 'closed', 'all'] },
+          labels: { type: 'string', description: 'Comma-separated label names.' },
+          sort: { type: 'string', enum: ['created', 'updated', 'comments'] },
+          direction: { type: 'string', enum: ['asc', 'desc'] },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/issues',
+        query: {
+          state: '{state}',
+          labels: '{labels}',
+          sort: '{sort}',
+          direction: '{direction}',
+          per_page: '{per_page}',
+        },
+      },
+    },
+    {
+      name: 'issues.listComments',
+      class: 'read',
+      description: 'Read the comment thread on an issue or pull request before replying to it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          issue_number: { type: 'integer' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo', 'issue_number'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/issues/{issue_number}/comments',
+        query: { per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'repos.getContent',
+      class: 'read',
+      description: 'Read a file or directory listing at a path, optionally at a specific ref.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          path: { type: 'string', description: 'Repository-relative path.' },
+          ref: { type: 'string', description: 'Branch, tag, or commit SHA. Defaults to the default branch.' },
+        },
+        required: ['owner', 'repo', 'path'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/contents/{path}',
+        query: { ref: '{ref}' },
+      },
+    },
+    {
+      name: 'repos.listLabels',
+      class: 'read',
+      description: 'List the labels a repository defines, so an automation applies one that exists rather than inventing it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/labels',
+        query: { per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'repos.compareCommits',
+      class: 'read',
+      description: 'Compare two refs and read the files that differ between them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          base: { type: 'string' },
+          head: { type: 'string' },
+        },
+        required: ['owner', 'repo', 'base', 'head'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/compare/{base}...{head}' },
+    },
+    {
+      name: 'repos.listBranches',
+      class: 'read',
+      description: 'List a repository branches. Used to resolve the default branch to diff against.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        required: ['owner', 'repo'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/branches',
+        query: { per_page: '{per_page}' },
+      },
+    },
+    {
+      name: 'checks.listForRef',
+      class: 'read',
+      description: 'List check runs for a ref, so an automation can gate on CI state.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          ref: { type: 'string', description: 'Branch, tag, or commit SHA.' },
+        },
+        required: ['owner', 'repo', 'ref'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/commits/{ref}/check-runs' },
+    },
+    {
       name: 'issues.create',
       class: 'mutation',
       description: 'Create an issue in a repository.',

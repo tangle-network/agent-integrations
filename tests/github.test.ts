@@ -43,10 +43,23 @@ describe('github adapter', () => {
       [
         // reads
         'activity.checkStarred',
+        'checks.listForRef',
+        'issues.get',
+        'issues.list',
+        'issues.listComments',
         'issues.search',
         'orgs.checkMembership',
+        'pulls.get',
+        'pulls.list',
+        'pulls.listFiles',
+        'pulls.listReviewComments',
+        'pulls.listReviews',
+        'repos.compareCommits',
+        'repos.getContent',
         'repos.getReadme',
+        'repos.listBranches',
         'repos.listCommits',
+        'repos.listLabels',
         'repositories.get',
         'search.code',
         'users.checkFollowing',
@@ -294,6 +307,150 @@ describe('github adapter', () => {
       idempotencyKey: 'k',
     })
     expect(notMember.data).toEqual({ exists: false })
+  })
+
+  it('pulls.get reads one pull request by number', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calledUrl = String(input)
+        calledMethod = init?.method ?? ''
+        return jsonResponse({
+          number: 65,
+          title: 'Batch changes from baseline',
+          base: { repo: { full_name: 'acme/test-app', name: 'test-app', owner: { login: 'acme' } } },
+        })
+      }),
+    )
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'pulls.get',
+      args: { owner: 'acme', repo: 'test-app', pull_number: 65 },
+      idempotencyKey: 'k',
+    })
+    expect(calledMethod).toBe('GET')
+    expect(calledUrl).toMatch(/\/repos\/acme\/test-app\/pulls\/65$/)
+    // The base repo rides the PR, which is what lets a caller derive the
+    // repository identity without a second read.
+    expect((result.data as { base: { repo: { full_name: string } } }).base.repo.full_name).toBe(
+      'acme/test-app',
+    )
+  })
+
+  it('pulls.list passes state/sort/per_page through as query params', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ number: 65, title: 'Batch changes from baseline' }])
+      }),
+    )
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'pulls.list',
+      args: { owner: 'acme', repo: 'test-app', state: 'open', sort: 'updated', per_page: 20 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/pulls')
+    expect(calledUrl).toContain('state=open')
+    expect(calledUrl).toContain('sort=updated')
+    expect(calledUrl).toContain('per_page=20')
+    expect((result.data as { number: number }[])[0].number).toBe(65)
+  })
+
+  it('pulls.listFiles reads the changed files of a pull request', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ filename: 'index.html', status: 'modified', patch: '@@ -1 +1 @@' }])
+      }),
+    )
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'pulls.listFiles',
+      args: { owner: 'acme', repo: 'test-app', pull_number: 65, per_page: 50 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toMatch(/\/repos\/acme\/test-app\/pulls\/65\/files/)
+    expect(calledUrl).toContain('per_page=50')
+    expect((result.data as { filename: string }[])[0].filename).toBe('index.html')
+  })
+
+  it('issues.get and issues.listComments address the issue by number', async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        urls.push(String(input))
+        return jsonResponse([])
+      }),
+    )
+
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'issues.get',
+      args: { owner: 'acme', repo: 'test-app', issue_number: 12 },
+      idempotencyKey: 'k',
+    })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'issues.listComments',
+      args: { owner: 'acme', repo: 'test-app', issue_number: 12 },
+      idempotencyKey: 'k',
+    })
+    expect(urls[0]).toMatch(/\/repos\/acme\/test-app\/issues\/12$/)
+    expect(urls[1]).toMatch(/\/repos\/acme\/test-app\/issues\/12\/comments/)
+  })
+
+  it('repos.getContent reads a path at an optional ref', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse({ path: 'CODEOWNERS', encoding: 'base64', content: 'KiBAdGVhbQo=' })
+      }),
+    )
+
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getContent',
+      args: { owner: 'acme', repo: 'test-app', path: 'CODEOWNERS', ref: 'main' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/contents/CODEOWNERS')
+    expect(calledUrl).toContain('ref=main')
+  })
+
+  it('every new capability is a READ — no mutation slipped into this set', () => {
+    const added = [
+      'pulls.get',
+      'pulls.list',
+      'pulls.listFiles',
+      'pulls.listReviews',
+      'pulls.listReviewComments',
+      'issues.get',
+      'issues.list',
+      'issues.listComments',
+      'repos.getContent',
+      'repos.listLabels',
+      'repos.compareCommits',
+      'repos.listBranches',
+      'checks.listForRef',
+    ]
+    for (const name of added) {
+      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
+      expect(cap, `${name} is missing from the manifest`).toBeDefined()
+      expect(cap?.class, `${name} must be a read`).toBe('read')
+    }
   })
 
   // ---------- provider throttles and hard failures on reads ----------
