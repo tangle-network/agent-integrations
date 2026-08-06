@@ -363,6 +363,59 @@ describe('github adapter', () => {
     expect((result.data as { number: number }[])[0].number).toBe(65)
   })
 
+  it('pulls.list drops every optional query param the caller omits', async () => {
+    // The optionals are declared as bare `'{state}'`-style placeholders, so a
+    // call that supplies none must send NONE of them — not `state=undefined`,
+    // and not the literal `{state}`. `renderQueryValue` returns undefined for an
+    // absent exact placeholder and the URL builder skips the key; this pins that
+    // contract on the capability rather than trusting it from a distance.
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([])
+      }),
+    )
+
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'pulls.list',
+      args: { owner: 'acme', repo: 'test-app' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/pulls')
+    for (const key of ['state', 'sort', 'direction', 'per_page']) {
+      expect(calledUrl).not.toContain(`${key}=`)
+    }
+    expect(calledUrl).not.toContain('undefined')
+    expect(calledUrl).not.toContain('%7B')
+  })
+
+  it('issues.list drops every optional query param the caller omits', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([])
+      }),
+    )
+
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'issues.list',
+      args: { owner: 'acme', repo: 'test-app' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/issues')
+    for (const key of ['state', 'labels', 'sort', 'direction', 'per_page']) {
+      expect(calledUrl).not.toContain(`${key}=`)
+    }
+    expect(calledUrl).not.toContain('undefined')
+    expect(calledUrl).not.toContain('%7B')
+  })
+
   it('pulls.listFiles reads the changed files of a pull request', async () => {
     let calledUrl = ''
     vi.stubGlobal(
