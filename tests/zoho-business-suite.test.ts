@@ -3,6 +3,7 @@ import { createConnectorAdapterProvider } from '../src/adapter-provider.js'
 import {
   CONNECTOR_ADAPTER_FACTORIES,
   biginByZohoConnector,
+  type ConnectorAdapterFactoryEnvNames,
   resolveConnectorAdapterFactoryOptions,
   zohoBookingsConnector,
   zohoBooksConnector,
@@ -12,7 +13,6 @@ import {
   zohoInvoiceConnector,
   zohoMailConnector,
 } from '../src/connectors/adapters/index.js'
-import type { ConnectorAdapterFactoryEnvNames } from '../src/connectors/adapters/factories.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 const suite = [
