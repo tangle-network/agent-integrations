@@ -534,6 +534,38 @@ describe('github adapter', () => {
     expect(calledUrl).toContain('/repos/acme/test-app/branches')
   })
 
+  it('every paged listing can actually reach page two', async () => {
+    // A listing that offers `per_page` but no `page` caps the caller at the
+    // first 100 results with no way to ask for the rest — a silent truncation.
+    const paged = [
+      ['pulls.listReviews', { owner: 'a', repo: 'b', pull_number: 1 }],
+      ['pulls.listReviewComments', { owner: 'a', repo: 'b', pull_number: 1 }],
+      ['issues.listComments', { owner: 'a', repo: 'b', issue_number: 1 }],
+      ['repos.listLabels', { owner: 'a', repo: 'b' }],
+      ['repos.listBranches', { owner: 'a', repo: 'b' }],
+      ['pulls.listFiles', { owner: 'a', repo: 'b', pull_number: 1 }],
+    ] as const
+
+    for (const [capabilityName, args] of paged) {
+      let calledUrl = ''
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          calledUrl = String(input)
+          return jsonResponse([])
+        }),
+      )
+      await adapter.executeRead!({
+        source: source(),
+        capabilityName,
+        args: { ...args, per_page: 100, page: 2 },
+        idempotencyKey: 'k',
+      })
+      expect(calledUrl, capabilityName).toContain('per_page=100')
+      expect(calledUrl, capabilityName).toContain('page=2')
+    }
+  })
+
   it('every new capability is a READ — no mutation slipped into this set', () => {
     const added = [
       'pulls.get',
