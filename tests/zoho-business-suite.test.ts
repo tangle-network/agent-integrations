@@ -12,6 +12,7 @@ import {
   zohoInvoiceConnector,
   zohoMailConnector,
 } from '../src/connectors/adapters/index.js'
+import type { ConnectorAdapterFactoryEnvNames } from '../src/connectors/adapters/factories.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 const suite = [
@@ -70,7 +71,11 @@ describe('Zoho shared OAuth application', () => {
     }
     const isolated: Record<
       string,
-      { clientIdEnv: string; clientSecretEnv: string; envMap: unknown }
+      {
+        clientIdEnv: string
+        clientSecretEnv: string
+        envMap: Readonly<Record<string, ConnectorAdapterFactoryEnvNames>>
+      }
     > = {
       'bigin-by-zoho': {
         clientIdEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
@@ -117,6 +122,20 @@ describe('Zoho shared OAuth application', () => {
         }),
         kind,
       ).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+
+      // The isolation contract, asserted in the direction that can regress:
+      // a shared credential must NOT satisfy an isolated pack. The positive
+      // path above still passes if someone re-adds the shared names to its
+      // envMap as a fallback, so only this catches that.
+      if (spec) {
+        expect(
+          resolveConnectorAdapterFactoryOptions(definition!, {
+            ZOHO_OAUTH_CLIENT_ID: 'shared-id',
+            ZOHO_OAUTH_CLIENT_SECRET: 'shared-secret',
+          }),
+          kind,
+        ).toBeNull()
+      }
     }
   })
 
