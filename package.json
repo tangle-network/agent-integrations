@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.53.40",
+  "version": "0.53.41",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
