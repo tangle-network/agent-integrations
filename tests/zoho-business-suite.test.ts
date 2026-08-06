@@ -50,8 +50,13 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Zoho shared OAuth application', () => {
-  it('registers eight provider packs behind one canonical OAuth app', () => {
-    const expectedEnvMap = {
+  it('registers the Zoho packs behind the shared OAuth app, except isolated Bigin', () => {
+    // The shared packs read the canonical app, and `envMap` lists the accepted
+    // env names in fallback order — a deployment may still carry the older
+    // per-product names. Bigin is deliberately NOT behind that app: it has its
+    // own OAuth client, so it names one env var and a shared credential must
+    // not satisfy it.
+    const sharedEnvMap = {
       clientId: [
         'ZOHO_OAUTH_CLIENT_ID',
         'ZOHO_CRM_OAUTH_CLIENT_ID',
@@ -63,14 +68,30 @@ describe('Zoho shared OAuth application', () => {
         'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
       ],
     }
+    const isolated: Record<
+      string,
+      { clientIdEnv: string; clientSecretEnv: string; envMap: unknown }
+    > = {
+      'bigin-by-zoho': {
+        clientIdEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+        clientSecretEnv: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+        envMap: {
+          clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+          clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+        },
+      },
+    }
 
     for (const adapter of suite) {
       const kind = adapter.manifest.kind
       const auth = adapter.manifest.auth
       expect(auth.kind, kind).toBe('oauth2')
       if (auth.kind !== 'oauth2') throw new Error(`${kind} must use OAuth2`)
-      expect(auth.clientIdEnv, kind).toBe('ZOHO_OAUTH_CLIENT_ID')
-      expect(auth.clientSecretEnv, kind).toBe('ZOHO_OAUTH_CLIENT_SECRET')
+      const spec = isolated[kind]
+      expect(auth.clientIdEnv, kind).toBe(spec?.clientIdEnv ?? 'ZOHO_OAUTH_CLIENT_ID')
+      expect(auth.clientSecretEnv, kind).toBe(
+        spec?.clientSecretEnv ?? 'ZOHO_OAUTH_CLIENT_SECRET',
+      )
       expect(auth.scopeSeparator, kind).toBe(',')
       expect(auth.scopes, kind).not.toContain('offline_access')
       expect(auth.extraAuthParams, kind).toEqual({ access_type: 'offline', prompt: 'consent' })
@@ -78,12 +99,15 @@ describe('Zoho shared OAuth application', () => {
 
       const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
       expect(definition, kind).toBeDefined()
-      expect(definition!.envMap, kind).toEqual(expectedEnvMap)
+      expect(definition!.envMap, kind).toEqual(spec?.envMap ?? sharedEnvMap)
       expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toBeNull()
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {
-        ZOHO_OAUTH_CLIENT_ID: 'client-id',
-        ZOHO_OAUTH_CLIENT_SECRET: 'client-secret',
-      }), kind).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
+      expect(
+        resolveConnectorAdapterFactoryOptions(definition!, {
+          [spec?.clientIdEnv ?? 'ZOHO_OAUTH_CLIENT_ID']: 'client-id',
+          [spec?.clientSecretEnv ?? 'ZOHO_OAUTH_CLIENT_SECRET']: 'client-secret',
+        }),
+        kind,
+      ).toEqual({ clientId: 'client-id', clientSecret: 'client-secret' })
     }
   })
 
