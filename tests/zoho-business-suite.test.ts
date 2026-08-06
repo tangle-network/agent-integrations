@@ -82,6 +82,15 @@ describe('Zoho shared OAuth application', () => {
       },
     }
 
+    // Pin the split itself, not just each pack's names: a pack quietly moved
+    // onto its own credentials would still satisfy the loop below (it reads its
+    // expectation from this same table), so the shared-app invariant has to be
+    // asserted where it can actually be weakened.
+    expect(Object.keys(isolated)).toEqual(['bigin-by-zoho'])
+    expect(
+      suite.map((adapter) => adapter.manifest.kind).filter((kind) => !(kind in isolated)),
+    ).toHaveLength(7)
+
     for (const adapter of suite) {
       const kind = adapter.manifest.kind
       const auth = adapter.manifest.auth
