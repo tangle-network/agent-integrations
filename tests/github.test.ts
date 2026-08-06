@@ -43,7 +43,6 @@ describe('github adapter', () => {
       [
         // reads
         'activity.checkStarred',
-        'checks.listForRef',
         'issues.get',
         'issues.list',
         'issues.listComments',
@@ -54,8 +53,6 @@ describe('github adapter', () => {
         'pulls.listFiles',
         'pulls.listReviewComments',
         'pulls.listReviews',
-        'repos.compareCommits',
-        'repos.getContent',
         'repos.getReadme',
         'repos.listBranches',
         'repos.listCommits',
@@ -463,24 +460,78 @@ describe('github adapter', () => {
     expect(urls[1]).toMatch(/\/repos\/acme\/test-app\/issues\/12\/comments/)
   })
 
-  it('repos.getContent reads a path at an optional ref', async () => {
+  it('pulls.listReviews reads the submitted reviews of a pull request', async () => {
     let calledUrl = ''
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         calledUrl = String(input)
-        return jsonResponse({ path: 'CODEOWNERS', encoding: 'base64', content: 'KiBAdGVhbQo=' })
+        return jsonResponse([{ id: 1, state: 'APPROVED' }])
       }),
     )
-
     await adapter.executeRead!({
       source: source(),
-      capabilityName: 'repos.getContent',
-      args: { owner: 'acme', repo: 'test-app', path: 'CODEOWNERS', ref: 'main' },
+      capabilityName: 'pulls.listReviews',
+      args: { owner: 'acme', repo: 'test-app', pull_number: 7, per_page: 30 },
       idempotencyKey: 'k',
     })
-    expect(calledUrl).toContain('/repos/acme/test-app/contents/CODEOWNERS')
-    expect(calledUrl).toContain('ref=main')
+    expect(calledUrl).toContain('/repos/acme/test-app/pulls/7/reviews')
+    expect(calledUrl).toContain('per_page=30')
+  })
+
+  it('pulls.listReviewComments reads the inline comments of a pull request', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ id: 2, path: 'src/a.ts' }])
+      }),
+    )
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'pulls.listReviewComments',
+      args: { owner: 'acme', repo: 'test-app', pull_number: 7 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/pulls/7/comments')
+  })
+
+  it('repos.listLabels reads the labels a repository defines', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ name: 'bug' }])
+      }),
+    )
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.listLabels',
+      args: { owner: 'acme', repo: 'test-app', per_page: 50 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/labels')
+    expect(calledUrl).toContain('per_page=50')
+  })
+
+  it('repos.listBranches reads a repository branch list', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ name: 'develop' }])
+      }),
+    )
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.listBranches',
+      args: { owner: 'acme', repo: 'test-app' },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/repos/acme/test-app/branches')
   })
 
   it('every new capability is a READ — no mutation slipped into this set', () => {
@@ -493,11 +544,8 @@ describe('github adapter', () => {
       'issues.get',
       'issues.list',
       'issues.listComments',
-      'repos.getContent',
       'repos.listLabels',
-      'repos.compareCommits',
       'repos.listBranches',
-      'checks.listForRef',
     ]
     for (const name of added) {
       const cap = adapter.manifest.capabilities.find((c) => c.name === name)

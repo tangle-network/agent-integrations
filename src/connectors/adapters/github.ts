@@ -285,26 +285,6 @@ export const githubConnector = declarativeRestConnector({
       },
     },
     {
-      name: 'repos.getContent',
-      class: 'read',
-      description: 'Read a file or directory listing at a path, optionally at a specific ref.',
-      parameters: {
-        type: 'object',
-        properties: {
-          owner: { type: 'string' },
-          repo: { type: 'string' },
-          path: { type: 'string', description: 'Repository-relative path.' },
-          ref: { type: 'string', description: 'Branch, tag, or commit SHA. Defaults to the default branch.' },
-        },
-        required: ['owner', 'repo', 'path'],
-      },
-      request: {
-        method: 'GET',
-        path: '/repos/{owner}/{repo}/contents/{path}',
-        query: { ref: '{ref}' },
-      },
-    },
-    {
       name: 'repos.listLabels',
       class: 'read',
       description: 'List the labels a repository defines, so an automation applies one that exists rather than inventing it.',
@@ -324,22 +304,6 @@ export const githubConnector = declarativeRestConnector({
       },
     },
     {
-      name: 'repos.compareCommits',
-      class: 'read',
-      description: 'Compare two refs and read the files that differ between them.',
-      parameters: {
-        type: 'object',
-        properties: {
-          owner: { type: 'string' },
-          repo: { type: 'string' },
-          base: { type: 'string' },
-          head: { type: 'string' },
-        },
-        required: ['owner', 'repo', 'base', 'head'],
-      },
-      request: { method: 'GET', path: '/repos/{owner}/{repo}/compare/{base}...{head}' },
-    },
-    {
       name: 'repos.listBranches',
       class: 'read',
       description: 'List a repository branches. Used to resolve the default branch to diff against.',
@@ -357,21 +321,6 @@ export const githubConnector = declarativeRestConnector({
         path: '/repos/{owner}/{repo}/branches',
         query: { per_page: '{per_page}' },
       },
-    },
-    {
-      name: 'checks.listForRef',
-      class: 'read',
-      description: 'List check runs for a ref, so an automation can gate on CI state.',
-      parameters: {
-        type: 'object',
-        properties: {
-          owner: { type: 'string' },
-          repo: { type: 'string' },
-          ref: { type: 'string', description: 'Branch, tag, or commit SHA.' },
-        },
-        required: ['owner', 'repo', 'ref'],
-      },
-      request: { method: 'GET', path: '/repos/{owner}/{repo}/commits/{ref}/check-runs' },
     },
     {
       name: 'issues.create',
