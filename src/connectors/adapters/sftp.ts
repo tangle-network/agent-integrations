@@ -76,8 +76,12 @@ export function createSftpConnector(options: SftpConnectorOptions = {}): Connect
   const createClient =
     options.createClient ??
     (async (): Promise<SftpClientLike> => {
-      const { default: SftpClient } = await import('ssh2-sftp-client')
-      return new SftpClient()
+      // Assembled at runtime for the same reason the DuckDB specifier is: a
+      // literal dynamic import is still a module the bundler must resolve, and
+      // `ssh2` reaches the native `cpu-features` addon.
+      const specifier = ['ssh2', 'sftp-client'].join('-')
+      const loaded = (await import(specifier)) as { default: new () => SftpClient }
+      return new loaded.default()
     })
   const lookupHost = options.lookupHost ?? resolvePublicHostAddresses
 
