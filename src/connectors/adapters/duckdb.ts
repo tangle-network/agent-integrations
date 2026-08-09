@@ -12,7 +12,13 @@ import { isPlainRecord, readBoundedInteger } from './file-payload.js'
  * nothing to read. The TYPES stay static — they erase.
  */
 async function duckdbInstance(): Promise<typeof import('@duckdb/node-api').DuckDBInstance> {
-  const { DuckDBInstance } = await import('@duckdb/node-api')
+  // The specifier is assembled at runtime ON PURPOSE. A bundler resolves a
+  // LITERAL `await import('@duckdb/node-api')` exactly like a static one — it
+  // moves the module to its own chunk and still has to load `duckdb.node`,
+  // which a Worker build cannot do. A specifier it cannot read statically is
+  // left to the runtime, so Node resolves it and a Worker bundle never sees it.
+  const specifier = ['@duckdb', 'node-api'].join('/')
+  const { DuckDBInstance } = (await import(specifier)) as typeof import('@duckdb/node-api')
   return DuckDBInstance
 }
 

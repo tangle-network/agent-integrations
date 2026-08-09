@@ -27,6 +27,22 @@ import { describe, expect, it } from 'vitest'
 
 const NATIVE_CLIENTS = ['@duckdb/node-api', 'ssh2-sftp-client', 'ssh2', 'cpu-features']
 
+/**
+ * A LITERAL dynamic import is not an escape either. A bundler resolves
+ * `await import('@duckdb/node-api')` exactly like a static import: it moves the
+ * module into its own chunk and still has to load `duckdb.node`. Measured on
+ * legal-agent — lazy loading alone left the Worker build failing on the same
+ * two files. Only a specifier the bundler cannot read statically is left to the
+ * runtime, so a literal one is a finding too.
+ */
+const LITERAL_DYNAMIC = new RegExp(
+  // `typeof import('…')` is a TYPE query. It erases, so it is not a match —
+  // which is exactly how these adapters keep their types while loading the
+  // client through a specifier the bundler cannot read.
+  `(?<!typeof\\s{1,4})import\\(\\s*['"](${NATIVE_CLIENTS.map((c) => c.replace(/[/@]/g, '\\$&')).join('|')})['"]`,
+  'g',
+)
+
 const SRC = resolve(__dirname)
 
 /** A static `import`/`export … from` specifier. `await import(…)` is NOT one:
@@ -74,6 +90,12 @@ function nativeImportsReachableFrom(entry: string): string[] {
       }
       const local = resolveLocal(file, spec)
       if (local) stack.push(local)
+    }
+    // Comments are prose, not imports. A scanner that reads them reports the
+    // sentence explaining the rule as a violation of it.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    for (const match of code.matchAll(LITERAL_DYNAMIC)) {
+      hits.push(`${file.replace(`${SRC}/`, '')} dynamically imports the literal ${match[1]}`)
     }
   }
   return hits
