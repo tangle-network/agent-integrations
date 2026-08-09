@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 import { posix } from 'node:path'
-import SftpClient from 'ssh2-sftp-client'
+import type SftpClient from 'ssh2-sftp-client'
 import type { ConnectorAdapter, ResolvedDataSource } from '../types.js'
 import {
   MAX_FILE_BYTES,
@@ -48,7 +48,7 @@ interface SftpClientLike {
 }
 
 export interface SftpConnectorOptions {
-  createClient?: () => SftpClientLike
+  createClient?: () => SftpClientLike | Promise<SftpClientLike>
   lookupHost?: (hostname: string) => Promise<string[]>
 }
 
@@ -67,7 +67,18 @@ const MAX_LIST_ENTRIES = 1_000
 const MAX_PATH_LENGTH = 1_024
 
 export function createSftpConnector(options: SftpConnectorOptions = {}): ConnectorAdapter {
-  const createClient = options.createClient ?? (() => new SftpClient())
+  // `ssh2-sftp-client` pulls `ssh2`, whose optional `cpu-features` accelerator
+  // is a NATIVE addon. A static import puts it in the bundle of every consumer
+  // that only reads this connector's static manifest through `/catalog` or
+  // `/specs`, and a Worker build then fails on `UNRESOLVED_IMPORT …
+  // cpufeatures.node`. The client is loaded when a transfer actually runs. The
+  // TYPE stays static — it erases.
+  const createClient =
+    options.createClient ??
+    (async (): Promise<SftpClientLike> => {
+      const { default: SftpClient } = await import('ssh2-sftp-client')
+      return new SftpClient()
+    })
   const lookupHost = options.lookupHost ?? resolvePublicHostAddresses
 
   return {
@@ -300,13 +311,13 @@ function pathSchema(): Record<string, unknown> {
 
 async function withSftp<T>(
   credentials: SftpCredentials,
-  createClient: () => SftpClientLike,
+  createClient: () => SftpClientLike | Promise<SftpClientLike>,
   lookupHost: (hostname: string) => Promise<string[]>,
   run: (client: SftpClientLike) => Promise<T>,
 ): Promise<T> {
   const addresses = await lookupHost(credentials.host)
   if (addresses.length === 0) throw new Error('SFTP host did not resolve')
-  const client = createClient()
+  const client = await createClient()
   try {
     await client.connect({
       host: addresses[0],

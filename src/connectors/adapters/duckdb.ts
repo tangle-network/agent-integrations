@@ -1,10 +1,20 @@
-import {
-  DuckDBInstance,
-  type DuckDBConnection,
-  type DuckDBValue,
-} from '@duckdb/node-api'
+import type { DuckDBConnection, DuckDBValue } from '@duckdb/node-api'
 import type { ConnectorAdapter } from '../types.js'
 import { isPlainRecord, readBoundedInteger } from './file-payload.js'
+
+/**
+ * `@duckdb/node-api` is a NATIVE Node addon, and a static import of this module
+ * is what a consumer's bundler must resolve — including the ones that only read
+ * this connector's static manifest through `/catalog` or `/specs`. A Worker
+ * cannot load a `.node` file at all, so the bundle failed with
+ * `UNLOADABLE_DEPENDENCY … duckdb.node` on a build that never intended to run a
+ * query. The client is loaded when a query actually runs, so the manifest costs
+ * nothing to read. The TYPES stay static — they erase.
+ */
+async function duckdbInstance(): Promise<typeof import('@duckdb/node-api').DuckDBInstance> {
+  const { DuckDBInstance } = await import('@duckdb/node-api')
+  return DuckDBInstance
+}
 
 const MAX_ARGUMENTS = 100
 const MAX_COLUMNS = 256
@@ -83,7 +93,7 @@ export const duckdbConnector: ConnectorAdapter = {
     const queryArgs = readArguments(args.args)
     const maxRows = readBoundedInteger(args.maxRows, 1_000, 1, MAX_ROWS, 'maxRows')
 
-    const instance = await DuckDBInstance.create(':memory:')
+    const instance = await (await duckdbInstance()).create(':memory:')
     let connection: DuckDBConnection | undefined
     let timedOut = false
     let timeout: ReturnType<typeof setTimeout> | undefined
@@ -134,7 +144,7 @@ export const duckdbConnector: ConnectorAdapter = {
   },
 
   async test() {
-    const instance = await DuckDBInstance.create(':memory:')
+    const instance = await (await duckdbInstance()).create(':memory:')
     let connection: DuckDBConnection | undefined
     try {
       const activeConnection = await instance.connect()
