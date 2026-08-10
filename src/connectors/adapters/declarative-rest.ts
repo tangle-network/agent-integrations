@@ -358,7 +358,7 @@ export async function executeRestRequest(
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...renderHeaders(spec.defaultHeaders ?? {}, scope, true),
-    ...renderHeaders(renderableHeaders, scope),
+    ...renderHeaders(renderableHeaders, scope, false, requiredArgs),
   }
   const structuredCredentials =
     placement.kind === 'structured-headers' || placement.kind === 'structured-json-body'
@@ -836,12 +836,27 @@ function renderHeaders(
   headers: Record<string, string>,
   args: Record<string, unknown>,
   rawExact = false,
+  requiredArgs?: readonly string[],
 ): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
     const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
-    if (rawExact && exact) return [key, String(readRequiredPath(args, exact[1]))]
-    return [key, interpolate(value, args)]
-  }))
+    if (exact) {
+      const resolved = readPath(args, exact[1])
+      if (resolved === undefined || resolved === null) {
+        if (rawExact || requiredArgs?.includes(exact[1])) {
+          throw new Error(`missing required argument: ${exact[1]}`)
+        }
+        continue
+      }
+      out[key] = rawExact
+        ? String(resolved)
+        : encodeURIComponent(String(resolved))
+      continue
+    }
+    out[key] = interpolate(value, args)
+  }
+  return out
 }
 
 function renderObject(

@@ -23,15 +23,15 @@ This audit separates product contracts from implementation backends:
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
 | Setup specs | 246 |
-| Executable setup specs | 228 |
-| Catalog/setup-only specs | 18 |
+| Executable setup specs | 230 |
+| Catalog/setup-only specs | 16 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
 | Contracts with mapped actions | 669 |
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 516 |
-| Native adapter surfaces shipped | 622 |
+| Native adapter surfaces shipped | 624 |
 | Package-runtime backends | 153 |
 | Runtime manifest dependencies for catalog-only connectors | 162 |
 | Catalog-only connectors exposable behind runtime | 153 |
@@ -119,6 +119,8 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `avalara`
 - `avian`
 - `avoma`
+- `aws-cloudwatch`
+- `aws-lambda`
 - `azure-ad`
 - `azure-blob-storage`
 - `azure-communication-services`
@@ -146,10 +148,8 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `bitly`
 - `bland-ai`
 - `bluesky`
-- `bolna`
-- `bonjoro`
 
-...and 542 more native adapter surfaces.
+...and 544 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -173,6 +173,8 @@ Executable setup specs:
 - `attio`
 - `auth0`
 - `avalara`
+- `aws-cloudwatch`
+- `aws-lambda`
 - `azure-blob-storage`
 - `azure-event-grid`
 - `azure-service-bus`
@@ -388,8 +390,8 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 622 reviewed native adapter surfaces ship from this package; 516 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 246 setup specs exist; 228 are executable setup specs and 18 are catalog/setup-only. |
+| Native adapter execution | Done for listed native backends | 624 reviewed native adapter surfaces ship from this package; 516 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 246 setup specs exist; 230 are executable setup specs and 16 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 153 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
@@ -403,7 +405,7 @@ Executable setup specs:
 | Bucket | Count | What it means |
 | --- | ---: | --- |
 | Contracts needing native/direct adapters | 153 | Connector has a Tangle contract but no reviewed direct adapter yet. |
-| Commercial/setup-only provider contracts | 18 | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
+| Commercial/setup-only provider contracts | 16 | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
 | Catalog connectors with zero upstream action names | 0 | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | 288 | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
@@ -468,7 +470,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 622 native adapter surfaces. 516 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 624 native adapter surfaces. 516 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
