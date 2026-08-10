@@ -672,7 +672,16 @@ function redactCredentialText(
       : credentials.kind === 'custom'
         ? Object.values(credentials.values)
       : []
-  const secrets = [...candidates, ...additionalSecrets].filter(
+  // Providers and reverse proxies sometimes echo only the credential portion
+  // of an Authorization header. Redacting `Basic <base64>` as one string does
+  // not hide a bare `<base64>` echo, so include both forms. The raw structured
+  // fields above remain candidates because an upstream can echo those too.
+  const authorizationSecrets = additionalSecrets.flatMap((secret) => {
+    if (typeof secret !== 'string') return []
+    const credential = secret.match(/^(?:Basic|Bearer)\s+(.+)$/i)?.[1]
+    return credential ? [secret, credential] : [secret]
+  })
+  const secrets = [...candidates, ...authorizationSecrets].filter(
     (secret): secret is string => typeof secret === 'string' && secret.length > 0,
   )
   return secrets.reduce<string>(

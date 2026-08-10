@@ -237,6 +237,8 @@ export { clioConnector } from './clio.js'
 // Observability / errors
 export { sentryConnector } from './sentry.js'
 export { datadogConnector } from './datadog.js'
+export { amplitudeConnector } from './amplitude.js'
+export { cloudflareConnector } from './cloudflare.js'
 export { discourseConnector } from './discourse.js'
 export { digitalOceanConnector } from './digital-ocean.js'
 export { clicksendConnector } from './clicksend.js'
