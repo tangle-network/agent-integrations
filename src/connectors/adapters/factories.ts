@@ -87,6 +87,7 @@ import { zuoraConnector } from './zuora.js'
 import { adobeSignConnector } from './adobe-sign.js'
 import { aircallConnector } from './aircall.js'
 import { affinityConnector } from './affinity.js'
+import { amplitudeConnector } from './amplitude.js'
 import { amazonEventBridgeConnector } from './amazon-eventbridge.js'
 import { amazonCloudWatchConnector } from './amazon-cloudwatch.js'
 import { amazonLambdaConnector } from './amazon-lambda.js'
@@ -116,6 +117,7 @@ import { calendlyConnector } from './calendly.js'
 import { capsuleCrmConnector } from './capsule-crm.js'
 import { closeConnector } from './close.js'
 import { clickupConnector } from './clickup.js'
+import { cloudflareConnector } from './cloudflare.js'
 import { cloudinaryConnector } from './cloudinary.js'
 import { codaConnector } from './coda.js'
 import { confluenceConnector } from './confluence.js'
@@ -525,6 +527,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => segmentConnector, {}),
     defineFactoryAdapter(() => hightouchConnector, {}),
     defineFactoryAdapter(() => datadogConnector, {}),
+    defineFactoryAdapter(() => amplitudeConnector, {}),
+    defineFactoryAdapter(() => cloudflareConnector, {}),
     defineFactoryAdapter(() => discourseConnector, {}),
     defineFactoryAdapter(() => digitalOceanConnector, {}),
     defineFactoryAdapter(() => clicksendConnector, {}),

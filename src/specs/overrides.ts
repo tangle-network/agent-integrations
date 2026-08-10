@@ -54,6 +54,158 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  amplitude: {
+    consoleUrl: 'https://analytics.amplitude.com/',
+    credentialFields: [
+      {
+        label: 'Amplitude project credential JSON',
+        description: 'JSON containing the API key and secret key for one Amplitude project.',
+        example: '{"apiKey":"...","secretKey":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      {
+        id: 'project',
+        title: 'Select one Amplitude project',
+        detail: 'Open Project Settings > General for the project that Tangle may access.',
+      },
+      {
+        id: 'credentials',
+        title: 'Copy the project credentials',
+        detail: 'Copy the API key and secret key into one JSON credential bundle.',
+      },
+      {
+        id: 'region',
+        title: 'Set the data region',
+        detail: 'Use the default US host. Set apiBaseUrl to the documented EU host only for an EU project.',
+      },
+      {
+        id: 'test',
+        title: 'Test the project connection',
+        detail: 'The connection check lists visible project events without changing analytics data.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'project-bound',
+        severity: 'warning',
+        message: 'The API key and secret key belong to one project. Use a separate connection for each project.',
+      },
+      {
+        id: 'region-bound',
+        severity: 'critical',
+        message: 'US and EU projects use different hosts. Tangle accepts only the two official Amplitude API hosts.',
+      },
+      {
+        id: 'annotation-authority',
+        severity: 'warning',
+        message: 'Annotation changes require suitable Amplitude authority and remain approval-gated.',
+      },
+    ],
+    healthcheck: {
+      id: 'amplitude.connection',
+      level: 'connection',
+      description: 'Authenticate with the project credential pair and list visible events.',
+    },
+  },
+  cloudflare: {
+    consoleUrl: 'https://dash.cloudflare.com/profile/api-tokens/',
+    credentialFields: [
+      {
+        label: 'Dedicated Cloudflare API token',
+        description: 'Create a new resource-scoped token for Tangle Integration Hub. Do not reuse an infrastructure token.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      {
+        id: 'token',
+        title: 'Create a dedicated API token',
+        detail: 'Create a custom token named Tangle Integration Hub. Do not use the legacy Global API Key.',
+      },
+      {
+        id: 'permissions',
+        title: 'Grant narrow permissions',
+        detail: 'Grant Account Settings Read, Zone Read, Zone Settings Read, and DNS Read or DNS Edit only.',
+      },
+      {
+        id: 'resources',
+        title: 'Limit the token to selected zones',
+        detail: 'Include only the accounts and zones that this connection must manage.',
+      },
+      {
+        id: 'store',
+        title: 'Store the one-time token',
+        detail: 'Copy the token once. Tangle Hub seals it before persistence.',
+      },
+      {
+        id: 'test',
+        title: 'Verify token status',
+        detail: 'The connection check calls the token verification endpoint and requires active status.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'no-global-key',
+        severity: 'critical',
+        message: 'Global API keys grant full user authority and are unsupported. Use a scoped API token.',
+      },
+      {
+        id: 'no-token-reuse',
+        severity: 'critical',
+        message: 'Never reuse a token used by Tangle deployment, Workers, Terraform, DNS automation, or other infrastructure.',
+      },
+      {
+        id: 'dns-impact',
+        severity: 'critical',
+        message: 'DNS updates can interrupt production traffic. Every DNS mutation remains approval-gated.',
+      },
+    ],
+    healthcheck: {
+      id: 'cloudflare.token',
+      level: 'connection',
+      description: 'Verify that the dedicated API token is valid and active.',
+    },
+  },
+  nango: {
+    consoleUrl: 'https://nango.dev/docs/getting-started/intro-to-nango',
+    credentialFields: [],
+    consoleSteps: [
+      {
+        id: 'gateway',
+        title: 'Choose a Nango gateway deployment',
+        detail: 'Use Nango only when a product intentionally deploys Nango Cloud or a self-hosted Nango environment.',
+      },
+      {
+        id: 'runtime',
+        title: 'Configure the gateway runtime',
+        detail: 'Store the Nango host and environment secret in the product-owned gateway service, not as provider OAuth credentials.',
+      },
+      {
+        id: 'providers',
+        title: 'Configure real provider integrations',
+        detail: 'Register each external provider in Nango and test its connection lifecycle separately.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'gateway-not-provider',
+        severity: 'critical',
+        message: 'Nango is an integration gateway, not an end-user OAuth provider. This catalog entry has no generic Connect flow.',
+      },
+      {
+        id: 'no-runtime',
+        severity: 'critical',
+        message: 'This package does not ship a Nango gateway backend. The entry remains non-executable until a product deploys one.',
+      },
+    ],
+    healthcheck: {
+      id: 'nango.static',
+      level: 'static',
+      description: 'No Nango gateway runtime is configured by this package.',
+    },
+  },
   mongodb: {
     credentialFields: [
       {

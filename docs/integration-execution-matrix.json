@@ -10474,26 +10474,22 @@
     "title": "Amplitude",
     "category": "database",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "amplitude API key",
+        "description": "JSON credential bundle: {\"apiKey\":\"...\",\"secretKey\":\"...\"} from Project Settings → General. Set metadata.apiBaseUrl to https://analytics.eu.amplitude.com only for an EU-resident project; the default is https://amplitude.com.",
         "secret": true
-      }
-    ],
+      },
+      "placement": "basic"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
+    "actionCount": 17,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -10501,11 +10497,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "anthropic",
@@ -26355,26 +26349,22 @@
     "title": "Cloudflare",
     "category": "workflow",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "cloudflare API key",
+        "description": "Create a dedicated Cloudflare API token for Tangle Integration Hub. Grant Account Settings Read, Zone Read, Zone Settings Read, and DNS Read or DNS Edit only on selected resources. Never reuse a Tangle deployment, Workers, Terraform, or infrastructure token.",
         "secret": true
-      }
-    ],
+      },
+      "placement": "bearer"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
+    "actionCount": 12,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -26382,11 +26372,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "cloudinary",
@@ -66793,19 +66781,8 @@
     "title": "Nango",
     "category": "workflow",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
+    "setupAuth": "custom",
+    "authFields": [],
     "runtimePackage": null,
     "actionCount": 0,
     "triggerCount": 1,
