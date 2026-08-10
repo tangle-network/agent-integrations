@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { linkedinConnector } from '../src/connectors/adapters/linkedin.js'
+import {
+  createLinkedinConnector,
+  linkedinConnector,
+} from '../src/connectors/adapters/linkedin.js'
 
 describe('linkedin adapter manifest', () => {
   it('classifies itself as the comms category and exposes the linkedin kind', () => {
@@ -16,17 +19,49 @@ describe('linkedin adapter manifest', () => {
     expect(auth.tokenUrl).toBe('https://www.linkedin.com/oauth/v2/accessToken')
     expect(auth.clientIdEnv).toBe('LINKEDIN_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('LINKEDIN_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('openid')
-    expect(auth.scopes).toContain('profile')
-    expect(auth.scopes).toContain('email')
-    expect(auth.scopes).toContain('w_member_social')
-    expect(auth.scopes).toContain('r_organization_social')
-    expect(auth.scopes).toContain('w_organization_social')
-    expect(auth.scopes).toContain('rw_organization_admin')
+    expect(auth.scopes).toEqual(['openid', 'profile', 'email', 'w_member_social'])
   })
 
-  it('covers profile / organization / posts / comments surfaces', () => {
+  it('exposes only self-serve member capabilities by default', () => {
     const names = linkedinConnector.manifest.capabilities.map((c) => c.name).sort()
+    expect(names).toEqual(
+      [
+        'userinfo',
+        'posts.create',
+        'posts.delete',
+        'comments.create',
+        'comments.update',
+        'comments.delete',
+      ].sort(),
+    )
+
+    const declaredScopes = new Set(
+      (linkedinConnector.manifest.auth.kind === 'oauth2'
+        ? linkedinConnector.manifest.auth.scopes
+        : []),
+    )
+    for (const capability of linkedinConnector.manifest.capabilities) {
+      for (const scope of capability.requiredScopes ?? []) {
+        expect(declaredScopes.has(scope), `${capability.name}: ${scope}`).toBe(true)
+      }
+    }
+  })
+
+  it('adds organization scopes and capabilities only when explicitly configured', () => {
+    const organizationConnector = createLinkedinConnector({ organizationAccess: true })
+    const auth = organizationConnector.manifest.auth
+    if (auth.kind !== 'oauth2') throw new Error('unreachable')
+    expect(auth.scopes).toEqual([
+      'openid',
+      'profile',
+      'email',
+      'w_member_social',
+      'r_organization_social',
+      'w_organization_social',
+      'rw_organization_admin',
+    ])
+
+    const names = organizationConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
         'userinfo',
@@ -43,6 +78,11 @@ describe('linkedin adapter manifest', () => {
         'socialActions.get',
       ].sort(),
     )
+
+    const postsCreate = organizationConnector.manifest.capabilities.find(
+      (capability) => capability.name === 'posts.create',
+    )
+    expect(postsCreate?.requiredScopes).toEqual(['w_organization_social'])
   })
 
   it('marks posts.create / comments.create as append-only (cas:none) and delete as native-idempotency', () => {
