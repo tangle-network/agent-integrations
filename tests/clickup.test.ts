@@ -28,11 +28,11 @@ describe('clickup adapter manifest', () => {
     expect(clickupConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('prefers a personal token while retaining ClickUp OAuth as an option', () => {
+  it('prefers shared OAuth while retaining personal tokens as an option', () => {
     const auth = clickupConnector.manifest.auth
     expect(auth.kind).toBe('one_of')
     if (auth.kind !== 'one_of') throw new Error('unreachable')
-    expect(auth.preferred).toBe('api-key')
+    expect(auth.preferred).toBe('oauth2')
     expect(auth.options.map((option) => option.kind)).toEqual(['api-key', 'oauth2'])
     const oauth = auth.options.find((option) => option.kind === 'oauth2')
     if (!oauth || oauth.kind !== 'oauth2') throw new Error('missing OAuth option')

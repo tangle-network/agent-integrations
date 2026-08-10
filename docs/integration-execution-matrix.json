@@ -25605,13 +25605,15 @@
     "category": "docs",
     "catalogAuth": "oauth2",
     "setupAuth": {
-      "mode": "api_key",
-      "credential": {
-        "label": "clickup API key",
-        "description": "ClickUp personal API token (starts with pk_).",
-        "secret": true
-      },
-      "placement": "header"
+      "mode": "oauth2",
+      "authorizationUrl": "https://app.clickup.com/api",
+      "tokenUrl": "https://api.clickup.com/api/v2/oauth/token",
+      "clientIdEnv": "CLICKUP_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "CLICKUP_OAUTH_CLIENT_SECRET",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/clickup/callback",
+      "pkce": "unsupported"
     },
     "authFields": [
       {

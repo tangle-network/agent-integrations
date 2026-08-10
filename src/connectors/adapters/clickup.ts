@@ -4,12 +4,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // OAuth2 endpoints from https://clickup.com/api/developer-portal/authentication/#oauth-flow
 //   authorize: https://app.clickup.com/api (browser; query string carries client_id, redirect_uri, state)
 //   token:     https://api.clickup.com/api/v2/oauth/token (server exchange; POSTs client_id+client_secret+code)
-// ClickUp supports both OAuth for public apps and personal API tokens for
-// direct workspace connections. Its current workspace UI can expose a personal
-// token even when the documented "Create new app" control is unavailable, so
-// keep OAuth as an option without making a shared OAuth application a launch
-// dependency. ClickUp has no named OAuth scopes; workspace access is selected
-// on the provider consent screen.
+// ClickUp supports both OAuth for shared apps and personal API tokens for
+// direct workspace connections. Hosted setup prefers the shared OAuth app,
+// while direct consumers can still use a personal token. ClickUp has no named
+// OAuth scopes; workspace access is selected on the provider consent screen.
 export const clickupConnector = declarativeRestConnector({
   kind: 'clickup',
   displayName: 'ClickUp',
@@ -17,7 +15,7 @@ export const clickupConnector = declarativeRestConnector({
     'Read and mutate ClickUp workspaces, spaces, folders, lists, tasks, comments, and time entries via the ClickUp REST v2 API.',
   auth: {
     kind: 'one_of',
-    preferred: 'api-key',
+    preferred: 'oauth2',
     options: [
       {
         kind: 'api-key',
