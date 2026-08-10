@@ -51,7 +51,6 @@ describe('calendly adapter', () => {
       'scheduled-events.list',
       'scheduled-events.list-invitees',
       'scheduling-links.create',
-      'scheduling-links.delete',
       'user.get-current',
       'webhooks.create',
       'webhooks.delete',
@@ -70,7 +69,6 @@ describe('calendly adapter', () => {
       'invitee.no-show.create',
       'scheduled-events.cancel',
       'scheduling-links.create',
-      'scheduling-links.delete',
       'webhooks.create',
       'webhooks.delete',
     ])

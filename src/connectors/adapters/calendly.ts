@@ -177,19 +177,6 @@ export const calendlyConnector = declarativeRestConnector({
       cas: 'native-idempotency',
     },
     {
-      name: 'scheduling-links.delete',
-      class: 'mutation',
-      description: 'Delete a single-use scheduling link by uuid.',
-      parameters: {
-        type: 'object',
-        properties: { uuid: { type: 'string' } },
-        required: ['uuid'],
-      },
-      request: { method: 'DELETE', path: '/scheduling_links/{uuid}' },
-      cas: 'native-idempotency',
-      externalEffect: true,
-    },
-    {
       name: 'webhooks.create',
       class: 'mutation',
       description: 'Subscribe a Calendly webhook to organization or user scoped events.',
