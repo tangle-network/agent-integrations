@@ -28,7 +28,6 @@ describe('xero adapter manifest', () => {
     expect(auth.tokenUrl).toBe('https://identity.xero.com/connect/token')
     expect(auth.scopes).toEqual([
       'offline_access',
-      'app.connections',
       'accounting.contacts',
       'accounting.contacts.read',
       'accounting.invoices',
@@ -43,6 +42,7 @@ describe('xero adapter manifest', () => {
     ])
     expect(auth.clientIdEnv).toBe('XERO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('XERO_OAUTH_CLIENT_SECRET')
+    expect(auth.scopes).not.toContain('app.connections')
   })
 
   it('classifies itself as crm with authoritative consistency', () => {
@@ -102,6 +102,8 @@ describe('xero adapter manifest', () => {
     expect(paymentCreate.requiredScopes).toEqual(['accounting.payments'])
     const accountsRead = xeroConnector.manifest.capabilities.find((c) => c.name === 'accounts.search')!
     expect(accountsRead.requiredScopes).toEqual(['accounting.settings.read'])
+    const tenantList = xeroConnector.manifest.capabilities.find((c) => c.name === 'tenants.list')!
+    expect(tenantList.requiredScopes).toBeUndefined()
   })
 })
 

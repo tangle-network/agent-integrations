@@ -23,13 +23,13 @@ export const xeroConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://login.xero.com/identity/connect/authorize',
     tokenUrl: 'https://identity.xero.com/connect/token',
-    // Xero apps created with granular scopes reject the legacy umbrella
-    // `accounting.transactions` and `accounting.reports.read` scopes. Keep
-    // reads and writes explicit, including each report family this adapter
-    // advertises, so consent matches the provider's current app configuration.
+    // Xero apps created with granular scopes reject both the legacy umbrella
+    // scopes and `app.connections` in an end-user authorization request. The
+    // Connections endpoint remains available to the resulting accounting
+    // token, so keep the requested scopes limited to the data this adapter
+    // actually reads or writes.
     scopes: [
       'offline_access',
-      'app.connections',
       'accounting.contacts',
       'accounting.contacts.read',
       'accounting.invoices',
@@ -62,7 +62,6 @@ export const xeroConnector = declarativeRestConnector({
         'List the Xero organizations (tenants) this connection is authorized for. Call this FIRST — every other Xero capability requires the `tenantId` returned here.',
       parameters: { type: 'object', properties: {} },
       request: { method: 'GET', path: '/connections' },
-      requiredScopes: ['app.connections'],
     },
     {
       // Xero's reporting surface, like QBO's, is a separate namespace from the
