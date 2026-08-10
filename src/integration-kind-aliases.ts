@@ -19,6 +19,7 @@ export const INTEGRATION_KIND_ALIASES: Readonly<Record<string, string>> = {
   twilio: 'twilio-sms',
   'twilio-voice': 'twilio-sms',
   'telegram-bot': 'telegram',
+  'x-twitter': 'twitter',
   scrapegrapghai: 'scrapegraphai',
 }
 
