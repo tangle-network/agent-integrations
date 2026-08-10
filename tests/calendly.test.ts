@@ -34,7 +34,6 @@ describe('calendly adapter manifest', () => {
   it('marks the new write capabilities as native-idempotency external effect', () => {
     const caps = calendlyConnector.manifest.capabilities
     const targets = [
-      'scheduling-links.delete',
       'webhooks.create',
       'webhooks.delete',
       'invitee.no-show.create',
@@ -46,44 +45,6 @@ describe('calendly adapter manifest', () => {
       expect(cap.cas).toBe('native-idempotency')
       expect(cap.externalEffect).toBe(true)
     }
-  })
-})
-
-describe('calendly scheduling-links.delete', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('issues DELETE /scheduling_links/{uuid}', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        requestUrl = String(input)
-        requestMethod = init?.method
-        return jsonResponse({})
-      }),
-    )
-    const result = await calendlyConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'scheduling-links.delete',
-      args: { uuid: 'link-uuid-1' },
-      idempotencyKey: 'k-1',
-    })
-    expect(requestMethod).toBe('DELETE')
-    expect(String(requestUrl)).toContain('/scheduling_links/link-uuid-1')
-    expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      calendlyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'scheduling-links.delete',
-        args: { uuid: 'link-uuid-1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
