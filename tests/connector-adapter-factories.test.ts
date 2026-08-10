@@ -127,6 +127,31 @@ describe('connector adapter factory registry', () => {
     expect(resolveConnectorAdapterFactoryOptions(definition!, {})).toEqual({})
   })
 
+  it('surfaces ClickUp as OAuth while retaining personal tokens as a secondary option', async () => {
+    const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'clickup',
+    )
+    const options = resolveConnectorAdapterFactoryOptions(definition!, {
+      CLICKUP_OAUTH_CLIENT_ID: 'client-id',
+      CLICKUP_OAUTH_CLIENT_SECRET: 'client-secret',
+    })
+    const provider = createConnectorAdapterProvider({
+      adapters: [definition!.factory(options!)],
+      resolveDataSource: () => ({ kind: 'clickup', id: 'clickup-source' }) as never,
+    })
+
+    expect(await provider.listConnectors()).toEqual([
+      expect.objectContaining({
+        id: 'clickup',
+        auth: 'oauth2',
+        metadata: expect.objectContaining({
+          authOptions: ['api-key', 'oauth2'],
+          preferredAuth: 'oauth2',
+        }),
+      }),
+    ])
+  })
+
   it('runs the complete Microsoft 365 pack through the shared OAuth application', () => {
     const kinds = [
       'microsoft-excel-365',
