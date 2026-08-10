@@ -118,15 +118,13 @@ describe('connector adapter factory registry', () => {
     }).manifest.auth.kind).toBe('oauth2')
   })
 
-  it('registers user-supplied task provider credentials without an app secret', () => {
-    for (const kind of ['clickup', 'trello']) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )
-      expect(definition, kind).toBeDefined()
-      expect(definition!.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-    }
+  it('registers user-supplied Trello credentials without an app secret', () => {
+    const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'trello',
+    )
+    expect(definition).toBeDefined()
+    expect(definition!.envMap).toEqual({})
+    expect(resolveConnectorAdapterFactoryOptions(definition!, {})).toEqual({})
   })
 
   it('runs the complete Microsoft 365 pack through the shared OAuth application', () => {
@@ -157,7 +155,7 @@ describe('connector adapter factory registry', () => {
     }
   })
 
-  it('registers launch and expanded Google providers behind their OAuth application settings', () => {
+  it('registers OAuth providers behind their application settings', () => {
     const expected = {
       salesforce: ['SALESFORCE_OAUTH_CLIENT_ID', 'SALESFORCE_OAUTH_CLIENT_SECRET'],
       dropbox: ['DROPBOX_OAUTH_CLIENT_ID', 'DROPBOX_OAUTH_CLIENT_SECRET'],
@@ -175,6 +173,7 @@ describe('connector adapter factory registry', () => {
       linear: ['LINEAR_OAUTH_CLIENT_ID', 'LINEAR_OAUTH_CLIENT_SECRET'],
       miro: ['MIRO_OAUTH_CLIENT_ID', 'MIRO_OAUTH_CLIENT_SECRET'],
       monday: ['MONDAY_OAUTH_CLIENT_ID', 'MONDAY_OAUTH_CLIENT_SECRET'],
+      clickup: ['CLICKUP_OAUTH_CLIENT_ID', 'CLICKUP_OAUTH_CLIENT_SECRET'],
       basecamp: ['BASECAMP_OAUTH_CLIENT_ID', 'BASECAMP_OAUTH_CLIENT_SECRET'],
       todoist: ['TODOIST_OAUTH_CLIENT_ID', 'TODOIST_OAUTH_CLIENT_SECRET'],
       'jira-cloud': ['ATLASSIAN_OAUTH_CLIENT_ID', 'ATLASSIAN_OAUTH_CLIENT_SECRET'],
@@ -186,8 +185,12 @@ describe('connector adapter factory registry', () => {
       )
       expect(definition, kind).toBeDefined()
       expect(Object.values(definition!.envMap)).toEqual(envNames)
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toBeNull()
       expect(resolveConnectorAdapterFactoryOptions(definition!, {
         [envNames[0]]: 'client-id',
+      }), kind).toBeNull()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {
+        [envNames[1]]: 'client-secret',
       }), kind).toBeNull()
     }
   })

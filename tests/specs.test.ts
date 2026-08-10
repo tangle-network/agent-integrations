@@ -82,6 +82,16 @@ describe('integration specs', () => {
     expect(google!.requestedScopes).toContain('https://www.googleapis.com/auth/calendar')
     expect(google!.requestedScopes.every((scope) => scope.length > 0)).toBe(true)
 
+    const clickup = resolveConnectorAuthSpec('clickup')
+    expect(clickup).toMatchObject({
+      kind: 'clickup',
+      authKind: 'oauth2',
+      authorizationUrl: 'https://app.clickup.com/api',
+      tokenUrl: 'https://api.clickup.com/api/v2/oauth/token',
+      tokenClientAuthMethod: 'client_secret_post',
+      requestedScopes: [],
+    })
+
     const github = resolveConnectorAuthSpec('github')
     expect(github).toEqual({ kind: 'github', authKind: 'api_key', requestedScopes: [] })
 
