@@ -105,7 +105,11 @@ export { supabaseConnector } from './supabase.js'
 export { discordConnector } from './discord.js'
 export { facebookPagesConnector } from './facebook-pages.js'
 export { instagramBusinessConnector } from './instagram-business.js'
-export { linkedinConnector } from './linkedin.js'
+export {
+  createLinkedinConnector,
+  linkedinConnector,
+  type LinkedInOptions,
+} from './linkedin.js'
 export { telegramConnector, TELEGRAM_FILE_DOWNLOAD_ROOT } from './telegram.js'
 export { oktaConnector } from './okta.js'
 export { pingIdentityConnector } from './ping-identity.js'
