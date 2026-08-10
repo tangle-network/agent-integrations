@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { twitter, twitterConnector } from '../src/connectors/adapters/twitter.js'
 import type { ResolvedDataSource } from '../src/connectors/index'
+import { getIntegrationSpec, resolveConnectorAuthSpec } from '../src/specs/index.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -29,6 +30,18 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('twitter adapter manifest', () => {
+  it('collapses the historical x-twitter catalog id onto the executable adapter', () => {
+    const spec = getIntegrationSpec('x-twitter')
+    expect(spec).toMatchObject({ kind: 'twitter', status: 'executable' })
+    expect(spec?.actions.map((action) => action.id)).toContain('users.me')
+    expect(resolveConnectorAuthSpec('x-twitter')).toMatchObject({
+      kind: 'twitter',
+      authKind: 'oauth2',
+      clientIdEnv: 'TWITTER_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'TWITTER_OAUTH_CLIENT_SECRET',
+    })
+  })
+
   it('classifies itself as the comms category and exposes the twitter kind', () => {
     expect(twitterConnector.manifest.kind).toBe('twitter')
     expect(twitterConnector.manifest.category).toBe('comms')

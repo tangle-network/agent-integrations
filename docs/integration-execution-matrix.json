@@ -98249,7 +98249,74 @@
     "title": "Api Key",
     "category": "chat",
     "catalogAuth": "api_key",
-    "setupAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://twitter.com/i/oauth2/authorize",
+      "tokenUrl": "https://api.twitter.com/2/oauth2/token",
+      "clientIdEnv": "TWITTER_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "TWITTER_OAUTH_CLIENT_SECRET",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "tweet.read",
+          "title": "X / Twitter read",
+          "reason": "Read X / Twitter data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "tweet.write",
+          "title": "X / Twitter write",
+          "reason": "Create or update X / Twitter resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "users.read",
+          "title": "X / Twitter read",
+          "reason": "Read X / Twitter data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "follows.read",
+          "title": "X / Twitter read",
+          "reason": "Read X / Twitter data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "like.write",
+          "title": "X / Twitter write",
+          "reason": "Create or update X / Twitter resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "like.read",
+          "title": "X / Twitter read",
+          "reason": "Read X / Twitter data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "offline.access",
+          "title": "X / Twitter read",
+          "reason": "Read X / Twitter data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/x-twitter/callback",
+      "pkce": "unsupported"
+    },
     "authFields": [
       {
         "key": "consumerKey",
@@ -98295,7 +98362,7 @@
     "runtimePackage": "@activepieces/piece-twitter",
     "actionCount": 2,
     "triggerCount": 0,
-    "setupStatus": "catalog-only",
+    "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
     "nativeAdapter": true,
@@ -98308,9 +98375,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "executable_setup_spec"
-    ]
+    "missing": []
   },
   {
     "id": "typeform",
@@ -108024,44 +108089,6 @@
     "missing": [
       "hosted_trigger_runtime",
       "executable_setup_spec"
-    ]
-  },
-  {
-    "id": "x-twitter",
-    "title": "X / Twitter",
-    "category": "workflow",
-    "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
-    "runtimePackage": null,
-    "actionCount": 0,
-    "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
-    "catalogActionMappings": null,
-    "quality": {
-      "tangleContract": true,
-      "authFieldsMapped": true,
-      "actionNamesMapped": true,
-      "triggerNamesMapped": true,
-      "runtimePackageMapped": false,
-      "nativeAdapter": false
-    },
-    "missing": [
-      "native_adapter"
     ]
   },
   {
