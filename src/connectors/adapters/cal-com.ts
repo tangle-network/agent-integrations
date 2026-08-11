@@ -1,4 +1,14 @@
-import { declarativeRestConnector } from './declarative-rest.js'
+import {
+  CredentialsExpired,
+  type ConnectorAdapter,
+  type ConnectorCredentials,
+  type ConnectorInvocation,
+} from '../types.js'
+import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
+import {
+  declarativeRestConnector,
+  type RestConnectorSpec,
+} from './declarative-rest.js'
 
 /**
  * Cal.com Platform API v2 — managed scheduling. Auth is OAuth2 via the
@@ -13,7 +23,7 @@ import { declarativeRestConnector } from './declarative-rest.js'
 const authorizeUrl = 'https://app.cal.com/auth/oauth2/authorize'
 const tokenUrl = 'https://api.cal.com/v2/auth/oauth2/token'
 
-export const calComConnector = declarativeRestConnector({
+const calComSpec = {
   kind: 'cal-com',
   displayName: 'Cal.com',
   description: 'Schedule, query, and cancel Cal.com bookings and read event types through the Platform v2 API.',
@@ -30,8 +40,9 @@ export const calComConnector = declarativeRestConnector({
       'SCHEDULE_READ',
       'SCHEDULE_WRITE',
     ],
+    pkce: 'required',
+    tokenClientAuthMethod: 'none',
     clientIdEnv: 'CALCOM_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'CALCOM_OAUTH_CLIENT_SECRET',
   },
   category: 'calendar',
   defaultConsistencyModel: 'authoritative',
@@ -352,4 +363,119 @@ export const calComConnector = declarativeRestConnector({
       requiredScopes: ['EVENT_TYPE_READ'],
     },
   ],
-})
+} satisfies RestConnectorSpec
+
+/** Runtime OAuth settings for the approved Cal.com public client. */
+export interface CalComOptions {
+  clientId: string
+  fetchImpl?: typeof fetch
+  now?: () => number
+}
+
+/** Static connector used for manifest discovery and direct token execution. */
+export const calComConnector = declarativeRestConnector(calComSpec)
+
+/** Credential-bound connector used by the production factory. */
+export function calCom(options: CalComOptions): ConnectorAdapter {
+  const adapter = declarativeRestConnector(calComSpec)
+  const now = options.now ?? Date.now
+  const refreshes = new Map<string, Promise<ConnectorCredentials>>()
+  adapter.exchangeOAuth = async (input) => {
+    const tokens = await exchangeAuthorizationCode({
+      tokenUrl,
+      clientId: options.clientId,
+      tokenClientAuthMethod: 'none',
+      code: input.code,
+      codeVerifier: input.codeVerifier,
+      redirectUri: input.redirectUri,
+      fetchImpl: options.fetchImpl,
+    })
+    return {
+      credentials: {
+        kind: 'oauth2',
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresIn
+          ? now() + tokens.expiresIn * 1000
+          : undefined,
+      },
+      scopes: tokens.scope?.split(/[\s,]+/).filter(Boolean) ?? calComSpec.auth.scopes,
+      metadata: {},
+    }
+  }
+  adapter.refreshToken = async (credentials) => {
+    if (credentials.kind !== 'oauth2' || !credentials.refreshToken) {
+      throw new Error('cal-com.refreshToken: missing refresh token')
+    }
+    const refreshed = await refreshAccessToken({
+      tokenUrl,
+      clientId: options.clientId,
+      tokenClientAuthMethod: 'none',
+      refreshToken: credentials.refreshToken,
+      fetchImpl: options.fetchImpl,
+    })
+    return {
+      kind: 'oauth2',
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken ?? credentials.refreshToken,
+      expiresAt: refreshed.expiresIn
+        ? now() + refreshed.expiresIn * 1000
+        : undefined,
+    }
+  }
+  const executeRead = adapter.executeRead?.bind(adapter)
+  const executeMutation = adapter.executeMutation?.bind(adapter)
+  if (executeRead) {
+    adapter.executeRead = async (invocation) => executeRead(
+      await withFreshCalComCredentials(invocation, adapter, refreshes, now),
+    )
+  }
+  if (executeMutation) {
+    adapter.executeMutation = async (invocation) => executeMutation(
+      await withFreshCalComCredentials(invocation, adapter, refreshes, now),
+    )
+  }
+  return adapter
+}
+
+async function withFreshCalComCredentials(
+  invocation: ConnectorInvocation,
+  adapter: ConnectorAdapter,
+  refreshes: Map<string, Promise<ConnectorCredentials>>,
+  now: () => number,
+): Promise<ConnectorInvocation> {
+  const credentials = invocation.source.credentials
+  if (credentials.kind !== 'oauth2') {
+    throw new CredentialsExpired('Cal.com requires OAuth2 credentials.', invocation.source.id)
+  }
+  if (!credentials.expiresAt || credentials.expiresAt > now() + 60_000) {
+    return invocation
+  }
+  if (!credentials.refreshToken || !adapter.refreshToken) {
+    throw new CredentialsExpired(
+      'Cal.com access token expired and no refresh token is available.',
+      invocation.source.id,
+    )
+  }
+
+  let refresh = refreshes.get(invocation.source.id)
+  if (!refresh) {
+    refresh = adapter.refreshToken(credentials)
+    refreshes.set(invocation.source.id, refresh)
+    const clear = () => {
+      if (refreshes.get(invocation.source.id) === refresh) {
+        refreshes.delete(invocation.source.id)
+      }
+    }
+    void refresh.then(clear, clear)
+  }
+  const rotated = await refresh
+  await invocation.onCredentialsRotated?.(rotated)
+  return {
+    ...invocation,
+    source: {
+      ...invocation.source,
+      credentials: rotated,
+    },
+  }
+}

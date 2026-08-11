@@ -53,6 +53,7 @@ const TIKTOK_SPEC: RestConnectorSpec = {
     tokenUrl: TOKEN_URL,
     scopes: [...SCOPES],
     scopeSeparator: ',',
+    pkce: 'unsupported',
     authorizationClientIdParam: 'client_key',
     tokenClientIdParam: 'client_key',
     tokenClientSecretParam: 'client_secret',

@@ -319,6 +319,9 @@ export function twitter(opts: TwitterOptions): ConnectorAdapter {
       if (!clientId || !clientSecret) {
         throw new Error('Twitter OAuth client not configured (TWITTER_OAUTH_CLIENT_ID / _SECRET)')
       }
+      if (!input.codeVerifier) {
+        throw new Error('twitter.exchangeOAuth: missing PKCE code verifier')
+      }
       const tokens = await twitterTokenRequest(clientId, clientSecret, {
         grant_type: 'authorization_code',
         code: input.code,

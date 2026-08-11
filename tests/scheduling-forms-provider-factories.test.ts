@@ -5,7 +5,7 @@ import {
 } from '../src/connectors/adapters/index.js'
 
 const expectedProviders = {
-  'cal-com': ['CALCOM_OAUTH_CLIENT_ID', 'CALCOM_OAUTH_CLIENT_SECRET'],
+  'cal-com': ['CALCOM_OAUTH_CLIENT_ID'],
   savvycal: ['SAVVYCAL_OAUTH_CLIENT_ID', 'SAVVYCAL_OAUTH_CLIENT_SECRET'],
   typeform: ['TYPEFORM_OAUTH_CLIENT_ID', 'TYPEFORM_OAUTH_CLIENT_SECRET'],
   jotform: [],
@@ -25,16 +25,21 @@ describe('scheduling and forms provider factories', () => {
     }
   })
 
-  it('fails closed for OAuth apps but allows customer-supplied API keys', () => {
+  it('requires every declared OAuth app credential and accepts key-only providers', () => {
     for (const [kind, envNames] of Object.entries(expectedProviders)) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)!
       if (envNames.length === 0) {
         expect(resolveConnectorAdapterFactoryOptions(definition, {}), kind).toEqual({})
         continue
       }
-      expect(resolveConnectorAdapterFactoryOptions(definition, {
+      const resolved = resolveConnectorAdapterFactoryOptions(definition, {
         [envNames[0]]: 'configured-client-id',
-      }), kind).toBeNull()
+      })
+      if (envNames.length === 1) {
+        expect(resolved, kind).toEqual({ clientId: 'configured-client-id' })
+      } else {
+        expect(resolved, kind).toBeNull()
+      }
     }
   })
 })

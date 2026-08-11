@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import {
   composeIntegrationRegistry,
   type ComposeIntegrationRegistryOptions,
@@ -123,8 +123,13 @@ export class IntegrationHub {
   async startAuth(providerId: string, request: StartAuthRequest): Promise<StartAuthResult> {
     const provider = this.requireProvider(providerId)
     if (!provider.startAuth) throw new IntegrationError(`Provider ${providerId} does not support auth start.`, 'auth_not_supported')
-    await this.requireConnector(provider, request.connectorId)
-    const result = await provider.startAuth(request)
+    const connector = await this.requireConnector(provider, request.connectorId)
+    const pkce = connectorOAuthPkceMode(connector)
+    const pkcePair = pkce === 'unsupported' ? undefined : createPkcePair()
+    const result = await provider.startAuth({
+      ...request,
+      codeChallenge: pkcePair?.challenge,
+    })
     const record: IntegrationOAuthState = {
       state: result.state,
       providerId,
@@ -132,6 +137,7 @@ export class IntegrationHub {
       owner: request.owner,
       requestedScopes: request.requestedScopes,
       redirectUri: request.redirectUri,
+      codeVerifier: pkcePair?.verifier,
       expiresAt: this.now().getTime() + this.oauthStateTtlMs,
       metadata: request.metadata,
     }
@@ -152,7 +158,18 @@ export class IntegrationHub {
     if (outcome.state.redirectUri !== request.redirectUri) {
       throw new IntegrationError('Integration OAuth redirect URI does not match the start request.', 'capability_invalid')
     }
-    const connection = await provider.completeAuth(request)
+    const pinnedMetadata = request.metadata || outcome.state.metadata
+      ? { ...request.metadata, ...outcome.state.metadata }
+      : undefined
+    const connection = await provider.completeAuth({
+      ...request,
+      connectorId: outcome.state.connectorId,
+      owner: outcome.state.owner,
+      state: outcome.state.state,
+      redirectUri: outcome.state.redirectUri,
+      codeVerifier: outcome.state.codeVerifier,
+      metadata: pinnedMetadata,
+    })
     await this.store.put(connection)
     return connection
   }
@@ -435,6 +452,24 @@ async function postJson<T = unknown>(
 function assertScopes(connection: Pick<IntegrationConnection, 'grantedScopes'>, requiredScopes: string[]): void {
   const missing = requiredScopes.filter((scope) => !connection.grantedScopes.includes(scope))
   if (missing.length > 0) throw new IntegrationError(`Missing integration scopes: ${missing.join(', ')}`, 'scope_denied')
+}
+
+type IntegrationOAuthPkceMode = 'required' | 'supported' | 'unsupported'
+
+function connectorOAuthPkceMode(connector: IntegrationConnector): IntegrationOAuthPkceMode {
+  const value = connector.metadata?.oauthPkce
+  if (value === undefined) return 'required'
+  if (value === 'required' || value === 'supported' || value === 'unsupported') return value
+  throw new IntegrationError(
+    `Connector ${connector.id} declares an invalid OAuth PKCE posture.`,
+    'config_missing',
+  )
+}
+
+function createPkcePair(): { verifier: string; challenge: string } {
+  const verifier = randomBytes(48).toString('base64url')
+  const challenge = createHash('sha256').update(verifier).digest('base64url')
+  return { verifier, challenge }
 }
 
 function hmac(payload: string, secret: string): string {

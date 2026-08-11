@@ -15,7 +15,10 @@ import {
   bundledOAuth2Auth,
   getBundledAdapterManifest,
 } from '../connectors/bundled-manifests.js'
-import type { ConnectorManifest } from '../connectors/types.js'
+import type {
+  ConnectorManifest,
+  OAuth2TokenClientAuthMethod,
+} from '../connectors/types.js'
 import { canonicalIntegrationKind } from '../integration-kind-aliases.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
 import { getIntegrationOverride } from './overrides.js'
@@ -88,7 +91,7 @@ export interface ConnectorAuthSpec {
   authorizationClientIdParam?: string
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
-  tokenClientAuthMethod?: 'client_secret_post' | 'client_secret_basic'
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   extraAuthParams?: Record<string, string>
 }
 
@@ -290,21 +293,28 @@ function authFor(
   // a fact the caller can check, whereas `https://example.invalid/...` is a
   // dead link that reads as configuration.
   const real = manifest ? bundledOAuth2Auth(manifest) : undefined
+  const tokenClientAuthMethod = real?.tokenClientAuthMethod ?? 'client_secret_post'
   return {
     mode: 'oauth2',
     authorizationUrl: real?.authorizationUrl ?? f.authorizationUrl,
     tokenUrl: real?.tokenUrl ?? f.tokenUrl,
     clientIdEnv: real?.clientIdEnv ?? f.credentialFields.find((field) => !field.secret)?.env,
-    clientSecretEnv: real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
+    clientSecretEnv: tokenClientAuthMethod === 'none'
+      ? undefined
+      : real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
     scopeSeparator: real?.scopeSeparator ?? ' ',
     authorizationClientIdParam: real?.authorizationClientIdParam ?? 'client_id',
     tokenClientIdParam: real?.tokenClientIdParam ?? 'client_id',
     tokenClientSecretParam: real?.tokenClientSecretParam ?? 'client_secret',
-    tokenClientAuthMethod: real?.tokenClientAuthMethod ?? 'client_secret_post',
+    tokenClientAuthMethod,
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
     redirectUriTemplate: (f.redirectUriTemplate ?? 'https://{host}/api/integrations/oauth/{kind}/callback').replace('{kind}', spec.id),
-    pkce: family === 'google' || family === 'microsoft-graph' ? 'supported' : 'unsupported',
+    pkce: real?.pkce ?? (
+      family === 'google' || family === 'microsoft-graph'
+        ? 'supported'
+        : 'required'
+    ),
   } satisfies OAuth2AuthSpec
 }
 
@@ -371,10 +381,18 @@ function scopesFromManifest(
 function credentialFieldsFor(auth: IntegrationAuthSpec) {
   if (auth.mode === 'api_key' || auth.mode === 'hmac') return [auth.credential]
   if (auth.mode === 'oauth2') {
-    return [
+    const fields = [
       { label: 'Client ID', env: auth.clientIdEnv, description: 'OAuth client ID.', secret: false },
-      { label: 'Client Secret', env: auth.clientSecretEnv, description: 'OAuth client secret.', secret: true },
     ]
+    if (auth.tokenClientAuthMethod !== 'none') {
+      fields.push({
+        label: 'Client Secret',
+        env: auth.clientSecretEnv,
+        description: 'OAuth client secret.',
+        secret: true,
+      })
+    }
+    return fields
   }
   return []
 }

@@ -112,7 +112,7 @@ import { baremetricsConnector } from './baremetrics.js'
 import { brexConnector } from './brex.js'
 import { billComConnector } from './bill-com.js'
 import { billplzConnector } from './billplz.js'
-import { calComConnector } from './cal-com.js'
+import { calCom, type CalComOptions } from './cal-com.js'
 import { calendlyConnector } from './calendly.js'
 import { capsuleCrmConnector } from './capsule-crm.js'
 import { closeConnector } from './close.js'
@@ -642,9 +642,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'ACUITY_OAUTH_CLIENT_ID',
       clientSecret: 'ACUITY_OAUTH_CLIENT_SECRET',
     }),
-    defineFactoryAdapter(() => calComConnector, {
+    defineFactoryAdapter<CalComOptions>(calCom, {
       clientId: 'CALCOM_OAUTH_CLIENT_ID',
-      clientSecret: 'CALCOM_OAUTH_CLIENT_SECRET',
     }),
     defineFactoryAdapter(() => savvycalConnector, {
       clientId: 'SAVVYCAL_OAUTH_CLIENT_ID',

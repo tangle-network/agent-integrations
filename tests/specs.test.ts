@@ -88,9 +88,27 @@ describe('integration specs', () => {
       authKind: 'oauth2',
       authorizationUrl: 'https://app.clickup.com/api',
       tokenUrl: 'https://api.clickup.com/api/v2/oauth/token',
+      pkce: 'required',
       tokenClientAuthMethod: 'client_secret_post',
       requestedScopes: [],
     })
+
+    for (const kind of ['slack', 'hubspot', 'salesforce']) {
+      expect(resolveConnectorAuthSpec(kind)?.pkce, kind).toBe('required')
+    }
+    expect(resolveConnectorAuthSpec('tiktok')?.pkce).toBe('unsupported')
+
+    const calCom = resolveConnectorAuthSpec('cal-com')
+    expect(calCom).toMatchObject({
+      authKind: 'oauth2',
+      clientIdEnv: 'CALCOM_OAUTH_CLIENT_ID',
+      pkce: 'required',
+      tokenClientAuthMethod: 'none',
+    })
+    expect(calCom?.clientSecretEnv).toBeUndefined()
+    expect(getIntegrationSpec('cal-com')?.setup.credentialFields).toEqual([
+      expect.objectContaining({ label: 'Client ID', secret: false }),
+    ])
 
     const github = resolveConnectorAuthSpec('github')
     expect(github).toEqual({ kind: 'github', authKind: 'api_key', requestedScopes: [] })

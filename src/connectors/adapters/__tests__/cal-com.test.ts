@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { calComConnector } from '../cal-com.js'
+import { calCom, calComConnector } from '../cal-com.js'
 import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
@@ -25,6 +25,51 @@ describe('cal-com adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
+  it('binds public-client refresh to the credential-aware factory', () => {
+    const adapter = calCom({ clientId: 'cal_public_client' })
+    expect(adapter.exchangeOAuth).toBeTypeOf('function')
+    expect(adapter.refreshToken).toBeTypeOf('function')
+    expect(calComConnector.refreshToken).toBeUndefined()
+  })
+
+  it('exchanges a code as a PKCE public client', async () => {
+    const fetchImpl = vi.fn(async (_url, init) => {
+      const headers = init?.headers as Record<string, string>
+      const body = init?.body as URLSearchParams
+      expect(headers.authorization).toBeUndefined()
+      expect(body.get('client_id')).toBe('cal_public_client')
+      expect(body.has('client_secret')).toBe(false)
+      expect(body.get('code_verifier')).toBe('v'.repeat(64))
+      return Response.json({
+        access_token: 'fresh_access',
+        refresh_token: 'fresh_refresh',
+        expires_in: 3600,
+        scope: 'PROFILE_READ BOOKING_READ',
+      })
+    }) as typeof fetch
+    const adapter = calCom({
+      clientId: 'cal_public_client',
+      fetchImpl,
+      now: () => 1_000,
+    })
+
+    await expect(adapter.exchangeOAuth!({
+      code: 'authorization_code',
+      state: 'state',
+      codeVerifier: 'v'.repeat(64),
+      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/cal-com/callback',
+    })).resolves.toEqual({
+      credentials: {
+        kind: 'oauth2',
+        accessToken: 'fresh_access',
+        refreshToken: 'fresh_refresh',
+        expiresAt: 3_601_000,
+      },
+      scopes: ['PROFILE_READ', 'BOOKING_READ'],
+      metadata: {},
+    })
+  })
+
   it('declares Cal.com Platform oauth2 against app.cal.com with the v2 token exchange', () => {
     const auth = calComConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -32,7 +77,9 @@ describe('cal-com adapter', () => {
     expect(auth.authorizationUrl).toBe('https://app.cal.com/auth/oauth2/authorize')
     expect(auth.tokenUrl).toBe('https://api.cal.com/v2/auth/oauth2/token')
     expect(auth.clientIdEnv).toBe('CALCOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('CALCOM_OAUTH_CLIENT_SECRET')
+    expect(auth.clientSecretEnv).toBeUndefined()
+    expect(auth.pkce).toBe('required')
+    expect(auth.tokenClientAuthMethod).toBe('none')
     expect(auth.scopes).toContain('BOOKING_WRITE')
     expect(auth.scopes).toContain('BOOKING_READ')
     expect(auth.scopes).toContain('EVENT_TYPE_READ')

@@ -14,10 +14,13 @@
  */
 
 import { createHash, randomBytes } from 'crypto'
+import type { OAuth2TokenClientAuthMethod } from './types.js'
+
+export type OAuthPkceMode = 'required' | 'supported' | 'unsupported'
 
 export interface PendingOAuthFlow {
-  /** code_verifier for PKCE. */
-  codeVerifier: string
+  /** code_verifier for PKCE. Absent when the provider rejects PKCE. */
+  codeVerifier?: string
   /** Opaque-state value also returned in the OAuth redirect. */
   state: string
   /** Project the user is connecting under. */
@@ -81,6 +84,8 @@ export interface StartOAuthInput {
   /** Authorization query parameter for the client id. Defaults to
    *  `client_id`; TikTok uses `client_key`. */
   authorizationClientIdParam?: string
+  /** PKCE posture. Defaults to required to preserve the existing safe flow. */
+  pkce?: OAuthPkceMode
   redirectUri: string
   /** Optional extra query params; Google needs `access_type=offline` and
    *  `prompt=consent` to issue refresh tokens reliably. */
@@ -107,8 +112,11 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
   const store = input.store ?? defaultFlowStore
   const now = input.now ?? Date.now()
   store.sweep?.(now)
-  const codeVerifier = base64Url(randomBytes(48))
-  const codeChallenge = base64Url(createHash('sha256').update(codeVerifier).digest())
+  const usePkce = (input.pkce ?? 'required') !== 'unsupported'
+  const codeVerifier = usePkce ? base64Url(randomBytes(48)) : undefined
+  const codeChallenge = codeVerifier
+    ? base64Url(createHash('sha256').update(codeVerifier).digest())
+    : undefined
   const state = base64Url(randomBytes(24))
 
   store.put(state, {
@@ -130,12 +138,17 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
   url.searchParams.set('redirect_uri', input.redirectUri)
   url.searchParams.set('scope', input.scopes.join(input.scopeSeparator ?? ' '))
   url.searchParams.set('state', state)
-  url.searchParams.set('code_challenge', codeChallenge)
-  url.searchParams.set('code_challenge_method', 'S256')
   if (input.extraAuthParams) {
     for (const [k, v] of Object.entries(input.extraAuthParams)) {
       url.searchParams.set(k, v)
     }
+  }
+  if (codeChallenge) {
+    url.searchParams.set('code_challenge', codeChallenge)
+    url.searchParams.set('code_challenge_method', 'S256')
+  } else {
+    url.searchParams.delete('code_challenge')
+    url.searchParams.delete('code_challenge_method')
   }
   return { authorizationUrl: url.toString(), state }
 }
@@ -154,11 +167,17 @@ export async function consumePendingFlow(state: string, store: OAuthFlowStore = 
 export interface ExchangeCodeInput {
   tokenUrl: string
   clientId: string
-  clientSecret: string
+  /** Required unless tokenClientAuthMethod is `none`. */
+  clientSecret?: string
+  /** Defaults to client_secret_post for backward compatibility. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
   code: string
-  codeVerifier: string
+  /** Required unless pkce is explicitly unsupported. */
+  codeVerifier?: string
+  /** PKCE posture. Defaults to required. */
+  pkce?: OAuthPkceMode
   redirectUri: string
   fetchImpl?: typeof fetch
   signal?: AbortSignal
@@ -180,17 +199,24 @@ export interface OAuthTokens {
  *  provider returns a non-standard JSON shape, the adapter wraps this
  *  call rather than reaching into the helper. */
 export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promise<OAuthTokens> {
+  const usePkce = (input.pkce ?? 'required') !== 'unsupported'
+  if (usePkce && !input.codeVerifier) {
+    throw new Error('OAuth token exchange requires a PKCE code_verifier')
+  }
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: input.code,
     redirect_uri: input.redirectUri,
-    code_verifier: input.codeVerifier,
   })
-  body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
-  body.set(oauthParameterName(input.tokenClientSecretParam, 'client_secret'), input.clientSecret)
+  if (usePkce) body.set('code_verifier', input.codeVerifier!)
+  const headers: Record<string, string> = {
+    'content-type': 'application/x-www-form-urlencoded',
+    accept: 'application/json',
+  }
+  applyTokenClientAuthentication(input, body, headers)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+    headers,
     body,
     signal: input.signal,
   })
@@ -219,7 +245,10 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
 export interface RefreshInput {
   tokenUrl: string
   clientId: string
-  clientSecret: string
+  /** Required unless tokenClientAuthMethod is `none`. */
+  clientSecret?: string
+  /** Defaults to client_secret_post for backward compatibility. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
   refreshToken: string
@@ -234,11 +263,14 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     grant_type: 'refresh_token',
     refresh_token: input.refreshToken,
   })
-  body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
-  body.set(oauthParameterName(input.tokenClientSecretParam, 'client_secret'), input.clientSecret)
+  const headers: Record<string, string> = {
+    'content-type': 'application/x-www-form-urlencoded',
+    accept: 'application/json',
+  }
+  applyTokenClientAuthentication(input, body, headers)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+    headers,
     body,
     signal: input.signal,
   })
@@ -264,6 +296,43 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     tokenType: json.token_type,
     idToken: json.id_token,
   }
+}
+
+function applyTokenClientAuthentication(
+  input: {
+    clientId: string
+    clientSecret?: string
+    tokenClientIdParam?: string
+    tokenClientSecretParam?: string
+    tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
+  },
+  body: URLSearchParams,
+  headers: Record<string, string>,
+): void {
+  const method = input.tokenClientAuthMethod ?? 'client_secret_post'
+  if (method === 'none') {
+    body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
+    return
+  }
+  if (!input.clientSecret) {
+    throw new Error(`OAuth ${method} client authentication requires a client secret`)
+  }
+  if (method === 'client_secret_post') {
+    body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
+    body.set(
+      oauthParameterName(input.tokenClientSecretParam, 'client_secret'),
+      input.clientSecret,
+    )
+    return
+  }
+  if (method === 'client_secret_basic') {
+    headers.authorization = `Basic ${Buffer.from(
+      `${input.clientId}:${input.clientSecret}`,
+      'utf8',
+    ).toString('base64')}`
+    return
+  }
+  throw new Error('Unsupported OAuth token client authentication method')
 }
 
 function base64Url(buf: Buffer): string {
