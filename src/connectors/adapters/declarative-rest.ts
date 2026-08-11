@@ -613,7 +613,16 @@ function hasHttpsHostnameSuffix(value: string, suffix: string): boolean {
   try {
     const url = new URL(value)
     const normalized = suffix.toLowerCase()
-    return url.protocol === 'https:' && normalized.startsWith('.') && url.hostname.toLowerCase().endsWith(normalized)
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.search &&
+      !url.hash &&
+      normalized.startsWith('.') &&
+      url.hostname.toLowerCase().endsWith(normalized)
+    )
   } catch {
     return false
   }

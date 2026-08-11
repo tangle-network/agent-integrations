@@ -60203,8 +60203,8 @@
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
-      "authorizationUrl": "https://app.marketo.com/identity/oauth/authorize",
-      "tokenUrl": "https://app.marketo.com/identity/oauth/token",
+      "grantType": "client_credentials",
+      "tokenUrl": "{restEndpoint}/identity/oauth/token",
       "clientIdEnv": "MARKETO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MARKETO_OAUTH_CLIENT_SECRET",
       "scopeSeparator": " ",
@@ -60213,8 +60213,16 @@
       "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
+      "urlTemplateMetadata": {
+        "restEndpoint": {
+          "kind": "base-url",
+          "allowedBaseUrlSuffixes": [
+            ".mktorest.com"
+          ]
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/marketo/callback",
-      "pkce": "required"
+      "pkce": "unsupported"
     },
     "runtimePackage": null,
     "actionCount": 11,
@@ -67980,7 +67988,7 @@
       "authorizationClientIdParam": "client_id",
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
+      "tokenClientAuthMethod": "client_secret_basic",
       "scopes": [],
       "extraAuthParams": {
         "owner": "user"
@@ -70532,84 +70540,13 @@
     "category": "workflow",
     "catalogAuth": null,
     "setupAuth": {
-      "mode": "oauth2",
-      "authorizationUrl": "https://app.opsgenie.com/oauth/authorize",
-      "tokenUrl": "https://app.opsgenie.com/oauth/token",
-      "clientIdEnv": "OPSGENIE_OAUTH_CLIENT_ID",
-      "clientSecretEnv": "OPSGENIE_OAUTH_CLIENT_SECRET",
-      "scopeSeparator": " ",
-      "authorizationClientIdParam": "client_id",
-      "tokenClientIdParam": "client_id",
-      "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
-      "scopes": [
-        {
-          "normalized": "project.read",
-          "providerScope": "alert.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.write",
-          "providerScope": "alert.write",
-          "title": "Opsgenie write",
-          "reason": "Create or update Opsgenie resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.read",
-          "providerScope": "incident.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.write",
-          "providerScope": "incident.write",
-          "title": "Opsgenie write",
-          "reason": "Create or update Opsgenie resources after policy approval.",
-          "risk": "write",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.read",
-          "providerScope": "schedule.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.read",
-          "providerScope": "oncall.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.read",
-          "providerScope": "team.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        },
-        {
-          "normalized": "project.read",
-          "providerScope": "user.read",
-          "title": "Opsgenie read",
-          "reason": "Read Opsgenie data for user-authorized agent workflows.",
-          "risk": "read",
-          "dataClass": "private"
-        }
-      ],
-      "redirectUriTemplate": "https://{host}/api/integrations/oauth/opsgenie/callback",
-      "pkce": "required"
+      "mode": "api_key",
+      "credential": {
+        "label": "opsgenie API key",
+        "description": "Opsgenie API key with access to the selected alert, incident, schedule, team, and user operations.",
+        "secret": true
+      },
+      "placement": "bearer"
     },
     "runtimePackage": null,
     "actionCount": 21,
@@ -89483,8 +89420,8 @@
     "catalogAuth": "oauth2",
     "setupAuth": {
       "mode": "oauth2",
-      "authorizationUrl": "https://app.snowflake.com/oauth/authorize",
-      "tokenUrl": "https://app.snowflake.com/oauth/token",
+      "authorizationUrl": "{accountUrl}/oauth/authorize",
+      "tokenUrl": "{accountUrl}/oauth/token-request",
       "clientIdEnv": "SNOWFLAKE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SNOWFLAKE_OAUTH_CLIENT_SECRET",
       "scopeSeparator": " ",
@@ -89494,16 +89431,24 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
-          "normalized": "database.write",
-          "providerScope": "session:role:manage",
-          "title": "Snowflake write",
-          "reason": "Create or update Snowflake resources after policy approval.",
-          "risk": "write",
+          "normalized": "database.read",
+          "providerScope": "refresh_token",
+          "title": "Snowflake read",
+          "reason": "Read Snowflake data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "private"
         }
       ],
+      "urlTemplateMetadata": {
+        "accountUrl": {
+          "kind": "base-url",
+          "allowedBaseUrlSuffixes": [
+            ".snowflakecomputing.com"
+          ]
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/snowflake/callback",
-      "pkce": "required"
+      "pkce": "supported"
     },
     "authFields": [
       {
@@ -98648,7 +98593,7 @@
       "authorizationClientIdParam": "client_id",
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
+      "tokenClientAuthMethod": "client_secret_basic",
       "scopes": [
         {
           "normalized": "marketing.read",

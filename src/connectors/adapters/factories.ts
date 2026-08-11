@@ -999,10 +999,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'NIFTY_OAUTH_CLIENT_ID',
       clientSecret: 'NIFTY_OAUTH_CLIENT_SECRET',
     }),
-    defineFactoryAdapter(() => opsgenieConnector, {
-      clientId: 'OPSGENIE_OAUTH_CLIENT_ID',
-      clientSecret: 'OPSGENIE_OAUTH_CLIENT_SECRET',
-    }),
+    defineFactoryAdapter(() => opsgenieConnector, {}),
     defineFactoryAdapter(() => pagerdutyConnector, {
       clientId: 'PAGERDUTY_OAUTH_CLIENT_ID',
       clientSecret: 'PAGERDUTY_OAUTH_CLIENT_SECRET',

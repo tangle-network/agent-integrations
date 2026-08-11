@@ -23,8 +23,7 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
   }
 }
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
+function jsonResponse(body: unknown, status = 200): Response {
   if (status === 204 || status === 205 || status === 304) {
     return new Response(null, { status })
   }
@@ -34,26 +33,70 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('teable adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the teable kind', () => {
-    expect(teableConnector.manifest.kind).toBe('teable')
-    expect(teableConnector.manifest.category).toBe('doc')
-    expect(teableConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
+interface CapturedRequest {
+  url: URL
+  method: string
+  headers: Headers
+  body: unknown
+}
 
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
+function captureFetch(responseBody: unknown, status = 200): () => CapturedRequest {
+  let captured: CapturedRequest | undefined
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === 'string' ? init.body : undefined
+      captured = {
+        url: new URL(String(input)),
+        method: init?.method ?? 'GET',
+        headers: new Headers(init?.headers),
+        body: rawBody ? JSON.parse(rawBody) : undefined,
+      }
+      return jsonResponse(responseBody, status)
+    }),
+  )
+  return () => {
+    if (!captured) throw new Error('expected fetch to be called')
+    return captured
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('teable adapter manifest', () => {
+  it('uses Teable Cloud OAuth endpoints, PKCE, and capability-aligned scopes', () => {
+    expect(teableConnector.manifest).toMatchObject({
+      kind: 'teable',
+      category: 'doc',
+      defaultConsistencyModel: 'authoritative',
+    })
+
     const auth = teableConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
+    if (auth.kind !== 'oauth2') throw new Error('expected Teable OAuth')
+    expect(auth.authorizationUrl).toBe('https://app.teable.ai/api/oauth/authorize')
+    expect(auth.tokenUrl).toBe('https://app.teable.ai/api/oauth/access_token')
+    expect(auth.pkce).toBe('supported')
+    expect(auth.scopes).toEqual([
+      'base|read',
+      'table|read',
+      'table|create',
+      'field|create',
+      'view|create',
+      'record|read',
+      'record|create',
+      'record|update',
+    ])
   })
 
-  it('covers records + attachments + tables/fields/views surface', () => {
-    const names = teableConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
+  it('exposes only operations supported by the declarative runtime', () => {
+    const capabilities = Object.fromEntries(
+      teableConnector.manifest.capabilities.map((capability) => [capability.name, capability]),
+    )
+    expect(Object.keys(capabilities).sort()).toEqual(
       [
-        'attachments.upload',
         'fields.create',
         'records.create',
-        'records.delete',
         'records.find',
         'records.get',
         'records.update',
@@ -62,155 +105,218 @@ describe('teable adapter manifest', () => {
         'views.create',
       ].sort(),
     )
-    const reads = teableConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = teableConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['records.find', 'records.get', 'tables.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'attachments.upload',
-        'fields.create',
-        'records.create',
-        'records.delete',
-        'records.update',
-        'tables.create',
-        'views.create',
-      ].sort(),
-    )
+    expect(capabilities['records.create']?.requiredScopes).toEqual(['record|create'])
+    expect(capabilities['records.find']?.requiredScopes).toEqual(['record|read'])
+    expect(capabilities['records.get']?.requiredScopes).toEqual(['record|read'])
+    expect(capabilities['records.update']?.requiredScopes).toEqual(['record|update'])
+    expect(capabilities['tables.list']?.requiredScopes).toEqual(['table|read'])
+    expect(capabilities['tables.create']?.requiredScopes).toEqual(['table|create'])
+    expect(capabilities['fields.create']?.requiredScopes).toEqual(['field|create'])
+    expect(capabilities['views.create']?.requiredScopes).toEqual(['view|create'])
+    expect(capabilities['records.delete']).toBeUndefined()
+    expect(capabilities['attachments.upload']).toBeUndefined()
   })
+})
 
-  it('marks each newly added mutation as native-idempotency + externalEffect=true', () => {
-    const targetNames = new Set(['tables.create', 'fields.create', 'views.create'])
-    const mutations = teableConnector.manifest.capabilities.filter(
-      (c) => c.class === 'mutation' && targetNames.has(c.name),
-    )
-    expect(mutations.length).toBe(3)
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
+describe('teable connection test', () => {
+  it('checks the authenticated user through the /api route', async () => {
+    const request = captureFetch({ id: 'usr_1', name: 'Ada' })
+
+    await expect(teableConnector.test(source())).resolves.toEqual({ ok: true })
+
+    expect(request()).toMatchObject({ method: 'GET' })
+    expect(request().url.href).toBe('https://app.teable.ai/api/auth/user/me')
+    expect(request().headers.get('authorization')).toBe('Bearer teable_access')
+  })
+})
+
+describe('teable records.create', () => {
+  it('wraps one record in Teable\'s records array', async () => {
+    const request = captureFetch({ records: [{ id: 'rec_1', fields: { Name: 'Ada' } }] }, 201)
+
+    const result = await teableConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'records.create',
+      args: {
+        tableId: 'tbl_1',
+        fields: { Name: 'Ada' },
+        fieldKeyType: 'name',
+        typecast: true,
+      },
+      idempotencyKey: 'k-record-create',
+    })
+
+    expect(result.status).toBe('committed')
+    expect(request().method).toBe('POST')
+    expect(request().url.href).toBe('https://app.teable.ai/api/table/tbl_1/record')
+    expect(request().headers.get('authorization')).toBe('Bearer teable_access')
+    expect(request().body).toEqual({
+      records: [{ fields: { Name: 'Ada' } }],
+      fieldKeyType: 'name',
+      typecast: true,
+    })
+  })
+})
+
+describe('teable records.find', () => {
+  it('uses Teable take/skip pagination on the singular record route', async () => {
+    const request = captureFetch({ records: [{ id: 'rec_1' }] })
+    const filter = JSON.stringify({ conjunction: 'and', filterSet: [] })
+
+    const result = await teableConnector.executeRead!({
+      source: source(),
+      capabilityName: 'records.find',
+      args: {
+        tableId: 'tbl_1',
+        filter,
+        take: 25,
+        skip: 50,
+        viewId: 'viw_1',
+        fieldKeyType: 'id',
+        cellFormat: 'text',
+      },
+      idempotencyKey: 'k-record-find',
+    })
+
+    expect(result.data).toEqual({ records: [{ id: 'rec_1' }] })
+    expect(request().method).toBe('GET')
+    expect(request().url.pathname).toBe('/api/table/tbl_1/record')
+    expect(Object.fromEntries(request().url.searchParams)).toEqual({
+      filter,
+      take: '25',
+      skip: '50',
+      viewId: 'viw_1',
+      fieldKeyType: 'id',
+      cellFormat: 'text',
+    })
+  })
+})
+
+describe('teable records.get', () => {
+  it('gets one record from Teable\'s singular record route', async () => {
+    const request = captureFetch({ id: 'rec_1', fields: { fld_1: 'Ada' } })
+
+    await teableConnector.executeRead!({
+      source: source(),
+      capabilityName: 'records.get',
+      args: { tableId: 'tbl_1', recordId: 'rec_1', fieldKeyType: 'id', cellFormat: 'json' },
+      idempotencyKey: 'k-record-get',
+    })
+
+    expect(request().method).toBe('GET')
+    expect(request().url.pathname).toBe('/api/table/tbl_1/record/rec_1')
+    expect(Object.fromEntries(request().url.searchParams)).toEqual({
+      fieldKeyType: 'id',
+      cellFormat: 'json',
+    })
+  })
+})
+
+describe('teable records.update', () => {
+  it('nests fields under the required record envelope', async () => {
+    const request = captureFetch({ id: 'rec_1', fields: { Name: 'Grace' } })
+
+    const result = await teableConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'records.update',
+      args: {
+        tableId: 'tbl_1',
+        recordId: 'rec_1',
+        fields: { Name: 'Grace' },
+        fieldKeyType: 'name',
+        typecast: false,
+      },
+      idempotencyKey: 'k-record-update',
+    })
+
+    expect(result.status).toBe('committed')
+    expect(request().method).toBe('PATCH')
+    expect(request().url.href).toBe('https://app.teable.ai/api/table/tbl_1/record/rec_1')
+    expect(request().body).toEqual({
+      record: { fields: { Name: 'Grace' } },
+      fieldKeyType: 'name',
+      typecast: false,
+    })
   })
 })
 
 describe('teable tables.list', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('GETs /base/{baseId}/table and returns the parsed data', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      return jsonResponse([{ id: 't_1', name: 'Tasks' }])
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('lists tables from the base table route', async () => {
+    const request = captureFetch([{ id: 'tbl_1', name: 'Tasks' }])
 
     const result = await teableConnector.executeRead!({
       source: source(),
       capabilityName: 'tables.list',
-      args: { baseId: 'base_1' },
-      idempotencyKey: 'k-1',
+      args: { baseId: 'bse_1' },
+      idempotencyKey: 'k-table-list',
     })
 
-    expect(requestMethod).toBe('GET')
-    expect(String(requestUrl)).toContain('/api/v1/base/base_1/table')
-    expect(result.data).toEqual([{ id: 't_1', name: 'Tasks' }])
+    expect(result.data).toEqual([{ id: 'tbl_1', name: 'Tasks' }])
+    expect(request().method).toBe('GET')
+    expect(request().url.href).toBe('https://app.teable.ai/api/base/bse_1/table')
   })
 
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
+  it('reports expired credentials on 401', async () => {
+    captureFetch({ message: 'Unauthorized' }, 401)
+
     await expect(
       teableConnector.executeRead!({
         source: source(),
         capabilityName: 'tables.list',
-        args: { baseId: 'base_1' },
-        idempotencyKey: 'k-1',
+        args: { baseId: 'bse_1' },
+        idempotencyKey: 'k-table-list-unauthorized',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
 describe('teable tables.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  it('creates a table under the selected base', async () => {
+    const request = captureFetch({ id: 'tbl_new', name: 'Inbox' }, 201)
 
-  it('POSTs to /base/{baseId}/table with the table name', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 't_new', name: 'Inbox' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await teableConnector.executeMutation!({
+    await teableConnector.executeMutation!({
       source: source(),
       capabilityName: 'tables.create',
-      args: { baseId: 'base_1', name: 'Inbox' },
-      idempotencyKey: 'k-2',
+      args: { baseId: 'bse_1', name: 'Inbox' },
+      idempotencyKey: 'k-table-create',
     })
 
-    expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/api/v1/base/base_1/table')
-    expect(requestBody).toMatchObject({ name: 'Inbox' })
+    expect(request().method).toBe('POST')
+    expect(request().url.href).toBe('https://app.teable.ai/api/base/bse_1/table')
+    expect(request().body).toEqual({ name: 'Inbox' })
   })
 })
 
 describe('teable fields.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to /table/{tableId}/field with the field name and type', async () => {
-    let requestUrl: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'f_1', name: 'Priority', type: 'singleSelect' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('creates a field under the selected table', async () => {
+    const request = captureFetch({ id: 'fld_1', name: 'Priority', type: 'singleSelect' }, 201)
 
     await teableConnector.executeMutation!({
       source: source(),
       capabilityName: 'fields.create',
-      args: { tableId: 't_1', name: 'Priority', type: 'singleSelect' },
-      idempotencyKey: 'k-3',
+      args: { tableId: 'tbl_1', name: 'Priority', type: 'singleSelect' },
+      idempotencyKey: 'k-field-create',
     })
 
-    expect(String(requestUrl)).toContain('/api/v1/table/t_1/field')
-    expect(requestBody).toMatchObject({ name: 'Priority', type: 'singleSelect' })
+    expect(request().method).toBe('POST')
+    expect(request().url.href).toBe('https://app.teable.ai/api/table/tbl_1/field')
+    expect(request().body).toEqual({ name: 'Priority', type: 'singleSelect' })
   })
 })
 
 describe('teable views.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to /table/{tableId}/view with the view name and type', async () => {
-    let requestUrl: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'v_1', name: 'My Grid' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('creates a view under the selected table', async () => {
+    const request = captureFetch({ id: 'viw_1', name: 'My Grid', type: 'grid' }, 201)
 
     await teableConnector.executeMutation!({
       source: source(),
       capabilityName: 'views.create',
-      args: { tableId: 't_1', name: 'My Grid', type: 'grid' },
-      idempotencyKey: 'k-4',
+      args: { tableId: 'tbl_1', name: 'My Grid', type: 'grid' },
+      idempotencyKey: 'k-view-create',
     })
 
-    expect(String(requestUrl)).toContain('/api/v1/table/t_1/view')
-    expect(requestBody).toMatchObject({ name: 'My Grid', type: 'grid' })
+    expect(request().method).toBe('POST')
+    expect(request().url.href).toBe('https://app.teable.ai/api/table/tbl_1/view')
+    expect(request().body).toEqual({ name: 'My Grid', type: 'grid' })
   })
 })

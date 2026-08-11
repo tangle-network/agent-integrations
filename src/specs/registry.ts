@@ -12,12 +12,13 @@ import type {
 import {
   bundledApiKeyHint,
   bundledAuthMode,
-  bundledOAuth2Auth,
+  bundledOAuth2AuthContract,
   getBundledAdapterManifest,
 } from '../connectors/bundled-manifests.js'
 import type {
   ConnectorManifest,
   OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
 } from '../connectors/types.js'
 import { canonicalIntegrationKind } from '../integration-kind-aliases.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
@@ -76,6 +77,7 @@ export function getIntegrationSpec(kind: string): IntegrationSpec | undefined {
 export interface ConnectorAuthSpec {
   kind: string
   authKind: 'oauth2' | 'api_key' | 'none' | 'custom'
+  grantType?: 'authorization_code' | 'client_credentials'
   /** Provider scopes to request in the authorization grant. Empty for
    *  api_key / none / custom. */
   requestedScopes: string[]
@@ -93,6 +95,7 @@ export interface ConnectorAuthSpec {
   tokenClientSecretParam?: string
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   extraAuthParams?: Record<string, string>
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
 }
 
 export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | undefined {
@@ -103,6 +106,7 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
     return {
       kind: spec.kind,
       authKind: 'oauth2',
+      grantType: auth.grantType,
       requestedScopes: auth.scopes.map((scope) => scope.providerScope).filter(Boolean),
       authorizationUrl: auth.authorizationUrl,
       tokenUrl: auth.tokenUrl,
@@ -116,6 +120,7 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
       tokenClientSecretParam: auth.tokenClientSecretParam,
       tokenClientAuthMethod: auth.tokenClientAuthMethod,
       extraAuthParams: auth.extraAuthParams,
+      urlTemplateMetadata: auth.urlTemplateMetadata,
     }
   }
   if (auth.mode === 'api_key') {
@@ -292,11 +297,14 @@ function authFor(
   // and never substitute a placeholder when neither knows — an absent URL is
   // a fact the caller can check, whereas `https://example.invalid/...` is a
   // dead link that reads as configuration.
-  const real = manifest ? bundledOAuth2Auth(manifest) : undefined
+  const real = manifest ? bundledOAuth2AuthContract(manifest) : undefined
   const tokenClientAuthMethod = real?.tokenClientAuthMethod ?? 'client_secret_post'
   return {
     mode: 'oauth2',
-    authorizationUrl: real?.authorizationUrl ?? f.authorizationUrl,
+    grantType: real?.grantType === 'client_credentials' ? 'client_credentials' : undefined,
+    authorizationUrl: real?.grantType === 'client_credentials'
+      ? undefined
+      : real?.authorizationUrl ?? f.authorizationUrl,
     tokenUrl: real?.tokenUrl ?? f.tokenUrl,
     clientIdEnv: real?.clientIdEnv ?? f.credentialFields.find((field) => !field.secret)?.env,
     clientSecretEnv: tokenClientAuthMethod === 'none'
@@ -309,6 +317,7 @@ function authFor(
     tokenClientAuthMethod,
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
+    urlTemplateMetadata: real?.urlTemplateMetadata,
     redirectUriTemplate: (f.redirectUriTemplate ?? 'https://{host}/api/integrations/oauth/{kind}/callback').replace('{kind}', spec.id),
     pkce: real?.pkce ?? (
       family === 'google' || family === 'microsoft-graph'
