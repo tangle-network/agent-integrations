@@ -6,7 +6,10 @@ import type {
   IntegrationConnectorTrigger,
   IntegrationDataClass,
 } from '../index.js'
-import type { OAuth2TokenClientAuthMethod } from '../connectors/types.js'
+import type {
+  OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
+} from '../connectors/types.js'
 
 export type IntegrationAuthMode = 'oauth2' | 'api_key' | 'hmac' | 'none' | 'custom'
 
@@ -56,6 +59,8 @@ export type IntegrationAuthSpec =
 
 export interface OAuth2AuthSpec {
   mode: 'oauth2'
+  /** OAuth grant the connection runtime must drive. */
+  grantType?: 'authorization_code' | 'client_credentials'
   /** Authorization endpoint the connect flow sends the user to.
    *
    *  UNDEFINED when no shipped adapter and no family default supplies one —
@@ -80,6 +85,9 @@ export interface OAuth2AuthSpec {
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   scopes: ScopeDescriptor[]
   extraAuthParams?: Record<string, string>
+  /** Rules for connection metadata that replaces complete provider roots in
+   *  authorizationUrl or tokenUrl templates. */
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
   redirectUriTemplate: string
   pkce?: 'required' | 'supported' | 'unsupported'
 }

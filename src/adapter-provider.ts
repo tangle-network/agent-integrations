@@ -5,6 +5,7 @@ import type {
   ConnectorCredentials,
   ConnectorInvocation,
   OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
   ResolvedDataSource,
   TokenMetadataSource,
 } from './connectors/types.js'
@@ -92,6 +93,12 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
+      if ((auth.grantType ?? 'authorization_code') !== 'authorization_code') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} uses client_credentials and requires a machine connection path.`,
+          'auth_not_supported',
+        )
+      }
       const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       const tokenClientAuthMethod = resolveTokenClientAuthMethod(
         auth.tokenClientAuthMethod,
@@ -128,6 +135,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         auth.authorizationUrl,
         request.metadata,
         request.connectorId,
+        auth.urlTemplateMetadata,
       ))
       url.searchParams.set('response_type', 'code')
       url.searchParams.set(
@@ -179,6 +187,12 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       if (!auth) {
         throw new IntegrationError(
           `Connector ${request.connectorId} does not support OAuth2 authorization (auth kind: ${adapter.manifest.auth.kind}).`,
+          'auth_not_supported',
+        )
+      }
+      if ((auth.grantType ?? 'authorization_code') !== 'authorization_code') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} uses client_credentials and requires a machine connection path.`,
           'auth_not_supported',
         )
       }
@@ -273,6 +287,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         auth.tokenUrl,
         request.metadata,
         request.connectorId,
+        auth.urlTemplateMetadata,
       )
       let res: Response
       try {
@@ -620,12 +635,27 @@ function resolveOAuthUrlTemplate(
   template: string,
   metadata: Record<string, unknown> | undefined,
   connectorId: string,
+  metadataSpecs?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>,
 ): string {
   const placeholders = [...template.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)]
   let resolved = template
   for (const match of placeholders) {
     const key = match[1]
     const raw = metadata?.[key]
+    const metadataSpec = metadataSpecs?.[key]
+    if (metadataSpec) {
+      if (typeof raw !== 'string') {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} requires metadata.${key} as a provider base URL.`,
+          'config_missing',
+        )
+      }
+      resolved = resolved.replaceAll(
+        match[0],
+        resolveOAuthMetadataBaseUrl(raw, metadataSpec, connectorId, key),
+      )
+      continue
+    }
     if (typeof raw !== 'string' || !isDnsLabel(raw.trim())) {
       throw new IntegrationError(
         `OAuth URL for ${connectorId} requires metadata.${key} as a valid tenant label.`,
@@ -651,6 +681,87 @@ function resolveOAuthUrlTemplate(
     )
   }
   return url.toString()
+}
+
+function resolveOAuthMetadataBaseUrl(
+  value: string,
+  spec: OAuth2UrlTemplateMetadataSpec,
+  connectorId: string,
+  metadataKey: string,
+): string {
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  ) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  const exactAllowed = spec.allowedBaseUrls?.some((candidate) => sameOrigin(candidate, url)) ?? false
+  const suffixAllowed = spec.allowedBaseUrlSuffixes?.some((suffix) =>
+    !url.port &&
+    suffix.startsWith('.') &&
+    url.hostname.toLowerCase().endsWith(suffix.toLowerCase())
+  ) ?? false
+  const hasExplicitAllowlist = Boolean(
+    spec.allowedBaseUrls?.length || spec.allowedBaseUrlSuffixes?.length,
+  )
+  if (hasExplicitAllowlist && !exactAllowed && !suffixAllowed) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  if (spec.requirePublicHttps && !isPublicDnsHostname(url.hostname)) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  return url.origin
+}
+
+function invalidOAuthMetadataBaseUrl(connectorId: string, metadataKey: string): IntegrationError {
+  return new IntegrationError(
+    `OAuth URL for ${connectorId} requires metadata.${metadataKey} as an allowed HTTPS provider root.`,
+    'config_missing',
+  )
+}
+
+function sameOrigin(candidate: string, actual: URL): boolean {
+  try {
+    const allowed = new URL(candidate)
+    return (
+      allowed.protocol === 'https:' &&
+      !allowed.username &&
+      !allowed.password &&
+      allowed.pathname === '/' &&
+      !allowed.search &&
+      !allowed.hash &&
+      allowed.origin === actual.origin
+    )
+  } catch {
+    return false
+  }
+}
+
+function isPublicDnsHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (
+    normalized === 'localhost' ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized.endsWith('.home.arpa')
+  ) {
+    return false
+  }
+  // OAuth redirects to self-hosted instances require a DNS name. Reject
+  // literal IP addresses because fetch cannot pin DNS against rebinding.
+  if (/^[0-9.]+$/.test(normalized) || normalized.includes(':')) return false
+  return normalized.includes('.') && normalized.split('.').every(isDnsLabel)
 }
 
 function isDnsLabel(value: string): boolean {

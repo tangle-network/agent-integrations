@@ -3,7 +3,11 @@ import {
   type ConnectorAdapterFactoryDefinition,
 } from './adapters/factories.js'
 import * as bundledAdapters from './adapters/index.js'
-import type { ConnectorAdapter, ConnectorManifest } from './types.js'
+import type {
+  ConnectorAdapter,
+  ConnectorManifest,
+  OAuth2UrlTemplateMetadataSpec,
+} from './types.js'
 
 /**
  * The bundled adapter registry — the single source of truth for "which
@@ -170,28 +174,29 @@ export function bundledApiKeyHint(manifest: ConnectorManifest): string | undefin
   return undefined
 }
 
-/** The authorization-code OAuth2 branch of a manifest's auth spec, if it has
- *  one. `one_of` manifests are resolved through their `preferred` mode, which
- *  is the mode a connect flow would actually drive. Returns undefined for
- *  api-key/hmac/none connectors and for `client_credentials` OAuth (which has
- *  no user-facing authorize step). */
-export function bundledOAuth2Auth(manifest: ConnectorManifest):
-  | {
-      authorizationUrl: string
-      tokenUrl: string
-      scopes: string[]
-      clientIdEnv: string
-      clientSecretEnv?: string
-      scopeSeparator: ' ' | ','
-      pkce?: 'required' | 'supported' | 'unsupported'
-      authorizationClientIdParam: string
-      tokenClientIdParam: string
-      tokenClientSecretParam: string
-      tokenClientAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic'
-      extraAuthParams?: Record<string, string>
-      tokenRequestHeaders?: Record<string, string>
-    }
-  | undefined {
+export interface BundledOAuth2AuthContract {
+  grantType: 'authorization_code' | 'client_credentials'
+  authorizationUrl?: string
+  tokenUrl: string
+  scopes: string[]
+  clientIdEnv: string
+  clientSecretEnv?: string
+  scopeSeparator: ' ' | ','
+  pkce?: 'required' | 'supported' | 'unsupported'
+  authorizationClientIdParam: string
+  tokenClientIdParam: string
+  tokenClientSecretParam: string
+  tokenClientAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic'
+  extraAuthParams?: Record<string, string>
+  tokenRequestHeaders?: Record<string, string>
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
+}
+
+/** The selected OAuth2 contract for a manifest, including non-redirect
+ *  client-credentials providers and validated provider-root templates. */
+export function bundledOAuth2AuthContract(
+  manifest: ConnectorManifest,
+): BundledOAuth2AuthContract | undefined {
   const auth = manifest.auth
   const candidates =
     auth.kind === 'one_of'
@@ -199,9 +204,10 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       : [auth]
   for (const candidate of candidates) {
     if (candidate.kind !== 'oauth2') continue
-    if (candidate.grantType === 'client_credentials') continue
-    if (!candidate.authorizationUrl) continue
+    const grantType = candidate.grantType ?? 'authorization_code'
+    if (grantType === 'authorization_code' && !candidate.authorizationUrl) continue
     return {
+      grantType,
       authorizationUrl: candidate.authorizationUrl,
       tokenUrl: candidate.tokenUrl,
       scopes: candidate.scopes,
@@ -215,7 +221,28 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       tokenClientAuthMethod: candidate.tokenClientAuthMethod ?? 'client_secret_post',
       extraAuthParams: candidate.extraAuthParams,
       tokenRequestHeaders: candidate.tokenRequestHeaders,
+      urlTemplateMetadata: candidate.urlTemplateMetadata,
     }
   }
   return undefined
+}
+
+/** The authorization-code OAuth2 branch of a manifest's auth spec, if it has
+ *  one. `one_of` manifests are resolved through their `preferred` mode, which
+ *  is the mode a connect flow would actually drive. Returns undefined for
+ *  api-key/hmac/none connectors and for `client_credentials` OAuth (which has
+ *  no user-facing authorize step). */
+export function bundledOAuth2Auth(manifest: ConnectorManifest):
+  | (BundledOAuth2AuthContract & {
+      grantType: 'authorization_code'
+      authorizationUrl: string
+    })
+  | undefined {
+  const contract = bundledOAuth2AuthContract(manifest)
+  if (contract?.grantType !== 'authorization_code' || !contract.authorizationUrl) return undefined
+  return {
+    ...contract,
+    grantType: 'authorization_code',
+    authorizationUrl: contract.authorizationUrl,
+  }
 }

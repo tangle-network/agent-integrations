@@ -374,6 +374,18 @@ export type OAuth2TokenClientAuthMethod =
   | 'client_secret_post'
   | 'client_secret_basic'
 
+export interface OAuth2UrlTemplateMetadataSpec {
+  /** A complete HTTPS provider base URL, substituted for a URL template
+   *  placeholder such as `{accountUrl}`. */
+  kind: 'base-url'
+  /** Exact provider roots accepted for finite regional endpoint sets. */
+  allowedBaseUrls?: readonly string[]
+  /** HTTPS hostname suffixes accepted for tenant-specific provider roots. */
+  allowedBaseUrlSuffixes?: readonly string[]
+  /** Permit a caller-selected public HTTPS root for self-hosted providers. */
+  requirePublicHttps?: boolean
+}
+
 type OAuth2AuthSpec = {
   kind: 'oauth2'
   /** OAuth2 grant type. Defaults to `'authorization_code'` (the interactive
@@ -419,6 +431,11 @@ type OAuth2AuthSpec = {
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
   extraAuthParams?: Record<string, string>
+  /** Rules for metadata placeholders that represent complete provider roots.
+   *  Placeholders without a rule remain single DNS labels. This distinction
+   *  prevents tenant metadata from redirecting client credentials unless the
+   *  connector explicitly declares the allowed provider host policy. */
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
   /** Non-secret headers sent to the token endpoint. Use this for provider
    *  identification headers such as Reddit's required User-Agent. The runtime
    *  always owns Authorization and Content-Type. */
@@ -642,6 +659,39 @@ function validateOAuth2AuthSpec(
       path: `${path}.pkce`,
       message: 'pkce must be required, supported, or unsupported',
     })
+  }
+  for (const [key, spec] of Object.entries(auth.urlTemplateMetadata ?? {})) {
+    if (spec.kind !== 'base-url') {
+      issues.push({
+        path: `${path}.urlTemplateMetadata.${key}.kind`,
+        message: 'OAuth URL metadata kind must be base-url',
+      })
+    }
+    if (
+      !spec.requirePublicHttps &&
+      !spec.allowedBaseUrls?.length &&
+      !spec.allowedBaseUrlSuffixes?.length
+    ) {
+      issues.push({
+        path: `${path}.urlTemplateMetadata.${key}`,
+        message: 'OAuth base URL metadata requires an allowlist or public HTTPS policy',
+      })
+    }
+    const placeholder = `{${key}}`
+    if (!auth.authorizationUrl?.includes(placeholder) && !auth.tokenUrl.includes(placeholder)) {
+      issues.push({
+        path: `${path}.urlTemplateMetadata.${key}`,
+        message: `OAuth URL metadata is unused; add ${placeholder} to an OAuth endpoint`,
+      })
+    }
+    for (const suffix of spec.allowedBaseUrlSuffixes ?? []) {
+      if (!/^\.[a-z0-9.-]+$/i.test(suffix)) {
+        issues.push({
+          path: `${path}.urlTemplateMetadata.${key}.allowedBaseUrlSuffixes`,
+          message: 'OAuth base URL hostname suffixes must start with a dot',
+        })
+      }
+    }
   }
   if (
     auth.tokenClientAuthMethod !== undefined &&
