@@ -400,6 +400,9 @@ export function notion(opts: NotionOptions): ConnectorAdapter {
       if (!clientId || !clientSecret) {
         throw new Error('Notion OAuth client not configured (NOTION_OAUTH_CLIENT_ID / _SECRET)')
       }
+      if (!input.codeVerifier) {
+        throw new Error('notion.exchangeOAuth: missing PKCE code verifier')
+      }
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code: input.code,

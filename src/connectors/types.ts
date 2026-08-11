@@ -278,7 +278,8 @@ export interface ConnectorAdapter {
   exchangeOAuth?(input: {
     code: string
     state: string
-    codeVerifier: string
+    /** Required unless this connector declares PKCE as unsupported. */
+    codeVerifier?: string
     redirectUri: string
   }): Promise<{
     credentials: ConnectorCredentials
@@ -363,12 +364,13 @@ export interface RateLimitSpec {
  *  rather than silently capturing nothing. */
 export type TokenMetadataSource = string | { field: string; required?: boolean }
 
-/** How an OAuth token endpoint receives this application's client credentials.
+/** How an OAuth token endpoint authenticates this client.
  *
- * OAuth providers default to `client_secret_post`, which sends both values in
- * the form body. `client_secret_basic` instead sends an HTTP Basic header and
- * deliberately omits the credentials from that body. */
+ * Public clients use `none` and send only the client id. OAuth providers
+ * otherwise default to `client_secret_post`, which sends both values in the
+ * form body. `client_secret_basic` sends an HTTP Basic header instead. */
 export type OAuth2TokenClientAuthMethod =
+  | 'none'
   | 'client_secret_post'
   | 'client_secret_basic'
 
@@ -391,6 +393,8 @@ type OAuth2AuthSpec = {
   /** Separator used when serializing multiple scopes into the authorization
    *  URL. OAuth defaults to spaces; Zoho requires comma-delimited scopes. */
   scopeSeparator?: ' ' | ','
+  /** Provider PKCE posture. Defaults to the host flow policy when omitted. */
+  pkce?: 'required' | 'supported' | 'unsupported'
   /** Query parameter that receives the OAuth client id on the authorization
    *  URL. Defaults to `client_id`; TikTok calls this value `client_key`. */
   authorizationClientIdParam?: string
@@ -399,8 +403,9 @@ type OAuth2AuthSpec = {
   incremental?: boolean
   /** Env-var name holding the OAuth client_id. */
   clientIdEnv: string
-  /** Env-var name holding the OAuth client_secret. */
-  clientSecretEnv: string
+  /** Env-var name holding the OAuth client_secret. Omit only for public
+   *  clients whose tokenClientAuthMethod is `none`. */
+  clientSecretEnv?: string
   /** Form parameter that receives the client id during token exchange.
    *  Defaults to `client_id`; TikTok calls this value `client_key`. */
   tokenClientIdParam?: string
@@ -624,13 +629,34 @@ function validateOAuth2AuthSpec(
     issues.push({ path: `${path}.authorizationUrl`, message: 'authorization_code grant requires authorizationUrl' })
   }
   if (
+    auth.pkce !== undefined &&
+    auth.pkce !== 'required' &&
+    auth.pkce !== 'supported' &&
+    auth.pkce !== 'unsupported'
+  ) {
+    issues.push({
+      path: `${path}.pkce`,
+      message: 'pkce must be required, supported, or unsupported',
+    })
+  }
+  if (
     auth.tokenClientAuthMethod !== undefined &&
+    auth.tokenClientAuthMethod !== 'none' &&
     auth.tokenClientAuthMethod !== 'client_secret_post' &&
     auth.tokenClientAuthMethod !== 'client_secret_basic'
   ) {
     issues.push({
       path: `${path}.tokenClientAuthMethod`,
-      message: 'tokenClientAuthMethod must be client_secret_post or client_secret_basic',
+      message: 'tokenClientAuthMethod must be none, client_secret_post, or client_secret_basic',
+    })
+  }
+  if (
+    (auth.tokenClientAuthMethod ?? 'client_secret_post') !== 'none' &&
+    !auth.clientSecretEnv?.trim()
+  ) {
+    issues.push({
+      path: `${path}.clientSecretEnv`,
+      message: 'confidential OAuth clients require clientSecretEnv',
     })
   }
 }

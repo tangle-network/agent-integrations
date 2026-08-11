@@ -26,7 +26,8 @@ import { IntegrationError } from './core-error.js'
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
 export interface OAuthClientCredentials {
   clientId: string
-  clientSecret: string
+  /** Omit for public clients whose manifest uses tokenClientAuthMethod=none. */
+  clientSecret?: string
 }
 
 export interface ConnectorAdapterProviderOptions {
@@ -43,7 +44,7 @@ export interface ConnectorAdapterProviderOptions {
     connection: IntegrationConnection
     credentials: ConnectorCredentials
   }) => Promise<void> | void
-  /** Resolve OAuth client_id / client_secret for an oauth2 adapter at
+  /** Resolve OAuth client_id and, for confidential clients, client_secret at
    *  start- and exchange-time. Host owns env, vault, and per-tenant
    *  overrides. Return null to refuse the flow (lib will throw
    *  `config_missing`). The lib never logs the secret nor includes it
@@ -85,7 +86,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
-      resolveTokenClientAuthMethod(auth.tokenClientAuthMethod, request.connectorId)
+      const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
+      const tokenClientAuthMethod = resolveTokenClientAuthMethod(
+        auth.tokenClientAuthMethod,
+        request.connectorId,
+      )
       if (!options.resolveOAuthClient) {
         throw new IntegrationError(
           `OAuth client resolver missing on adapter provider; cannot start auth for ${request.connectorId}.`,
@@ -93,7 +98,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         )
       }
       const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
-      if (!client || !client.clientId || !client.clientSecret) {
+      if (
+        !client ||
+        !client.clientId ||
+        (tokenClientAuthMethod !== 'none' && !client.clientSecret)
+      ) {
         throw new IntegrationError(
           `OAuth client credentials unavailable for ${request.connectorId}.`,
           'config_missing',
@@ -134,6 +143,16 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           url.searchParams.set(key, value)
         }
       }
+      if (pkce === 'unsupported') {
+        url.searchParams.delete('code_challenge')
+        url.searchParams.delete('code_challenge_method')
+      } else {
+        url.searchParams.set(
+          'code_challenge',
+          requirePkceChallenge(request.codeChallenge, request.connectorId),
+        )
+        url.searchParams.set('code_challenge_method', 'S256')
+      }
       return {
         providerId,
         connectorId: request.connectorId,
@@ -161,6 +180,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         auth.tokenClientAuthMethod,
         request.connectorId,
       )
+      const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       if (!request.code) {
         throw new IntegrationError(
           `Authorization code missing on completeAuth for ${request.connectorId}.`,
@@ -174,7 +194,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         )
       }
       const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
-      if (!client || !client.clientId || !client.clientSecret) {
+      if (
+        !client ||
+        !client.clientId ||
+        (tokenClientAuthMethod !== 'none' && !client.clientSecret)
+      ) {
         throw new IntegrationError(
           `OAuth client credentials unavailable for ${request.connectorId}.`,
           'config_missing',
@@ -191,12 +215,30 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         code: request.code,
         redirect_uri: request.redirectUri,
       })
+      const codeVerifier = pkce === 'unsupported'
+        ? undefined
+        : requirePkceVerifier(request.codeVerifier, request.connectorId)
+      if (codeVerifier) body.set('code_verifier', codeVerifier)
       const headers: Record<string, string> = {
         'content-type': 'application/x-www-form-urlencoded',
         accept: 'application/json',
       }
-      const redactionValues = [request.code, client.clientId, client.clientSecret]
-      if (tokenClientAuthMethod === 'client_secret_post') {
+      const redactionValues = [
+        request.code,
+        client.clientId,
+        ...(client.clientSecret ? [client.clientSecret] : []),
+        ...(codeVerifier ? [codeVerifier] : []),
+      ]
+      if (tokenClientAuthMethod === 'none') {
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientIdParam,
+            'client_id',
+            request.connectorId,
+          ),
+          client.clientId,
+        )
+      } else if (tokenClientAuthMethod === 'client_secret_post') {
         body.set(
           resolveOAuthParameterName(
             auth.tokenClientIdParam,
@@ -211,10 +253,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
             'client_secret',
             request.connectorId,
           ),
-          client.clientSecret,
+          client.clientSecret!,
         )
       } else {
-        const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret}`)}`
+        const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret!}`)}`
         headers.authorization = authorization
         redactionValues.push(authorization)
       }
@@ -308,7 +350,18 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         throw new IntegrationError(`Capability ${request.action} is not defined by ${connection.connectorId}.`, 'action_not_found')
       }
       const source = await options.resolveDataSource(connection)
-      let rotated: ConnectorCredentials | undefined
+      let rotationPersistence = Promise.resolve()
+      const persistRotation = (credentials: ConnectorCredentials): Promise<void> => {
+        if (!options.onCredentialsRotated) return Promise.resolve()
+        rotationPersistence = rotationPersistence.then(() =>
+          options.onCredentialsRotated!({ connection, credentials }),
+        )
+        // Some third-party adapters do not await this callback. Attach a
+        // rejection observer immediately, then let the original promise keep
+        // its rejection for the adapter or the provider's finally block.
+        void rotationPersistence.catch(() => {})
+        return rotationPersistence
+      }
       const invocation: ConnectorInvocation = {
         source,
         capabilityName: request.action,
@@ -317,13 +370,8 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         expectedEtag: typeof request.metadata?.expectedEtag === 'string' ? request.metadata.expectedEtag : undefined,
         callSessionId: typeof request.metadata?.callSessionId === 'string' ? request.metadata.callSessionId : undefined,
         onCredentialsRotated: options.onCredentialsRotated
-          ? (credentials) => { rotated = credentials }
+          ? persistRotation
           : undefined,
-      }
-      const persistRotation = async () => {
-        if (rotated && options.onCredentialsRotated) {
-          await options.onCredentialsRotated({ connection, credentials: rotated })
-        }
       }
       try {
         if (capability.class === 'read') {
@@ -344,7 +392,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       } finally {
         // A provider can rotate a refresh token before the requested action
         // fails. Persist that full envelope regardless of the action outcome.
-        await persistRotation()
+        await rotationPersistence
       }
     },
   }
@@ -374,6 +422,7 @@ export function createConnectorAdapterCatalogSource(options: {
 export function manifestToConnector(providerId: string, adapter: ConnectorAdapter): IntegrationConnector {
   const manifest = adapter.manifest
   const primaryAuth = primaryManifestAuth(manifest.auth)
+  const oauthAuth = oauthManifestAuth(manifest.auth)
   return {
     id: manifest.kind,
     providerId,
@@ -397,6 +446,9 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
       source: 'first-party-adapter',
       supportTier: 'firstPartyExecutable',
       executable: true,
+      oauthPkce: oauthAuth
+        ? resolveOAuthPkceMode(oauthAuth.pkce, manifest.kind)
+        : undefined,
       authOptions: manifest.auth.kind === 'one_of' ? manifest.auth.options.map((auth) => auth.kind) : [manifest.auth.kind],
       preferredAuth: manifest.auth.kind === 'one_of' ? manifest.auth.preferred : manifest.auth.kind,
     },
@@ -480,11 +532,43 @@ function resolveTokenClientAuthMethod(
   if (value === undefined || value === 'client_secret_post') {
     return 'client_secret_post'
   }
-  if (value === 'client_secret_basic') return value
+  if (value === 'none' || value === 'client_secret_basic') return value
   throw new IntegrationError(
     `Connector ${connectorId} has an unsupported OAuth token client authentication method.`,
     'config_missing',
   )
+}
+
+function resolveOAuthPkceMode(
+  value: unknown,
+  connectorId: string,
+): 'required' | 'supported' | 'unsupported' {
+  if (value === undefined || value === 'required') return 'required'
+  if (value === 'supported' || value === 'unsupported') return value
+  throw new IntegrationError(
+    `Connector ${connectorId} has an invalid OAuth PKCE posture.`,
+    'config_missing',
+  )
+}
+
+function requirePkceChallenge(value: string | undefined, connectorId: string): string {
+  if (!value || !/^[A-Za-z0-9_-]{43}$/.test(value)) {
+    throw new IntegrationError(
+      `OAuth PKCE S256 challenge missing or invalid for ${connectorId}.`,
+      'config_missing',
+    )
+  }
+  return value
+}
+
+function requirePkceVerifier(value: string | undefined, connectorId: string): string {
+  if (!value || !/^[A-Za-z0-9._~-]{43,128}$/.test(value)) {
+    throw new IntegrationError(
+      `OAuth PKCE verifier missing or invalid for ${connectorId}.`,
+      'config_missing',
+    )
+  }
+  return value
 }
 
 function resolveOAuthParameterName(

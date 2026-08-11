@@ -41,6 +41,7 @@ describe('launch provider OAuth contracts', () => {
       code: 'authorization-code',
       state: 'salesforce-state',
       redirectUri: 'https://id.tangle.tools/api/integrations/callback',
+      codeVerifier: 'v'.repeat(64),
     })
 
     expect(connection.metadata).toEqual({
@@ -70,6 +71,7 @@ describe('launch provider OAuth contracts', () => {
       owner: { type: 'user', id: 'user_1' },
       requestedScopes: [],
       redirectUri: 'https://id.tangle.tools/api/integrations/callback',
+      codeChallenge: 'c'.repeat(43),
     })
 
     const authorizationUrl = new URL(result.authUrl)

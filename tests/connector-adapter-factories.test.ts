@@ -547,6 +547,7 @@ describe('connector adapter factory registry', () => {
       requestedScopes: [],
       redirectUri,
       state: 'harvest-state',
+      codeChallenge: 'c'.repeat(43),
     })
     const authUrl = new URL(started.authUrl)
     expect(authUrl.origin + authUrl.pathname).toBe('https://id.getharvest.com/oauth2/authorize')
@@ -559,6 +560,7 @@ describe('connector adapter factory registry', () => {
       code: 'harvest-code',
       state: 'harvest-state',
       redirectUri,
+      codeVerifier: 'v'.repeat(64),
     })
     expect(fetchImpl).toHaveBeenCalledOnce()
     expect(connection.status).toBe('active')

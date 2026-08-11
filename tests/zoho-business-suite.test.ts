@@ -150,6 +150,7 @@ describe('Zoho shared OAuth application', () => {
       owner: { type: 'user', id: 'user_1' },
       requestedScopes: [],
       redirectUri: 'https://id.tangle.tools/v1/hub/connections/oauth/callback',
+      codeChallenge: 'c'.repeat(43),
     })
     const url = new URL(result.authUrl)
     expect(url.searchParams.get('scope')).toBe(

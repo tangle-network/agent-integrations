@@ -110,6 +110,9 @@ export interface StartAuthRequest {
   requestedScopes: string[]
   redirectUri: string
   state?: string
+  /** S256 PKCE challenge injected by the host. IntegrationHub replaces any
+   *  caller value with a challenge derived from its server-held verifier. */
+  codeChallenge?: string
   metadata?: Record<string, unknown>
 }
 
@@ -128,6 +131,9 @@ export interface CompleteAuthRequest {
   code?: string
   state: string
   redirectUri: string
+  /** PKCE verifier injected by the host. IntegrationHub replaces any caller
+   *  value with the verifier stored against the single-use OAuth state. */
+  codeVerifier?: string
   metadata?: Record<string, unknown>
 }
 

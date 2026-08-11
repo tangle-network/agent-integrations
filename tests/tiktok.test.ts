@@ -1,7 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConnectorAdapterProvider } from '../src/adapter-provider.js'
+import { InMemoryConnectionStore, IntegrationHub } from '../src/index.js'
+import {
+  createCredentialBackedAdapterProvider,
+  InMemoryIntegrationSecretStore,
+  revokeConnection,
+} from '../src/credentials.js'
+import type {
+  IntegrationConnection,
+  IntegrationConnectionStore,
+} from '../src/core-types.js'
 import { getIntegrationSpec, resolveConnectorAuthSpec } from '../src/specs/index.js'
 import {
+  consumePendingFlow,
+  InMemoryOAuthFlowStore,
+  startOAuthFlow,
   tiktok,
   tiktokConnector,
   validateConnectorManifest,
@@ -86,6 +99,7 @@ describe('TikTok manifest and setup contract', () => {
       tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/',
       scopes: ['user.info.basic', 'video.list', 'video.publish'],
       scopeSeparator: ',',
+      pkce: 'unsupported',
       authorizationClientIdParam: 'client_key',
       tokenClientIdParam: 'client_key',
       tokenClientSecretParam: 'client_secret',
@@ -136,6 +150,7 @@ describe('TikTok manifest and setup contract', () => {
       authKind: 'oauth2',
       requestedScopes: ['user.info.basic', 'video.list', 'video.publish'],
       scopeSeparator: ',',
+      pkce: 'unsupported',
       authorizationClientIdParam: 'client_key',
       tokenClientIdParam: 'client_key',
       tokenClientSecretParam: 'client_secret',
@@ -144,7 +159,7 @@ describe('TikTok manifest and setup contract', () => {
 })
 
 describe('TikTok OAuth', () => {
-  it('uses client_key and comma-delimited scopes in the generic provider flow', async () => {
+  it('uses client_key and comma-delimited scopes without PKCE through IntegrationHub', async () => {
     let tokenBody: URLSearchParams | undefined
     const provider = createConnectorAdapterProvider({
       adapters: [tiktokConnector],
@@ -167,13 +182,19 @@ describe('TikTok OAuth', () => {
         )
       }) as typeof fetch,
     })
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+    })
 
-    const started = await provider.startAuth!({
+    const started = await hub.startAuth('first-party', {
       connectorId: 'tiktok',
       owner: OWNER,
       requestedScopes: [],
       redirectUri: REDIRECT_URI,
       state: 'state_fixed',
+      codeChallenge: 'caller-must-not-force-pkce',
     })
     const authorizationUrl = new URL(started.authUrl)
     expect(authorizationUrl.searchParams.get('client_key')).toBe('tiktok-client-key')
@@ -181,17 +202,21 @@ describe('TikTok OAuth', () => {
     expect(authorizationUrl.searchParams.get('scope')).toBe(
       'user.info.basic,video.list,video.publish',
     )
+    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
+    expect(authorizationUrl.searchParams.has('code_challenge_method')).toBe(false)
 
-    const connection = await provider.completeAuth!({
+    const connection = await hub.completeAuth('first-party', {
       connectorId: 'tiktok',
       owner: OWNER,
       code: 'authorization-code',
       state: 'state_fixed',
       redirectUri: REDIRECT_URI,
+      codeVerifier: 'caller-must-not-force-pkce',
     })
     expect(tokenBody?.get('client_key')).toBe('tiktok-client-key')
     expect(tokenBody?.get('client_secret')).toBe('tiktok-client-secret')
     expect(tokenBody?.has('client_id')).toBe(false)
+    expect(tokenBody?.has('code_verifier')).toBe(false)
     expect(connection.grantedScopes).toEqual([
       'user.info.basic',
       'video.list',
@@ -200,7 +225,7 @@ describe('TikTok OAuth', () => {
     expect(connection.metadata).toEqual({ openId: 'open_456' })
   })
 
-  it('exchanges and refreshes through TikTok web OAuth with rotating refresh tokens', async () => {
+  it('starts, exchanges, and refreshes TikTok web OAuth without PKCE', async () => {
     const bodies: URLSearchParams[] = []
     vi.stubGlobal(
       'fetch',
@@ -222,12 +247,40 @@ describe('TikTok OAuth', () => {
       clientId: 'tiktok-client-key',
       clientSecret: 'tiktok-client-secret',
     })
+    const auth = tiktokConnector.manifest.auth
+    if (auth.kind !== 'oauth2' || !auth.authorizationUrl) {
+      throw new Error('expected TikTok OAuth2 authorization')
+    }
+    const store = new InMemoryOAuthFlowStore()
+    const started = startOAuthFlow({
+      projectId: 'project_1',
+      kind: 'tiktok',
+      label: 'Tangle TikTok',
+      authorizationUrl: auth.authorizationUrl,
+      scopes: auth.scopes,
+      scopeSeparator: auth.scopeSeparator,
+      clientId: 'tiktok-client-key',
+      authorizationClientIdParam: auth.authorizationClientIdParam,
+      pkce: auth.pkce,
+      redirectUri: REDIRECT_URI,
+      store,
+    })
+    const authorizationUrl = new URL(started.authorizationUrl)
+    expect(authorizationUrl.searchParams.get('client_key')).toBe(
+      'tiktok-client-key',
+    )
+    expect(authorizationUrl.searchParams.get('scope')).toBe(
+      'user.info.basic,video.list,video.publish',
+    )
+    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
+    expect(authorizationUrl.searchParams.has('code_challenge_method')).toBe(false)
+    const flow = await consumePendingFlow(started.state, store)
+    expect(flow.codeVerifier).toBeUndefined()
 
     const exchanged = await adapter.exchangeOAuth!({
       code: 'authorization-code',
-      state: 'state',
-      codeVerifier: 'pkce-verifier',
-      redirectUri: REDIRECT_URI,
+      state: started.state,
+      redirectUri: flow.redirectUri,
     })
     expect(bodies[0]?.get('client_key')).toBe('tiktok-client-key')
     expect(bodies[0]?.get('client_secret')).toBe('tiktok-client-secret')
@@ -363,6 +416,243 @@ describe('TikTok reads', () => {
         expiresAt: expect.any(Number),
       }),
     )
+  })
+
+  it('persists a refresh before concurrent provider actions proceed', async () => {
+    const adapter = tiktok({
+      clientId: 'tiktok-client-key',
+      clientSecret: 'tiktok-client-secret',
+    })
+    const secrets = new InMemoryIntegrationSecretStore()
+    const secretRef = { provider: 'vault', id: 'tiktok-refresh-race' }
+    const connection: IntegrationConnection = {
+      id: 'connection_tiktok_refresh_race',
+      owner: OWNER,
+      providerId: 'first-party',
+      connectorId: 'tiktok',
+      status: 'active',
+      grantedScopes: ['user.info.basic'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+      secretRef,
+    }
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'old-access-token',
+      refreshToken: 'old-refresh-token',
+      expiresAt: Date.now() - 1,
+    })
+    let releaseTokenResponse: (() => void) | undefined
+    const tokenResponseBlocked = new Promise<void>((resolve) => {
+      releaseTokenResponse = resolve
+    })
+    let markTokenRequestStarted: (() => void) | undefined
+    const tokenRequestStarted = new Promise<void>((resolve) => {
+      markTokenRequestStarted = resolve
+    })
+    const refreshTokens: string[] = []
+    const authorizations: string[] = []
+    let apiCalls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes('/v2/oauth/token/')) {
+          refreshTokens.push(new URLSearchParams(String(init?.body)).get('refresh_token') ?? '')
+          markTokenRequestStarted?.()
+          await tokenResponseBlocked
+          return new Response(JSON.stringify({
+            access_token: 'new-access-token',
+            refresh_token: 'new-refresh-token',
+            expires_in: 86_400,
+          }), { status: 200, headers: { 'content-type': 'application/json' } })
+        }
+        apiCalls += 1
+        const headers = init?.headers as Record<string, string> | undefined
+        authorizations.push(headers?.authorization ?? '')
+        return success({ user: { open_id: 'open_123' } })
+      }),
+    )
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [adapter],
+      secrets,
+    })
+    const invoke = () => provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'user.info',
+      input: {},
+    })
+
+    const first = invoke()
+    await tokenRequestStarted
+    const second = invoke()
+    await Promise.resolve()
+    expect(refreshTokens).toEqual(['old-refresh-token'])
+    releaseTokenResponse?.()
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2)
+
+    expect(await secrets.get(secretRef)).toMatchObject({
+      kind: 'oauth2',
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+    })
+    expect(refreshTokens).toEqual(['old-refresh-token'])
+    expect(authorizations).toEqual([
+      'Bearer new-access-token',
+      'Bearer new-access-token',
+    ])
+    expect(apiCalls).toBe(2)
+  })
+
+  it.each([
+    ['with a connection store', true],
+    ['with only a secret store', false],
+  ] as const)('does not persist an in-call rotation after revocation %s', async (_label, useConnections) => {
+    const adapter = tiktok({
+      clientId: 'tiktok-client-key',
+      clientSecret: 'tiktok-client-secret',
+    })
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = useConnections ? new InMemoryConnectionStore() : undefined
+    const secretRef = { provider: 'vault', id: 'tiktok-revoked-rotation' }
+    const connection: IntegrationConnection = {
+      id: 'connection_tiktok_revoked_rotation',
+      owner: OWNER,
+      providerId: 'first-party',
+      connectorId: 'tiktok',
+      status: 'active',
+      grantedScopes: ['user.info.basic'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+      secretRef,
+    }
+    await connections?.put(connection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'nearly-expired-access',
+      refreshToken: 'revoked-in-call-refresh',
+      expiresAt: Date.now() + 30_000,
+    })
+
+    let markTokenRequestStarted: (() => void) | undefined
+    const tokenRequestStarted = new Promise<void>((resolve) => {
+      markTokenRequestStarted = resolve
+    })
+    let releaseTokenResponse: (() => void) | undefined
+    const tokenResponseBlocked = new Promise<void>((resolve) => {
+      releaseTokenResponse = resolve
+    })
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/v2/oauth/token/')) {
+        markTokenRequestStarted?.()
+        await tokenResponseBlocked
+        return new Response(JSON.stringify({
+          access_token: 'must-not-persist',
+          refresh_token: 'must-not-persist-either',
+          expires_in: 86_400,
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return success({ user: { open_id: 'open_123' } })
+    }))
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [adapter],
+      secrets,
+      connections,
+    })
+
+    const invocation = provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'user.info',
+      input: {},
+    })
+    await tokenRequestStarted
+    await revokeConnection({ connection, connections, secrets })
+    releaseTokenResponse?.()
+
+    await expect(invocation).rejects.toThrow(/revoked during credential refresh/)
+    if (connections) {
+      expect(await connections.get(connection.id)).toMatchObject({ status: 'revoked' })
+    }
+    expect(await secrets.get(secretRef)).toBeUndefined()
+  })
+
+  it('restores revocation when an active connection write finishes late', async () => {
+    const adapter = tiktok({
+      clientId: 'tiktok-client-key',
+      clientSecret: 'tiktok-client-secret',
+    })
+    const secrets = new InMemoryIntegrationSecretStore()
+    const backingConnections = new InMemoryConnectionStore()
+    let blockActivePersistence = false
+    let markActivePersistenceStarted: (() => void) | undefined
+    const activePersistenceStarted = new Promise<void>((resolve) => {
+      markActivePersistenceStarted = resolve
+    })
+    let releaseActivePersistence: (() => void) | undefined
+    const activePersistenceBlocked = new Promise<void>((resolve) => {
+      releaseActivePersistence = resolve
+    })
+    const connections: IntegrationConnectionStore = {
+      get: (id) => backingConnections.get(id),
+      async put(connection) {
+        if (blockActivePersistence && connection.status === 'active') {
+          markActivePersistenceStarted?.()
+          await activePersistenceBlocked
+        }
+        backingConnections.put(connection)
+      },
+      listByOwner: (owner) => backingConnections.listByOwner(owner),
+      delete: (id) => backingConnections.delete(id),
+    }
+    const secretRef = { provider: 'vault', id: 'tiktok-late-active-write' }
+    const connection: IntegrationConnection = {
+      id: 'connection_tiktok_late_active_write',
+      owner: OWNER,
+      providerId: 'first-party',
+      connectorId: 'tiktok',
+      status: 'active',
+      grantedScopes: ['user.info.basic'],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+      secretRef,
+    }
+    await connections.put(connection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'nearly-expired-access',
+      refreshToken: 'refresh-before-late-write',
+      expiresAt: Date.now() + 30_000,
+    })
+    blockActivePersistence = true
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/v2/oauth/token/')) {
+        return new Response(JSON.stringify({
+          access_token: 'late-access',
+          refresh_token: 'late-refresh',
+          expires_in: 86_400,
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return success({ user: { open_id: 'open_123' } })
+    }))
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [adapter],
+      secrets,
+      connections,
+    })
+
+    const invocation = provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action: 'user.info',
+      input: {},
+    })
+    await activePersistenceStarted
+    await revokeConnection({ connection, connections, secrets })
+    expect(await connections.get(connection.id)).toMatchObject({ status: 'revoked' })
+    expect(await secrets.get(secretRef)).toBeUndefined()
+
+    releaseActivePersistence?.()
+    await expect(invocation).rejects.toThrow(/revoked during credential refresh/)
+    expect(await connections.get(connection.id)).toMatchObject({ status: 'revoked' })
+    expect(await secrets.get(secretRef)).toBeUndefined()
   })
 
   it('does not refresh a token that remains valid beyond the safety window', async () => {

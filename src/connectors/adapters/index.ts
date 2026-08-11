@@ -201,7 +201,7 @@ export { marketoConnector } from './marketo.js'
 export { brazeConnector } from './braze.js'
 export { customerIoConnector } from './customer-io.js'
 // Scheduling
-export { calComConnector } from './cal-com.js'
+export { calCom, calComConnector, type CalComOptions } from './cal-com.js'
 export { calendlyConnector } from './calendly.js'
 export { acuitySchedulingConnector } from './acuity-scheduling.js'
 export { zohoBookingsConnector } from './zoho-bookings.js'

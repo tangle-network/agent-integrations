@@ -373,7 +373,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/acuity-scheduling/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -577,7 +577,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/adobe-creative-cloud/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 15,
@@ -11422,7 +11422,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/asana/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -12280,7 +12280,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/attio/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -12640,7 +12640,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/auth0/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 28,
@@ -14096,7 +14096,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/basecamp/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 21,
@@ -14955,7 +14955,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/bigcommerce/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -16910,7 +16910,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/box/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -18368,12 +18368,11 @@
       "authorizationUrl": "https://app.cal.com/auth/oauth2/authorize",
       "tokenUrl": "https://api.cal.com/v2/auth/oauth2/token",
       "clientIdEnv": "CALCOM_OAUTH_CLIENT_ID",
-      "clientSecretEnv": "CALCOM_OAUTH_CLIENT_SECRET",
       "scopeSeparator": " ",
       "authorizationClientIdParam": "client_id",
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
+      "tokenClientAuthMethod": "none",
       "scopes": [
         {
           "normalized": "calendar.read",
@@ -18433,7 +18432,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/cal-com/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -18480,7 +18479,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/calendly/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -19052,7 +19051,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/canva/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 29,
@@ -25654,7 +25653,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/clickup/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -25708,7 +25707,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/clio/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 17,
@@ -26167,7 +26166,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/close/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -27268,7 +27267,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/atlassian/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -27623,7 +27622,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/contentful/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -32021,7 +32020,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/dialpad/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 6,
@@ -32551,7 +32550,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/discord/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -33371,7 +33370,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/docusign/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -33582,7 +33581,7 @@
         "token_access_type": "offline"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/dropbox/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -34719,7 +34718,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/ebay/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 13,
@@ -36850,7 +36849,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/etsy/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 15,
@@ -37472,7 +37471,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/facebook-pages/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -37620,7 +37619,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/fathom/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -38544,7 +38543,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/figjam/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 13,
@@ -38663,7 +38662,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/figma/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -40539,7 +40538,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/freshdesk/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -41053,7 +41052,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/front/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -42656,7 +42655,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/gong/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 6,
@@ -44265,7 +44264,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/gorgias/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 8,
@@ -45577,7 +45576,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/gusto/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 21,
@@ -46116,7 +46115,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/hellosign/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 4,
@@ -46179,7 +46178,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/helpscout/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -46260,7 +46259,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/helpscout/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 7,
@@ -47505,7 +47504,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/hubspot/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -49401,7 +49400,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/instagram-business/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -49831,7 +49830,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/intercom/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -50360,7 +50359,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/ironclad/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 17,
@@ -50798,7 +50797,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/atlassian/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -53098,7 +53097,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/klaviyo/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -54952,7 +54951,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/lever/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -55206,7 +55205,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/linear/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -57253,7 +57252,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/linkedin/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -59344,7 +59343,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mailchimp/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -60215,7 +60214,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/marketo/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 11,
@@ -62714,7 +62713,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/miro/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 21,
@@ -64560,7 +64559,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/monday/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -66830,7 +66829,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 35,
@@ -66868,7 +66867,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -67137,7 +67136,7 @@
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/netlify/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -67987,7 +67986,7 @@
         "owner": "user"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/notion/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -70610,7 +70609,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/opsgenie/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 21,
@@ -71882,7 +71881,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/pagerduty/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -72037,7 +72036,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/pandadoc/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -76247,7 +76246,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/pipedrive/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -79493,7 +79492,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/quickbooks/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -81794,7 +81793,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/ringcentral/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 6,
@@ -81897,7 +81896,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/rippling/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 13,
@@ -82544,7 +82543,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/salesforce/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -82663,7 +82662,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/sanity/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 8,
@@ -84430,7 +84429,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/sentry/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 24,
@@ -85878,7 +85877,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/shopify/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -88309,7 +88308,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/slack/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -89504,7 +89503,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/snowflake/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -98709,7 +98708,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/x-twitter/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -98854,7 +98853,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/typeform/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -102128,7 +102127,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/vercel/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -105662,7 +105661,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/webflow/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -106904,7 +106903,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/whatsapp-business/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "runtimePackage": null,
     "actionCount": 8,
@@ -107734,7 +107733,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/wordpress/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -108022,7 +108021,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/workday/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -108624,7 +108623,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/xero/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -108853,7 +108852,7 @@
         "include_granted_scopes": "true"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/youtube/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -109064,7 +109063,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zendesk/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110149,7 +110148,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-bookings/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110216,7 +110215,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-books/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110291,7 +110290,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-campaigns/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110376,7 +110375,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-crm/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110469,7 +110468,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-desk/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110536,7 +110535,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-invoice/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110629,7 +110628,7 @@
         "prompt": "consent"
       },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoho-mail/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
@@ -110824,7 +110823,7 @@
         }
       ],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoom/callback",
-      "pkce": "unsupported"
+      "pkce": "required"
     },
     "authFields": [
       {
