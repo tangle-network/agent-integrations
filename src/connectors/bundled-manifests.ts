@@ -189,6 +189,7 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       tokenClientSecretParam: string
       tokenClientAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic'
       extraAuthParams?: Record<string, string>
+      tokenRequestHeaders?: Record<string, string>
     }
   | undefined {
   const auth = manifest.auth
@@ -213,6 +214,7 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       tokenClientSecretParam: candidate.tokenClientSecretParam ?? 'client_secret',
       tokenClientAuthMethod: candidate.tokenClientAuthMethod ?? 'client_secret_post',
       extraAuthParams: candidate.extraAuthParams,
+      tokenRequestHeaders: candidate.tokenRequestHeaders,
     }
   }
   return undefined

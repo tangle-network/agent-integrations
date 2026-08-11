@@ -96,6 +96,9 @@ export interface RestRequestSpec {
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
   body?: 'args' | string | Record<string, unknown>
+  /** Request-body serialization. JSON remains the default. Form encoding
+   *  accepts only a flat object of scalar values and omits nullish fields. */
+  bodyEncoding?: 'json' | 'form'
   /** Existence-probe operations (e.g. GitHub star/follow/membership checks)
    *  encode the answer in the HTTP status: 204 = present, 404 = absent. Set
    *  this so the adapter maps both to an explicit `{ exists: boolean }` instead
@@ -384,12 +387,15 @@ export async function executeRestRequest(
   // operation explicitly declares `request.body` — some APIs (e.g. UserGems)
   // take the record identifier in a DELETE body. GET never carries a body.
   const sendsBody = request.method !== 'GET' && (request.method !== 'DELETE' || request.body !== undefined)
+  const bodyEncoding = request.bodyEncoding ?? 'json'
   // Default content-type case-insensitively: AWS adapters declare a capitalized
   // `Content-Type` in defaultHeaders, and a blind `headers['content-type']`
   // default would add a SECOND, conflicting content-type entry (and corrupt the
   // SigV4 signed-header set).
   if (sendsBody && getHeaderCI(headers, 'content-type') === undefined) {
-    headers['content-type'] = 'application/json'
+    headers['content-type'] = bodyEncoding === 'form'
+      ? 'application/x-www-form-urlencoded'
+      : 'application/json'
   }
   // Serialize the body before signing — SigV4 hashes the payload into the
   // canonical request.
@@ -408,7 +414,9 @@ export async function executeRestRequest(
       ),
     }
   }
-  const bodyString = sendsBody ? JSON.stringify(resolvedBody) : undefined
+  const bodyString = sendsBody
+    ? serializeRequestBody(spec.kind, bodyEncoding, resolvedBody)
+    : undefined
 
   if (placement.kind === 'aws-sigv4') {
     signAwsRequest(headers, url, {
@@ -502,6 +510,26 @@ export async function executeRestRequest(
     }
   }
   return { data, etag: res.headers.get('etag') ?? undefined }
+}
+
+function serializeRequestBody(
+  connectorKind: string,
+  encoding: NonNullable<RestRequestSpec['bodyEncoding']>,
+  body: unknown,
+): string {
+  if (encoding === 'json') return JSON.stringify(body)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error(`${connectorKind}: form request bodies require a flat object`)
+  }
+  const form = new URLSearchParams()
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      throw new Error(`${connectorKind}: form field ${key} must be a scalar value`)
+    }
+    form.set(key, String(value))
+  }
+  return form.toString()
 }
 
 function resolveBaseUrl(

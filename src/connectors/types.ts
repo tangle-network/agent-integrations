@@ -419,6 +419,10 @@ type OAuth2AuthSpec = {
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
   extraAuthParams?: Record<string, string>
+  /** Non-secret headers sent to the token endpoint. Use this for provider
+   *  identification headers such as Reddit's required User-Agent. The runtime
+   *  always owns Authorization and Content-Type. */
+  tokenRequestHeaders?: Record<string, string>
   /** Whether to send the `scope` query param on the authorization URL.
    *  Defaults to true. Set false for providers that reject a per-request
    *  scope and pin scopes app-side (e.g. HelloSign/Dropbox Sign). */
@@ -658,6 +662,14 @@ function validateOAuth2AuthSpec(
       path: `${path}.clientSecretEnv`,
       message: 'confidential OAuth clients require clientSecretEnv',
     })
+  }
+  for (const header of Object.keys(auth.tokenRequestHeaders ?? {})) {
+    if (header.toLowerCase() === 'authorization' || header.toLowerCase() === 'content-type') {
+      issues.push({
+        path: `${path}.tokenRequestHeaders.${header}`,
+        message: 'tokenRequestHeaders cannot override Authorization or Content-Type',
+      })
+    }
   }
 }
 

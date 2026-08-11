@@ -179,6 +179,8 @@ export interface ExchangeCodeInput {
   /** PKCE posture. Defaults to required. */
   pkce?: OAuthPkceMode
   redirectUri: string
+  /** Non-secret provider identification headers for the token request. */
+  tokenRequestHeaders?: Readonly<Record<string, string>>
   fetchImpl?: typeof fetch
   signal?: AbortSignal
 }
@@ -209,10 +211,7 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
     redirect_uri: input.redirectUri,
   })
   if (usePkce) body.set('code_verifier', input.codeVerifier!)
-  const headers: Record<string, string> = {
-    'content-type': 'application/x-www-form-urlencoded',
-    accept: 'application/json',
-  }
+  const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
   applyTokenClientAuthentication(input, body, headers)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
@@ -252,6 +251,8 @@ export interface RefreshInput {
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
   refreshToken: string
+  /** Non-secret provider identification headers for the token request. */
+  tokenRequestHeaders?: Readonly<Record<string, string>>
   fetchImpl?: typeof fetch
   signal?: AbortSignal
 }
@@ -263,10 +264,7 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     grant_type: 'refresh_token',
     refresh_token: input.refreshToken,
   })
-  const headers: Record<string, string> = {
-    'content-type': 'application/x-www-form-urlencoded',
-    accept: 'application/json',
-  }
+  const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
   applyTokenClientAuthentication(input, body, headers)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
@@ -296,6 +294,18 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     tokenType: json.token_type,
     idToken: json.id_token,
   }
+}
+
+/** Build token-endpoint headers without permitting an adapter-supplied value
+ *  to replace the authentication or form-media-type headers owned here. */
+export function createOAuthTokenRequestHeaders(
+  additional?: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const headers = new Headers(additional)
+  headers.set('content-type', 'application/x-www-form-urlencoded')
+  headers.set('accept', 'application/json')
+  headers.delete('authorization')
+  return Object.fromEntries(headers.entries())
 }
 
 function applyTokenClientAuthentication(
