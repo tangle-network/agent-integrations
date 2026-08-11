@@ -109,6 +109,7 @@ describe('twitter adapter manifest', () => {
     expect(oauth.scopes).toContain('like.read')
     expect(oauth.scopes).not.toContain('likes.read')
     expect(oauth.scopes).toContain('follows.read')
+    expect(oauth.tokenClientAuthMethod).toBe('client_secret_basic')
     expect(oauth.scopes).toEqual(
       expect.arrayContaining(['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access']),
     )
@@ -552,8 +553,10 @@ describe('twitter write capabilities', () => {
 })
 
 describe('twitter factory', () => {
-  const adapter = twitter({ clientId: 'cid', clientSecret: 'sec' })
-  const expectedBasic = `Basic ${Buffer.from('cid:sec').toString('base64')}`
+  const adapter = twitter({ clientId: 'client:id', clientSecret: 's+e%cret' })
+  const expectedBasic = `Basic ${Buffer.from(
+    'client%3Aid:s%2Be%25cret',
+  ).toString('base64')}`
 
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -593,7 +596,7 @@ describe('twitter factory', () => {
     expect(calledBody!.get('code')).toBe('auth_code_xyz')
     expect(calledBody!.get('redirect_uri')).toBe('https://app.example.com/cb?provider=twitter')
     expect(calledBody!.get('code_verifier')).toBe('cv_from_broker')
-    expect(calledBody!.get('client_id')).toBe('cid')
+    expect(calledBody!.get('client_id')).toBe('client:id')
     expect(result.credentials.kind).toBe('oauth2')
     if (result.credentials.kind === 'oauth2') {
       expect(result.credentials.accessToken).toBe('at_new')
@@ -603,22 +606,34 @@ describe('twitter factory', () => {
     expect(result.scopes).toEqual(['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access'])
   })
 
-  it('exchangeOAuth surfaces the upstream error body on failure', async () => {
+  it('exchangeOAuth redacts credentials from upstream failures', async () => {
+    const encodedSecret = 's%2be%25cret'
     vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response(JSON.stringify({ error: 'invalid_request' }), {
+      new Response(JSON.stringify({ error: 's+e%cret' }), {
         status: 400,
-        statusText: 'Bad Request',
+        statusText: encodedSecret,
         headers: { 'content-type': 'application/json' },
       }),
     ))
-    await expect(
-      adapter.exchangeOAuth!({
+    let caught: unknown
+    try {
+      await adapter.exchangeOAuth!({
         code: 'bad',
         state: 's',
         codeVerifier: 'cv',
         redirectUri: 'https://app.example.com/cb',
-      }),
-    ).rejects.toThrow(/authorization_code token request failed: 400/)
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(Error)
+    expect((caught as Error).message).toMatch(
+      /authorization_code token request failed: 400/,
+    )
+    expect((caught as Error).message).toContain('[REDACTED]')
+    expect((caught as Error).message).not.toContain('s+e%cret')
+    expect((caught as Error).message).not.toContain(encodedSecret)
   })
 
   it('refreshToken POSTs the refresh grant with Basic client auth and keeps the prior refresh token when omitted', async () => {
@@ -639,7 +654,7 @@ describe('twitter factory', () => {
     expect(calledHeaders.authorization).toBe(expectedBasic)
     expect(calledBody!.get('grant_type')).toBe('refresh_token')
     expect(calledBody!.get('refresh_token')).toBe('rt_old')
-    expect(calledBody!.get('client_id')).toBe('cid')
+    expect(calledBody!.get('client_id')).toBe('client:id')
     if (refreshed.kind !== 'oauth2') throw new Error('expected oauth2 credentials')
     expect(refreshed.accessToken).toBe('at_fresh')
     expect(refreshed.refreshToken).toBe('rt_old')

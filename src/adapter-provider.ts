@@ -21,7 +21,12 @@ import type {
   StartAuthResult,
 } from './core-types.js'
 import { IntegrationError } from './core-error.js'
-import { createOAuthTokenRequestHeaders } from './connectors/oauth.js'
+import {
+  createOAuthBasicAuthorizationHeader,
+  createOAuthTokenRequestHeaders,
+  oauthClientCredentialRedactionValues,
+  redactOAuthSensitiveText,
+} from './connectors/oauth.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
@@ -221,12 +226,6 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         : requirePkceVerifier(request.codeVerifier, request.connectorId)
       if (codeVerifier) body.set('code_verifier', codeVerifier)
       const headers = createOAuthTokenRequestHeaders(auth.tokenRequestHeaders)
-      const redactionValues = [
-        request.code,
-        client.clientId,
-        ...(client.clientSecret ? [client.clientSecret] : []),
-        ...(codeVerifier ? [codeVerifier] : []),
-      ]
       if (tokenClientAuthMethod === 'none') {
         body.set(
           resolveOAuthParameterName(
@@ -254,10 +253,22 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           client.clientSecret!,
         )
       } else {
-        const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret!}`)}`
+        const authorization = createOAuthBasicAuthorizationHeader(
+          client.clientId,
+          client.clientSecret!,
+          base64Encode,
+        )
         headers.authorization = authorization
-        redactionValues.push(authorization)
       }
+      const redactionValues = [
+        request.code,
+        ...(codeVerifier ? [codeVerifier] : []),
+        ...oauthClientCredentialRedactionValues(
+          client.clientId,
+          client.clientSecret,
+          headers.authorization,
+        ),
+      ]
       const tokenUrl = resolveOAuthUrlTemplate(
         auth.tokenUrl,
         request.metadata,
@@ -271,7 +282,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           body,
         })
       } catch (cause) {
-        const detail = redactSensitiveText(
+        const detail = redactOAuthSensitiveText(
           (cause as Error)?.message ?? 'unknown',
           redactionValues,
         )
@@ -282,10 +293,9 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        const detail = redactSensitiveText(
-          `${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
-          redactionValues,
-        )
+        const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
+        const redactedText = redactOAuthSensitiveText(text, redactionValues)
+        const detail = `${res.status} ${statusText} — ${redactedText.slice(0, 200)}`
         throw new IntegrationError(
           `OAuth token exchange failed for ${request.connectorId}: ${detail}`,
           'provider_failure',
@@ -598,15 +608,6 @@ function base64Encode(value: string): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary)
-}
-
-function redactSensitiveText(text: string, secrets: readonly string[]): string {
-  return secrets
-    .filter((secret) => secret.length > 0)
-    .reduce(
-      (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
-      text,
-    )
 }
 
 /** Resolve provider-owned tenant labels embedded in OAuth URLs.

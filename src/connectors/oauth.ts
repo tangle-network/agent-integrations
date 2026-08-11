@@ -213,23 +213,50 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
   if (usePkce) body.set('code_verifier', input.codeVerifier!)
   const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
   applyTokenClientAuthentication(input, body, headers)
-  const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
-    method: 'POST',
-    headers,
-    body,
-    signal: input.signal,
-  })
+  const redactionValues = [
+    input.code,
+    ...(input.codeVerifier ? [input.codeVerifier] : []),
+    ...oauthClientCredentialRedactionValues(
+      input.clientId,
+      input.clientSecret,
+      headers.authorization,
+    ),
+  ]
+  let res: Response
+  try {
+    res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
+      method: 'POST',
+      headers,
+      body,
+      signal: input.signal,
+    })
+  } catch (cause) {
+    const detail = redactOAuthSensitiveText(
+      (cause as Error)?.message ?? 'unknown',
+      redactionValues,
+    )
+    throw new Error(`OAuth token exchange transport error: ${detail}`)
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`OAuth token exchange failed: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`)
+    const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
+    const detail = redactOAuthSensitiveText(text, redactionValues).slice(0, 200)
+    throw new Error(
+      `OAuth token exchange failed: ${res.status} ${statusText} — ${detail}`,
+    )
   }
-  const json = (await res.json()) as {
+  let json: {
     access_token: string
     refresh_token?: string
     expires_in?: number
     scope?: string
     token_type?: string
     id_token?: string
+  }
+  try {
+    json = await res.json() as typeof json
+  } catch {
+    throw new Error('OAuth token exchange returned invalid JSON')
   }
   return {
     accessToken: json.access_token,
@@ -266,23 +293,47 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
   })
   const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
   applyTokenClientAuthentication(input, body, headers)
-  const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
-    method: 'POST',
-    headers,
-    body,
-    signal: input.signal,
-  })
+  const redactionValues = [
+    input.refreshToken,
+    ...oauthClientCredentialRedactionValues(
+      input.clientId,
+      input.clientSecret,
+      headers.authorization,
+    ),
+  ]
+  let res: Response
+  try {
+    res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
+      method: 'POST',
+      headers,
+      body,
+      signal: input.signal,
+    })
+  } catch (cause) {
+    const detail = redactOAuthSensitiveText(
+      (cause as Error)?.message ?? 'unknown',
+      redactionValues,
+    )
+    throw new Error(`OAuth refresh transport error: ${detail}`)
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`OAuth refresh failed: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`)
+    const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
+    const detail = redactOAuthSensitiveText(text, redactionValues).slice(0, 200)
+    throw new Error(`OAuth refresh failed: ${res.status} ${statusText} — ${detail}`)
   }
-  const json = (await res.json()) as {
+  let json: {
     access_token: string
     refresh_token?: string
     expires_in?: number
     scope?: string
     token_type?: string
     id_token?: string
+  }
+  try {
+    json = await res.json() as typeof json
+  } catch {
+    throw new Error('OAuth refresh returned invalid JSON')
   }
   return {
     accessToken: json.access_token,
@@ -306,6 +357,127 @@ export function createOAuthTokenRequestHeaders(
   headers.set('accept', 'application/json')
   headers.delete('authorization')
   return Object.fromEntries(headers.entries())
+}
+
+export function formEncodeOAuthClientCredential(value: string): string {
+  return new URLSearchParams({ value }).toString().slice('value='.length)
+}
+
+export function createOAuthBasicAuthorizationHeader(
+  clientId: string,
+  clientSecret: string,
+  encodeBase64: (value: string) => string = defaultOAuthBase64Encode,
+): string {
+  const encodedClientId = formEncodeOAuthClientCredential(clientId)
+  const encodedClientSecret = formEncodeOAuthClientCredential(clientSecret)
+  return `Basic ${encodeBase64(`${encodedClientId}:${encodedClientSecret}`)}`
+}
+
+function defaultOAuthBase64Encode(value: string): string {
+  const encode = globalThis.btoa
+  if (typeof encode !== 'function') {
+    throw new Error(
+      'OAuth client_secret_basic requires a base64 encoder in this runtime.',
+    )
+  }
+  return encode(value)
+}
+
+export function oauthClientCredentialRedactionValues(
+  clientId: string,
+  clientSecret?: string,
+  authorization?: string,
+): string[] {
+  return [
+    clientId,
+    ...(clientSecret ? [clientSecret] : []),
+    ...(authorization
+      ? [
+          authorization,
+          ...(authorization.startsWith('Basic ')
+            ? [authorization.slice('Basic '.length)]
+            : []),
+        ]
+      : []),
+  ]
+}
+
+export function redactOAuthSensitiveText(
+  text: string,
+  secrets: readonly string[],
+): string {
+  const matchers = new Map<string, { pattern: RegExp; representedLength: number }>()
+  for (const secret of new Set(secrets)) {
+    if (secret.length === 0) continue
+    addOAuthRedactionMatcher(matchers, escapeRegExp(secret), secret.length)
+
+    const jsonEscaped = JSON.stringify(secret).slice(1, -1)
+    addOAuthRedactionMatcher(
+      matchers,
+      escapeRegExp(jsonEscaped),
+      jsonEscaped.length,
+    )
+
+    const formEncoded = formEncodeOAuthClientCredential(secret)
+    addOAuthRedactionMatcher(
+      matchers,
+      formEncodedRedactionPattern(formEncoded),
+      Math.max(formEncoded.length, formEncoded.replaceAll('+', '%20').length),
+    )
+  }
+
+  return [...matchers.values()]
+    .sort((left, right) => right.representedLength - left.representedLength)
+    .reduce(
+      (redacted, matcher) => redacted.replace(matcher.pattern, '[REDACTED]'),
+      text,
+    )
+}
+
+function addOAuthRedactionMatcher(
+  matchers: Map<string, { pattern: RegExp; representedLength: number }>,
+  source: string,
+  representedLength: number,
+): void {
+  const existing = matchers.get(source)
+  if (existing && existing.representedLength >= representedLength) return
+  matchers.set(source, {
+    pattern: new RegExp(source, 'g'),
+    representedLength,
+  })
+}
+
+function formEncodedRedactionPattern(formEncoded: string): string {
+  let pattern = ''
+  for (let index = 0; index < formEncoded.length; index += 1) {
+    const character = formEncoded[index]!
+    const encodedByte = formEncoded.slice(index + 1, index + 3)
+    if (character === '%' && /^[0-9A-F]{2}$/.test(encodedByte)) {
+      pattern += `%${percentEncodedBytePattern(encodedByte)}`
+      index += 2
+      continue
+    }
+    if (character === '+') {
+      pattern += '(?:\\+|%20)'
+      continue
+    }
+    pattern += escapeRegExp(character)
+  }
+  return pattern
+}
+
+function percentEncodedBytePattern(encodedByte: string): string {
+  return [...encodedByte]
+    .map((character) =>
+      /[A-F]/.test(character)
+        ? `[${character}${character.toLowerCase()}]`
+        : character,
+    )
+    .join('')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function applyTokenClientAuthentication(
@@ -336,10 +508,10 @@ function applyTokenClientAuthentication(
     return
   }
   if (method === 'client_secret_basic') {
-    headers.authorization = `Basic ${Buffer.from(
-      `${input.clientId}:${input.clientSecret}`,
-      'utf8',
-    ).toString('base64')}`
+    headers.authorization = createOAuthBasicAuthorizationHeader(
+      input.clientId,
+      input.clientSecret,
+    )
     return
   }
   throw new Error('Unsupported OAuth token client authentication method')
