@@ -46088,6 +46088,7 @@
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
+      "sendScopeParam": false,
       "scopes": [
         {
           "normalized": "docs.read",
@@ -66835,6 +66836,7 @@
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
+      "sendScopeParam": false,
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
       "pkce": "required"
@@ -66873,6 +66875,7 @@
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
+      "sendScopeParam": false,
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
       "pkce": "required"
@@ -81757,15 +81760,15 @@
     "catalogAuth": null,
     "setupAuth": {
       "mode": "oauth2",
-      "authorizationUrl": "https://app.rippling.com/apps/{client_id}/install",
-      "tokenUrl": "https://app.rippling.com/api/o/token/",
+      "authorizationUrl": "https://app.rippling.com/apps/PLATFORM/{appName}/authorize",
+      "tokenUrl": "https://api.rippling.com/api/o/token/",
       "clientIdEnv": "RIPPLING_OAUTH_CLIENT_ID",
       "clientSecretEnv": "RIPPLING_OAUTH_CLIENT_SECRET",
       "scopeSeparator": " ",
       "authorizationClientIdParam": "client_id",
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
+      "tokenClientAuthMethod": "client_secret_basic",
       "scopes": [
         {
           "normalized": "hr.read",
@@ -81832,8 +81835,13 @@
           "dataClass": "sensitive"
         }
       ],
+      "urlTemplateMetadata": {
+        "appName": {
+          "kind": "path-segment"
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/rippling/callback",
-      "pkce": "required"
+      "pkce": "unsupported"
     },
     "runtimePackage": null,
     "actionCount": 13,
@@ -107930,15 +107938,16 @@
     "catalogAuth": "oauth2",
     "setupAuth": {
       "mode": "oauth2",
-      "authorizationUrl": "https://{host}/ccx/oauth2/{tenant}/authorize",
-      "tokenUrl": "https://{host}/ccx/oauth2/{tenant}/token",
+      "authorizationUrl": "{workdayBaseUrl}/ccx/oauth2/{tenant}/authorize",
+      "tokenUrl": "{workdayBaseUrl}/ccx/oauth2/{tenant}/token",
       "clientIdEnv": "WORKDAY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "WORKDAY_OAUTH_CLIENT_SECRET",
       "scopeSeparator": " ",
       "authorizationClientIdParam": "client_id",
       "tokenClientIdParam": "client_id",
       "tokenClientSecretParam": "client_secret",
-      "tokenClientAuthMethod": "client_secret_post",
+      "tokenClientAuthMethod": "client_secret_basic",
+      "sendScopeParam": false,
       "scopes": [
         {
           "normalized": "hr.read",
@@ -107965,8 +107974,20 @@
           "dataClass": "sensitive"
         }
       ],
+      "urlTemplateMetadata": {
+        "workdayBaseUrl": {
+          "kind": "base-url",
+          "allowedBaseUrlSuffixes": [
+            ".workday.com",
+            ".myworkday.com"
+          ]
+        },
+        "tenant": {
+          "kind": "path-segment"
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/workday/callback",
-      "pkce": "required"
+      "pkce": "unsupported"
     },
     "authFields": [
       {

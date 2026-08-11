@@ -187,6 +187,7 @@ export interface BundledOAuth2AuthContract {
   tokenClientIdParam: string
   tokenClientSecretParam: string
   tokenClientAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic'
+  sendScopeParam?: boolean
   extraAuthParams?: Record<string, string>
   tokenRequestHeaders?: Record<string, string>
   urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
@@ -219,6 +220,7 @@ export function bundledOAuth2AuthContract(
       tokenClientIdParam: candidate.tokenClientIdParam ?? 'client_id',
       tokenClientSecretParam: candidate.tokenClientSecretParam ?? 'client_secret',
       tokenClientAuthMethod: candidate.tokenClientAuthMethod ?? 'client_secret_post',
+      sendScopeParam: candidate.sendScopeParam,
       extraAuthParams: candidate.extraAuthParams,
       tokenRequestHeaders: candidate.tokenRequestHeaders,
       urlTemplateMetadata: candidate.urlTemplateMetadata,

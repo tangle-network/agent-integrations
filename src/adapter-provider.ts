@@ -147,7 +147,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         client.clientId,
       )
       url.searchParams.set('redirect_uri', request.redirectUri)
-      if (scopes.length > 0) {
+      if (auth.sendScopeParam !== false && scopes.length > 0) {
         url.searchParams.set('scope', scopes.join(auth.scopeSeparator ?? ' '))
       }
       const state = request.state ?? randomState()
@@ -643,7 +643,7 @@ function resolveOAuthUrlTemplate(
     const key = match[1]
     const raw = metadata?.[key]
     const metadataSpec = metadataSpecs?.[key]
-    if (metadataSpec) {
+    if (metadataSpec?.kind === 'base-url') {
       if (typeof raw !== 'string') {
         throw new IntegrationError(
           `OAuth URL for ${connectorId} requires metadata.${key} as a provider base URL.`,
@@ -654,6 +654,22 @@ function resolveOAuthUrlTemplate(
         match[0],
         resolveOAuthMetadataBaseUrl(raw, metadataSpec, connectorId, key),
       )
+      continue
+    }
+    if (metadataSpec?.kind === 'path-segment') {
+      if (!isOAuthPathSegmentPlaceholder(template, match.index ?? -1, match[0])) {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} declares metadata.${key} outside a complete path segment.`,
+          'config_missing',
+        )
+      }
+      if (typeof raw !== 'string' || !isOAuthPathSegment(raw.trim())) {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} requires metadata.${key} as a valid path segment.`,
+          'config_missing',
+        )
+      }
+      resolved = resolved.replaceAll(match[0], encodeURIComponent(raw.trim()))
       continue
     }
     if (typeof raw !== 'string' || !isDnsLabel(raw.trim())) {
@@ -683,9 +699,41 @@ function resolveOAuthUrlTemplate(
   return url.toString()
 }
 
+function isOAuthPathSegment(value: string): boolean {
+  return (
+    value !== '.' &&
+    value !== '..' &&
+    /^[A-Za-z0-9._~-]{1,128}$/.test(value)
+  )
+}
+
+function isOAuthPathSegmentPlaceholder(
+  template: string,
+  index: number,
+  placeholder: string,
+): boolean {
+  if (index < 0) return false
+  const schemeIndex = template.indexOf('://')
+  const rootEnd = schemeIndex >= 0
+    ? schemeIndex + 3
+    : template.startsWith('{')
+      ? template.indexOf('}') + 1
+      : 0
+  const pathStart = template.indexOf('/', rootEnd)
+  const end = index + placeholder.length
+  const queryStart = template.search(/[?#]/)
+  return (
+    pathStart >= 0 &&
+    index >= pathStart &&
+    (queryStart < 0 || index < queryStart) &&
+    template[index - 1] === '/' &&
+    (end === template.length || template[end] === '/' || template[end] === '?' || template[end] === '#')
+  )
+}
+
 function resolveOAuthMetadataBaseUrl(
   value: string,
-  spec: OAuth2UrlTemplateMetadataSpec,
+  spec: Extract<OAuth2UrlTemplateMetadataSpec, { kind: 'base-url' }>,
   connectorId: string,
   metadataKey: string,
 ): string {

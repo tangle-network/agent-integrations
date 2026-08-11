@@ -94,6 +94,7 @@ export interface ConnectorAuthSpec {
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
+  sendScopeParam?: boolean
   extraAuthParams?: Record<string, string>
   urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
 }
@@ -119,6 +120,7 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
       tokenClientIdParam: auth.tokenClientIdParam,
       tokenClientSecretParam: auth.tokenClientSecretParam,
       tokenClientAuthMethod: auth.tokenClientAuthMethod,
+      sendScopeParam: auth.sendScopeParam,
       extraAuthParams: auth.extraAuthParams,
       urlTemplateMetadata: auth.urlTemplateMetadata,
     }
@@ -315,6 +317,7 @@ function authFor(
     tokenClientIdParam: real?.tokenClientIdParam ?? 'client_id',
     tokenClientSecretParam: real?.tokenClientSecretParam ?? 'client_secret',
     tokenClientAuthMethod,
+    sendScopeParam: real?.sendScopeParam,
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
     urlTemplateMetadata: real?.urlTemplateMetadata,

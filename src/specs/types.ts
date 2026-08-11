@@ -84,9 +84,10 @@ export interface OAuth2AuthSpec {
    * `client_secret_post` when omitted. */
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   scopes: ScopeDescriptor[]
+  /** Whether the authorize request includes `scope`. Defaults to true. */
+  sendScopeParam?: boolean
   extraAuthParams?: Record<string, string>
-  /** Rules for connection metadata that replaces complete provider roots in
-   *  authorizationUrl or tokenUrl templates. */
+  /** Rules for connection metadata in authorizationUrl or tokenUrl templates. */
   urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
   redirectUriTemplate: string
   pkce?: 'required' | 'supported' | 'unsupported'

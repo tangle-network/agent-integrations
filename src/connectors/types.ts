@@ -374,17 +374,23 @@ export type OAuth2TokenClientAuthMethod =
   | 'client_secret_post'
   | 'client_secret_basic'
 
-export interface OAuth2UrlTemplateMetadataSpec {
-  /** A complete HTTPS provider base URL, substituted for a URL template
-   *  placeholder such as `{accountUrl}`. */
-  kind: 'base-url'
-  /** Exact provider roots accepted for finite regional endpoint sets. */
-  allowedBaseUrls?: readonly string[]
-  /** HTTPS hostname suffixes accepted for tenant-specific provider roots. */
-  allowedBaseUrlSuffixes?: readonly string[]
-  /** Permit a caller-selected public HTTPS root for self-hosted providers. */
-  requirePublicHttps?: boolean
-}
+export type OAuth2UrlTemplateMetadataSpec =
+  | {
+      /** A complete HTTPS provider base URL, substituted for a URL template
+       *  placeholder such as `{accountUrl}`. */
+      kind: 'base-url'
+      /** Exact provider roots accepted for finite regional endpoint sets. */
+      allowedBaseUrls?: readonly string[]
+      /** HTTPS hostname suffixes accepted for tenant-specific provider roots. */
+      allowedBaseUrlSuffixes?: readonly string[]
+      /** Permit a caller-selected public HTTPS root for self-hosted providers. */
+      requirePublicHttps?: boolean
+    }
+  | {
+      /** One RFC 3986 unreserved path segment. The resolver encodes it and
+       *  rejects separators, dot segments, query data, and fragments. */
+      kind: 'path-segment'
+    }
 
 type OAuth2AuthSpec = {
   kind: 'oauth2'
@@ -431,10 +437,8 @@ type OAuth2AuthSpec = {
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
   extraAuthParams?: Record<string, string>
-  /** Rules for metadata placeholders that represent complete provider roots.
-   *  Placeholders without a rule remain single DNS labels. This distinction
-   *  prevents tenant metadata from redirecting client credentials unless the
-   *  connector explicitly declares the allowed provider host policy. */
+  /** Rules for metadata placeholders that represent provider roots or path
+   *  segments. Placeholders without a rule remain single DNS labels. */
   urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
   /** Non-secret headers sent to the token endpoint. Use this for provider
    *  identification headers such as Reddit's required User-Agent. The runtime
@@ -661,21 +665,12 @@ function validateOAuth2AuthSpec(
     })
   }
   for (const [key, spec] of Object.entries(auth.urlTemplateMetadata ?? {})) {
-    if (spec.kind !== 'base-url') {
+    if (spec.kind !== 'base-url' && spec.kind !== 'path-segment') {
       issues.push({
         path: `${path}.urlTemplateMetadata.${key}.kind`,
-        message: 'OAuth URL metadata kind must be base-url',
+        message: 'OAuth URL metadata kind must be base-url or path-segment',
       })
-    }
-    if (
-      !spec.requirePublicHttps &&
-      !spec.allowedBaseUrls?.length &&
-      !spec.allowedBaseUrlSuffixes?.length
-    ) {
-      issues.push({
-        path: `${path}.urlTemplateMetadata.${key}`,
-        message: 'OAuth base URL metadata requires an allowlist or public HTTPS policy',
-      })
+      continue
     }
     const placeholder = `{${key}}`
     if (!auth.authorizationUrl?.includes(placeholder) && !auth.tokenUrl.includes(placeholder)) {
@@ -684,12 +679,36 @@ function validateOAuth2AuthSpec(
         message: `OAuth URL metadata is unused; add ${placeholder} to an OAuth endpoint`,
       })
     }
-    for (const suffix of spec.allowedBaseUrlSuffixes ?? []) {
-      if (!/^\.[a-z0-9.-]+$/i.test(suffix)) {
+    if (spec.kind === 'base-url') {
+      if (
+        !spec.requirePublicHttps &&
+        !spec.allowedBaseUrls?.length &&
+        !spec.allowedBaseUrlSuffixes?.length
+      ) {
         issues.push({
-          path: `${path}.urlTemplateMetadata.${key}.allowedBaseUrlSuffixes`,
-          message: 'OAuth base URL hostname suffixes must start with a dot',
+          path: `${path}.urlTemplateMetadata.${key}`,
+          message: 'OAuth base URL metadata requires an allowlist or public HTTPS policy',
         })
+      }
+      for (const suffix of spec.allowedBaseUrlSuffixes ?? []) {
+        if (!/^\.[a-z0-9.-]+$/i.test(suffix)) {
+          issues.push({
+            path: `${path}.urlTemplateMetadata.${key}.allowedBaseUrlSuffixes`,
+            message: 'OAuth base URL hostname suffixes must start with a dot',
+          })
+        }
+      }
+    } else {
+      for (const endpoint of [auth.authorizationUrl, auth.tokenUrl]) {
+        if (
+          endpoint?.includes(placeholder) &&
+          !isOAuthPathSegmentPlaceholder(endpoint, placeholder)
+        ) {
+          issues.push({
+            path: `${path}.urlTemplateMetadata.${key}`,
+            message: `OAuth path metadata ${placeholder} must occupy a complete URL path segment`,
+          })
+        }
       }
     }
   }
@@ -720,6 +739,33 @@ function validateOAuth2AuthSpec(
         message: 'tokenRequestHeaders cannot override Authorization or Content-Type',
       })
     }
+  }
+}
+
+function isOAuthPathSegmentPlaceholder(template: string, placeholder: string): boolean {
+  const schemeIndex = template.indexOf('://')
+  const rootEnd = schemeIndex >= 0
+    ? schemeIndex + 3
+    : template.startsWith('{')
+      ? template.indexOf('}') + 1
+      : 0
+  const pathStart = template.indexOf('/', rootEnd)
+  const queryStart = template.search(/[?#]/)
+  let cursor = 0
+  while (true) {
+    const index = template.indexOf(placeholder, cursor)
+    if (index < 0) return true
+    const end = index + placeholder.length
+    if (
+      pathStart < 0 ||
+      index < pathStart ||
+      (queryStart >= 0 && index >= queryStart) ||
+      template[index - 1] !== '/' ||
+      (end < template.length && template[end] !== '/' && template[end] !== '?' && template[end] !== '#')
+    ) {
+      return false
+    }
+    cursor = end
   }
 }
 
