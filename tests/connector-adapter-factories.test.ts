@@ -127,6 +127,16 @@ describe('connector adapter factory registry', () => {
     expect(resolveConnectorAdapterFactoryOptions(definition!, {})).toEqual({})
   })
 
+  it('registers Opsgenie API keys without OAuth application settings', () => {
+    const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'opsgenie',
+    )
+    expect(definition).toBeDefined()
+    expect(definition!.envMap).toEqual({})
+    expect(resolveConnectorAdapterFactoryOptions(definition!, {})).toEqual({})
+    expect(definition!.factory({}).manifest.auth.kind).toBe('api-key')
+  })
+
   it('surfaces ClickUp as OAuth while retaining personal tokens as a secondary option', async () => {
     const definition = CONNECTOR_ADAPTER_FACTORIES.find(
       (candidate) => candidate.kind === 'clickup',
@@ -301,10 +311,6 @@ describe('connector adapter factory registry', () => {
       nifty: {
         clientId: 'NIFTY_OAUTH_CLIENT_ID',
         clientSecret: 'NIFTY_OAUTH_CLIENT_SECRET',
-      },
-      opsgenie: {
-        clientId: 'OPSGENIE_OAUTH_CLIENT_ID',
-        clientSecret: 'OPSGENIE_OAUTH_CLIENT_SECRET',
       },
       pagerduty: {
         clientId: 'PAGERDUTY_OAUTH_CLIENT_ID',

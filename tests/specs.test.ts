@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildHealthcheckPlan,
   bundledAuthMode,
+  bundledOAuth2AuthContract,
   getBundledAdapterManifest,
   getIntegrationSpec,
   hasBundledAdapter,
@@ -168,14 +169,78 @@ describe('integration specs', () => {
     const oauth = listIntegrationSpecs().filter((spec) => spec.auth.mode === 'oauth2')
     expect(oauth.length).toBeGreaterThan(50)
     for (const spec of oauth) {
-      const auth = spec.auth as { authorizationUrl?: string; tokenUrl?: string }
-      for (const url of [auth.authorizationUrl, auth.tokenUrl]) {
+      if (spec.auth.mode !== 'oauth2') continue
+      for (const url of [spec.auth.authorizationUrl, spec.auth.tokenUrl]) {
         if (url === undefined) continue
         expect(url, `${spec.kind} advertises a placeholder endpoint`).not.toContain('example.invalid')
-        expect(() => new URL(url), `${spec.kind} endpoint must parse`).not.toThrow()
-        expect(new URL(url).protocol, `${spec.kind} endpoint must be https`).toBe('https:')
+        let resolved = url
+        for (const match of url.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)) {
+          const key = match[1]!
+          const policy = spec.auth.urlTemplateMetadata?.[key]
+          const value = policy
+            ? policy.allowedBaseUrls?.[0]
+              ?? (policy.allowedBaseUrlSuffixes?.[0]
+                ? `https://tenant${policy.allowedBaseUrlSuffixes[0]}`
+                : 'https://provider.example')
+            : 'tenant'
+          resolved = resolved.replaceAll(match[0], value)
+        }
+        expect(() => new URL(resolved), `${spec.kind} endpoint must parse after safe metadata`).not.toThrow()
+        expect(new URL(resolved).protocol, `${spec.kind} endpoint must be https`).toBe('https:')
       }
     }
+  })
+
+  it('exports machine grants and provider-root URL policies to connect runtimes', () => {
+    const authContract = (kind: string) => {
+      const manifest = getBundledAdapterManifest(kind)
+      expect(manifest, `missing bundled manifest for ${kind}`).toBeDefined()
+      return bundledOAuth2AuthContract(manifest!)
+    }
+
+    expect(authContract('marketo')).toMatchObject({
+      grantType: 'client_credentials',
+      authorizationUrl: undefined,
+      tokenUrl: '{restEndpoint}/identity/oauth/token',
+      urlTemplateMetadata: {
+        restEndpoint: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.mktorest.com'],
+        },
+      },
+    })
+    expect(authContract('zuora')).toMatchObject({
+      grantType: 'client_credentials',
+      authorizationUrl: undefined,
+      tokenUrl: '{apiBaseUrl}/oauth/token',
+      urlTemplateMetadata: {
+        apiBaseUrl: {
+          kind: 'base-url',
+          allowedBaseUrls: expect.arrayContaining([
+            'https://rest.zuora.com',
+            'https://rest.eu.zuora.com',
+            'https://rest.ap.zuora.com',
+          ]),
+        },
+      },
+    })
+    expect(authContract('gitea')).toMatchObject({
+      grantType: 'authorization_code',
+      authorizationUrl: '{instanceUrl}/login/oauth/authorize',
+      urlTemplateMetadata: {
+        instanceUrl: { kind: 'base-url', requirePublicHttps: true },
+      },
+    })
+    expect(authContract('snowflake')).toMatchObject({
+      grantType: 'authorization_code',
+      authorizationUrl: '{accountUrl}/oauth/authorize',
+      urlTemplateMetadata: {
+        accountUrl: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.snowflakecomputing.com'],
+        },
+      },
+    })
   })
 
   it('an executable oauth2 spec can actually start a connect flow', () => {

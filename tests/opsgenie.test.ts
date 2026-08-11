@@ -1,5 +1,31 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { opsgenieConnector } from '../src/connectors/adapters/opsgenie.js'
+import type { ResolvedDataSource } from '../src/connectors/types.js'
+
+function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
+  return {
+    id: 'src_opsgenie_1',
+    projectId: 'proj_1',
+    publishedAgentId: null,
+    kind: 'opsgenie',
+    label: 'Opsgenie test',
+    consistencyModel: 'authoritative',
+    scopes: [],
+    metadata: {},
+    credentials: { kind: 'api-key', apiKey: 'opsgenie-api-key' },
+    status: 'active',
+    ...overrides,
+  }
+}
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('opsgenie adapter manifest', () => {
   it('classifies itself with the opsgenie kind and the other category', () => {
@@ -8,22 +34,12 @@ describe('opsgenie adapter manifest', () => {
     expect(opsgenieConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('declares OAuth2 with the documented Opsgenie endpoints and env-var names', () => {
+  it('declares customer-supplied API-key authentication without OAuth scopes', () => {
     const auth = opsgenieConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://app.opsgenie.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://app.opsgenie.com/oauth/token')
-    expect(auth.clientIdEnv).toBe('OPSGENIE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('OPSGENIE_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('alert.read')
-    expect(auth.scopes).toContain('alert.write')
-    expect(auth.scopes).toContain('incident.read')
-    expect(auth.scopes).toContain('incident.write')
-    expect(auth.scopes).toContain('schedule.read')
-    expect(auth.scopes).toContain('oncall.read')
-    expect(auth.scopes).toContain('team.read')
-    expect(auth.scopes).toContain('user.read')
+    expect(auth.kind).toBe('api-key')
+    expect(opsgenieConnector.manifest.capabilities.every(
+      (capability) => capability.requiredScopes === undefined,
+    )).toBe(true)
   })
 
   it('exposes the alert + incident + schedule + oncall + team + user surface', () => {
@@ -70,13 +86,47 @@ describe('opsgenie adapter manifest', () => {
     expect(mutations).toContain('incidents.close')
   })
 
-  it('routes REST calls to the US Opsgenie host by default with an EU metadata override', () => {
-    // The manifest does not expose baseUrl directly (it lives on the internal
-    // spec), so we assert it through an executor probe: declarativeRest
-    // resolves baseUrl at execute() time and the US fallback is the
-    // documented default. We assert via the documented metadata key.
-    const cap = opsgenieConnector.manifest.capabilities.find((c) => c.name === 'alerts.list')
-    expect(cap).toBeDefined()
-    expect(cap?.requiredScopes).toContain('alert.read')
+  it('sends the API key as GenieKey to the US root by default', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => (
+      jsonResponse({ data: { name: 'Tangle' } })
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(opsgenieConnector.test(source())).resolves.toEqual({ ok: true })
+
+    const [input, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(String(input)).toBe('https://api.opsgenie.com/v2/account')
+    expect(new Headers(init.headers).get('authorization')).toBe('GenieKey opsgenie-api-key')
+  })
+
+  it('routes API execution to the EU root when selected', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => (
+      jsonResponse({ data: [] })
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await opsgenieConnector.executeRead!({
+      source: source({ metadata: { apiBaseUrl: 'https://api.eu.opsgenie.com' } }),
+      capabilityName: 'alerts.list',
+      args: {},
+      idempotencyKey: 'alerts-eu',
+    })
+
+    const [input, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(String(input)).toBe('https://api.eu.opsgenie.com/v2/alerts')
+    expect(new Headers(init.headers).get('authorization')).toBe('GenieKey opsgenie-api-key')
+  })
+
+  it('rejects non-Opsgenie API roots before sending credentials', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(opsgenieConnector.executeRead!({
+      source: source({ metadata: { apiBaseUrl: 'https://opsgenie.attacker.example' } }),
+      capabilityName: 'alerts.list',
+      args: {},
+      idempotencyKey: 'alerts-host-policy',
+    })).rejects.toThrow('connection base URL is not an allowed provider endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

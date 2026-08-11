@@ -1,60 +1,36 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-// Opsgenie OAuth 2.0 + REST surface.
-//
-// Auth: Opsgenie publishes a dedicated OAuth 2.0 authorization-code flow
-// rooted at app.opsgenie.com (US) and app.eu.opsgenie.com (EU). The user-
-// authorize redirect host is region-specific because Opsgenie keeps account
-// data in the region the workspace was provisioned in. The orchestrator
-// substitutes `{authHost}` from connection metadata (defaulting to the US
-// host) when building the authorize URL; on the token-exchange leg the same
-// host is used.
-//   https://docs.opsgenie.com/docs/oauth
-//
-// API: every authenticated REST call lands on https://api.opsgenie.com (US)
-// or https://api.eu.opsgenie.com (EU). The adapter exposes a `metadataKey`
-// override so a DataSource can pin baseUrl per-account without forking. The
-// US host is the documented default.
-//   https://docs.opsgenie.com/docs/api-overview
+const OPSGENIE_API_BASE_URLS = [
+  'https://api.opsgenie.com',
+  'https://api.eu.opsgenie.com',
+] as const
+
+// Opsgenie authenticates REST calls with an API key in the Authorization
+// header. Permissions come from API key management and API integration
+// settings, not OAuth scopes.
+//   https://docs.opsgenie.com/docs/authentication
 //
 // Wire format: Opsgenie returns JSON responses wrapped in
 //   { data, took, requestId }
 // envelopes for read calls and accepts plain JSON bodies on writes; no
 // vendor Accept header is required.
 //
-// Scopes: Opsgenie defines per-resource read/write scopes documented at
-//   https://docs.opsgenie.com/docs/oauth#scopes
-// We request the read+write surface for alerts and incidents (the two
-// primary mutation surfaces) plus read on schedules / on-call / teams /
-// users so the adapter covers the documented triage + routing workflow.
-// Consumers can narrow at grant time.
 export const opsgenieConnector = declarativeRestConnector({
   kind: 'opsgenie',
   displayName: 'Opsgenie',
   description:
-    'Create, acknowledge, and close Opsgenie alerts and incidents, attach notes, and read schedules, on-call assignments, teams, and users against a connected Opsgenie account.',
+    'Use an existing Opsgenie account to manage alerts and incidents, attach notes, and read schedules, on-call assignments, teams, and users.',
   auth: {
-    kind: 'oauth2',
-    authorizationUrl: 'https://app.opsgenie.com/oauth/authorize',
-    tokenUrl: 'https://app.opsgenie.com/oauth/token',
-    scopes: [
-      'alert.read',
-      'alert.write',
-      'incident.read',
-      'incident.write',
-      'schedule.read',
-      'oncall.read',
-      'team.read',
-      'user.read',
-    ],
-    clientIdEnv: 'OPSGENIE_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'OPSGENIE_OAUTH_CLIENT_SECRET',
+    kind: 'api-key',
+    hint: 'Opsgenie API key with access to the selected alert, incident, schedule, team, and user operations.',
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   // Default to the US REST host; EU-rooted accounts override
   // metadata.apiBaseUrl to https://api.eu.opsgenie.com.
   baseUrl: { metadataKey: 'apiBaseUrl', fallback: 'https://api.opsgenie.com' },
+  allowedBaseUrls: OPSGENIE_API_BASE_URLS,
+  credentialPlacement: { kind: 'header', header: 'authorization', prefix: 'GenieKey ' },
   defaultHeaders: {
     accept: 'application/json',
     'content-type': 'application/json',
@@ -109,7 +85,6 @@ export const opsgenieConnector = declarativeRestConnector({
           order: '{order}',
         },
       },
-      requiredScopes: ['alert.read'],
     },
     {
       name: 'alerts.get',
@@ -129,7 +104,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v2/alerts/{identifier}',
         query: { identifierType: '{identifierType}' },
       },
-      requiredScopes: ['alert.read'],
     },
     {
       name: 'alerts.create',
@@ -192,7 +166,6 @@ export const opsgenieConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['alert.write'],
     },
     {
       name: 'alerts.acknowledge',
@@ -217,7 +190,6 @@ export const opsgenieConnector = declarativeRestConnector({
         body: { user: '{user}', source: '{source}', note: '{note}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['alert.write'],
     },
     {
       name: 'alerts.close',
@@ -241,7 +213,6 @@ export const opsgenieConnector = declarativeRestConnector({
         body: { user: '{user}', source: '{source}', note: '{note}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['alert.write'],
     },
     {
       name: 'alerts.notes.list',
@@ -270,7 +241,6 @@ export const opsgenieConnector = declarativeRestConnector({
           order: '{order}',
         },
       },
-      requiredScopes: ['alert.read'],
     },
     {
       name: 'alerts.notes.add',
@@ -294,7 +264,6 @@ export const opsgenieConnector = declarativeRestConnector({
         body: { note: '{note}', user: '{user}', source: '{source}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['alert.write'],
     },
     {
       name: 'incidents.list',
@@ -325,7 +294,6 @@ export const opsgenieConnector = declarativeRestConnector({
           order: '{order}',
         },
       },
-      requiredScopes: ['incident.read'],
     },
     {
       name: 'incidents.get',
@@ -344,7 +312,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v1/incidents/{identifier}',
         query: { identifierType: '{identifierType}' },
       },
-      requiredScopes: ['incident.read'],
     },
     {
       name: 'incidents.create',
@@ -392,7 +359,6 @@ export const opsgenieConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['incident.write'],
     },
     {
       name: 'incidents.close',
@@ -414,7 +380,6 @@ export const opsgenieConnector = declarativeRestConnector({
         body: { note: '{note}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['incident.write'],
     },
     {
       name: 'incidents.notes.add',
@@ -436,7 +401,6 @@ export const opsgenieConnector = declarativeRestConnector({
         body: { note: '{note}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['incident.write'],
     },
     {
       name: 'schedules.list',
@@ -457,7 +421,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v2/schedules',
         query: { expand: '{expand}' },
       },
-      requiredScopes: ['schedule.read'],
     },
     {
       name: 'schedules.get',
@@ -476,7 +439,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v2/schedules/{identifier}',
         query: { identifierType: '{identifierType}' },
       },
-      requiredScopes: ['schedule.read'],
     },
     {
       name: 'schedules.timeline',
@@ -509,7 +471,6 @@ export const opsgenieConnector = declarativeRestConnector({
           expand: '{expand}',
         },
       },
-      requiredScopes: ['schedule.read'],
     },
     {
       name: 'oncalls.current',
@@ -535,7 +496,6 @@ export const opsgenieConnector = declarativeRestConnector({
           date: '{date}',
         },
       },
-      requiredScopes: ['oncall.read'],
     },
     {
       name: 'oncalls.next',
@@ -560,7 +520,6 @@ export const opsgenieConnector = declarativeRestConnector({
           date: '{date}',
         },
       },
-      requiredScopes: ['oncall.read'],
     },
     {
       name: 'teams.list',
@@ -568,7 +527,6 @@ export const opsgenieConnector = declarativeRestConnector({
       description: 'List all teams in the Opsgenie workspace.',
       parameters: { type: 'object', properties: {} },
       request: { method: 'GET', path: '/v2/teams' },
-      requiredScopes: ['team.read'],
     },
     {
       name: 'teams.get',
@@ -587,7 +545,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v2/teams/{identifier}',
         query: { identifierType: '{identifierType}' },
       },
-      requiredScopes: ['team.read'],
     },
     {
       name: 'users.list',
@@ -614,7 +571,6 @@ export const opsgenieConnector = declarativeRestConnector({
           order: '{order}',
         },
       },
-      requiredScopes: ['user.read'],
     },
     {
       name: 'users.get',
@@ -633,7 +589,6 @@ export const opsgenieConnector = declarativeRestConnector({
         path: '/v2/users/{identifier}',
         query: { expand: '{expand}' },
       },
-      requiredScopes: ['user.read'],
     },
   ],
 })

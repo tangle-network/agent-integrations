@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { snowflakeConnector } from '../src/connectors/adapters/snowflake.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
+const ACCOUNT_URL = 'https://xy12345.us-east-1.snowflakecomputing.com'
+
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
     id: 'src_snowflake_1',
@@ -10,8 +12,8 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     kind: 'snowflake',
     label: 'snowflake test',
     consistencyModel: 'authoritative',
-    scopes: [],
-    metadata: {},
+    scopes: ['refresh_token'],
+    metadata: { accountUrl: ACCOUNT_URL },
     credentials: { kind: 'oauth2', accessToken: 'snow_token' },
     status: 'active',
     ...overrides,
@@ -19,272 +21,207 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
-  if (status === 204 || status === 205 || status === 304) {
-    return new Response(null, { status })
-  }
   return new Response(JSON.stringify(body), {
-    status,
+    status: init.status ?? 200,
     headers: { 'content-type': 'application/json' },
   })
 }
 
 describe('snowflake adapter manifest', () => {
-  it('classifies itself as the database category and exposes the snowflake kind', () => {
+  it('uses account-scoped OAuth endpoints and the refresh-token scope', () => {
     expect(snowflakeConnector.manifest.kind).toBe('snowflake')
     expect(snowflakeConnector.manifest.category).toBe('database')
     expect(snowflakeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
 
-  it('declares oauth2 auth with Snowflake-specific endpoints', () => {
     const auth = snowflakeConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/snowflake/)
-    expect(auth.tokenUrl).toMatch(/snowflake/)
+    if (auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    expect(auth.authorizationUrl).toBe('{accountUrl}/oauth/authorize')
+    expect(auth.tokenUrl).toBe('{accountUrl}/oauth/token-request')
+    expect(auth.scopes).toEqual(['refresh_token'])
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_post')
+    expect(auth.pkce).toBe('supported')
+    expect(auth.urlTemplateMetadata).toEqual({
+      accountUrl: {
+        kind: 'base-url',
+        allowedBaseUrlSuffixes: ['.snowflakecomputing.com'],
+      },
+    })
   })
 
-  it('covers queries, rows, tables, procedures, stages, warehouses, and dynamic tables capability surface', () => {
-    const names = snowflakeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('queries.run')
-    expect(names).toContain('queries.runMultiple')
-    expect(names).toContain('rows.insert')
-    expect(names).toContain('rows.insertMultiple')
-    expect(names).toContain('rows.update')
-    expect(names).toContain('rows.upsert')
-    expect(names).toContain('rows.delete')
-    expect(names).toContain('rows.getById')
-    expect(names).toContain('rows.search')
-    expect(names).toContain('tables.list')
-    expect(names).toContain('tables.getSchema')
-    expect(names).toContain('tables.create')
-    expect(names).toContain('tables.drop')
-    expect(names).toContain('procedures.execute')
-    expect(names).toContain('stages.loadData')
-    expect(names).toContain('stages.create')
-    expect(names).toContain('stages.unloadData')
-    expect(names).toContain('warehouses.list')
-    expect(names).toContain('dynamicTables.create')
-  })
+  it('exposes only the SQL API operations the runtime can execute truthfully', () => {
+    expect(snowflakeConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
+      'queries.run',
+      'queries.runMultiple',
+      'statements.get',
+      'statements.cancel',
+    ])
 
-  it('marks write operations as mutations', () => {
-    const mutations = snowflakeConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('rows.insert')
-    expect(mutations).toContain('rows.insertMultiple')
-    expect(mutations).toContain('rows.update')
-    expect(mutations).toContain('rows.upsert')
-    expect(mutations).toContain('rows.delete')
-    expect(mutations).toContain('procedures.execute')
-    expect(mutations).toContain('stages.loadData')
-    expect(mutations).toContain('stages.create')
-    expect(mutations).toContain('stages.unloadData')
-    expect(mutations).toContain('tables.create')
-    expect(mutations).toContain('tables.drop')
-    expect(mutations).toContain('dynamicTables.create')
-  })
-
-  it('marks read-only operations as read', () => {
-    const reads = snowflakeConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toContain('queries.run')
-    expect(reads).toContain('queries.runMultiple')
-    expect(reads).toContain('rows.getById')
-    expect(reads).toContain('rows.search')
-    expect(reads).toContain('tables.list')
-    expect(reads).toContain('tables.getSchema')
-    expect(reads).toContain('warehouses.list')
-  })
-
-  it('every mutation declares native-idempotency CAS and externalEffect true (default added by declarative-rest)', () => {
-    for (const c of snowflakeConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      // declarative-rest defaults mutation cas to native-idempotency when omitted;
-      // every write Snowflake op in this adapter uses that or an explicit upgrade.
-      expect(['native-idempotency', 'optimistic-read-verify', 'etag-if-match']).toContain(c.cas)
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-
-  it('the newly added write capabilities all declare native-idempotency + external effect', () => {
-    const newCaps = ['tables.create', 'tables.drop', 'stages.create', 'stages.unloadData']
-    for (const name of newCaps) {
-      const cap = snowflakeConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} should be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
+    const byName = Object.fromEntries(
+      snowflakeConnector.manifest.capabilities.map((capability) => [capability.name, capability]),
+    )
+    expect(byName['statements.get']?.class).toBe('read')
+    for (const name of ['queries.run', 'queries.runMultiple', 'statements.cancel']) {
+      const capability = byName[name]
+      expect(capability?.class).toBe('mutation')
+      if (capability?.class !== 'mutation') throw new Error(`${name} must require approval`)
+      expect(capability.cas).toBe('none')
+      expect(capability.externalEffect).toBe(true)
     }
   })
 })
 
-describe('snowflake tables.create', () => {
+describe('snowflake SQL API execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('POSTs to the schema tables endpoint with name + columns body', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = typeof init?.body === 'string' ? init.body : undefined
-      return jsonResponse({ id: 'tbl_1', name: 'ORDERS' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('runs one approved SQL statement against the selected account', async () => {
+    let captured: { url: string; init?: RequestInit } | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      captured = { url: String(input), init }
+      return jsonResponse({ statementHandle: '01b123' })
+    }))
 
     const result = await snowflakeConnector.executeMutation!({
       source: source(),
-      capabilityName: 'tables.create',
+      capabilityName: 'queries.run',
       args: {
+        statement: 'SELECT * FROM EVENTS WHERE ID = ?',
+        timeout: 30,
         database: 'ANALYTICS',
         schema: 'PUBLIC',
-        name: 'ORDERS',
-        columns: [
-          { name: 'id', type: 'NUMBER' },
-          { name: 'created_at', type: 'TIMESTAMP_NTZ' },
-        ],
+        warehouse: 'COMPUTE_WH',
+        role: 'ANALYST',
+        bindings: { '1': { type: 'FIXED', value: '42' } },
+        async: true,
       },
-      idempotencyKey: 'k-1',
+      idempotencyKey: 'snow-1',
     })
+
     expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/api/v2/databases/ANALYTICS/schemas/PUBLIC/tables')
-    expect(requestBody).toBeDefined()
-    const parsed = JSON.parse(requestBody!) as Record<string, unknown>
-    expect(parsed.name).toBe('ORDERS')
-    expect(Array.isArray(parsed.columns)).toBe(true)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      snowflakeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tables.create',
-        args: { database: 'D', schema: 'S', name: 'T', columns: [{ name: 'id', type: 'NUMBER' }] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
-
-describe('snowflake tables.drop', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('issues DELETE on the table resource', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      return new Response(null, { status: 204 })
+    expect(captured?.url).toBe(`${ACCOUNT_URL}/api/v2/statements?async=true`)
+    expect(captured?.init?.method).toBe('POST')
+    expect(captured?.init?.headers).toMatchObject({
+      authorization: 'Bearer snow_token',
+      'content-type': 'application/json',
+      'x-snowflake-authorization-token-type': 'OAUTH',
     })
-    vi.stubGlobal('fetch', fetchMock)
+    expect(JSON.parse(String(captured?.init?.body))).toEqual({
+      statement: 'SELECT * FROM EVENTS WHERE ID = ?',
+      timeout: 30,
+      database: 'ANALYTICS',
+      schema: 'PUBLIC',
+      warehouse: 'COMPUTE_WH',
+      role: 'ANALYST',
+      bindings: { '1': { type: 'FIXED', value: '42' } },
+    })
+  })
 
-    const result = await snowflakeConnector.executeMutation!({
+  it('runs multiple statements with Snowflake MULTI_STATEMENT_COUNT', async () => {
+    let requestBody: unknown
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      requestBody = JSON.parse(String(init?.body))
+      return jsonResponse({ statementHandles: ['01b123', '01b124'] })
+    }))
+
+    await snowflakeConnector.executeMutation!({
       source: source(),
-      capabilityName: 'tables.drop',
-      args: { database: 'D', schema: 'S', table: 'T' },
-      idempotencyKey: 'k-2',
+      capabilityName: 'queries.runMultiple',
+      args: {
+        statement: 'CREATE TEMP TABLE T (ID NUMBER); INSERT INTO T VALUES (1)',
+        multiStatementCount: '2',
+      },
+      idempotencyKey: 'snow-2',
     })
-    expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('DELETE')
-    expect(String(requestUrl)).toContain('/api/v2/databases/D/schemas/S/tables/T')
+
+    expect(requestUrl).toBe(`${ACCOUNT_URL}/api/v2/statements`)
+    expect(requestBody).toEqual({
+      statement: 'CREATE TEMP TABLE T (ID NUMBER); INSERT INTO T VALUES (1)',
+      parameters: { MULTI_STATEMENT_COUNT: '2' },
+    })
   })
-})
 
-describe('snowflake stages.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to the schema stages endpoint and forwards args as body', async () => {
-    let requestUrl: string | undefined
-    let requestBody: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestBody = typeof init?.body === 'string' ? init.body : undefined
-      return jsonResponse({ id: 'stg_1' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await snowflakeConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'stages.create',
-      args: { database: 'D', schema: 'S', name: 'INTAKE_STAGE' },
-      idempotencyKey: 'k-3',
-    })
-    expect(result.status).toBe('committed')
-    expect(String(requestUrl)).toContain('/api/v2/databases/D/schemas/S/stages')
-    expect(requestBody).toBeDefined()
-    const parsed = JSON.parse(requestBody!) as Record<string, unknown>
-    expect(parsed.name).toBe('INTAKE_STAGE')
-  })
-})
-
-describe('snowflake stages.unloadData', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to the table unload endpoint', async () => {
-    let requestUrl: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      requestUrl = String(input)
-      return jsonResponse({ filesWritten: 3 })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await snowflakeConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'stages.unloadData',
-      args: { database: 'D', schema: 'S', table: 'T', stage: '@INTAKE_STAGE' },
-      idempotencyKey: 'k-4',
-    })
-    expect(result.status).toBe('committed')
-    expect(String(requestUrl)).toContain('/api/v2/databases/D/schemas/S/tables/T/unload')
-  })
-})
-
-describe('snowflake warehouses.list', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('issues GET /warehouses', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      return jsonResponse([{ name: 'COMPUTE_WH' }])
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('gets a statement result partition', async () => {
+    let captured: { url: string; init?: RequestInit } | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      captured = { url: String(input), init }
+      return jsonResponse({ statementHandle: '01b123', data: [['42']] })
+    }))
 
     const result = await snowflakeConnector.executeRead!({
       source: source(),
-      capabilityName: 'warehouses.list',
-      args: {},
-      idempotencyKey: 'k-5',
+      capabilityName: 'statements.get',
+      args: { statementHandle: '01b123', partition: 2 },
+      idempotencyKey: 'snow-3',
     })
-    expect(requestMethod).toBe('GET')
-    expect(String(requestUrl)).toContain('/api/v2/warehouses')
-    expect(result.data).toEqual([{ name: 'COMPUTE_WH' }])
+
+    expect(captured?.url).toBe(`${ACCOUNT_URL}/api/v2/statements/01b123?partition=2`)
+    expect(captured?.init?.method).toBe('GET')
+    expect(captured?.init?.body).toBeUndefined()
+    expect(result.data).toEqual({ statementHandle: '01b123', data: [['42']] })
   })
 
-  it('threads the optional `like` filter into the query string', async () => {
-    let requestUrl: string | undefined
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      requestUrl = String(input)
-      return jsonResponse([])
+  it('cancels a statement with an empty JSON body', async () => {
+    let captured: { url: string; init?: RequestInit } | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      captured = { url: String(input), init }
+      return jsonResponse({ statementHandle: '01b123', statementStatusUrl: '/status' })
+    }))
+
+    await snowflakeConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'statements.cancel',
+      args: { statementHandle: '01b123' },
+      idempotencyKey: 'snow-4',
     })
+
+    expect(captured?.url).toBe(`${ACCOUNT_URL}/api/v2/statements/01b123/cancel`)
+    expect(captured?.init?.method).toBe('POST')
+    expect(captured?.init?.body).toBe('{}')
+  })
+
+  it('probes the account with a harmless identity SELECT', async () => {
+    let requestBody: unknown
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      requestBody = JSON.parse(String(init?.body))
+      return jsonResponse({ data: [['XY12345', 'DREW', 'SYSADMIN']] })
+    }))
+
+    await expect(snowflakeConnector.test(source())).resolves.toEqual({ ok: true })
+    expect(requestUrl).toBe(`${ACCOUNT_URL}/api/v2/statements`)
+    expect(requestBody).toEqual({
+      statement: 'SELECT CURRENT_ACCOUNT(), CURRENT_USER(), CURRENT_ROLE()',
+    })
+  })
+
+  it.each([
+    'https://snowflake.example.test',
+    'https://xy12345.us-east-1.snowflakecomputing.com:8443',
+    'https://user:secret@xy12345.us-east-1.snowflakecomputing.com',
+  ])('fails before provider traffic for an unsafe account root: %s', async (accountUrl) => {
+    const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    await snowflakeConnector.executeRead!({
+    await expect(snowflakeConnector.executeMutation!({
+      source: source({ metadata: { accountUrl } }),
+      capabilityName: 'queries.run',
+      args: { statement: 'SELECT 1' },
+      idempotencyKey: 'snow-5',
+    })).rejects.toThrow('connection base URL is not an allowed provider endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('surfaces expired OAuth credentials on a real SQL operation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
+
+    await expect(snowflakeConnector.executeMutation!({
       source: source(),
-      capabilityName: 'warehouses.list',
-      args: { like: 'COMPUTE%' },
-      idempotencyKey: 'k-6',
-    })
-    expect(String(requestUrl)).toContain('like=COMPUTE')
+      capabilityName: 'queries.run',
+      args: { statement: 'SELECT 1' },
+      idempotencyKey: 'snow-6',
+    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

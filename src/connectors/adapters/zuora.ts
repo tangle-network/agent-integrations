@@ -1,9 +1,23 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
+const ZUORA_API_BASE_URLS = [
+  'https://rest.test.zuora.com',
+  'https://rest.sandbox.na.zuora.com',
+  'https://rest.apisandbox.zuora.com',
+  'https://rest.na.zuora.com',
+  'https://rest.zuora.com',
+  'https://rest.test.eu.zuora.com',
+  'https://rest.sandbox.eu.zuora.com',
+  'https://rest.eu.zuora.com',
+  'https://rest.test.ap.zuora.com',
+  'https://rest.ap.zuora.com',
+] as const
+
 /**
  * Zuora subscription management connector — core financial operations.
  * Supports finding accounts, products, rate plans, and invoice creation.
- * Uses OAuth2 with token-based authentication.
+ * Uses a tenant OAuth client with the client_credentials grant. Zuora binds
+ * both token exchange and API calls to the tenant's data-center base URL.
  */
 export const zuoraConnector = declarativeRestConnector({
   kind: 'zuora',
@@ -12,15 +26,24 @@ export const zuoraConnector = declarativeRestConnector({
     'Cloud-based subscription management platform. Query accounts, products, and rate plans; create invoices.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://www.zuora.com/apps/PersonalSettings.do?method=oauth',
-    tokenUrl: 'https://rest.zuora.com/oauth/token',
-    scopes: ['api'],
+    grantType: 'client_credentials',
+    tokenUrl: '{apiBaseUrl}/oauth/token',
+    scopes: [],
     clientIdEnv: 'ZUORA_OAUTH_CLIENT_ID',
     clientSecretEnv: 'ZUORA_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_post',
+    pkce: 'unsupported',
+    urlTemplateMetadata: {
+      apiBaseUrl: {
+        kind: 'base-url',
+        allowedBaseUrls: ZUORA_API_BASE_URLS,
+      },
+    },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://rest.zuora.com',
+  baseUrl: { metadataKey: 'apiBaseUrl' },
+  allowedBaseUrls: ZUORA_API_BASE_URLS,
   test: { method: 'GET', path: '/v1/accounts' },
   capabilities: [
     {
@@ -35,7 +58,6 @@ export const zuoraConnector = declarativeRestConnector({
         required: ['accountId'],
       },
       request: { method: 'GET', path: '/v1/accounts/{accountId}' },
-      requiredScopes: ['api'],
     },
     {
       name: 'products.find',
@@ -49,7 +71,6 @@ export const zuoraConnector = declarativeRestConnector({
         required: ['productId'],
       },
       request: { method: 'GET', path: '/v1/products/{productId}' },
-      requiredScopes: ['api'],
     },
     {
       name: 'products.rate_plans.find',
@@ -64,7 +85,6 @@ export const zuoraConnector = declarativeRestConnector({
         required: ['productId', 'ratePlanId'],
       },
       request: { method: 'GET', path: '/v1/products/{productId}/rate-plans/{ratePlanId}' },
-      requiredScopes: ['api'],
     },
     {
       name: 'invoices.create',
@@ -89,7 +109,6 @@ export const zuoraConnector = declarativeRestConnector({
         body: { accountId: '{accountId}', subscriptionId: '{subscriptionId}', items: '{invoiceItems}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['api'],
     },
     {
       name: 'subscriptions.create',
@@ -116,7 +135,6 @@ export const zuoraConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['api'],
     },
     {
       name: 'subscriptions.cancel',
@@ -145,7 +163,6 @@ export const zuoraConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['api'],
     },
     {
       name: 'subscriptions.update',
@@ -169,7 +186,6 @@ export const zuoraConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['api'],
     },
     {
       name: 'payments.create',
@@ -198,7 +214,6 @@ export const zuoraConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['api'],
     },
   ],
 })
