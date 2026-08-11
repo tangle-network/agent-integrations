@@ -87,7 +87,9 @@ describe('requireTangleAuth', () => {
       ownerType: 'team',
       emailVerified: true,
       credentialId: 'key_1',
-      product: 'legal',
+      apiKeyId: 'key_1',
+      product: 'legal-agent',
+      provisionedByService: 'legal-agent',
       expiresAt: 1_700_000_000_000,
     }))
     const out = await requireTangleAuth(reqWith({ authorization: 'Bearer sk-tan-x' }), { client })
@@ -99,7 +101,9 @@ describe('requireTangleAuth', () => {
       kind: 'api_key',
       ownerType: 'team',
       credentialId: 'key_1',
-      product: 'legal',
+      apiKeyId: 'key_1',
+      product: 'legal-agent',
+      provisionedByService: 'legal-agent',
       expiresAt: 1_700_000_000_000,
       emailVerified: true,
       email: 'owner@company.com',

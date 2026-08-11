@@ -36,6 +36,8 @@ export type BillingErrorCode =
   | 'trial_expired'
   | 'free_tier_exhausted'
   | 'platform_evidence_required'
+  | 'platform_evidence_expired'
+  | 'platform_evidence_replayed'
   | 'platform_evidence_subject_mismatch'
   | 'email_verification_required'
   | 'real_email_required'
@@ -102,6 +104,8 @@ function mapToIntegrationCode(code: BillingErrorCode): IntegrationRuntimeError['
     case 'trial_expired':
     case 'free_tier_exhausted':
     case 'platform_evidence_required':
+    case 'platform_evidence_expired':
+    case 'platform_evidence_replayed':
     case 'platform_evidence_subject_mismatch':
     case 'email_verification_required':
     case 'real_email_required':
@@ -126,6 +130,8 @@ function statusForBillingCode(code: BillingErrorCode): number {
     case 'trial_expired':
     case 'free_tier_exhausted':
     case 'platform_evidence_required':
+    case 'platform_evidence_expired':
+    case 'platform_evidence_replayed':
     case 'platform_evidence_subject_mismatch':
     case 'email_verification_required':
     case 'real_email_required':
@@ -154,6 +160,8 @@ function defaultUserAction(code: BillingErrorCode): IntegrationUserAction | unde
     case 'free_tier_exhausted':
       return { type: 'change_request', label: 'Upgrade for more usage' }
     case 'platform_evidence_required':
+    case 'platform_evidence_expired':
+    case 'platform_evidence_replayed':
     case 'platform_evidence_subject_mismatch':
     case 'email_verification_required':
     case 'real_email_required':

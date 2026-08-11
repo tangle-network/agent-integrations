@@ -2,40 +2,52 @@ import { createHash, randomUUID } from 'node:crypto'
 
 export type IdempotencyRuntime = 'production' | 'development' | 'test'
 
+export type AtomicClaimStatus = 'acquired' | 'in_progress' | 'completed'
+
 /**
  * Atomic claim storage shared by every worker that can receive the same event.
- * `scope` is part of the construction contract so production cannot silently
- * accept a process-local implementation.
+ * `claimStatus` distinguishes a finished replay from concurrent work. HTTP
+ * handlers need that distinction so they never acknowledge another worker's
+ * unfinished attempt.
  */
 export interface AtomicIdempotencyStore {
   readonly scope?: 'process' | 'shared'
   claim(key: string, ttlMs: number): Promise<boolean> | boolean
-  release?(key: string): Promise<void> | void
+  claimStatus(key: string, ttlMs: number): Promise<AtomicClaimStatus> | AtomicClaimStatus
+  release(key: string): Promise<void> | void
   /** Retain a successful claim while clearing only local ownership state. */
-  complete?(key: string): Promise<void> | void
+  complete(key: string): Promise<void> | void
+}
+
+interface InMemoryClaim {
+  expiresAt: number
+  token: string
+  status: 'processing' | 'completed'
 }
 
 /** Process-local implementation for tests and explicitly single-process apps. */
 export class InMemoryAtomicIdempotencyStore implements AtomicIdempotencyStore {
   readonly scope = 'process' as const
-  private readonly entries = new Map<string, { expiresAt: number; token: string }>()
+  private readonly entries = new Map<string, InMemoryClaim>()
   private readonly owners = new Map<string, string>()
 
   claim(key: string, ttlMs: number): boolean {
+    return this.claimStatus(key, ttlMs) === 'acquired'
+  }
+
+  claimStatus(key: string, ttlMs: number): AtomicClaimStatus {
     assertClaimInput(key, ttlMs)
-    // A long-running handler must not reclaim its own expired key while the
-    // original delivery can still call release. A fresh process may reclaim
-    // an expired durable claim; this local guard only preserves ownership
-    // within one process.
-    if (this.owners.has(key)) return false
+    if (this.owners.has(key)) return 'in_progress'
     const now = Date.now()
     const existing = this.entries.get(key)
-    if (existing && existing.expiresAt > now) return false
+    if (existing && existing.expiresAt > now) {
+      return existing.status === 'completed' ? 'completed' : 'in_progress'
+    }
 
     const token = randomUUID()
-    this.entries.set(key, { expiresAt: now + ttlMs, token })
+    this.entries.set(key, { expiresAt: now + ttlMs, token, status: 'processing' })
     this.owners.set(key, token)
-    return true
+    return 'acquired'
   }
 
   release(key: string): void {
@@ -43,52 +55,81 @@ export class InMemoryAtomicIdempotencyStore implements AtomicIdempotencyStore {
     const token = this.owners.get(key)
     if (!token) return
     const current = this.entries.get(key)
-    if (current?.token === token) this.entries.delete(key)
+    if (current?.token === token && current.status === 'processing') this.entries.delete(key)
     if (this.owners.get(key) === token) this.owners.delete(key)
   }
 
   complete(key: string): void {
     assertKey(key)
-    this.owners.delete(key)
+    const token = this.owners.get(key)
+    if (!token) return
+    const current = this.entries.get(key)
+    if (current?.token === token) current.status = 'completed'
+    if (this.owners.get(key) === token) this.owners.delete(key)
   }
 }
 
 export interface FileSystemAtomicIdempotencyStoreOptions {
   /** Optional path-safe filename namespace for colocated stores. */
   namespace?: string
-  /** Maximum time to wait for another worker's per-key lock. */
-  lockWaitMs?: number
-  /** Lease used to recover a lock left by a crashed worker. */
+  /** Lease for work in progress. Active owners renew it until completion. */
+  processingLeaseMs?: number
+  /** Renewal cadence. Must be shorter than `processingLeaseMs`. */
+  heartbeatIntervalMs?: number
+  /** @deprecated Use `processingLeaseMs`. Preserved for existing callers. */
   lockLeaseMs?: number
+  /** @deprecated Append-only claims do not wait on a lock. */
+  lockWaitMs?: number
 }
 
-interface ClaimRecord {
+interface LegacyClaimRecord {
   version: 1
   keyHash: string
   token: string
   expiresAt: number
 }
 
-interface LockRecord {
+interface ClaimJournalNode {
+  version: 3
+  kind: 'claim' | 'completed' | 'available'
+  keyHash: string
   token: string
+  predecessorToken: string | null
+  ownerToken: string | null
   expiresAt: number
 }
 
+type StoredClaimRecord = LegacyClaimRecord | ClaimJournalNode
+
+interface LocalClaimOwner {
+  ownerToken: string
+  ttlMs: number
+  timer?: ReturnType<typeof setInterval>
+  renewing: boolean
+  closing: boolean
+}
+
+const MAX_CLAIM_CHAIN_DEPTH = 100_000
+
 /**
- * Durable file-per-key claims using the repository's existing filesystem
- * persistence convention. The state write is atomic, and an exclusive lock
- * serializes read/replace decisions across worker processes.
+ * Durable append-only claim journal.
  *
- * All workers must use the same shared filesystem directory. A lock left by a
- * crashed worker is recoverable after its lease expires; malformed files fail
- * closed instead of risking a duplicate claim.
+ * Every decision is linked to one deterministic path derived from the prior
+ * node token. Renewal, completion, release, and takeover therefore race the
+ * same atomic hard-link. Only one decision can win. Active owners renew a
+ * processing lease; a crashed process stops renewing and becomes recoverable.
+ * A stale process cannot complete or release a successor's claim.
+ *
+ * Version-1 state cannot distinguish active work from completion. It is read as
+ * in progress until expiry, so a rolling deployment never acknowledges work
+ * that an older process may still own. New state is never replaced or deleted.
  */
 export class FileSystemAtomicIdempotencyStore implements AtomicIdempotencyStore {
   readonly scope = 'shared' as const
-  private readonly lockWaitMs: number
-  private readonly lockLeaseMs: number
   private readonly filePrefix: string
-  private readonly owners = new Map<string, string>()
+  private readonly processingLeaseMs: number
+  private readonly heartbeatIntervalMs: number
+  private readonly owners = new Map<string, LocalClaimOwner>()
 
   constructor(
     private readonly rootDir: string,
@@ -98,152 +139,198 @@ export class FileSystemAtomicIdempotencyStore implements AtomicIdempotencyStore 
     if (options.namespace !== undefined && !/^[A-Za-z0-9_.-]+$/.test(options.namespace)) {
       throw new Error('Idempotency namespace must contain only path-safe characters')
     }
+    if (options.lockWaitMs !== undefined) positiveOption(options.lockWaitMs, 'lockWaitMs')
     this.filePrefix = options.namespace ? `${options.namespace}-` : ''
-    this.lockWaitMs = positiveOption(options.lockWaitMs ?? 30_000, 'lockWaitMs')
-    this.lockLeaseMs = positiveOption(options.lockLeaseMs ?? 60_000, 'lockLeaseMs')
-    if (this.lockLeaseMs <= 0) throw new Error('lockLeaseMs must be positive')
+    this.processingLeaseMs = positiveOption(
+      options.processingLeaseMs ?? options.lockLeaseMs ?? 60_000,
+      'processingLeaseMs',
+    )
+    this.heartbeatIntervalMs = positiveOption(
+      options.heartbeatIntervalMs ?? Math.max(1, Math.floor(this.processingLeaseMs / 3)),
+      'heartbeatIntervalMs',
+    )
+    if (this.heartbeatIntervalMs >= this.processingLeaseMs) {
+      throw new Error('heartbeatIntervalMs must be shorter than processingLeaseMs')
+    }
   }
 
   async claim(key: string, ttlMs: number): Promise<boolean> {
-    assertClaimInput(key, ttlMs)
-    // See the in-memory implementation: do not let one worker replace its
-    // own live handler's claim after expiry and then release the replacement.
-    if (this.owners.has(key)) return false
-    const keyHash = hashKey(key)
-    return this.withLock(keyHash, async () => {
-      const file = await this.statePath(keyHash)
-      const current = await this.readState(file, keyHash)
-      const now = Date.now()
-      if (current && current.expiresAt > now) return false
+    return (await this.claimStatus(key, ttlMs)) === 'acquired'
+  }
 
-      const token = randomUUID()
-      await this.writeState(file, {
-        version: 1,
-        keyHash,
-        token,
-        expiresAt: now + ttlMs,
-      })
-      this.owners.set(key, token)
-      return true
-    })
+  async claimStatus(key: string, ttlMs: number): Promise<AtomicClaimStatus> {
+    assertClaimInput(key, ttlMs)
+    if (this.owners.has(key)) return 'in_progress'
+    await this.ensureRoot()
+    const keyHash = hashKey(key)
+
+    while (true) {
+      const head = await this.readHead(keyHash)
+      const now = Date.now()
+      if (!head) {
+        const ownerToken = randomUUID()
+        const record = this.claimNode(keyHash, null, ownerToken, now)
+        if (!(await this.writeExclusive(await this.rootPath(keyHash), record))) continue
+        this.startOwnership(key, ownerToken, ttlMs)
+        return 'acquired'
+      }
+
+      if (head.version === 1) {
+        if (head.expiresAt > now) return 'in_progress'
+      } else {
+        if (head.kind === 'completed' && head.expiresAt > now) return 'completed'
+        if (head.kind === 'claim' && head.expiresAt > now) return 'in_progress'
+      }
+
+      const ownerToken = randomUUID()
+      const successor = this.claimNode(keyHash, head.token, ownerToken, now)
+      if (!(await this.writeExclusive(await this.successorPath(keyHash, head.token), successor))) continue
+      this.startOwnership(key, ownerToken, ttlMs)
+      return 'acquired'
+    }
   }
 
   async release(key: string): Promise<void> {
-    assertKey(key)
-    const token = this.owners.get(key)
-    if (!token) return
+    await this.transitionOwned(key, 'available')
+  }
 
+  async complete(key: string): Promise<void> {
+    await this.transitionOwned(key, 'completed')
+  }
+
+  private async transitionOwned(key: string, kind: 'completed' | 'available'): Promise<void> {
+    assertKey(key)
+    const owner = this.owners.get(key)
+    if (!owner) return
+    owner.closing = true
+    this.stopHeartbeat(owner)
     const keyHash = hashKey(key)
-    await this.withLock(keyHash, async () => {
-      const file = await this.statePath(keyHash)
-      const current = await this.readState(file, keyHash)
-      if (current?.token === token) await this.removeState(file)
-      if (this.owners.get(key) === token) this.owners.delete(key)
-    })
-  }
-
-  complete(key: string): void {
-    assertKey(key)
-    this.owners.delete(key)
-  }
-
-  private async statePath(keyHash: string): Promise<string> {
-    const path = await import('node:path')
-    return path.join(this.rootDir, `${this.filePrefix}${keyHash}.json`)
-  }
-
-  private async lockPath(keyHash: string): Promise<string> {
-    const path = await import('node:path')
-    return path.join(this.rootDir, `${this.filePrefix}${keyHash}.lock`)
-  }
-
-  private async ensureRoot(): Promise<void> {
-    const fs = await import('node:fs/promises')
-    await fs.mkdir(this.rootDir, { recursive: true, mode: 0o700 })
-  }
-
-  private async readState(file: string, expectedKeyHash: string): Promise<ClaimRecord | null> {
-    const fs = await import('node:fs/promises')
-    let raw: string
     try {
-      raw = await fs.readFile(file, 'utf8')
+      while (true) {
+        const head = await this.readHead(keyHash)
+        if (
+          !head
+          || head.version === 1
+          || head.kind !== 'claim'
+          || head.ownerToken !== owner.ownerToken
+        ) {
+          this.owners.delete(key)
+          if (kind === 'completed') {
+            throw new Error(`Idempotency ownership was lost before completion for ${key}`)
+          }
+          return
+        }
+
+        const next: ClaimJournalNode = {
+          version: 3,
+          kind,
+          keyHash,
+          token: randomUUID(),
+          predecessorToken: head.token,
+          ownerToken: owner.ownerToken,
+          expiresAt: kind === 'completed' ? Date.now() + owner.ttlMs : 0,
+        }
+        if (!(await this.writeExclusive(await this.successorPath(keyHash, head.token), next))) continue
+        this.owners.delete(key)
+        return
+      }
     } catch (err) {
-      if (isNodeENOENT(err)) return null
+      if (this.owners.get(key) === owner) {
+        if (kind === 'available') {
+          this.owners.delete(key)
+        } else {
+          owner.closing = false
+          this.scheduleHeartbeat(key, owner)
+        }
+      }
       throw err
     }
+  }
 
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      throw new Error(`Invalid idempotency state for ${expectedKeyHash}`)
+  private async readHead(keyHash: string): Promise<StoredClaimRecord | null> {
+    let current = await this.readClaim(await this.rootPath(keyHash), keyHash)
+    if (!current) return null
+    for (let depth = 0; depth < MAX_CLAIM_CHAIN_DEPTH; depth++) {
+      const next = await this.readClaim(await this.successorPath(keyHash, current.token), keyHash)
+      if (!next) return current
+      if (next.version !== 3 || next.predecessorToken !== current.token) {
+        throw new Error(`Invalid idempotency successor for ${keyHash}`)
+      }
+      current = next
     }
+    throw new Error(`Idempotency claim chain exceeds ${MAX_CLAIM_CHAIN_DEPTH} records for ${keyHash}`)
+  }
+
+  private async readClaim(file: string, expectedKeyHash: string): Promise<StoredClaimRecord | null> {
+    const parsed = await this.readJson(file)
+    if (parsed === null) return null
     if (!isClaimRecord(parsed) || parsed.keyHash !== expectedKeyHash) {
       throw new Error(`Invalid idempotency state for ${expectedKeyHash}`)
     }
     return parsed
   }
 
-  private async writeState(file: string, record: ClaimRecord): Promise<void> {
-    const fs = await import('node:fs/promises')
-    const tmp = `${file}.tmp-${process.pid}-${randomUUID()}`
-    await fs.writeFile(tmp, JSON.stringify(record), { encoding: 'utf8', mode: 0o600 })
-    try {
-      await fs.rename(tmp, file)
-    } catch (err) {
-      await removeIfPresent(tmp)
-      throw err
+  private claimNode(
+    keyHash: string,
+    predecessorToken: string | null,
+    ownerToken: string,
+    now: number,
+  ): ClaimJournalNode {
+    return {
+      version: 3,
+      kind: 'claim',
+      keyHash,
+      token: randomUUID(),
+      predecessorToken,
+      ownerToken,
+      expiresAt: now + this.processingLeaseMs,
     }
   }
 
-  private async removeState(file: string): Promise<void> {
-    const fs = await import('node:fs/promises')
-    try {
-      await fs.unlink(file)
-    } catch (err) {
-      if (!isNodeENOENT(err)) throw err
-    }
+  private startOwnership(key: string, ownerToken: string, ttlMs: number): void {
+    const owner: LocalClaimOwner = { ownerToken, ttlMs, renewing: false, closing: false }
+    this.owners.set(key, owner)
+    this.scheduleHeartbeat(key, owner)
   }
 
-  private async withLock<T>(keyHash: string, work: () => Promise<T>): Promise<T> {
-    await this.ensureRoot()
-    const fs = await import('node:fs/promises')
-    const lockFile = await this.lockPath(keyHash)
-    const startedAt = Date.now()
+  private scheduleHeartbeat(key: string, owner: LocalClaimOwner): void {
+    if (owner.timer || owner.closing || this.owners.get(key) !== owner) return
+    owner.timer = setInterval(() => {
+      void this.renewOwnership(key, owner).catch(() => undefined)
+    }, this.heartbeatIntervalMs)
+    owner.timer.unref?.()
+  }
 
-    while (true) {
-      const token = randomUUID()
-      let handle: import('node:fs/promises').FileHandle | undefined
-      try {
-        handle = await fs.open(lockFile, 'wx', 0o600)
-        const lock: LockRecord = { token, expiresAt: Date.now() + this.lockLeaseMs }
-        await handle.writeFile(JSON.stringify(lock), 'utf8')
-        await handle.close()
-        handle = undefined
+  private stopHeartbeat(owner: LocalClaimOwner): void {
+    if (owner.timer) clearInterval(owner.timer)
+    owner.timer = undefined
+  }
 
-        try {
-          return await work()
-        } finally {
-          await this.releaseLock(lockFile, token)
+  private async renewOwnership(key: string, owner: LocalClaimOwner): Promise<void> {
+    if (owner.renewing || owner.closing || this.owners.get(key) !== owner) return
+    owner.renewing = true
+    try {
+      const keyHash = hashKey(key)
+      while (!owner.closing && this.owners.get(key) === owner) {
+        const head = await this.readHead(keyHash)
+        if (
+          !head
+          || head.version === 1
+          || head.kind !== 'claim'
+          || head.ownerToken !== owner.ownerToken
+        ) {
+          this.stopHeartbeat(owner)
+          return
         }
-      } catch (err) {
-        if (handle) await handle.close().catch(() => undefined)
-        if (!isNodeEEXIST(err)) throw err
-
-        const current = await this.readLock(lockFile)
-        if (current && current.expiresAt <= Date.now()) {
-          await this.reclaimExpiredLock(lockFile)
-          continue
-        }
-        if (Date.now() - startedAt >= this.lockWaitMs) {
-          throw new Error(`Timed out acquiring idempotency lock for ${keyHash}`)
-        }
-        await delay(5)
+        const renewal = this.claimNode(keyHash, head.token, owner.ownerToken, Date.now())
+        if (await this.writeExclusive(await this.successorPath(keyHash, head.token), renewal)) return
       }
+    } finally {
+      owner.renewing = false
     }
   }
 
-  private async readLock(file: string): Promise<LockRecord | null> {
+  private async readJson(file: string): Promise<unknown | null> {
     const fs = await import('node:fs/promises')
     let raw: string
     try {
@@ -252,38 +339,52 @@ export class FileSystemAtomicIdempotencyStore implements AtomicIdempotencyStore 
       if (isNodeENOENT(err)) return null
       throw err
     }
-    if (!raw.trim()) return null
-    let parsed: unknown
     try {
-      parsed = JSON.parse(raw)
+      return JSON.parse(raw) as unknown
     } catch {
-      throw new Error('Invalid idempotency lock')
+      throw new Error(`Invalid idempotency JSON at ${file}`)
     }
-    if (!isLockRecord(parsed)) throw new Error('Invalid idempotency lock')
-    return parsed
   }
 
-  private async reclaimExpiredLock(file: string): Promise<void> {
+  private async writeExclusive(file: string, value: object): Promise<boolean> {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
-    const stale = path.join(this.rootDir, `${path.basename(file)}.stale-${randomUUID()}`)
+    const tmp = `${file}.tmp-${process.pid}-${randomUUID()}`
+    const handle = await fs.open(tmp, 'wx', 0o600)
     try {
-      await fs.rename(file, stale)
-      await fs.unlink(stale)
-    } catch (err) {
-      if (!isNodeENOENT(err)) throw err
+      await handle.writeFile(JSON.stringify(value), 'utf8')
+      await handle.sync()
+      await handle.close()
+      try {
+        await fs.link(tmp, file)
+        await syncDirectory(path.dirname(file))
+        return true
+      } catch (err) {
+        if (isNodeEEXIST(err)) return false
+        throw err
+      }
+    } finally {
+      await handle.close().catch(() => undefined)
+      await removeIfPresent(tmp)
     }
   }
 
-  private async releaseLock(file: string, token: string): Promise<void> {
-    const current = await this.readLock(file)
-    if (current?.token !== token) return
+  private async rootPath(keyHash: string): Promise<string> {
+    const path = await import('node:path')
+    return path.join(this.rootDir, `${this.filePrefix}${keyHash}.json`)
+  }
+
+  private async successorPath(keyHash: string, predecessorToken: string): Promise<string> {
+    const path = await import('node:path')
+    return path.join(
+      this.rootDir,
+      `${this.filePrefix}${keyHash}.next-${hashToken(predecessorToken)}.json`,
+    )
+  }
+
+  private async ensureRoot(): Promise<void> {
     const fs = await import('node:fs/promises')
-    try {
-      await fs.unlink(file)
-    } catch (err) {
-      if (!isNodeENOENT(err)) throw err
-    }
+    await fs.mkdir(this.rootDir, { recursive: true, mode: 0o700 })
   }
 }
 
@@ -345,23 +446,30 @@ function hashKey(key: string): string {
   return createHash('sha256').update(key, 'utf8').digest('hex')
 }
 
-function isClaimRecord(value: unknown): value is ClaimRecord {
+function hashToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
+}
+
+function isClaimRecord(value: unknown): value is StoredClaimRecord {
   if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<ClaimRecord>
-  return candidate.version === 1
-    && typeof candidate.keyHash === 'string'
+  const candidate = value as Record<string, unknown>
+  const common = typeof candidate.keyHash === 'string'
     && /^[a-f0-9]{64}$/.test(candidate.keyHash)
     && typeof candidate.token === 'string'
     && candidate.token.length > 0
     && Number.isFinite(candidate.expiresAt)
-}
-
-function isLockRecord(value: unknown): value is LockRecord {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<LockRecord>
-  return typeof candidate.token === 'string'
-    && candidate.token.length > 0
-    && Number.isFinite(candidate.expiresAt)
+  if (!common) return false
+  if (candidate.version === 1) return true
+  if (candidate.version !== 3) return false
+  if (candidate.kind !== 'claim' && candidate.kind !== 'completed' && candidate.kind !== 'available') return false
+  if (
+    candidate.predecessorToken !== null
+    && (typeof candidate.predecessorToken !== 'string' || !candidate.predecessorToken.length)
+  ) return false
+  if (candidate.kind === 'claim' || candidate.kind === 'completed') {
+    return typeof candidate.ownerToken === 'string' && candidate.ownerToken.length > 0
+  }
+  return candidate.ownerToken === null || (typeof candidate.ownerToken === 'string' && candidate.ownerToken.length > 0)
 }
 
 function isNodeENOENT(err: unknown): boolean {
@@ -381,6 +489,12 @@ async function removeIfPresent(file: string): Promise<void> {
   }
 }
 
-async function delay(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms))
+async function syncDirectory(directory: string): Promise<void> {
+  const fs = await import('node:fs/promises')
+  const handle = await fs.open(directory, 'r')
+  try {
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
 }

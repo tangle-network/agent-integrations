@@ -1,13 +1,34 @@
+import {
+  jwtVerify,
+  type CryptoKey as JoseCryptoKey,
+  type JWK,
+  type JWTPayload,
+  type JWTVerifyGetKey,
+  type JWTVerifyOptions,
+  type KeyObject,
+} from 'jose'
+import {
+  resolveAtomicIdempotencyStore,
+  type AtomicIdempotencyStore,
+  type IdempotencyRuntime,
+} from './idempotency.js'
+
 /**
  * Shared billing and identity policy for product integrations.
  *
  * Product code must not prove access by sending a string such as
  * `paid_purchase` or `byok`. The only accepted proof is an object parsed from
- * the Platform response by `parseTrustedPlatformEvidence`.
+ * a signed Platform token verified by `verifyTrustedPlatformEvidence`.
  */
 
 export const PLATFORM_ACCESS_POLICY_VERSION = 1 as const
 export const PLATFORM_ACCESS_ISSUER = 'id.tangle.tools' as const
+/**
+ * Keep a paid-purchase record consumed for the practical lifetime of the
+ * product. A backend that cannot retain this TTL must fail the claim instead
+ * of shortening it, because a shortened TTL can issue the same purchase twice.
+ */
+export const PLATFORM_FUNDING_REPLAY_RETENTION_MS = 100 * 365 * 24 * 60 * 60 * 1000
 
 export const PRODUCT_FREE_CREDIT_SOURCES = Object.freeze([
   'signup',
@@ -74,19 +95,23 @@ export type TrustedPlatformPrincipal =
 export interface TrustedPlatformEvidence {
   issuer: typeof PLATFORM_ACCESS_ISSUER
   policyVersion: typeof PLATFORM_ACCESS_POLICY_VERSION
+  /** Immutable Platform funding-record id. Purchases use it for replay protection. */
   evidenceId: string
+  /** One-time JWT id used to audit the signed presentation. */
+  tokenId: string
   principal: TrustedPlatformPrincipal
   funding: TrustedFundingEvidence
-  /** Platform response time. Consumers may use this for short cache TTLs. */
+  /** Product identifier the Platform signature binds this proof to. */
+  audience: string
+  /** Platform signing time. Consumers may use this for short cache TTLs. */
   issuedAt: string
+  /** Hard token expiry from the signed JWT. */
+  expiresAt: string
 }
 
-/** The wire shape returned by Platform's access/evidence endpoint. */
+/** Custom claims inside Platform's signed access-evidence JWT. */
 export interface PlatformAccessEvidencePayload {
   policyVersion?: unknown
-  issuer?: unknown
-  evidenceId?: unknown
-  issuedAt?: unknown
   emailVerified?: unknown
   user?: { id?: unknown; email?: unknown }
   principal?: {
@@ -110,6 +135,32 @@ export interface PlatformAccessEvidencePayload {
   }
 }
 
+export type PlatformEvidenceVerificationKey =
+  | JoseCryptoKey
+  | KeyObject
+  | JWK
+  | Uint8Array
+  | JWTVerifyGetKey
+
+export interface VerifyTrustedPlatformEvidenceOptions {
+  /** Exact product/service audience expected by this consumer. */
+  audience: string
+  /** Exact owner id expected by this request. */
+  expectedUserId: string
+  /** Platform public key or trusted JWKS resolver. Never use a shared HMAC key. */
+  verificationKey: PlatformEvidenceVerificationKey
+  /** Shared atomic store for purchase and signed-presentation replay claims. */
+  replayStore: AtomicIdempotencyStore
+  /** Production requires a shared replay store. */
+  runtime?: IdempotencyRuntime
+  /** Test clock override. */
+  now?(): number
+  /** Allowed clock skew in seconds. Default 5. */
+  clockToleranceSeconds?: number
+  /** Maximum age from `iat` in seconds. Default 300. */
+  maxTokenAgeSeconds?: number
+}
+
 export type BillingAccessDecision =
   | {
       allowed: true
@@ -123,6 +174,8 @@ export type BillingAccessDecision =
         | 'email_verification_required'
         | 'real_email_required'
         | 'platform_evidence_required'
+        | 'platform_evidence_expired'
+        | 'platform_evidence_replayed'
         | 'platform_evidence_subject_mismatch'
         | 'paid_evidence_required'
       reason: string
@@ -140,46 +193,125 @@ export const NO_PRODUCT_FREE_CREDITS_POLICY = Object.freeze({
 })
 
 /* WeakSet prevents a caller from constructing a lookalike object and passing it
- * as proof. Only the parser below can mark an object as Platform-issued. */
+ * as proof. Only successful signature verification can mark an object trusted. */
 const trustedEvidenceObjects = new WeakSet<object>()
+const consumedPurchaseEvidenceObjects = new WeakSet<object>()
 
 /**
- * Parse and mark an access response from Platform.
+ * Verify and consume one signed access proof from Platform.
  *
- * `null` means the response is missing a required policy, identity, or funding
- * field. Products must deny access when parsing returns null.
+ * Standard JWT claims bind issuer, audience, subject, issue time, not-before,
+ * expiry, and one-time id. Custom claims bind the principal to the funding
+ * record. Invalid or replayed tokens return null. Replay-store failures throw,
+ * so callers return a non-success response instead of granting access.
  */
-export function parseTrustedPlatformEvidence(
-  payload: unknown,
-  options: { expectedUserId?: string } = {},
-): TrustedPlatformEvidence | null {
+export async function verifyTrustedPlatformEvidence(
+  signedEvidence: string,
+  options: VerifyTrustedPlatformEvidenceOptions,
+): Promise<TrustedPlatformEvidence | null> {
+  if (typeof signedEvidence !== 'string' || !signedEvidence.trim()) return null
+  if (!options.audience.trim() || !options.expectedUserId.trim()) return null
+  const nowMs = (options.now ?? Date.now)()
+  if (!Number.isFinite(nowMs)) return null
+  const clockToleranceSeconds = options.clockToleranceSeconds ?? 5
+  const maxTokenAgeSeconds = options.maxTokenAgeSeconds ?? 300
+  if (!Number.isFinite(clockToleranceSeconds) || clockToleranceSeconds < 0) return null
+  if (!Number.isFinite(maxTokenAgeSeconds) || maxTokenAgeSeconds <= 0) return null
+
+  let verified: { payload: JWTPayload }
+  try {
+    const verifyOptions: JWTVerifyOptions = {
+      algorithms: ['ES256', 'ES384', 'EdDSA', 'PS256', 'PS384', 'RS256', 'RS384'],
+      issuer: PLATFORM_ACCESS_ISSUER,
+      audience: options.audience,
+      subject: options.expectedUserId,
+      requiredClaims: ['iss', 'aud', 'sub', 'iat', 'nbf', 'exp', 'jti'],
+      currentDate: new Date(nowMs),
+      clockTolerance: clockToleranceSeconds,
+      maxTokenAge: maxTokenAgeSeconds,
+    }
+    if (typeof options.verificationKey === 'function') {
+      verified = await jwtVerify(signedEvidence, options.verificationKey, verifyOptions)
+    } else {
+      verified = await jwtVerify(signedEvidence, options.verificationKey, verifyOptions)
+    }
+  } catch {
+    return null
+  }
+
+  const payload = verified.payload
+  const nowSeconds = Math.floor(nowMs / 1000)
+  if (
+    payload.aud !== options.audience
+    || payload.sub !== options.expectedUserId
+    || typeof payload.iat !== 'number'
+    || typeof payload.nbf !== 'number'
+    || typeof payload.exp !== 'number'
+    || typeof payload.jti !== 'string'
+    || !payload.jti.trim()
+    || payload.iat > nowSeconds
+    || payload.nbf > nowSeconds
+    || payload.exp <= nowSeconds
+  ) return null
   if (!isRecord(payload)) return null
   if (payload.policyVersion !== PLATFORM_ACCESS_POLICY_VERSION) return null
-  if (payload.issuer !== PLATFORM_ACCESS_ISSUER) return null
-
-  const evidenceId = readNonEmptyString(payload.evidenceId)
-  const issuedAt = readNonEmptyString(payload.issuedAt)
   const user = isRecord(payload.user) ? payload.user : undefined
   const principal = isRecord(payload.principal) ? payload.principal : undefined
   const funding = isRecord(payload.funding) ? payload.funding : undefined
-  if (!evidenceId || !issuedAt || !Number.isFinite(Date.parse(issuedAt)) || !user || !principal || !funding) return null
+  if (!user || !principal || !funding) return null
 
   const userId = readNonEmptyString(user.id)
-  if (!userId || (options.expectedUserId && userId !== options.expectedUserId)) return null
+  if (!userId || userId !== options.expectedUserId || payload.sub !== userId) return null
 
   const principalValue = parsePrincipal({ payload, user, principal, userId })
   const fundingValue = parseFunding(funding)
   if (!principalValue || !fundingValue) return null
   if (principalValue.kind === 'human' && payload.emailVerified !== true) return null
+  if (!principalMatchesFunding(principalValue, fundingValue)) return null
+
+  const replayStore = resolveAtomicIdempotencyStore({
+    component: 'verifyTrustedPlatformEvidence',
+    store: options.replayStore,
+    runtime: options.runtime,
+  })
+  const tokenTtlMs = Math.max(1, Math.ceil((payload.exp - nowSeconds + clockToleranceSeconds) * 1000))
+  const oneTimePurchase = fundingValue.kind === 'paid_purchase'
+  const replayKey = [
+    'platform-access',
+    PLATFORM_ACCESS_ISSUER,
+    PLATFORM_ACCESS_POLICY_VERSION,
+    oneTimePurchase ? 'funding' : 'presentation',
+    oneTimePurchase ? fundingValue.evidenceId : payload.jti,
+  ].join(':')
+  const replayTtlMs = oneTimePurchase
+    ? Math.max(PLATFORM_FUNDING_REPLAY_RETENTION_MS, tokenTtlMs)
+    : tokenTtlMs
+  if (!(await replayStore.claim(replayKey, replayTtlMs))) return null
 
   const result: TrustedPlatformEvidence = Object.freeze({
     issuer: PLATFORM_ACCESS_ISSUER,
     policyVersion: PLATFORM_ACCESS_POLICY_VERSION,
-    evidenceId,
+    evidenceId: fundingValue.evidenceId,
+    tokenId: payload.jti,
     principal: Object.freeze(principalValue),
     funding: Object.freeze(fundingValue),
-    issuedAt,
+    audience: options.audience,
+    issuedAt: new Date(payload.iat * 1000).toISOString(),
+    expiresAt: new Date(payload.exp * 1000).toISOString(),
   })
+  try {
+    await replayStore.complete(replayKey)
+  } catch (completeError) {
+    try {
+      await replayStore.release(replayKey)
+    } catch (releaseError) {
+      throw new AggregateError(
+        [completeError, releaseError],
+        'Platform evidence claim could not complete or release',
+      )
+    }
+    throw completeError
+  }
   trustedEvidenceObjects.add(result)
   return result
 }
@@ -198,6 +330,14 @@ export function decideBillingAccess(input: {
       allowed: false,
       code: 'platform_evidence_required',
       reason: 'Platform must attest the identity and funding source',
+    }
+  }
+  const expiresAt = Date.parse(evidence.expiresAt)
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    return {
+      allowed: false,
+      code: 'platform_evidence_expired',
+      reason: 'Platform evidence has expired',
     }
   }
   if (input.expectedUserId && evidence.principal.userId !== input.expectedUserId) {
@@ -223,6 +363,16 @@ export function decideBillingAccess(input: {
       }
     }
   }
+  if (evidence.funding.kind === 'paid_purchase') {
+    if (consumedPurchaseEvidenceObjects.has(evidence)) {
+      return {
+        allowed: false,
+        code: 'platform_evidence_replayed',
+        reason: 'Paid purchase evidence was already consumed',
+      }
+    }
+    consumedPurchaseEvidenceObjects.add(evidence)
+  }
   return { allowed: true, basis: evidence.funding.kind, principal: evidence.principal }
 }
 
@@ -235,34 +385,19 @@ export function assertNoProductFreeTrial(trialDays: number | undefined): void {
   throw new Error('billing: product-funded free trials are disabled')
 }
 
-/**
- * Shared email check for every product boundary. It intentionally rejects
- * test/example domains and common synthetic addresses. Platform remains the
- * authority for inbox verification; this prevents accidental local bypasses.
- */
+const PLATFORM_EMAIL_PATTERN =
+  /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/
+const PLATFORM_PLACEHOLDER_EMAIL_PATTERN =
+  /(?:@users\.noreply\.tangle\.tools$|^0x[a-f0-9]{40}@tangle\.tools$)/i
+
+/** Mirror Platform's shared `platformRealEmailSchema` until its package is published. */
 export function isRealNonPlaceholderEmail(value: unknown): value is string {
   if (typeof value !== 'string') return false
-  const email = value.trim().toLowerCase()
-  if (email.length < 6 || email.length > 320 || /\s/.test(email)) return false
-  const match = /^([^@]+)@([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)$/.exec(email)
-  if (!match) return false
-  const local = match[1]!
-  const domain = match[2]!
-  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false
-  if (domain === 'localhost' || domain.endsWith('.test') || domain.endsWith('.invalid') || domain.endsWith('.example')) {
-    return false
-  }
-  if (
-    /(?:^|[.-])(test|example|placeholder|invalid|disposable|tempmail|mailinator|10minutemail|guerrillamail|yopmail)(?:[.-]|$)/.test(
-      domain,
-    )
-  ) {
-    return false
-  }
-  if (/^(test|tester|example|placeholder|no-?reply|noreply)(?:[+._-]|$)/.test(local)) return false
-  if (/^0x[a-f0-9]{40}@tangle\.tools$/i.test(email)) return false
-  if (email.endsWith('@users.noreply.tangle.tools')) return false
-  return true
+  const email = value.trim()
+  return email.length >= 3
+    && email.length <= 320
+    && PLATFORM_EMAIL_PATTERN.test(email)
+    && !PLATFORM_PLACEHOLDER_EMAIL_PATTERN.test(email)
 }
 
 function parsePrincipal(input: {
@@ -299,13 +434,20 @@ function parseFunding(value: Record<string, unknown>): TrustedFundingEvidence | 
   if (kind === 'paid_purchase') {
     const amountUsd = readPositiveNumber(value.amountUsd)
     const paidAt = readNonEmptyString(value.paidAt)
-    return amountUsd !== null && paidAt ? { kind, evidenceId, amountUsd, paidAt } : null
+    return amountUsd !== null && paidAt && Number.isFinite(Date.parse(paidAt))
+      ? { kind, evidenceId, amountUsd, paidAt }
+      : null
   }
   if (kind === 'paid_subscription') {
     const subscriptionId = readNonEmptyString(value.subscriptionId)
     const status = value.status === 'active' || value.status === 'past_due' ? value.status : null
     const amountUsd = readPositiveNumber(value.amountUsd)
     if (!subscriptionId || !status || amountUsd === null) return null
+    if (
+      value.currentPeriodEnd !== undefined
+      && value.currentPeriodEnd !== null
+      && (typeof value.currentPeriodEnd !== 'string' || !Number.isFinite(Date.parse(value.currentPeriodEnd)))
+    ) return null
     return {
       kind,
       evidenceId,
@@ -332,6 +474,23 @@ function parseFunding(value: Record<string, unknown>): TrustedFundingEvidence | 
     return adminId ? { kind, evidenceId, adminId } : null
   }
   return null
+}
+
+function principalMatchesFunding(
+  principal: TrustedPlatformPrincipal,
+  funding: TrustedFundingEvidence,
+): boolean {
+  if (principal.kind === 'human') {
+    return funding.kind === 'paid_purchase'
+      || funding.kind === 'paid_subscription'
+      || funding.kind === 'byok'
+  }
+  if (principal.kind === 'service_principal') {
+    return funding.kind === 'named_service'
+      && funding.serviceId === principal.serviceId
+      && funding.serviceName === principal.serviceName
+  }
+  return funding.kind === 'admin' && funding.adminId === principal.adminId
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

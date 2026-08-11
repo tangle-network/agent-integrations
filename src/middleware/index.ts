@@ -58,10 +58,14 @@ export interface TangleAuthContext {
   expiresAt?: number
   /** Stable credential id (key id for API keys, session id for sessions). */
   credentialId?: string
+  /** Stable Platform API-key row id. Present only for API-key auth. */
+  apiKeyId?: string
   /** Owner-shape on the platform side. */
   ownerType: 'user' | 'team'
   /** Product the credential is scoped to, when known. */
   product?: string
+  /** Immutable Platform service that provisioned this key. */
+  provisionedByService?: string
   /** Platform proof that this identity passed email policy. */
   emailVerified?: boolean
   /** Real email returned by Platform when available. */
@@ -164,7 +168,9 @@ export async function requireTangleAuth(
       ...(result.servicePrincipal !== undefined ? { servicePrincipal: result.servicePrincipal } : {}),
       ...(result.expiresAt !== undefined ? { expiresAt: result.expiresAt } : {}),
       ...(result.credentialId ? { credentialId: result.credentialId } : {}),
+      ...(result.apiKeyId ? { apiKeyId: result.apiKeyId } : {}),
       ...(result.product ? { product: result.product } : {}),
+      ...(result.provisionedByService ? { provisionedByService: result.provisionedByService } : {}),
     },
   }
 }

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { generateKeyPair, SignJWT } from 'jose'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   gateSubscriptionOrTrial,
   getRemainingFreeTier,
@@ -13,35 +14,53 @@ import {
   type SubscriptionRecord,
 } from '../src/stripe/subscription-state'
 import { BillingError } from '../src/stripe/errors'
-import { parseTrustedPlatformEvidence } from '../src/billing-access-policy'
+import {
+  verifyTrustedPlatformEvidence,
+  type TrustedPlatformEvidence,
+} from '../src/billing-access-policy'
+import { InMemoryAtomicIdempotencyStore } from '../src/idempotency'
 
-function paidEvidence(subscriptionId = 'sub_1') {
-  const evidence = parseTrustedPlatformEvidence({
+let paidEvidenceValue: TrustedPlatformEvidence
+let namedServiceEvidenceValue: TrustedPlatformEvidence
+
+beforeAll(async () => {
+  const { privateKey, publicKey } = await generateKeyPair('ES256')
+  const now = Math.floor(Date.now() / 1000)
+  const verify = async (token: string, expectedUserId: string) => {
+    const evidence = await verifyTrustedPlatformEvidence(token, {
+      audience: 'stripe-middleware-tests',
+      expectedUserId,
+      verificationKey: publicKey,
+      replayStore: new InMemoryAtomicIdempotencyStore(),
+      runtime: 'test',
+    })
+    if (!evidence) throw new Error('invalid signed test evidence')
+    return evidence
+  }
+  paidEvidenceValue = await verify(await new SignJWT({
     policyVersion: 1,
-    issuer: 'id.tangle.tools',
-    evidenceId: `evidence-${subscriptionId}`,
-    issuedAt: '2026-08-10T12:00:00.000Z',
     emailVerified: true,
     principal: { kind: 'human' },
     user: { id: 'user_1', email: 'person@company.com' },
     funding: {
       kind: 'paid_subscription',
-      id: `funding-${subscriptionId}`,
-      subscriptionId,
+      id: 'funding-sub_1',
+      subscriptionId: 'sub_1',
       status: 'active',
       amountUsd: 29,
     },
-  }, { expectedUserId: 'user_1' })
-  if (!evidence) throw new Error('invalid test evidence')
-  return evidence
-}
-
-function namedServiceEvidence() {
-  const evidence = parseTrustedPlatformEvidence({
+  })
+    .setProtectedHeader({ alg: 'ES256', kid: 'test' })
+    .setIssuer('id.tangle.tools')
+    .setAudience('stripe-middleware-tests')
+    .setSubject('user_1')
+    .setIssuedAt(now)
+    .setNotBefore(now - 1)
+    .setExpirationTime(now + 300)
+    .setJti('stripe-paid-evidence')
+    .sign(privateKey), 'user_1')
+  namedServiceEvidenceValue = await verify(await new SignJWT({
     policyVersion: 1,
-    issuer: 'id.tangle.tools',
-    evidenceId: 'service-evidence',
-    issuedAt: '2026-08-10T12:00:00.000Z',
     principal: { kind: 'service_principal', id: 'service:blueprint-agent', name: 'blueprint-agent' },
     user: { id: 'service-user' },
     funding: {
@@ -51,8 +70,23 @@ function namedServiceEvidence() {
       serviceName: 'blueprint-agent',
     },
   })
-  if (!evidence) throw new Error('invalid service evidence')
-  return evidence
+    .setProtectedHeader({ alg: 'ES256', kid: 'test' })
+    .setIssuer('id.tangle.tools')
+    .setAudience('stripe-middleware-tests')
+    .setSubject('service-user')
+    .setIssuedAt(now)
+    .setNotBefore(now - 1)
+    .setExpirationTime(now + 300)
+    .setJti('stripe-service-evidence')
+    .sign(privateKey), 'service-user')
+})
+
+function paidEvidence(): TrustedPlatformEvidence {
+  return paidEvidenceValue
+}
+
+function namedServiceEvidence(): TrustedPlatformEvidence {
+  return namedServiceEvidenceValue
 }
 
 function seededStore(state: SubscriptionRecord['state'], overrides: Partial<SubscriptionRecord> = {}) {

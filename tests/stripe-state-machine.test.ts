@@ -23,6 +23,7 @@ function baseRecord(overrides: Partial<SubscriptionRecord> = {}): SubscriptionRe
     cancelAtPeriodEnd: false,
     version: 0,
     lastEventId: null,
+    lastEventCreatedAt: null,
     updatedAt: 0,
     ...overrides,
   }

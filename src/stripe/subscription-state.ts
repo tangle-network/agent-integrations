@@ -39,7 +39,6 @@
  */
 
 import { BillingError } from './errors.js'
-import { FileSystemAtomicIdempotencyStore } from '../idempotency.js'
 
 export type SubscriptionState =
   | 'incomplete'
@@ -96,6 +95,14 @@ export interface SubscriptionRecord {
   /** Last event id we processed for this subscription — defends against
    *  Stripe re-delivering the same event and us racing the dedupe store. */
   lastEventId: string | null
+  /** Stripe `event.created` for the newest applied subscription event. */
+  lastEventCreatedAt: number | null
+  /** State before the newest applied event. This lets a failed durable
+   *  listener retry the exact typed update after the state write succeeded. */
+  lastEventPreviousState?: SubscriptionState | null
+  /** Event whose state is durable but whose listener has not completed.
+   *  A different subscription event cannot advance until this is cleared. */
+  pendingEventId?: string | null
   /** Wall-clock ms of last successful write. */
   updatedAt: number
 }
@@ -140,7 +147,12 @@ export function isValidTransition(from: SubscriptionState, to: SubscriptionState
 export function applyTransition(
   current: SubscriptionRecord,
   next: Partial<SubscriptionRecord> & { state: SubscriptionState },
-  options: { eventId?: string; now?: () => number } = {},
+  options: {
+    eventId?: string
+    eventCreatedAt?: number
+    pendingEventId?: string | null
+    now?: () => number
+  } = {},
 ): SubscriptionRecord {
   if (!isValidTransition(current.state, next.state)) {
     throw new BillingError({
@@ -160,6 +172,11 @@ export function applyTransition(
     ...next,
     version: current.version + 1,
     lastEventId: options.eventId ?? current.lastEventId,
+    lastEventCreatedAt: options.eventCreatedAt ?? current.lastEventCreatedAt,
+    lastEventPreviousState: options.eventId ? current.state : (current.lastEventPreviousState ?? null),
+    pendingEventId: options.pendingEventId !== undefined
+      ? options.pendingEventId
+      : (current.pendingEventId ?? null),
     updatedAt: now,
   }
 }
@@ -231,86 +248,144 @@ export class InMemorySubscriptionStore implements SubscriptionStore {
 }
 
 /* ---------------------------------------------------------------------- */
-/*                  persistence adapter: filesystem (JSONL)                */
+/*                  persistence adapter: filesystem                        */
 /* ---------------------------------------------------------------------- */
 
 /**
  * File-per-workspace JSON store. One file per workspace under
- * `<rootDir>/<workspaceId>.json`. Cheap, durable, debuggable — adequate
- * for self-hosted product agents. CAS combines the version check with the
- * shared per-workspace lock from `FileSystemAtomicIdempotencyStore`.
+ * `<rootDir>/<workspaceId>.versions/<version>.json`. Each version is written
+ * completely and then hard-linked to its final path. Two processes racing the
+ * same expected version therefore contend on one atomic filesystem operation.
  *
- * Why per-file and not one JSONL: subscriptions are
- * accessed by workspaceId 99% of the time, scanning a JSONL on every
- * request burns I/O. The file-per-workspace pattern keeps reads O(1).
+ * Why per-workspace versions and not one JSONL: subscriptions are accessed by
+ * workspace id. Reads inspect only that workspace's immutable versions.
  *
  * The store does NOT use `fs.watch` — webhooks are the only writer in
  * production, and webhooks always go through `applyTransition()` →
  * `saveIfVersion()`, so the CAS catches the race.
  */
 export class FileSystemSubscriptionStore implements SubscriptionStore {
-  private readonly writeLock: FileSystemAtomicIdempotencyStore
-
   constructor(private readonly rootDir: string) {
-    this.writeLock = new FileSystemAtomicIdempotencyStore(rootDir, { namespace: 'subscription-lock' })
+    if (!rootDir.trim()) throw new Error('FileSystemSubscriptionStore requires a root directory')
   }
 
   async load(workspaceId: string): Promise<SubscriptionRecord | null> {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
-    const file = path.join(this.rootDir, this.fileName(workspaceId))
+    const versionDir = await this.versionDir(workspaceId)
+    let versionFiles: string[] = []
     try {
-      const raw = await fs.readFile(file, 'utf-8')
-      return JSON.parse(raw) as SubscriptionRecord
+      versionFiles = (await fs.readdir(versionDir))
+        .filter((file) => /^\d+\.json$/.test(file))
+        .sort((left, right) => Number.parseInt(right, 10) - Number.parseInt(left, 10))
     } catch (err) {
-      if (isNodeENOENT(err)) return null
-      throw err
+      if (!isNodeENOENT(err)) throw err
     }
+
+    const candidates: SubscriptionRecord[] = []
+    if (versionFiles[0]) {
+      candidates.push(await this.readRecord(path.join(versionDir, versionFiles[0]), workspaceId))
+    }
+    const legacyFile = path.join(this.rootDir, this.fileName(workspaceId))
+    try {
+      candidates.push(await this.readRecord(legacyFile, workspaceId))
+    } catch (err) {
+      if (!isNodeENOENT(err)) throw err
+    }
+    if (candidates.length === 0) return null
+    candidates.sort((left, right) => right.version - left.version)
+    if (
+      candidates[1]
+      && candidates[0]!.version === candidates[1].version
+      && !sameSubscriptionRecord(candidates[0]!, candidates[1])
+    ) {
+      throw new Error(`Conflicting subscription version ${candidates[0]!.version} for ${workspaceId}`)
+    }
+    return { ...candidates[0]! }
   }
 
   async save(record: SubscriptionRecord): Promise<void> {
-    const lockKey = this.lockKey(record.workspaceId)
-    if (!(await this.writeLock.claim(lockKey, 30_000))) {
-      throw new Error(`Subscription write contention for ${record.workspaceId}`)
+    assertSubscriptionRecord(record)
+    const existing = await this.load(record.workspaceId)
+    if (existing) {
+      if (existing.version > record.version) {
+        throw new Error(`Stale subscription save for ${record.workspaceId}`)
+      }
+      if (existing.version === record.version) {
+        if (sameSubscriptionRecord(existing, record)) return
+        throw new Error(`Conflicting subscription version ${record.version} for ${record.workspaceId}`)
+      }
+      if (record.version !== existing.version + 1) {
+        throw new Error(`Subscription save must advance exactly one version for ${record.workspaceId}`)
+      }
+    } else if (record.version !== 0) {
+      throw new Error(`Initial subscription version must be 0 for ${record.workspaceId}`)
     }
-    try {
-      await this.writeRecord(record)
-    } finally {
-      await this.writeLock.release?.(lockKey)
+    if (!(await this.writeVersion(record))) {
+      const winner = await this.load(record.workspaceId)
+      if (winner && sameSubscriptionRecord(winner, record)) return
+      throw new Error(`Subscription write contention for ${record.workspaceId}`)
     }
   }
 
   async saveIfVersion(record: SubscriptionRecord, expectedVersion: number): Promise<boolean> {
-    const lockKey = this.lockKey(record.workspaceId)
-    if (!(await this.writeLock.claim(lockKey, 30_000))) return false
-    try {
-      const existing = await this.load(record.workspaceId)
-      if (existing && existing.version !== expectedVersion) return false
-      if (!existing && expectedVersion !== 0) return false
-      await this.writeRecord(record)
-      return true
-    } finally {
-      await this.writeLock.release?.(lockKey)
-    }
+    assertSubscriptionRecord(record)
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) return false
+    const existing = await this.load(record.workspaceId)
+    if (existing && existing.version !== expectedVersion) return false
+    if (!existing && expectedVersion !== 0) return false
+    if (existing && record.version !== expectedVersion + 1) return false
+    if (!existing && record.version !== 0) return false
+    return this.writeVersion(record)
   }
 
-  private async writeRecord(record: SubscriptionRecord): Promise<void> {
+  private async readRecord(file: string, expectedWorkspaceId: string): Promise<SubscriptionRecord> {
+    const fs = await import('node:fs/promises')
+    const raw = await fs.readFile(file, 'utf8')
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error(`Invalid subscription JSON at ${file}`)
+    }
+    const record = normalizeSubscriptionRecord(parsed)
+    if (record.workspaceId !== expectedWorkspaceId) {
+      throw new Error(`Subscription workspace mismatch at ${file}`)
+    }
+    return record
+  }
+
+  private async writeVersion(record: SubscriptionRecord): Promise<boolean> {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
-    await fs.mkdir(this.rootDir, { recursive: true })
-    const file = path.join(this.rootDir, this.fileName(record.workspaceId))
-    const tmp = `${file}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    await fs.writeFile(tmp, JSON.stringify(record), 'utf-8')
+    const versionDir = await this.versionDir(record.workspaceId)
+    await fs.mkdir(versionDir, { recursive: true, mode: 0o700 })
+    const finalFile = path.join(versionDir, `${record.version}.json`)
+    const tmp = path.join(versionDir, `.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`)
+    const handle = await fs.open(tmp, 'wx', 0o600)
     try {
-      await fs.rename(tmp, file)
+      await handle.writeFile(JSON.stringify(record), 'utf8')
+      await handle.sync()
+      await handle.close()
+      try {
+        await fs.link(tmp, finalFile)
+        await syncDirectory(versionDir)
+        return true
+      } catch (err) {
+        if (isNodeEEXIST(err)) return false
+        throw err
+      }
     } catch (err) {
-      await fs.unlink(tmp).catch(() => undefined)
       throw err
+    } finally {
+      await handle.close().catch(() => undefined)
+      await fs.unlink(tmp).catch(() => undefined)
     }
   }
 
-  private lockKey(workspaceId: string): string {
-    return `subscription:${workspaceId}`
+  private async versionDir(workspaceId: string): Promise<string> {
+    const path = await import('node:path')
+    return path.join(this.rootDir, `${this.fileName(workspaceId)}.versions`)
   }
 
   /** Safe filename: workspaceId is restricted to a charset that maps 1:1
@@ -344,6 +419,9 @@ export function makeSubscriptionRecord(input: {
   currentPeriodEnd: number | null
   trialEnd?: number | null
   cancelAtPeriodEnd?: boolean
+  eventId?: string
+  eventCreatedAt?: number
+  pendingEventId?: string | null
   now?: () => number
 }): SubscriptionRecord {
   const now = (input.now ?? Date.now)()
@@ -357,7 +435,79 @@ export function makeSubscriptionRecord(input: {
     trialEnd: input.trialEnd ?? null,
     cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
     version: 0,
-    lastEventId: null,
+    lastEventId: input.eventId ?? null,
+    lastEventCreatedAt: input.eventCreatedAt ?? null,
+    lastEventPreviousState: null,
+    pendingEventId: input.pendingEventId ?? null,
     updatedAt: now,
+  }
+}
+
+function normalizeSubscriptionRecord(value: unknown): SubscriptionRecord {
+  if (!value || typeof value !== 'object') throw new Error('Invalid subscription record')
+  const candidate = value as Partial<SubscriptionRecord>
+  const record = {
+    ...candidate,
+    lastEventCreatedAt: candidate.lastEventCreatedAt ?? null,
+    lastEventPreviousState: candidate.lastEventPreviousState ?? null,
+    pendingEventId: candidate.pendingEventId ?? null,
+  } as SubscriptionRecord
+  assertSubscriptionRecord(record)
+  return record
+}
+
+function assertSubscriptionRecord(record: SubscriptionRecord): void {
+  if (!record || typeof record !== 'object') throw new Error('Invalid subscription record')
+  if (!record.workspaceId?.trim()) throw new Error('Subscription workspaceId is required')
+  if (!record.customerId?.trim()) throw new Error('Subscription customerId is required')
+  if (!record.subscriptionId?.trim()) throw new Error('Subscription subscriptionId is required')
+  if (!SUBSCRIPTION_STATES.includes(record.state)) throw new Error('Invalid subscription state')
+  if (!Number.isSafeInteger(record.version) || record.version < 0) throw new Error('Invalid subscription version')
+  if (record.lastEventId !== null && typeof record.lastEventId !== 'string') throw new Error('Invalid lastEventId')
+  if (
+    record.lastEventCreatedAt !== null
+    && (!Number.isSafeInteger(record.lastEventCreatedAt) || record.lastEventCreatedAt < 0)
+  ) throw new Error('Invalid lastEventCreatedAt')
+  if (
+    record.lastEventPreviousState !== undefined
+    && record.lastEventPreviousState !== null
+    && !SUBSCRIPTION_STATES.includes(record.lastEventPreviousState)
+  ) throw new Error('Invalid lastEventPreviousState')
+  if (
+    record.pendingEventId !== undefined
+    && record.pendingEventId !== null
+    && (typeof record.pendingEventId !== 'string' || !record.pendingEventId.trim())
+  ) throw new Error('Invalid pendingEventId')
+  if (!Number.isFinite(record.updatedAt)) throw new Error('Invalid subscription updatedAt')
+}
+
+function sameSubscriptionRecord(left: SubscriptionRecord, right: SubscriptionRecord): boolean {
+  return left.workspaceId === right.workspaceId
+    && left.customerId === right.customerId
+    && left.subscriptionId === right.subscriptionId
+    && left.state === right.state
+    && left.priceId === right.priceId
+    && left.currentPeriodEnd === right.currentPeriodEnd
+    && left.trialEnd === right.trialEnd
+    && left.cancelAtPeriodEnd === right.cancelAtPeriodEnd
+    && left.version === right.version
+    && left.lastEventId === right.lastEventId
+    && left.lastEventCreatedAt === right.lastEventCreatedAt
+    && (left.lastEventPreviousState ?? null) === (right.lastEventPreviousState ?? null)
+    && (left.pendingEventId ?? null) === (right.pendingEventId ?? null)
+    && left.updatedAt === right.updatedAt
+}
+
+function isNodeEEXIST(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { code?: string }).code === 'EEXIST'
+}
+
+async function syncDirectory(directory: string): Promise<void> {
+  const fs = await import('node:fs/promises')
+  const handle = await fs.open(directory, 'r')
+  try {
+    await handle.sync()
+  } finally {
+    await handle.close()
   }
 }

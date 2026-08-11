@@ -10,10 +10,9 @@
  *      Failure → 401 fast, no downstream work.
  *   3. Calls the provider's `parse(rawBody, headers)` to extract zero or
  *      more normalized events.
- *   4. Enqueues each event for async processing via the consumer-supplied
- *      `deliver(event)` callback (best-effort fire-and-forget — the
- *      router does NOT block the HTTP response on the consumer's work).
- *   5. Returns 200 fast with `{received: events.length}`.
+ *   4. Awaits the consumer-supplied `deliver(event)` callback.
+ *   5. Returns 2xx only after every accepted event finishes durably. A failed
+ *      or concurrently active delivery returns 503 so the provider retries.
  *
  * Replay protection: providers that sign timestamps (Stripe, Slack)
  * already reject stale signatures inside `verifySignature`. For providers
@@ -30,7 +29,8 @@
  * Stability: `@stable` — additions to `WebhookEnvelope` must be
  * additive; the router's HTTP contract (paths, status codes) is frozen
  * at 200 (ok), 400 (bad request), 401 (bad signature), 404 (unknown
- * provider), 405 (provider has no inbound surface).
+ * provider), 405 (provider has no inbound surface), and 503 (delivery
+ * failed or another worker still owns the delivery).
  */
 
 import { createHash } from 'node:crypto'
@@ -147,9 +147,8 @@ export class FileSystemWebhookIdempotencyStore extends FileSystemAtomicIdempoten
 export interface WebhookRouterOptions {
   /** Provider registry. Pass any number of providers; routing is by id. */
   providers: WebhookProvider[]
-  /** Async callback invoked with every accepted event. Fire-and-forget
-   *  from the router's perspective — the HTTP response is sent before
-   *  this resolves. Throws are caught and reported via `onError`. */
+  /** Async callback invoked with every accepted event. The callback must
+   *  finish its durable enqueue or processing before it resolves. */
   deliver(event: WebhookEnvelope): Promise<void> | void
   /** Resolve the signing secret for a provider id at request time. The
    *  router never holds secrets — the consumer's vault resolves them. */
@@ -236,25 +235,34 @@ export class WebhookRouter {
     }
 
     const accepted: Array<{ event: WebhookEnvelope; key: string }> = []
+    let inProgress = 0
     try {
       for (const [index, event] of events.entries()) {
         const key = eventKey(provider.id, event, index, request.rawBody)
-        if (!(await this.idempotency.claim(key, this.idempotencyTtlMs))) continue
-        accepted.push({ event, key })
+        const status = await this.idempotency.claimStatus(key, this.idempotencyTtlMs)
+        if (status === 'acquired') accepted.push({ event, key })
+        if (status === 'in_progress') inProgress++
       }
     } catch (err) {
       // Do not strand earlier claims when a later claim detects an unavailable
       // or corrupt shared store. The request remains failed closed.
-      await Promise.allSettled(accepted.map(({ key }) => this.idempotency.release?.(key)))
+      await Promise.allSettled(accepted.map(({ key }) => this.idempotency.release(key)))
       throw err
     }
 
-    // Deliver async — do NOT block the HTTP response. Errors land in
-    // `onError`; the provider already got its 200 by then so it will
-    // not retry.
-    queueMicrotask(() => {
-      void this.deliverEach(accepted)
-    })
+    const delivery = await this.deliverEach(accepted)
+    if (delivery.failed > 0 || inProgress > 0) {
+      return {
+        status: 503,
+        body: {
+          error: delivery.failed > 0 ? 'delivery_failed' : 'delivery_in_progress',
+          received: delivery.succeeded,
+          failed: delivery.failed,
+          inProgress,
+          total: events.length,
+        },
+      }
+    }
 
     if (provider.successResponse) {
       return {
@@ -266,32 +274,54 @@ export class WebhookRouter {
     return { status: 200, body: { received: accepted.length, total: events.length } }
   }
 
-  private async deliverEach(events: Array<{ event: WebhookEnvelope; key: string }>): Promise<void> {
+  private async deliverEach(
+    events: Array<{ event: WebhookEnvelope; key: string }>,
+  ): Promise<{ succeeded: number; failed: number }> {
+    let succeeded = 0
+    let failed = 0
     for (const { event, key } of events) {
       try {
         await this.deliver(event)
       } catch (err) {
-        await this.idempotency.release?.(key)
+        try {
+          await this.idempotency.release(key)
+        } catch (releaseError) {
+          this.onError(releaseError, {
+            provider: event.provider,
+            eventType: event.eventType,
+            providerEventId: event.providerEventId,
+          })
+        }
         this.onError(err, {
           provider: event.provider,
           eventType: event.eventType,
           providerEventId: event.providerEventId,
         })
+        failed++
         continue
       }
-      // Keep the durable claim for its TTL, but let this process reclaim the
-      // key after expiry. A long-running delivery still owns the key until it
-      // reaches this point or releases it on failure.
       try {
-        await this.idempotency.complete?.(key)
+        await this.idempotency.complete(key)
+        succeeded++
       } catch (err) {
+        try {
+          await this.idempotency.release(key)
+        } catch (releaseError) {
+          this.onError(releaseError, {
+            provider: event.provider,
+            eventType: event.eventType,
+            providerEventId: event.providerEventId,
+          })
+        }
         this.onError(err, {
           provider: event.provider,
           eventType: event.eventType,
           providerEventId: event.providerEventId,
         })
+        failed++
       }
     }
+    return { succeeded, failed }
   }
 }
 

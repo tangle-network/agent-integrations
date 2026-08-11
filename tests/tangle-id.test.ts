@@ -6,6 +6,7 @@ import {
   TANGLE_SERVICE_TOKEN_PREFIX,
   tangleIdentity,
   TangleIdentityUnreachableError,
+  type PlatformKeyVerifyResponse,
 } from '../src/connectors/adapters/tangle-id'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -19,6 +20,25 @@ function emptyResponse(status: number): Response {
   // The Fetch spec rejects body for 204/304; pass `null` body for those.
   const nullBodyStatus = status === 204 || status === 304 || status === 205
   return new Response(nullBodyStatus ? null : '', { status })
+}
+
+function verifiedHumanKey(
+  overrides: Partial<PlatformKeyVerifyResponse> = {},
+): PlatformKeyVerifyResponse {
+  return {
+    valid: true,
+    email: 'owner@company.com',
+    emailVerified: true,
+    servicePrincipal: false,
+    provisionedByService: 'legal-agent',
+    userId: 'usr_1',
+    ownerId: 'usr_1',
+    ownerType: 'user',
+    keyId: 'key_1',
+    product: 'legal-agent',
+    name: 'Legal product key',
+    ...overrides,
+  }
 }
 
 describe('tangle-id verifyToken', () => {
@@ -47,31 +67,31 @@ describe('tangle-id verifyToken', () => {
   it('routes sk-tan-* keys to /v1/keys/verify and returns normalized scopes + team workspace', async () => {
     let capturedPath = ''
     let capturedAuth = ''
+    let capturedBody: unknown
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       capturedPath = String(input)
       capturedAuth = (init?.headers as Record<string, string>)['authorization'] ?? ''
-      return jsonResponse({
-        valid: true,
+      capturedBody = JSON.parse(String(init?.body))
+      return jsonResponse(verifiedHumanKey({
         userId: 'usr_1',
-        email: 'owner@company.com',
-        emailVerified: true,
         ownerId: 'team_1',
         ownerType: 'team',
         keyId: 'key_42',
-        product: 'legal',
+        provisionedByService: 'legal-agent',
         allowedModels: ['gpt-4', 'claude-3'],
-        expiresAt: '2026-12-31T00:00:00.000Z',
-      })
+      }))
     })
     const client = createTangleIdentityClient({
       baseUrl: 'https://id.example.com',
       serviceToken: 'svc_service',
       serviceName: 'test-suite',
+      expectedProduct: 'legal-agent',
       fetchImpl,
     })
     const result = await client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)
     expect(capturedPath).toBe('https://id.example.com/v1/keys/verify')
     expect(capturedAuth).toBe('Bearer svc_service')
+    expect(capturedBody).toEqual({ key: `${TANGLE_API_KEY_PREFIX}token` })
     expect(result).toMatchObject({
       valid: true,
       kind: 'api_key',
@@ -79,25 +99,101 @@ describe('tangle-id verifyToken', () => {
       workspaceId: 'team_1',
       ownerType: 'team',
       credentialId: 'key_42',
-      product: 'legal',
+      apiKeyId: 'key_42',
+      product: 'legal-agent',
+      provisionedByService: 'legal-agent',
       emailVerified: true,
     })
     if (result.valid) {
-      expect(result.scopes).toEqual(['gpt-4', 'claude-3', 'product:legal'])
-      expect(result.expiresAt).toBe(Date.parse('2026-12-31T00:00:00.000Z'))
+      expect(result.scopes).toEqual(['gpt-4', 'claude-3', 'product:legal-agent'])
     }
   })
 
   it('falls back to userId workspace for personal (non-team) API keys', async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ valid: true, userId: 'usr_5', allowedModels: [], emailVerified: true, email: 'owner@company.com' }),
+      jsonResponse(verifiedHumanKey({ userId: 'usr_5', ownerId: 'usr_5', allowedModels: [] })),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
+    const client = createTangleIdentityClient({
+      serviceToken: 'svc_x',
+      serviceName: 'test-suite',
+      expectedProduct: 'legal-agent',
+      fetchImpl,
+    })
     const result = await client.verifyToken(`${TANGLE_API_KEY_PREFIX}x`)
     if (!result.valid) throw new Error('expected valid')
     expect(result.workspaceId).toBe('usr_5')
     expect(result.ownerType).toBe('user')
     expect(result.emailVerified).toBe(true)
+  })
+
+  it('rejects the unsafe generic-key path when no expected product is configured', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(verifiedHumanKey()))
+    const client = createTangleIdentityClient({
+      serviceToken: 'svc_x',
+      serviceName: 'legal-agent',
+      fetchImpl,
+    })
+    await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).resolves.toEqual({
+      valid: false,
+      reason: 'product_scope_required',
+    })
+  })
+
+  it('sends Platform-supported product-principal enforcement for router keys', async () => {
+    let capturedBody: unknown
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body))
+      return jsonResponse(verifiedHumanKey({
+        product: 'router',
+        provisionedByService: 'router',
+        name: 'Tangle Router access',
+      }))
+    })
+    const client = createTangleIdentityClient({
+      serviceToken: 'svc_x',
+      serviceName: 'router',
+      expectedProduct: 'router',
+      fetchImpl,
+    })
+
+    await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).resolves.toMatchObject({
+      valid: true,
+      product: 'router',
+    })
+    expect(capturedBody).toEqual({
+      key: `${TANGLE_API_KEY_PREFIX}token`,
+      expectedProduct: 'router',
+    })
+  })
+
+  it('rejects a key whose verified product differs from the expected product', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(verifiedHumanKey({ product: 'tax-agent' })))
+    const client = createTangleIdentityClient({
+      serviceToken: 'svc_x',
+      serviceName: 'legal-agent',
+      expectedProduct: 'legal-agent',
+      fetchImpl,
+    })
+    await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).resolves.toEqual({
+      valid: false,
+      reason: 'product_scope_mismatch',
+    })
+  })
+
+  it('does not treat the caller-supplied service name as key provenance', async () => {
+    const response = verifiedHumanKey()
+    delete response.provisionedByService
+    const fetchImpl = vi.fn(async () => jsonResponse(response))
+    const client = createTangleIdentityClient({
+      serviceToken: 'svc_x',
+      serviceName: 'legal-agent',
+      expectedProduct: 'legal-agent',
+      fetchImpl,
+    })
+    await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).resolves.toEqual({
+      valid: false,
+      reason: 'malformed',
+    })
   })
 
   it('returns service_token_refused on 401 from /v1/keys/verify', async () => {
@@ -262,7 +358,7 @@ describe('tangle-id revokeSession', () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ url: String(input), method: init?.method ?? 'GET' })
       if (String(input).endsWith('/v1/keys/verify')) {
-        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77', emailVerified: true, email: 'owner@company.com' })
+        return jsonResponse(verifiedHumanKey({ userId: 'u1', ownerId: 'u1', keyId: 'key_77' }))
       }
       return emptyResponse(204)
     })
@@ -275,7 +371,7 @@ describe('tangle-id revokeSession', () => {
   it('treats 404 on key delete as a successful no-op (idempotent revoke)', async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).endsWith('/v1/keys/verify')) {
-        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77', emailVerified: true, email: 'owner@company.com' })
+        return jsonResponse(verifiedHumanKey({ userId: 'u1', ownerId: 'u1', keyId: 'key_77' }))
       }
       return emptyResponse(404)
     })
@@ -349,9 +445,14 @@ describe('tangle-id adapter wiring', () => {
 
   it('executeRead routes verify_token to the client and round-trips the typed result', async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ valid: true, userId: 'u', allowedModels: ['gpt-4'], emailVerified: true, email: 'owner@company.com' }),
+      jsonResponse(verifiedHumanKey({ userId: 'u', ownerId: 'u', allowedModels: ['gpt-4'] })),
     )
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
+    const adapter = tangleIdentity({
+      serviceToken: 'svc_x',
+      serviceName: 'test-suite',
+      expectedProduct: 'legal-agent',
+      fetchImpl,
+    })
     const result = await adapter.executeRead!({
       source: makeSource(),
       capabilityName: 'verify_token',

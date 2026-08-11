@@ -15,9 +15,7 @@ import {
 } from '../src/webhooks/index'
 
 function flushMicrotasks(): Promise<void> {
-  // Two await ticks: queueMicrotask delivers on the next microtask; the
-  // delivery itself awaits, so two ticks is enough to drain a single
-  // deliver call without setImmediate.
+  // Yield once for provider callbacks that schedule their own microtasks.
   return new Promise((r) => setTimeout(r, 0))
 }
 
@@ -111,6 +109,14 @@ describe('WebhookRouter', () => {
         seen.add(key)
         return true
       },
+      claimStatus: (id) => {
+        const key = id.replace('stripe:id:', '')
+        if (seen.has(key)) return 'completed'
+        seen.add(key)
+        return 'acquired'
+      },
+      release: () => undefined,
+      complete: () => undefined,
     }
     const router = new WebhookRouter({
       providers: [stripeWebhookProvider],
@@ -141,6 +147,12 @@ describe('WebhookRouter', () => {
         claimed.push(id)
         return true
       },
+      claimStatus: (id) => {
+        claimed.push(id)
+        return 'acquired'
+      },
+      release: () => undefined,
+      complete: () => undefined,
     }
     const router = new WebhookRouter({
       providers: [stripeWebhookProvider],
@@ -158,10 +170,15 @@ describe('WebhookRouter', () => {
 
   it('delivers a duplicate webhook exactly once under 100 concurrent requests', async () => {
     const delivered: WebhookEnvelope[] = []
+    let releaseDelivery!: () => void
+    let deliveryStarted!: () => void
+    const started = new Promise<void>((resolve) => { deliveryStarted = resolve })
+    const held = new Promise<void>((resolve) => { releaseDelivery = resolve })
     const router = new WebhookRouter({
       providers: [stripeWebhookProvider],
       deliver: async (event) => {
-        await Promise.resolve()
+        deliveryStarted()
+        await held
         delivered.push(event)
       },
       resolveSecret: async () => 'whsec_test',
@@ -175,9 +192,15 @@ describe('WebhookRouter', () => {
       rawBody: body,
       headers: { 'stripe-signature': sig },
     }
-    const responses = await Promise.all(Array.from({ length: 100 }, () => router.handle(request)))
-    expect(responses.filter((response) => (response.body as { received?: number }).received === 1)).toHaveLength(1)
-    await flushMicrotasks()
+    const winner = router.handle(request)
+    await started
+    const duplicates = await Promise.all(Array.from({ length: 99 }, () => router.handle(request)))
+    expect(duplicates.every((response) => response.status === 503)).toBe(true)
+    expect(duplicates.every((response) => (response.body as { error?: string }).error === 'delivery_in_progress')).toBe(true)
+    releaseDelivery()
+    const accepted = await winner
+    expect(accepted.status).toBe(200)
+    expect((accepted.body as { received?: number }).received).toBe(1)
     expect(delivered).toHaveLength(1)
   })
 
@@ -315,12 +338,16 @@ describe('WebhookRouter', () => {
     expect(r.status).toBe(400)
   })
 
-  it('does not block the response when deliver() throws', async () => {
+  it('returns non-2xx on delivery failure and retries the work exactly once', async () => {
     const errors: unknown[] = []
+    let attempts = 0
+    let credits = 0
     const router = new WebhookRouter({
       providers: [stripeWebhookProvider],
       deliver: async () => {
-        throw new Error('downstream-fail')
+        attempts++
+        if (attempts === 1) throw new Error('downstream-fail')
+        credits++
       },
       resolveSecret: async () => 'whsec_test',
       onError: (err) => {
@@ -330,13 +357,59 @@ describe('WebhookRouter', () => {
     const ts = Math.floor(Date.now() / 1000)
     const body = JSON.stringify({ id: 'evt_x', type: 'x' })
     const sig = `t=${ts},v1=${createHmac('sha256', 'whsec_test').update(`${ts}.${body}`).digest('hex')}`
-    const r = await router.handle({
+    const request = {
       providerId: 'stripe',
       rawBody: body,
       headers: { 'stripe-signature': sig },
-    })
-    expect(r.status).toBe(200)
-    await flushMicrotasks()
+    }
+    const failed = await router.handle(request)
+    const retried = await router.handle(request)
+    const replayed = await router.handle(request)
+    expect(failed.status).toBe(503)
+    expect((failed.body as { error?: string }).error).toBe('delivery_failed')
+    expect(retried.status).toBe(200)
+    expect(replayed.status).toBe(200)
+    expect(attempts).toBe(2)
+    expect(credits).toBe(1)
     expect(errors).toHaveLength(1)
+  })
+
+  it('retries safely when claim completion fails after a durable enqueue', async () => {
+    const inner = new InMemoryWebhookIdempotencyStore()
+    let completionAttempts = 0
+    const idempotency: WebhookIdempotencyStore = {
+      claim: (key, ttlMs) => inner.claim(key, ttlMs),
+      claimStatus: (key, ttlMs) => inner.claimStatus(key, ttlMs),
+      release: (key) => inner.release(key),
+      complete: (key) => {
+        if (completionAttempts++ === 0) throw new Error('completion storage failed')
+        inner.complete(key)
+      },
+    }
+    const queue = new Set<string>()
+    let enqueueAttempts = 0
+    const router = new WebhookRouter({
+      providers: [stripeWebhookProvider],
+      idempotency,
+      resolveSecret: async () => 'whsec_test',
+      onError: () => undefined,
+      deliver: async (event) => {
+        enqueueAttempts++
+        if (event.providerEventId) queue.add(event.providerEventId)
+      },
+    })
+    const ts = Math.floor(Date.now() / 1000)
+    const body = JSON.stringify({ id: 'evt_complete_retry', type: 'invoice.paid' })
+    const sig = `t=${ts},v1=${createHmac('sha256', 'whsec_test').update(`${ts}.${body}`).digest('hex')}`
+    const request = {
+      providerId: 'stripe',
+      rawBody: body,
+      headers: { 'stripe-signature': sig },
+    }
+
+    expect((await router.handle(request)).status).toBe(503)
+    expect((await router.handle(request)).status).toBe(200)
+    expect(enqueueAttempts).toBe(2)
+    expect(queue).toEqual(new Set(['evt_complete_retry']))
   })
 })

@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -78,6 +78,22 @@ describe('FileSystemAtomicIdempotencyStore', () => {
     expect(await restarted.claim(key, 60_000)).toBe(true)
   })
 
+  it('fails closed for an unexpired legacy claim during a rolling deployment', async () => {
+    const root = await makeRoot()
+    const key = 'stripe:event:legacy'
+    const keyHash = createHash('sha256').update(key).digest('hex')
+    await writeFile(join(root, `${keyHash}.json`), JSON.stringify({
+      version: 1,
+      keyHash,
+      token: 'legacy-owner',
+      expiresAt: Date.now() + 60_000,
+    }))
+    const store = new FileSystemAtomicIdempotencyStore(root)
+
+    expect(await store.claimStatus(key, 60_000)).toBe('in_progress')
+    expect(await store.claim(key, 60_000)).toBe(false)
+  })
+
   it('allows the same worker to reclaim a completed claim after its TTL', async () => {
     vi.useFakeTimers()
     try {
@@ -138,18 +154,33 @@ describe('FileSystemAtomicIdempotencyStore', () => {
       runtime: 'production',
     })).toThrow('shared atomic idempotency store is required')
   })
+
+  it('requires a durable billing listener for direct production dispatch', async () => {
+    const root = await makeRoot()
+    expect(() => new StripeBillingDispatcher({
+      store: new InMemorySubscriptionStore(),
+      runtime: 'production',
+      idempotency: new FileSystemStripeEventIdempotencyStore(root),
+    })).toThrow('production requires a durable billing listener')
+  })
 })
 
 describe('cross-instance webhook boundaries', () => {
   it('deduplicates 100 signed requests across two router instances', async () => {
     const root = await makeRoot()
     const delivered: string[] = []
+    let releaseDelivery!: () => void
+    let deliveryStarted!: () => void
+    const started = new Promise<void>((resolve) => { deliveryStarted = resolve })
+    const held = new Promise<void>((resolve) => { releaseDelivery = resolve })
     const makeRouter = (store: FileSystemWebhookIdempotencyStore) => new WebhookRouter({
       providers: [stripeWebhookProvider],
       runtime: 'production',
       idempotency: store,
       resolveSecret: () => 'whsec_test',
-      deliver: (event) => {
+      deliver: async (event) => {
+        deliveryStarted()
+        await held
         delivered.push(event.providerEventId ?? 'missing')
       },
     })
@@ -157,25 +188,34 @@ describe('cross-instance webhook boundaries', () => {
     const routerB = makeRouter(new FileSystemWebhookIdempotencyStore(root))
     const request = signedStripeRequest('evt_router_cross_instance')
 
-    const responses = await Promise.all(Array.from({ length: 100 }, (_, index) => (
+    const winner = routerA.handle(request)
+    await started
+    const duplicates = await Promise.all(Array.from({ length: 99 }, (_, index) => (
       index % 2 === 0 ? routerA.handle(request) : routerB.handle(request)
     )))
-
-    expect(responses.every((response) => response.status === 200)).toBe(true)
-    expect(responses.filter((response) => (response.body as { received?: number }).received === 1)).toHaveLength(1)
-    await flushDeliveries()
+    expect(duplicates.every((response) => response.status === 503)).toBe(true)
+    releaseDelivery()
+    expect((await winner).status).toBe(200)
     expect(delivered).toEqual(['evt_router_cross_instance'])
   })
 
   it('deduplicates direct Stripe dispatch across two dispatcher instances', async () => {
     const root = await makeRoot()
     const events: string[] = []
+    let releaseListener!: () => void
+    let listenerStarted!: () => void
+    const started = new Promise<void>((resolve) => { listenerStarted = resolve })
+    const held = new Promise<void>((resolve) => { releaseListener = resolve })
     const makeDispatcher = (idempotency: FileSystemStripeEventIdempotencyStore) => new StripeBillingDispatcher({
       store: new InMemorySubscriptionStore(),
       runtime: 'production',
       idempotency,
-      listener: (event) => {
+      listener: async (event) => {
         events.push(event.kind)
+        if (event.kind === 'event_unhandled') {
+          listenerStarted()
+          await held
+        }
       },
     })
     const dispatcherA = makeDispatcher(new FileSystemStripeEventIdempotencyStore(root))
@@ -188,12 +228,17 @@ describe('cross-instance webhook boundaries', () => {
       payload: { id: 'evt_dispatch_cross_instance', type: 'customer.created', data: { object: {} } },
     }
 
-    await Promise.all(Array.from({ length: 100 }, (_, index) => (
+    const winner = dispatcherA.dispatch(envelope)
+    await started
+    const duplicates = await Promise.allSettled(Array.from({ length: 99 }, (_, index) => (
       index % 2 === 0 ? dispatcherA.dispatch(envelope) : dispatcherB.dispatch(envelope)
     )))
-
+    expect(duplicates.every((result) => result.status === 'rejected')).toBe(true)
+    releaseListener()
+    await winner
+    await dispatcherB.dispatch(envelope)
     expect(events.filter((kind) => kind === 'event_unhandled')).toHaveLength(1)
-    expect(events.filter((kind) => kind === 'event_replay')).toHaveLength(99)
+    expect(events.filter((kind) => kind === 'event_replay')).toHaveLength(1)
   })
 })
 
@@ -226,6 +271,7 @@ describe('storage failures', () => {
       store: new InMemorySubscriptionStore(),
       runtime: 'production',
       idempotency: new FileSystemStripeEventIdempotencyStore(blockedPath),
+      listener: () => undefined,
     })
 
     await expect(dispatcher.dispatch({

@@ -2,8 +2,8 @@
  * Wire the inbound webhook router behind a single HTTP handler.
  *
  * The router takes care of signature verification, parsing, and
- * idempotency dedup. The product's `deliver()` callback runs async and
- * sees a normalized envelope.
+ * idempotency dedup. The product's `deliver()` callback must finish a
+ * durable, idempotent enqueue before it resolves.
  */
 
 import {
@@ -33,8 +33,18 @@ const router = new WebhookRouter({
     return null
   },
   deliver: async (event) => {
-    console.log(`[webhook] ${event.eventType} (${event.providerEventId ?? 'no-id'})`)
-    // Branch on eventType and enqueue domain-specific work here.
+    if (!event.providerEventId) throw new Error('A stable provider event id is required for durable enqueue')
+    const queueUrl = process.env.WEBHOOK_QUEUE_URL
+    if (!queueUrl) throw new Error('WEBHOOK_QUEUE_URL is required')
+    const queued = await fetch(queueUrl, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': event.providerEventId,
+      },
+      body: JSON.stringify(event),
+    })
+    if (!queued.ok) throw new Error(`Webhook enqueue failed with ${queued.status}`)
   },
 })
 

@@ -100,8 +100,11 @@ export interface TangleIdentityOptions {
    * routes unauthenticated (rare; never in production).
    */
   serviceToken?: string
-  /** Service identity claimed in the `X-Service-Name` header. */
+  /** Routing hint sent with the authenticated service token. This is not key provenance. */
   serviceName?: string
+  /** Product the authenticated service expects this key to serve. API-key
+   *  authentication fails closed when this is absent. */
+  expectedProduct?: PlatformKeyProduct
   /** Injected fetch — defaults to global. Tests pass a vi mock. */
   fetchImpl?: typeof fetch
   /** Per-call timeout override (default {@link PLATFORM_FETCH_TIMEOUT_MS}). */
@@ -127,8 +130,12 @@ export type TangleTokenVerifyResult =
       /** Stable id of the credential row, when known (key.id for API
        *  keys, session.id for sessions). Useful for revoke + audit. */
       credentialId?: string
+      /** Stable Platform API-key row id. Present only for API-key auth. */
+      apiKeyId?: string
       /** Product the credential is scoped to, when known. */
-      product?: string
+      product?: PlatformKeyProduct
+      /** Immutable Platform service that provisioned this key. */
+      provisionedByService?: string
       /** Platform proof that a human controls a real inbox. */
       emailVerified?: boolean
       /** Platform-owned machine identity. */
@@ -156,6 +163,72 @@ export type TangleTokenVerifyFailure =
   | 'malformed'
   | 'email_verification_required'
   | 'real_email_required'
+  | 'product_scope_required'
+  | 'product_scope_mismatch'
+
+/** Product values accepted by Platform's shared key-verification contract. */
+export type PlatformKeyProduct =
+  | 'router'
+  | 'sandbox'
+  | 'hub'
+  | 'intelligence'
+  | 'blueprint-agent'
+  | 'evals'
+  | 'agent-builder'
+  | 'audits'
+  | 'tax-agent'
+  | 'legal-agent'
+  | 'gtm-agent'
+  | 'creative-agent'
+  | 'insurance-agent'
+
+/** Products accepted by Platform's `expectedProduct` request field. */
+export type PlatformProductPrincipal = 'router' | 'sandbox'
+
+/** Request accepted by Platform's authenticated `/v1/keys/verify` route. */
+export interface PlatformKeyVerifyRequest {
+  key: string
+  expectedProduct?: PlatformProductPrincipal
+}
+
+/** Shared response from Platform's authenticated `/v1/keys/verify` route. */
+export interface PlatformKeyVerifyResponse {
+  valid: boolean
+  email?: string
+  emailVerified?: boolean
+  emailVerificationRequired?: boolean
+  servicePrincipal?: boolean
+  provisionedByService?: string
+  userId?: string
+  ownerId?: string
+  teamId?: string
+  ownerType?: 'user' | 'team'
+  memberUserId?: string
+  keyId?: string
+  product?: PlatformKeyProduct
+  name?: string
+  scopes?: string[]
+  budgetRemaining?: number
+  monthlyBudgetRemaining?: number
+  allowedModels?: string[]
+  rpmLimit?: number
+  plan?: string
+  sandboxTier?: 'free' | 'pro' | 'enterprise'
+  blueprintAgentTier?: 'free' | 'pro' | 'enterprise'
+  role?: 'admin' | 'member' | 'readonly'
+}
+
+type VerifiedPlatformKeyResponse = PlatformKeyVerifyResponse & {
+  valid: true
+  emailVerified: true
+  servicePrincipal: boolean
+  provisionedByService: string
+  userId: string
+  ownerId: string
+  ownerType: 'user' | 'team'
+  keyId: string
+  name: string
+}
 
 export interface TangleUserSummary {
   id: string
@@ -545,11 +618,19 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
     }
   }
 
-  async function verifyApiKey(token: string): Promise<TangleTokenVerifyResult> {
+  async function verifyApiKey(
+    token: string,
+    requireProductScope: boolean,
+  ): Promise<TangleTokenVerifyResult> {
     const res = await jsonFetch('/v1/keys/verify', {
       method: 'POST',
       headers: s2sHeaders(),
-      body: JSON.stringify({ key: token }),
+      body: JSON.stringify({
+        key: token,
+        ...(isPlatformProductPrincipal(opts.expectedProduct)
+          ? { expectedProduct: opts.expectedProduct }
+          : {}),
+      } satisfies PlatformKeyVerifyRequest),
     })
     if (res.status === 401) {
       // Service token rejected — distinct from "token is bad". The
@@ -563,58 +644,42 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         { status: res.status },
       )
     }
-    const body = (await res.json().catch(() => null)) as
-      | {
-          valid?: boolean
-          userId?: string
-          ownerId?: string
-          ownerType?: 'user' | 'team'
-          keyId?: string
-          product?: string
-          allowedModels?: unknown
-          expiresAt?: string
-          emailVerified?: boolean
-          emailVerificationRequired?: boolean
-          servicePrincipal?: boolean
-          email?: string
-        }
-      | null
+    const body = (await res.json().catch(() => null)) as Partial<PlatformKeyVerifyResponse> | null
     if (!body || typeof body.valid !== 'boolean') {
       return { valid: false, reason: 'malformed' }
     }
-    if (!body.valid || !body.userId) {
+    if (!body.valid) {
       return { valid: false, reason: 'revoked' }
     }
     if (body.emailVerificationRequired === true) {
       return { valid: false, reason: 'email_verification_required' }
     }
-    if (body.servicePrincipal !== true && body.emailVerified !== true) {
-      return { valid: false, reason: 'email_verification_required' }
+    if (!isValidPlatformKeyResponse(body)) return { valid: false, reason: 'malformed' }
+    if (requireProductScope && !opts.expectedProduct) {
+      return { valid: false, reason: 'product_scope_required' }
     }
-    if (body.servicePrincipal !== true && !isRealNonPlaceholderEmail(body.email)) {
-      return { valid: false, reason: 'real_email_required' }
+    if (requireProductScope && body.product !== opts.expectedProduct) {
+      return { valid: false, reason: 'product_scope_mismatch' }
     }
-    const scopes = Array.isArray(body.allowedModels)
-      ? body.allowedModels.filter((value): value is string => typeof value === 'string')
-      : []
+    const scopes = [
+      ...(Array.isArray(body.scopes) ? body.scopes : []),
+      ...(Array.isArray(body.allowedModels) ? body.allowedModels : []),
+    ].filter((value, index, all): value is string => typeof value === 'string' && all.indexOf(value) === index)
     if (body.product) scopes.push(`product:${body.product}`)
-    const expiresAt =
-      typeof body.expiresAt === 'string' && body.expiresAt
-        ? Date.parse(body.expiresAt)
-        : undefined
     return {
       valid: true,
       kind: 'api_key',
       userId: body.userId,
-      workspaceId: body.ownerType === 'team' && body.ownerId ? body.ownerId : body.userId,
-      ownerType: body.ownerType ?? 'user',
-      emailVerified: body.emailVerified === true,
+      workspaceId: body.ownerId,
+      ownerType: body.ownerType,
+      emailVerified: true,
       scopes,
-      ...(Number.isFinite(expiresAt) ? { expiresAt: expiresAt as number } : {}),
-      ...(body.keyId ? { credentialId: body.keyId } : {}),
+      credentialId: body.keyId,
+      apiKeyId: body.keyId,
       ...(body.product ? { product: body.product } : {}),
+      provisionedByService: body.provisionedByService,
+      servicePrincipal: body.servicePrincipal,
       ...(body.email ? { email: body.email } : {}),
-      ...(body.servicePrincipal !== undefined ? { servicePrincipal: body.servicePrincipal } : {}),
     }
   }
 
@@ -692,7 +757,7 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         if (token.length <= TANGLE_API_KEY_PREFIX.length) {
           return { valid: false, reason: 'malformed' }
         }
-        return verifyApiKey(token)
+        return verifyApiKey(token, true)
       }
       // Anything else — treat as a session bearer (Better Auth-emitted
       // JWTs are opaque to us). Wrong-issuer / random-string lands
@@ -815,7 +880,7 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         // We don't know the key id until we verify; do that first so
         // revoke is keyed by id (the only thing the platform's DELETE
         // /v1/keys/{id} accepts). Bad-key responses are no-ops.
-        const v = await verifyApiKey(token)
+        const v = await verifyApiKey(token, false)
         if (!v.valid || !v.credentialId) return
         const res = await jsonFetch(`/v1/keys/${encodeURIComponent(v.credentialId)}`, {
           method: 'DELETE',
@@ -1050,4 +1115,27 @@ function readOptionalRole(
   const value = args[key]
   if (value === 'owner' || value === 'admin' || value === 'member') return value
   return undefined
+}
+
+function isValidPlatformKeyResponse(
+  value: Partial<PlatformKeyVerifyResponse>,
+): value is VerifiedPlatformKeyResponse {
+  if (value.valid !== true || value.emailVerified !== true) return false
+  if (typeof value.servicePrincipal !== 'boolean') return false
+  if (!readRequiredString(value.userId)) return false
+  if (!readRequiredString(value.ownerId)) return false
+  if (value.ownerType !== 'user' && value.ownerType !== 'team') return false
+  if (!readRequiredString(value.keyId)) return false
+  if (!readRequiredString(value.name)) return false
+  if (!readRequiredString(value.provisionedByService)) return false
+  if (value.servicePrincipal === false && !isRealNonPlaceholderEmail(value.email)) return false
+  return true
+}
+
+function readRequiredString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isPlatformProductPrincipal(value: unknown): value is PlatformProductPrincipal {
+  return value === 'router' || value === 'sandbox'
 }
