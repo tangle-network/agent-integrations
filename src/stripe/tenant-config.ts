@@ -60,6 +60,8 @@ export interface TenantStripeConfig {
   secretKey: string
   /** Webhook signing secret (`whsec_...`). */
   webhookSecret: string
+  /** Price ids the product explicitly approved for checkout. */
+  approvedPriceIds?: readonly string[]
   /** Optional default URLs the checkout/portal generators fall back to. */
   successUrl?: string
   cancelUrl?: string
@@ -96,10 +98,15 @@ export class EnvTenantConfigResolver implements TenantConfigResolver {
     const sk = this.env[`STRIPE_SK_${key}`]
     const wh = this.env[`STRIPE_WHSEC_${key}`]
     if (!sk || !wh) return null
+    const approvedPriceIds = (this.env[`STRIPE_APPROVED_PRICE_IDS_${key}`] ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
     return {
       productId,
       secretKey: sk,
       webhookSecret: wh,
+      ...(approvedPriceIds.length > 0 ? { approvedPriceIds } : {}),
       successUrl: this.env[`STRIPE_SUCCESS_URL_${key}`],
       cancelUrl: this.env[`STRIPE_CANCEL_URL_${key}`],
     }

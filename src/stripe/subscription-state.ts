@@ -7,7 +7,7 @@
  *
  *   incomplete           — first invoice not paid within 23 hours
  *   incomplete_expired   — first invoice failed, no retry coming
- *   trialing             — inside a trial window (treat as active)
+ *   trialing             — inside a trial window (not product access)
  *   active               — paying, current
  *   past_due             — auto-renewal failed; grace period running
  *   canceled             — terminal; ended at period boundary or hard
@@ -39,6 +39,7 @@
  */
 
 import { BillingError } from './errors.js'
+import { FileSystemAtomicIdempotencyStore } from '../idempotency.js'
 
 export type SubscriptionState =
   | 'incomplete'
@@ -167,7 +168,8 @@ export function applyTransition(
  * Map a state to an access decision.
  *
  * Rule rationale:
- *   active, trialing             → allow
+ *   active                       → allow
+ *   trialing                     → deny (product-funded trials are disabled)
  *   past_due                     → allow + warn (dunning grace)
  *   paused                       → deny (operator action; resume restores)
  *   canceled, unpaid             → deny (terminal financial states)
@@ -182,8 +184,9 @@ export function applyTransition(
 export function gateAccess(state: SubscriptionState): AccessDecision {
   switch (state) {
     case 'active':
-    case 'trialing':
       return { allowed: true }
+    case 'trialing':
+      return { allowed: false, reason: 'trial_expired' }
     case 'past_due':
       return { allowed: true, warn: 'past_due' }
     case 'paused':
@@ -234,9 +237,8 @@ export class InMemorySubscriptionStore implements SubscriptionStore {
 /**
  * File-per-workspace JSON store. One file per workspace under
  * `<rootDir>/<workspaceId>.json`. Cheap, durable, debuggable — adequate
- * for self-hosted product agents. CAS is implemented via the version
- * field plus a write that re-reads the file under a brief lock window
- * (rename-temp-to-target pattern, atomic on POSIX).
+ * for self-hosted product agents. CAS combines the version check with the
+ * shared per-workspace lock from `FileSystemAtomicIdempotencyStore`.
  *
  * Why per-file and not one JSONL: subscriptions are
  * accessed by workspaceId 99% of the time, scanning a JSONL on every
@@ -247,7 +249,11 @@ export class InMemorySubscriptionStore implements SubscriptionStore {
  * `saveIfVersion()`, so the CAS catches the race.
  */
 export class FileSystemSubscriptionStore implements SubscriptionStore {
-  constructor(private readonly rootDir: string) {}
+  private readonly writeLock: FileSystemAtomicIdempotencyStore
+
+  constructor(private readonly rootDir: string) {
+    this.writeLock = new FileSystemAtomicIdempotencyStore(rootDir, { namespace: 'subscription-lock' })
+  }
 
   async load(workspaceId: string): Promise<SubscriptionRecord | null> {
     const fs = await import('node:fs/promises')
@@ -263,21 +269,48 @@ export class FileSystemSubscriptionStore implements SubscriptionStore {
   }
 
   async save(record: SubscriptionRecord): Promise<void> {
+    const lockKey = this.lockKey(record.workspaceId)
+    if (!(await this.writeLock.claim(lockKey, 30_000))) {
+      throw new Error(`Subscription write contention for ${record.workspaceId}`)
+    }
+    try {
+      await this.writeRecord(record)
+    } finally {
+      await this.writeLock.release?.(lockKey)
+    }
+  }
+
+  async saveIfVersion(record: SubscriptionRecord, expectedVersion: number): Promise<boolean> {
+    const lockKey = this.lockKey(record.workspaceId)
+    if (!(await this.writeLock.claim(lockKey, 30_000))) return false
+    try {
+      const existing = await this.load(record.workspaceId)
+      if (existing && existing.version !== expectedVersion) return false
+      if (!existing && expectedVersion !== 0) return false
+      await this.writeRecord(record)
+      return true
+    } finally {
+      await this.writeLock.release?.(lockKey)
+    }
+  }
+
+  private async writeRecord(record: SubscriptionRecord): Promise<void> {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     await fs.mkdir(this.rootDir, { recursive: true })
     const file = path.join(this.rootDir, this.fileName(record.workspaceId))
-    const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
+    const tmp = `${file}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`
     await fs.writeFile(tmp, JSON.stringify(record), 'utf-8')
-    await fs.rename(tmp, file)
+    try {
+      await fs.rename(tmp, file)
+    } catch (err) {
+      await fs.unlink(tmp).catch(() => undefined)
+      throw err
+    }
   }
 
-  async saveIfVersion(record: SubscriptionRecord, expectedVersion: number): Promise<boolean> {
-    const existing = await this.load(record.workspaceId)
-    if (existing && existing.version !== expectedVersion) return false
-    if (!existing && expectedVersion !== 0) return false
-    await this.save(record)
-    return true
+  private lockKey(workspaceId: string): string {
+    return `subscription:${workspaceId}`
   }
 
   /** Safe filename: workspaceId is restricted to a charset that maps 1:1

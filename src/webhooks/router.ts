@@ -17,10 +17,9 @@
  *
  * Replay protection: providers that sign timestamps (Stripe, Slack)
  * already reject stale signatures inside `verifySignature`. For providers
- * that don't (DocuSeal, GDrive push), the router exposes a pluggable
- * `idempotency` hook: if `idempotency.seen(providerEventId)` returns
- * true, the router 200s without invoking `deliver()`. Consumers wire
- * this to a durable kv (D1 / Redis / Postgres unique-index).
+ * that don't (DocuSeal, GDrive push), the router atomically claims every
+ * parsed event before scheduling `deliver()`. Consumers wire this to a
+ * durable SETNX/unique insert (D1, Redis, or Postgres) across workers.
  *
  * Why a router and not a per-provider express app: the runtime contract
  * a product cares about is "an inbound event came in, here's the
@@ -33,6 +32,15 @@
  * at 200 (ok), 400 (bad request), 401 (bad signature), 404 (unknown
  * provider), 405 (provider has no inbound surface).
  */
+
+import { createHash } from 'node:crypto'
+import {
+  FileSystemAtomicIdempotencyStore,
+  InMemoryAtomicIdempotencyStore,
+  resolveAtomicIdempotencyStore,
+  type AtomicIdempotencyStore,
+  type IdempotencyRuntime,
+} from '../idempotency.js'
 
 export interface WebhookHeaders {
   [name: string]: string | string[] | undefined
@@ -128,14 +136,13 @@ export interface WebhookProvider {
   eventCatalog?: TriggerEventCatalog
 }
 
-export interface WebhookIdempotencyStore {
-  /** Returns true if this providerEventId has been processed already.
-   *  Implementations should be O(1) (Redis SETNX, D1 UNIQUE constraint). */
-  seen(providerEventId: string): Promise<boolean> | boolean
-  /** Marks a providerEventId as processed. Called AFTER `deliver()` has
-   *  been invoked. */
-  remember(providerEventId: string, ttlMs: number): Promise<void> | void
-}
+export interface WebhookIdempotencyStore extends AtomicIdempotencyStore {}
+
+/** Process-local atomic store for tests and explicitly single-process apps. */
+export class InMemoryWebhookIdempotencyStore extends InMemoryAtomicIdempotencyStore implements WebhookIdempotencyStore {}
+
+/** Durable store for workers that share the same filesystem directory. */
+export class FileSystemWebhookIdempotencyStore extends FileSystemAtomicIdempotencyStore implements WebhookIdempotencyStore {}
 
 export interface WebhookRouterOptions {
   /** Provider registry. Pass any number of providers; routing is by id. */
@@ -147,9 +154,11 @@ export interface WebhookRouterOptions {
   /** Resolve the signing secret for a provider id at request time. The
    *  router never holds secrets — the consumer's vault resolves them. */
   resolveSecret(providerId: string, headers: WebhookHeaders): Promise<string | null> | string | null
-  /** Optional idempotency-dedup hook. Required for providers that don't
-   *  sign timestamps in their signature scheme (DocuSeal, Drive push). */
+  /** Atomic idempotency store. Production requires shared atomic storage. */
   idempotency?: WebhookIdempotencyStore
+  /** Runtime controls the safe default. Production fails closed without a
+   *  shared store; test/development use an in-memory store when omitted. */
+  runtime?: IdempotencyRuntime
   /** TTL on idempotency entries. Default 7 days — long enough that a
    *  provider's normal retry-window can't re-deliver. */
   idempotencyTtlMs?: number
@@ -179,7 +188,7 @@ export class WebhookRouter {
   private readonly providers: Map<string, WebhookProvider>
   private readonly deliver: WebhookRouterOptions['deliver']
   private readonly resolveSecret: WebhookRouterOptions['resolveSecret']
-  private readonly idempotency?: WebhookIdempotencyStore
+  private readonly idempotency: WebhookIdempotencyStore
   private readonly idempotencyTtlMs: number
   private readonly onError: NonNullable<WebhookRouterOptions['onError']>
   private readonly nowFn: () => number
@@ -188,7 +197,11 @@ export class WebhookRouter {
     this.providers = new Map(opts.providers.map((p) => [p.id, p]))
     this.deliver = opts.deliver
     this.resolveSecret = opts.resolveSecret
-    this.idempotency = opts.idempotency
+    this.idempotency = resolveAtomicIdempotencyStore({
+      component: 'WebhookRouter',
+      store: opts.idempotency,
+      runtime: opts.runtime,
+    })
     this.idempotencyTtlMs = opts.idempotencyTtlMs ?? 7 * 24 * 60 * 60 * 1000
     this.onError = opts.onError ?? defaultOnError
     this.nowFn = opts.now ?? Date.now
@@ -222,13 +235,18 @@ export class WebhookRouter {
       return { status: 400, body: { error: 'parse_error', message: errMessage(err) } }
     }
 
-    const accepted: WebhookEnvelope[] = []
-    for (const event of events) {
-      if (event.providerEventId && this.idempotency) {
-        const already = await this.idempotency.seen(event.providerEventId)
-        if (already) continue
+    const accepted: Array<{ event: WebhookEnvelope; key: string }> = []
+    try {
+      for (const [index, event] of events.entries()) {
+        const key = eventKey(provider.id, event, index, request.rawBody)
+        if (!(await this.idempotency.claim(key, this.idempotencyTtlMs))) continue
+        accepted.push({ event, key })
       }
-      accepted.push(event)
+    } catch (err) {
+      // Do not strand earlier claims when a later claim detects an unavailable
+      // or corrupt shared store. The request remains failed closed.
+      await Promise.allSettled(accepted.map(({ key }) => this.idempotency.release?.(key)))
+      throw err
     }
 
     // Deliver async — do NOT block the HTTP response. Errors land in
@@ -248,13 +266,24 @@ export class WebhookRouter {
     return { status: 200, body: { received: accepted.length, total: events.length } }
   }
 
-  private async deliverEach(events: WebhookEnvelope[]): Promise<void> {
-    for (const event of events) {
+  private async deliverEach(events: Array<{ event: WebhookEnvelope; key: string }>): Promise<void> {
+    for (const { event, key } of events) {
       try {
         await this.deliver(event)
-        if (event.providerEventId && this.idempotency) {
-          await this.idempotency.remember(event.providerEventId, this.idempotencyTtlMs)
-        }
+      } catch (err) {
+        await this.idempotency.release?.(key)
+        this.onError(err, {
+          provider: event.provider,
+          eventType: event.eventType,
+          providerEventId: event.providerEventId,
+        })
+        continue
+      }
+      // Keep the durable claim for its TTL, but let this process reclaim the
+      // key after expiry. A long-running delivery still owns the key until it
+      // reaches this point or releases it on failure.
+      try {
+        await this.idempotency.complete?.(key)
       } catch (err) {
         this.onError(err, {
           provider: event.provider,
@@ -273,4 +302,12 @@ function defaultOnError(err: unknown, context: { provider: string; eventType?: s
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+function eventKey(providerId: string, event: WebhookEnvelope, index: number, rawBody: string): string {
+  if (event.providerEventId?.trim()) return `${providerId}:id:${event.providerEventId.trim()}`
+  // Providers without stable event ids still need collision-resistant keys.
+  // A 32-bit hash could drop a distinct signed event after a birthday collision.
+  const bodyHash = createHash('sha256').update(rawBody, 'utf8').digest('hex')
+  return `${providerId}:body:${event.eventType}:${index}:${bodyHash}`
 }

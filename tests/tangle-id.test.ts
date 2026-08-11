@@ -22,11 +22,25 @@ function emptyResponse(status: number): Response {
 }
 
 describe('tangle-id verifyToken', () => {
+  it('fails closed when a service token has no named service', () => {
+    expect(() => createTangleIdentityClient({ serviceToken: 'svc_x' })).toThrow(/serviceName is required/)
+  })
+
   it('refuses service tokens without making a network call (privilege escalation guard)', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await client.verifyToken(`${TANGLE_SERVICE_TOKEN_PREFIX}abc`)
     expect(result).toEqual({ valid: false, reason: 'service_token_refused' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('refuses broker keys as user identity without making a network call', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ valid: true }))
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
+    await expect(client.verifyToken('sk-tan-broker-owner')).resolves.toEqual({
+      valid: false,
+      reason: 'service_token_refused',
+    })
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -39,6 +53,8 @@ describe('tangle-id verifyToken', () => {
       return jsonResponse({
         valid: true,
         userId: 'usr_1',
+        email: 'owner@company.com',
+        emailVerified: true,
         ownerId: 'team_1',
         ownerType: 'team',
         keyId: 'key_42',
@@ -50,6 +66,7 @@ describe('tangle-id verifyToken', () => {
     const client = createTangleIdentityClient({
       baseUrl: 'https://id.example.com',
       serviceToken: 'svc_service',
+      serviceName: 'test-suite',
       fetchImpl,
     })
     const result = await client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)
@@ -63,6 +80,7 @@ describe('tangle-id verifyToken', () => {
       ownerType: 'team',
       credentialId: 'key_42',
       product: 'legal',
+      emailVerified: true,
     })
     if (result.valid) {
       expect(result.scopes).toEqual(['gpt-4', 'claude-3', 'product:legal'])
@@ -72,25 +90,26 @@ describe('tangle-id verifyToken', () => {
 
   it('falls back to userId workspace for personal (non-team) API keys', async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ valid: true, userId: 'usr_5', allowedModels: [] }),
+      jsonResponse({ valid: true, userId: 'usr_5', allowedModels: [], emailVerified: true, email: 'owner@company.com' }),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await client.verifyToken(`${TANGLE_API_KEY_PREFIX}x`)
     if (!result.valid) throw new Error('expected valid')
     expect(result.workspaceId).toBe('usr_5')
     expect(result.ownerType).toBe('user')
+    expect(result.emailVerified).toBe(true)
   })
 
   it('returns service_token_refused on 401 from /v1/keys/verify', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(401))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)
     expect(result).toEqual({ valid: false, reason: 'service_token_refused' })
   })
 
   it('throws TangleIdentityUnreachableError on 5xx from /v1/keys/verify (fail-closed for platform)', async () => {
     const fetchImpl = vi.fn(async () => new Response('boom', { status: 503 }))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).rejects.toBeInstanceOf(
       TangleIdentityUnreachableError,
     )
@@ -98,7 +117,7 @@ describe('tangle-id verifyToken', () => {
 
   it('returns malformed when /v1/keys/verify response has no valid field', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     expect(await client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).toEqual({
       valid: false,
       reason: 'malformed',
@@ -107,7 +126,7 @@ describe('tangle-id verifyToken', () => {
 
   it('returns revoked for valid:false on /v1/keys/verify', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ valid: false }))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     expect(await client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).toEqual({
       valid: false,
       reason: 'revoked',
@@ -121,7 +140,7 @@ describe('tangle-id verifyToken', () => {
       capturedPath = String(input)
       capturedAuth = (init?.headers as Record<string, string>)['authorization'] ?? ''
       return jsonResponse({
-        user: { id: 'usr_9', email: 'a@b.c' },
+        user: { id: 'usr_9', email: 'owner@company.com', emailVerified: true },
         session: { id: 'sess_42', expiresAt: '2026-06-01T00:00:00.000Z', activeTeamId: 'team_99' },
       })
     })
@@ -137,6 +156,7 @@ describe('tangle-id verifyToken', () => {
     expect(result.workspaceId).toBe('team_99')
     expect(result.ownerType).toBe('team')
     expect(result.credentialId).toBe('sess_42')
+    expect(result.emailVerified).toBe(true)
   })
 
   it('maps session 401/403 to expired without throwing', async () => {
@@ -156,7 +176,7 @@ describe('tangle-id verifyToken', () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error('econnrefused')
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.verifyToken(`${TANGLE_API_KEY_PREFIX}token`)).rejects.toBeInstanceOf(
       TangleIdentityUnreachableError,
     )
@@ -174,7 +194,7 @@ describe('tangle-id listWorkspaces / switchWorkspace', () => {
         ],
       }),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const workspaces = await client.listWorkspaces('usr_1')
     expect(workspaces).toHaveLength(2)
     expect(workspaces[0]).toEqual({
@@ -191,7 +211,7 @@ describe('tangle-id listWorkspaces / switchWorkspace', () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({ success: true, data: [{ id: 'team_x', name: 'X', role: 'superadmin' }] }),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const [ws] = await client.listWorkspaces('usr_x')
     expect(ws.role).toBe('member')
   })
@@ -206,14 +226,14 @@ describe('tangle-id listWorkspaces / switchWorkspace', () => {
         ],
       }),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const out = await client.switchWorkspace('usr_x', 'team_b')
     expect(out).toEqual({ ok: true, workspaceId: 'team_b', scopes: ['stripe:*'] })
   })
 
   it('switchWorkspace throws on missing workspace', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ success: true, data: [] }))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.switchWorkspace('u', 'w')).rejects.toBeInstanceOf(
       TangleIdentityUnreachableError,
     )
@@ -223,10 +243,17 @@ describe('tangle-id listWorkspaces / switchWorkspace', () => {
 describe('tangle-id revokeSession', () => {
   it('refuses to revoke service tokens', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(200))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.revokeSession('svc_foo')).rejects.toBeInstanceOf(
       TangleIdentityUnreachableError,
     )
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('refuses to revoke broker tokens through the user-key path', async () => {
+    const fetchImpl = vi.fn(async () => emptyResponse(200))
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
+    await expect(client.revokeSession('sk-tan-broker-owner')).rejects.toThrow(/broker token/)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -235,11 +262,11 @@ describe('tangle-id revokeSession', () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ url: String(input), method: init?.method ?? 'GET' })
       if (String(input).endsWith('/v1/keys/verify')) {
-        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77' })
+        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77', emailVerified: true, email: 'owner@company.com' })
       }
       return emptyResponse(204)
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await client.revokeSession(`${TANGLE_API_KEY_PREFIX}token`)
     expect(calls.map((c) => c.method)).toEqual(['POST', 'DELETE'])
     expect(calls[1].url).toContain('/v1/keys/key_77')
@@ -248,11 +275,11 @@ describe('tangle-id revokeSession', () => {
   it('treats 404 on key delete as a successful no-op (idempotent revoke)', async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).endsWith('/v1/keys/verify')) {
-        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77' })
+        return jsonResponse({ valid: true, userId: 'u1', keyId: 'key_77', emailVerified: true, email: 'owner@company.com' })
       }
       return emptyResponse(404)
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.revokeSession(`${TANGLE_API_KEY_PREFIX}token`)).resolves.toBeUndefined()
   })
 
@@ -265,7 +292,7 @@ describe('tangle-id revokeSession', () => {
 
 describe('tangle-id adapter wiring', () => {
   it('exposes the platform-contract capabilities including workspace/member write paths', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x' })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
       [
@@ -283,7 +310,7 @@ describe('tangle-id adapter wiring', () => {
   })
 
   it('manifest declares native-idempotency for every mutation capability', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x' })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
     const mutationNames = adapter.manifest.capabilities
       .filter((c) => c.class === 'mutation')
       .map((c) => c.name)
@@ -306,7 +333,7 @@ describe('tangle-id adapter wiring', () => {
   })
 
   it('newly added mutations declare externalEffect: true (real upstream side effects)', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x' })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
     const targets = new Set([
       'workspaces.create',
       'workspaces.delete',
@@ -322,9 +349,9 @@ describe('tangle-id adapter wiring', () => {
 
   it('executeRead routes verify_token to the client and round-trips the typed result', async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ valid: true, userId: 'u', allowedModels: ['gpt-4'] }),
+      jsonResponse({ valid: true, userId: 'u', allowedModels: ['gpt-4'], emailVerified: true, email: 'owner@company.com' }),
     )
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', fetchImpl })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await adapter.executeRead!({
       source: makeSource(),
       capabilityName: 'verify_token',
@@ -335,7 +362,7 @@ describe('tangle-id adapter wiring', () => {
   })
 
   it('rejects unknown capability with a descriptive error', async () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x' })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
     await expect(
       adapter.executeRead!({
         source: makeSource(),
@@ -394,6 +421,7 @@ describe('tangle-id createWorkspace', () => {
     const client = createTangleIdentityClient({
       baseUrl: 'https://id.example.com',
       serviceToken: 'svc_x',
+      serviceName: 'test-suite',
       fetchImpl,
     })
     const workspace = await client.createWorkspace('usr_1', { name: 'New Team' })
@@ -412,7 +440,7 @@ describe('tangle-id createWorkspace', () => {
 
   it('surfaces CredentialsExpired on 401', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(401))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.createWorkspace('usr_1', { name: 'X' })).rejects.toMatchObject({
       name: 'CredentialsExpired',
     })
@@ -420,7 +448,7 @@ describe('tangle-id createWorkspace', () => {
 
   it('throws on malformed response', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ success: true, data: {} }))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.createWorkspace('usr_1', { name: 'X' })).rejects.toBeInstanceOf(
       TangleIdentityUnreachableError,
     )
@@ -436,7 +464,7 @@ describe('tangle-id deleteWorkspace', () => {
       capturedMethod = init?.method ?? 'GET'
       return emptyResponse(204)
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await client.deleteWorkspace('team_42')
     expect(capturedMethod).toBe('DELETE')
     expect(capturedPath).toContain('/v1/teams/team_42')
@@ -444,13 +472,13 @@ describe('tangle-id deleteWorkspace', () => {
 
   it('treats 404 as an idempotent no-op', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(404))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.deleteWorkspace('team_missing')).resolves.toBeUndefined()
   })
 
   it('surfaces CredentialsExpired on 401', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(401))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.deleteWorkspace('team_1')).rejects.toMatchObject({
       name: 'CredentialsExpired',
     })
@@ -477,7 +505,7 @@ describe('tangle-id inviteMember', () => {
         },
       })
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const invitation = await client.inviteMember('team_1', 'alice@example.com', 'admin')
     expect(capturedMethod).toBe('POST')
     expect(capturedPath).toContain('/v1/teams/team_1/invitations')
@@ -504,7 +532,7 @@ describe('tangle-id inviteMember', () => {
         },
       }),
     )
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const invitation = await client.inviteMember('team_1', 'b@example.com')
     expect(invitation.role).toBe('member')
     expect(invitation.status).toBe('pending')
@@ -512,7 +540,7 @@ describe('tangle-id inviteMember', () => {
 
   it('surfaces CredentialsExpired on 401', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(401))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(
       client.inviteMember('team_1', 'a@b.c'),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
@@ -528,7 +556,7 @@ describe('tangle-id removeMember', () => {
       capturedMethod = init?.method ?? 'GET'
       return emptyResponse(204)
     })
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await client.removeMember('team_1', 'usr_5')
     expect(capturedMethod).toBe('DELETE')
     expect(capturedPath).toContain('/v1/teams/team_1/members/usr_5')
@@ -536,13 +564,13 @@ describe('tangle-id removeMember', () => {
 
   it('treats 404 as an idempotent no-op', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(404))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.removeMember('team_1', 'usr_5')).resolves.toBeUndefined()
   })
 
   it('surfaces CredentialsExpired on 401', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(401))
-    const client = createTangleIdentityClient({ serviceToken: 'svc_x', fetchImpl })
+    const client = createTangleIdentityClient({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     await expect(client.removeMember('team_1', 'usr_5')).rejects.toMatchObject({
       name: 'CredentialsExpired',
     })
@@ -557,7 +585,7 @@ describe('tangle-id adapter executeMutation routing', () => {
         data: { id: 'team_x', name: 'X', role: 'owner', scopes: [] },
       }),
     )
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', fetchImpl })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await adapter.executeMutation!({
       source: makeSource(),
       capabilityName: 'workspaces.create',
@@ -570,7 +598,7 @@ describe('tangle-id adapter executeMutation routing', () => {
 
   it('routes workspaces.delete through the client and returns ok', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(204))
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', fetchImpl })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await adapter.executeMutation!({
       source: makeSource(),
       capabilityName: 'workspaces.delete',
@@ -593,7 +621,7 @@ describe('tangle-id adapter executeMutation routing', () => {
         },
       }),
     )
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', fetchImpl })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await adapter.executeMutation!({
       source: makeSource(),
       capabilityName: 'members.invite',
@@ -606,7 +634,7 @@ describe('tangle-id adapter executeMutation routing', () => {
 
   it('routes members.remove through the client', async () => {
     const fetchImpl = vi.fn(async () => emptyResponse(204))
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', fetchImpl })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl })
     const result = await adapter.executeMutation!({
       source: makeSource(),
       capabilityName: 'members.remove',
@@ -617,7 +645,7 @@ describe('tangle-id adapter executeMutation routing', () => {
   })
 
   it('rejects unknown mutation capability', async () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x' })
+    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
     await expect(
       adapter.executeMutation!({
         source: makeSource(),

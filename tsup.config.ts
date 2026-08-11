@@ -12,6 +12,7 @@ export default defineConfig({
     'connectors/adapters/index': 'src/connectors/adapters/index.ts',
     'connect/index': 'src/connect/index.ts',
     'middleware/index': 'src/middleware/index.ts',
+    idempotency: 'src/idempotency.ts',
     'webhooks/index': 'src/webhooks/index.ts',
     'conversation-events/index': 'src/conversation-events/index.ts',
     'delegated-tools/index': 'src/delegated-tools/index.ts',

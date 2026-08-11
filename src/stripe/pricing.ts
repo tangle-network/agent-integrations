@@ -21,6 +21,7 @@
  */
 
 import type { StripeClient } from './tenant-config.js'
+import { assertNoProductFreeTrial } from '../billing-access-policy.js'
 
 export interface PricingPlanFeature {
   /** Short label rendered in pricing table rows. */
@@ -52,8 +53,10 @@ export interface PricingPlan {
     monthly?: string
     yearly?: string
   }
-  /** Optional trial-day grant. The dispatcher writes `trialEnd` based
-   *  on Stripe's response; this field is only the request-time intent. */
+  /**
+   * Legacy compatibility field. Positive values are rejected because
+   * product-funded free trials are disabled.
+   */
   trialDays?: number
   /** Optional metadata threaded into Stripe Subscription metadata — the
    *  product can use these for analytics or grant-feature lookup. */
@@ -95,7 +98,7 @@ export interface CreateCheckoutUrlInput {
    *  `${workspaceId}:${plan.id}:${billing}`) so the same user clicking
    *  twice gets the same checkout session. */
   idempotencyKey: string
-  /** Trial override — if set, beats `plan.trialDays`. */
+  /** Legacy compatibility field. Positive values are rejected. */
   trialDays?: number
   /** Optional extra metadata mixed into Stripe metadata. */
   metadata?: Record<string, string>
@@ -124,9 +127,22 @@ export async function createCheckoutUrl(
   client: StripeClient,
   input: CreateCheckoutUrlInput,
 ): Promise<CheckoutUrl> {
+  if (!input.workspaceId.trim()) throw new Error('pricing: workspaceId is required')
+  if (!input.plan.id.trim() || !input.plan.name.trim()) throw new Error('pricing: plan id and name are required')
+  if (!input.idempotencyKey.trim()) throw new Error('pricing: idempotencyKey is required')
   const priceId = input.plan.stripePriceIds[input.billing]
   if (!priceId) {
     throw new Error(`pricing: plan '${input.plan.id}' has no Stripe price for cadence '${input.billing}'`)
+  }
+  if (!/^price_[A-Za-z0-9_]+$/.test(priceId)) {
+    throw new Error(`pricing: invalid Stripe price id '${priceId}'`)
+  }
+  if (!client.config.approvedPriceIds?.includes(priceId)) {
+    throw new Error(`pricing: Stripe price '${priceId}' is not approved for product '${client.productId}'`)
+  }
+  const planUsd = input.billing === 'monthly' ? input.plan.monthlyUsd : input.plan.yearlyUsd
+  if (typeof planUsd !== 'number' || !Number.isFinite(planUsd) || planUsd <= 0) {
+    throw new Error(`pricing: ${input.billing} price must be greater than zero`)
   }
   const successUrl = input.successUrl ?? client.config.successUrl
   const cancelUrl = input.cancelUrl ?? client.config.cancelUrl
@@ -135,6 +151,7 @@ export async function createCheckoutUrl(
   }
 
   const trialDays = input.trialDays ?? input.plan.trialDays
+  assertNoProductFreeTrial(trialDays)
   const body: Record<string, string | number | boolean | undefined> = {
     mode: 'subscription',
     success_url: successUrl,
@@ -148,12 +165,12 @@ export async function createCheckoutUrl(
   }
   if (input.customerId) body.customer = input.customerId
   if (input.customerEmail && !input.customerId) body.customer_email = input.customerEmail
-  if (trialDays && trialDays > 0) {
-    body['subscription_data[trial_period_days]'] = trialDays
-  }
   // Mix in plan-defined metadata + caller-supplied metadata.
   const extra = { ...(input.plan.metadata ?? {}), ...(input.metadata ?? {}) }
   for (const [k, v] of Object.entries(extra)) {
+    if (k === 'workspaceId' || k === 'planId') {
+      throw new Error(`pricing: metadata key '${k}' is reserved`)
+    }
     body[`metadata[${k}]`] = v
     body[`subscription_data[metadata][${k}]`] = v
   }

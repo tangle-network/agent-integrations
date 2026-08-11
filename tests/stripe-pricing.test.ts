@@ -16,7 +16,6 @@ const plans: PricingPlan[] = [
     yearlyUsd: 290,
     features: [{ label: 'unlimited', included: true }],
     stripePriceIds: { monthly: 'price_pro_m', yearly: 'price_pro_y' },
-    trialDays: 14,
   },
   {
     id: 'starter',
@@ -49,6 +48,7 @@ describe('createCheckoutUrl', () => {
           productId: 'legal' as const,
           secretKey: 'sk',
           webhookSecret: 'wh',
+          approvedPriceIds: ['price_pro_m', 'price_pro_y', 'price_starter_m'],
           successUrl: 'https://app/success',
           cancelUrl: 'https://app/cancel',
         },
@@ -91,6 +91,7 @@ describe('createCheckoutUrl', () => {
     expect(params.get('subscription_data[metadata][workspaceId]')).toBe('ws_1')
     expect(params.get('metadata[planId]')).toBe('pro')
     expect(params.get('subscription_data[metadata][planId]')).toBe('pro')
+    expect(params.get('subscription_data[trial_period_days]')).toBeNull()
   })
 
   it('threads through caller metadata into both maps', async () => {
@@ -108,29 +109,46 @@ describe('createCheckoutUrl', () => {
     expect(params.get('subscription_data[metadata][campaign]')).toBe('launch-q1')
   })
 
-  it('uses plan.trialDays when no per-call override', async () => {
+  it.each(['workspaceId', 'planId'])('rejects caller metadata that overrides %s', async (key) => {
     const captured: { body?: string } = {}
     const { client } = clientWithCapture(captured)
-    await createCheckoutUrl(client, {
-      workspaceId: 'ws',
+    await expect(createCheckoutUrl(client, {
+      workspaceId: 'ws_2',
       plan: plans[0],
       billing: 'monthly',
-      idempotencyKey: 'i',
-    })
-    expect(new URLSearchParams(captured.body).get('subscription_data[trial_period_days]')).toBe('14')
+      idempotencyKey: 'idem',
+      metadata: { [key]: 'other-owner' },
+    })).rejects.toThrow(/metadata key .* reserved/)
+    expect(captured.body).toBeUndefined()
   })
 
-  it('per-call trialDays beats plan.trialDays', async () => {
+  it('rejects a legacy plan trial before reaching Stripe', async () => {
     const captured: { body?: string } = {}
     const { client } = clientWithCapture(captured)
-    await createCheckoutUrl(client, {
-      workspaceId: 'ws',
-      plan: plans[0],
-      billing: 'monthly',
-      idempotencyKey: 'i',
-      trialDays: 30,
-    })
-    expect(new URLSearchParams(captured.body).get('subscription_data[trial_period_days]')).toBe('30')
+    await expect(
+      createCheckoutUrl(client, {
+        workspaceId: 'ws',
+        plan: { ...plans[0], trialDays: 14 },
+        billing: 'monthly',
+        idempotencyKey: 'i',
+      }),
+    ).rejects.toThrow(/product-funded free trials are disabled/)
+    expect(captured.body).toBeUndefined()
+  })
+
+  it('rejects a per-call trial before reaching Stripe', async () => {
+    const captured: { body?: string } = {}
+    const { client } = clientWithCapture(captured)
+    await expect(
+      createCheckoutUrl(client, {
+        workspaceId: 'ws',
+        plan: plans[0],
+        billing: 'monthly',
+        idempotencyKey: 'i',
+        trialDays: 30,
+      }),
+    ).rejects.toThrow(/product-funded free trials are disabled/)
+    expect(captured.body).toBeUndefined()
   })
 
   it('throws when the plan has no price for the requested cadence', async () => {
@@ -147,7 +165,7 @@ describe('createCheckoutUrl', () => {
   })
 
   it('throws when neither per-call nor tenant config has successUrl/cancelUrl', async () => {
-    const client = buildStripeClient({ productId: 'tax', secretKey: 'sk', webhookSecret: 'wh' })
+    const client = buildStripeClient({ productId: 'tax', secretKey: 'sk', webhookSecret: 'wh', approvedPriceIds: ['price_pro_m'] })
     await expect(
       createCheckoutUrl(client, {
         workspaceId: 'w',
@@ -169,6 +187,32 @@ describe('createCheckoutUrl', () => {
       customerId: 'cus_42',
     })
     expect(new URLSearchParams(captured.body).get('customer')).toBe('cus_42')
+  })
+
+  it('rejects an unapproved Stripe price before reaching Stripe', async () => {
+    const captured: { body?: string } = {}
+    const { client } = clientWithCapture(captured)
+    const unapproved = { ...plans[0], stripePriceIds: { monthly: 'price_unapproved' } }
+    await expect(createCheckoutUrl(client, {
+      workspaceId: 'w',
+      plan: unapproved,
+      billing: 'monthly',
+      idempotencyKey: 'i',
+    })).rejects.toThrow(/not approved/)
+    expect(captured.body).toBeUndefined()
+  })
+
+  it.each([0, -1])('rejects a %s-dollar plan before reaching Stripe', async (amount) => {
+    const captured: { body?: string } = {}
+    const { client } = clientWithCapture(captured)
+    const zeroPlan = { ...plans[0], monthlyUsd: amount }
+    await expect(createCheckoutUrl(client, {
+      workspaceId: 'w',
+      plan: zeroPlan,
+      billing: 'monthly',
+      idempotencyKey: 'i',
+    })).rejects.toThrow(/greater than zero/)
+    expect(captured.body).toBeUndefined()
   })
 })
 

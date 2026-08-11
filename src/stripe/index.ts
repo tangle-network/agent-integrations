@@ -7,7 +7,7 @@
  *   webhooks.ts            — typed event dispatcher on top of WebhookRouter
  *   pricing.ts             — PricingPlan shape + checkout/portal URL helpers
  *   tenant-config.ts       — per-product Stripe key routing
- *   middleware.ts          — requireActiveSubscription + trial + free-tier
+ *   middleware.ts          — paid-subscription access checks
  *   errors.ts              — BillingError taxonomy on IntegrationRuntimeError
  *
  * Layering:

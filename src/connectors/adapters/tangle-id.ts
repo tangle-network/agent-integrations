@@ -69,6 +69,7 @@ import {
   type ConnectorInvocation,
   CredentialsExpired,
 } from '../types.js'
+import { isRealNonPlaceholderEmail } from '../../billing-access-policy.js'
 
 /** Default platform URL (matches `DEFAULT_PLATFORM_URL` in tcloud). */
 export const DEFAULT_TANGLE_PLATFORM_URL = 'https://id.tangle.tools'
@@ -81,6 +82,9 @@ const PLATFORM_FETCH_TIMEOUT_MS = 5_000
 /** API-key prefix the platform issues. Used to disambiguate token kind
  *  without a round-trip. */
 export const TANGLE_API_KEY_PREFIX = 'sk-tan-'
+
+/** Broker keys are scoped to hub execution, never user or owner identity. */
+export const TANGLE_BROKER_TOKEN_PREFIX = 'sk-tan-broker-'
 
 /** Service-token prefix. Mirrored from the platform's middleware so we
  *  can refuse to forward service tokens through the user-session path. */
@@ -125,6 +129,12 @@ export type TangleTokenVerifyResult =
       credentialId?: string
       /** Product the credential is scoped to, when known. */
       product?: string
+      /** Platform proof that a human controls a real inbox. */
+      emailVerified?: boolean
+      /** Platform-owned machine identity. */
+      servicePrincipal?: boolean
+      /** Real email when Platform returns it for this credential. */
+      email?: string
       /** Owner shape — `user` for personal credentials, `team` for
        *  team-owned API keys. Always matches the workspace's owner type. */
       ownerType: 'user' | 'team'
@@ -144,10 +154,13 @@ export type TangleTokenVerifyFailure =
   | 'unknown_kind'
   | 'service_token_refused'
   | 'malformed'
+  | 'email_verification_required'
+  | 'real_email_required'
 
 export interface TangleUserSummary {
   id: string
   email?: string
+  emailVerified?: boolean
   name?: string | null
   image?: string | null
 }
@@ -473,14 +486,31 @@ export interface TangleInvitationSummary {
 export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): TangleIdentityClient {
   const baseUrl = (opts.baseUrl ?? DEFAULT_TANGLE_PLATFORM_URL).replace(/\/+$/, '')
   const serviceToken = opts.serviceToken
-  const serviceName = opts.serviceName ?? 'integrations'
+  const serviceName = opts.serviceName?.trim()
   const fetchImpl = opts.fetchImpl ?? fetch
   const timeoutMs = opts.timeoutMs ?? PLATFORM_FETCH_TIMEOUT_MS
+
+  if (
+    serviceToken &&
+    (!serviceToken.startsWith(TANGLE_SERVICE_TOKEN_PREFIX) || serviceToken.length <= TANGLE_SERVICE_TOKEN_PREFIX.length)
+  ) {
+    throw new TangleIdentityUnreachableError('tangle-id: serviceToken must start with svc_')
+  }
+  if (serviceToken && !serviceName) {
+    throw new TangleIdentityUnreachableError(
+      'tangle-id: serviceName is required for service-to-service calls',
+    )
+  }
 
   function s2sHeaders(): Record<string, string> {
     if (!serviceToken) {
       throw new TangleIdentityUnreachableError(
         'tangle-id: serviceToken is required for service-to-service calls (verify, get_user, list_workspaces, revoke)',
+      )
+    }
+    if (!serviceName) {
+      throw new TangleIdentityUnreachableError(
+        'tangle-id: serviceName is required for service-to-service calls',
       )
     }
     return {
@@ -543,6 +573,10 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
           product?: string
           allowedModels?: unknown
           expiresAt?: string
+          emailVerified?: boolean
+          emailVerificationRequired?: boolean
+          servicePrincipal?: boolean
+          email?: string
         }
       | null
     if (!body || typeof body.valid !== 'boolean') {
@@ -550,6 +584,15 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
     }
     if (!body.valid || !body.userId) {
       return { valid: false, reason: 'revoked' }
+    }
+    if (body.emailVerificationRequired === true) {
+      return { valid: false, reason: 'email_verification_required' }
+    }
+    if (body.servicePrincipal !== true && body.emailVerified !== true) {
+      return { valid: false, reason: 'email_verification_required' }
+    }
+    if (body.servicePrincipal !== true && !isRealNonPlaceholderEmail(body.email)) {
+      return { valid: false, reason: 'real_email_required' }
     }
     const scopes = Array.isArray(body.allowedModels)
       ? body.allowedModels.filter((value): value is string => typeof value === 'string')
@@ -565,10 +608,13 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
       userId: body.userId,
       workspaceId: body.ownerType === 'team' && body.ownerId ? body.ownerId : body.userId,
       ownerType: body.ownerType ?? 'user',
+      emailVerified: body.emailVerified === true,
       scopes,
       ...(Number.isFinite(expiresAt) ? { expiresAt: expiresAt as number } : {}),
       ...(body.keyId ? { credentialId: body.keyId } : {}),
       ...(body.product ? { product: body.product } : {}),
+      ...(body.email ? { email: body.email } : {}),
+      ...(body.servicePrincipal !== undefined ? { servicePrincipal: body.servicePrincipal } : {}),
     }
   }
 
@@ -597,12 +643,18 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
     }
     const body = (await res.json().catch(() => null)) as
       | {
-          user?: { id?: string; email?: string }
+          user?: { id?: string; email?: string; emailVerified?: boolean }
           session?: { id?: string; expiresAt?: string; activeTeamId?: string | null }
         }
       | null
     if (!body || !body.user || typeof body.user.id !== 'string') {
       return { valid: false, reason: 'expired' }
+    }
+    if (body.user.emailVerified !== true) {
+      return { valid: false, reason: 'email_verification_required' }
+    }
+    if (!isRealNonPlaceholderEmail(body.user.email)) {
+      return { valid: false, reason: 'real_email_required' }
     }
     const expiresAtRaw = body.session?.expiresAt
     const expiresAt = expiresAtRaw ? Date.parse(expiresAtRaw) : NaN
@@ -612,6 +664,8 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
       userId: body.user.id,
       workspaceId: body.session?.activeTeamId || body.user.id,
       ownerType: body.session?.activeTeamId ? 'team' : 'user',
+      email: body.user.email,
+      emailVerified: true,
       scopes: [],
       ...(Number.isFinite(expiresAt) ? { expiresAt } : {}),
       ...(body.session?.id ? { credentialId: body.session.id } : {}),
@@ -632,6 +686,12 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         return { valid: false, reason: 'service_token_refused' }
       }
       if (token.startsWith(TANGLE_API_KEY_PREFIX)) {
+        if (token.startsWith(TANGLE_BROKER_TOKEN_PREFIX)) {
+          return { valid: false, reason: 'service_token_refused' }
+        }
+        if (token.length <= TANGLE_API_KEY_PREFIX.length) {
+          return { valid: false, reason: 'malformed' }
+        }
         return verifyApiKey(token)
       }
       // Anything else — treat as a session bearer (Better Auth-emitted
@@ -660,7 +720,16 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         )
       }
       const body = (await res.json().catch(() => null)) as
-        | { success?: boolean; data?: { id?: string; email?: string; name?: string | null; image?: string | null } }
+        | {
+            success?: boolean
+            data?: {
+              id?: string
+              email?: string
+              emailVerified?: boolean
+              name?: string | null
+              image?: string | null
+            }
+          }
         | null
       const data = body?.data
       if (!data || typeof data.id !== 'string') {
@@ -669,6 +738,7 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
       return {
         id: data.id,
         ...(typeof data.email === 'string' ? { email: data.email } : {}),
+        ...(typeof data.emailVerified === 'boolean' ? { emailVerified: data.emailVerified } : {}),
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.image !== undefined ? { image: data.image } : {}),
       }
@@ -737,6 +807,11 @@ export function createTangleIdentityClient(opts: TangleIdentityOptions = {}): Ta
         )
       }
       if (token.startsWith(TANGLE_API_KEY_PREFIX)) {
+        if (token.startsWith(TANGLE_BROKER_TOKEN_PREFIX)) {
+          throw new TangleIdentityUnreachableError(
+            'tangle-id: refusing to revoke a broker token through the user-key path',
+          )
+        }
         // We don't know the key id until we verify; do that first so
         // revoke is keyed by id (the only thing the platform's DELETE
         // /v1/keys/{id} accepts). Bad-key responses are no-ops.

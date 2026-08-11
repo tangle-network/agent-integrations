@@ -115,9 +115,9 @@ describe('applyTransition', () => {
 })
 
 describe('gateAccess', () => {
-  it('allows active and trialing without warnings', () => {
+  it('allows active but denies trialing product access', () => {
     expect(gateAccess('active')).toEqual({ allowed: true })
-    expect(gateAccess('trialing')).toEqual({ allowed: true })
+    expect(gateAccess('trialing')).toEqual({ allowed: false, reason: 'trial_expired' })
   })
 
   it('allows past_due with a dunning warning (rule: do not lock customers out mid-grace)', () => {

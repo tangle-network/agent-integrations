@@ -9,6 +9,7 @@ import {
   gdriveWebhookProvider,
   genericHmacWebhookProvider,
   hellosignWebhookProvider,
+  InMemoryWebhookIdempotencyStore,
   type WebhookEnvelope,
   type WebhookIdempotencyStore,
 } from '../src/webhooks/index'
@@ -100,13 +101,15 @@ describe('WebhookRouter', () => {
     expect(r.status).toBe(401)
   })
 
-  it('idempotency.seen short-circuits a duplicate event', async () => {
+  it('atomic idempotency claim short-circuits a duplicate event', async () => {
     const delivered: WebhookEnvelope[] = []
     const seen = new Set<string>(['evt_1'])
     const idempotency: WebhookIdempotencyStore = {
-      seen: (id) => seen.has(id),
-      remember: (id) => {
-        seen.add(id)
+      claim: (id) => {
+        const key = id.replace('stripe:id:', '')
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
       },
     }
     const router = new WebhookRouter({
@@ -131,12 +134,12 @@ describe('WebhookRouter', () => {
     expect(delivered).toHaveLength(0)
   })
 
-  it('records idempotency entries after a successful deliver', async () => {
-    const remembered: string[] = []
+  it('claims an idempotency entry before a successful deliver', async () => {
+    const claimed: string[] = []
     const idempotency: WebhookIdempotencyStore = {
-      seen: () => false,
-      remember: (id) => {
-        remembered.push(id)
+      claim: (id) => {
+        claimed.push(id)
+        return true
       },
     }
     const router = new WebhookRouter({
@@ -150,7 +153,32 @@ describe('WebhookRouter', () => {
     const sig = `t=${ts},v1=${createHmac('sha256', 'whsec_test').update(`${ts}.${body}`).digest('hex')}`
     await router.handle({ providerId: 'stripe', rawBody: body, headers: { 'stripe-signature': sig } })
     await flushMicrotasks()
-    expect(remembered).toEqual(['evt_2'])
+    expect(claimed).toEqual(['stripe:id:evt_2'])
+  })
+
+  it('delivers a duplicate webhook exactly once under 100 concurrent requests', async () => {
+    const delivered: WebhookEnvelope[] = []
+    const router = new WebhookRouter({
+      providers: [stripeWebhookProvider],
+      deliver: async (event) => {
+        await Promise.resolve()
+        delivered.push(event)
+      },
+      resolveSecret: async () => 'whsec_test',
+      idempotency: new InMemoryWebhookIdempotencyStore(),
+    })
+    const ts = Math.floor(Date.now() / 1000)
+    const body = JSON.stringify({ id: 'evt_concurrent', type: 'invoice.paid' })
+    const sig = `t=${ts},v1=${createHmac('sha256', 'whsec_test').update(`${ts}.${body}`).digest('hex')}`
+    const request = {
+      providerId: 'stripe',
+      rawBody: body,
+      headers: { 'stripe-signature': sig },
+    }
+    const responses = await Promise.all(Array.from({ length: 100 }, () => router.handle(request)))
+    expect(responses.filter((response) => (response.body as { received?: number }).received === 1)).toHaveLength(1)
+    await flushMicrotasks()
+    expect(delivered).toHaveLength(1)
   })
 
   it('routes a DocuSeal webhook end-to-end', async () => {

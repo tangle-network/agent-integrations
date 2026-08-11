@@ -35,6 +35,12 @@ export type BillingErrorCode =
   | 'subscription_past_due'
   | 'trial_expired'
   | 'free_tier_exhausted'
+  | 'platform_evidence_required'
+  | 'platform_evidence_subject_mismatch'
+  | 'email_verification_required'
+  | 'real_email_required'
+  | 'paid_evidence_required'
+  | 'product_free_credits_disabled'
   | 'tenant_not_configured'
   | 'webhook_secret_missing'
   | 'webhook_event_unknown'
@@ -95,6 +101,12 @@ function mapToIntegrationCode(code: BillingErrorCode): IntegrationRuntimeError['
     case 'subscription_past_due':
     case 'trial_expired':
     case 'free_tier_exhausted':
+    case 'platform_evidence_required':
+    case 'platform_evidence_subject_mismatch':
+    case 'email_verification_required':
+    case 'real_email_required':
+    case 'paid_evidence_required':
+    case 'product_free_credits_disabled':
       return 'action_denied'
     case 'tenant_not_configured':
       return 'provider_error'
@@ -113,6 +125,12 @@ function statusForBillingCode(code: BillingErrorCode): number {
     case 'subscription_past_due':
     case 'trial_expired':
     case 'free_tier_exhausted':
+    case 'platform_evidence_required':
+    case 'platform_evidence_subject_mismatch':
+    case 'email_verification_required':
+    case 'real_email_required':
+    case 'paid_evidence_required':
+    case 'product_free_credits_disabled':
       return 403
     case 'tenant_not_configured':
       return 500
@@ -135,6 +153,13 @@ function defaultUserAction(code: BillingErrorCode): IntegrationUserAction | unde
       return { type: 'change_request', label: 'Choose a plan' }
     case 'free_tier_exhausted':
       return { type: 'change_request', label: 'Upgrade for more usage' }
+    case 'platform_evidence_required':
+    case 'platform_evidence_subject_mismatch':
+    case 'email_verification_required':
+    case 'real_email_required':
+    case 'paid_evidence_required':
+    case 'product_free_credits_disabled':
+      return { type: 'change_request', label: 'Verify access to continue' }
     case 'tenant_not_configured':
     case 'webhook_secret_missing':
       return { type: 'contact_support', label: 'Contact support' }

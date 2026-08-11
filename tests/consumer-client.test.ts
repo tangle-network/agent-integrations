@@ -123,6 +123,18 @@ describe('IntegrationHubClient — construction', () => {
         auth: { mode: 'user-key', apiKey: '' },
       }),
     ).toThrow(/apiKey/)
+    expect(() =>
+      createIntegrationHubClient({
+        product: 'blueprint-agent',
+        auth: { mode: 'user-key', apiKey: 'sk-other-key' },
+      }),
+    ).toThrow(/apiKey/)
+    expect(() =>
+      createIntegrationHubClient({
+        product: 'blueprint-agent',
+        auth: { mode: 'user-key', apiKey: 'sk-tan-broker-owner' },
+      }),
+    ).toThrow(/apiKey/)
   })
 
   it('trims a trailing slash off the endpoint', async () => {
@@ -383,12 +395,27 @@ describe('user-key auth mode', () => {
     const client = createIntegrationHubClient({
       product: 'blueprint-agent',
       auth: { mode: 'user-key', apiKey: 'sk-tan-userkey' },
+      ownerPolicy: { authorize: ({ userId }) => userId === 'usr_1' },
       fetchImpl: fn,
     })
     await client.resolveManifest({ userId: 'usr_1', manifest: manifest() })
     expect(calls[0].headers.get('authorization')).toBe('Bearer sk-tan-userkey')
     expect(calls[0].headers.get('x-service-name')).toBeNull()
     expect(calls[0].headers.get('x-platform-user-id')).toBeNull()
+  })
+
+  it('fails closed for a user claim without an owner policy', async () => {
+    const { fn } = mockFetch(() => ok(resolution('ready')))
+    const client = createIntegrationHubClient({
+      product: 'blueprint-agent',
+      auth: { mode: 'user-key', apiKey: 'sk-tan-userkey' },
+      fetchImpl: fn,
+    })
+    await expect(client.resolveManifest({ userId: 'usr_1', manifest: manifest() })).rejects.toMatchObject({
+      code: 'owner_policy_denied',
+      status: 403,
+    })
+    expect(fn).not.toHaveBeenCalled()
   })
 })
 

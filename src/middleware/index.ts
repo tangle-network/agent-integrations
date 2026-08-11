@@ -46,6 +46,7 @@ import {
   type TangleTokenVerifyFailure,
   type TangleTokenVerifyResult,
 } from '../connectors/adapters/tangle-id.js'
+import { isRealNonPlaceholderEmail } from '../billing-access-policy.js'
 
 /** Auth context the middleware attaches to the request on success. */
 export interface TangleAuthContext {
@@ -61,6 +62,12 @@ export interface TangleAuthContext {
   ownerType: 'user' | 'team'
   /** Product the credential is scoped to, when known. */
   product?: string
+  /** Platform proof that this identity passed email policy. */
+  emailVerified?: boolean
+  /** Real email returned by Platform when available. */
+  email?: string
+  /** Platform-created machine principal. */
+  servicePrincipal?: boolean
 }
 
 export type TangleAuthOutcome =
@@ -114,6 +121,7 @@ export async function requireTangleAuth(
           workspaceId: '',
           scopes: [],
           kind: 'session',
+          emailVerified: false,
           ownerType: 'user',
         },
       }
@@ -136,6 +144,13 @@ export async function requireTangleAuth(
     return { ok: false, status, reason: result.reason }
   }
 
+  if (!result.servicePrincipal && result.emailVerified !== true) {
+    return { ok: false, status: 403, reason: 'email_verification_required' }
+  }
+  if (!result.servicePrincipal && !isRealNonPlaceholderEmail(result.email)) {
+    return { ok: false, status: 403, reason: 'real_email_required' }
+  }
+
   return {
     ok: true,
     auth: {
@@ -144,6 +159,9 @@ export async function requireTangleAuth(
       scopes: result.scopes,
       kind: result.kind,
       ownerType: result.ownerType,
+      ...(result.emailVerified !== undefined ? { emailVerified: result.emailVerified } : {}),
+      ...(result.email ? { email: result.email } : {}),
+      ...(result.servicePrincipal !== undefined ? { servicePrincipal: result.servicePrincipal } : {}),
       ...(result.expiresAt !== undefined ? { expiresAt: result.expiresAt } : {}),
       ...(result.credentialId ? { credentialId: result.credentialId } : {}),
       ...(result.product ? { product: result.product } : {}),

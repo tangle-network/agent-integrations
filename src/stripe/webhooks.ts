@@ -49,6 +49,13 @@
  */
 
 import type { WebhookEnvelope } from '../webhooks/router.js'
+import {
+  FileSystemAtomicIdempotencyStore,
+  InMemoryAtomicIdempotencyStore,
+  resolveAtomicIdempotencyStore,
+  type AtomicIdempotencyStore,
+  type IdempotencyRuntime,
+} from '../idempotency.js'
 import { BillingError } from './errors.js'
 import {
   applyTransition,
@@ -94,6 +101,11 @@ interface StripeInvoicePayload {
   metadata?: Record<string, string>
 }
 
+interface StripeSubscriptionIdentity {
+  customerId: string
+  subscriptionId: string
+}
+
 interface StripeEvent {
   id: string
   type: string
@@ -111,6 +123,11 @@ interface StripeEvent {
 export type StripeBillingEvent =
   | {
       kind: 'subscription.created'
+      eventId: string
+      record: SubscriptionRecord
+    }
+  | {
+      kind: 'subscription.trial_ignored'
       eventId: string
       record: SubscriptionRecord
     }
@@ -149,6 +166,12 @@ export type StripeBillingEvent =
       amountPaid: number
     }
   | {
+      kind: 'invoice.zero_dollar_ignored'
+      eventId: string
+      invoiceId: string
+      amountPaid: number
+    }
+  | {
       kind: 'invoice.payment_failed'
       eventId: string
       record: SubscriptionRecord | null
@@ -177,6 +200,14 @@ export type StripeBillingEvent =
  *  caught by `dispatch()` and surfaced through `onError`. */
 export type StripeBillingListener = (event: StripeBillingEvent) => void | Promise<void>
 
+export interface StripeEventIdempotencyStore extends AtomicIdempotencyStore {}
+
+/** Process-local store for direct dispatcher use and tests. */
+export class InMemoryStripeEventIdempotencyStore extends InMemoryAtomicIdempotencyStore implements StripeEventIdempotencyStore {}
+
+/** Durable store for workers that share the same filesystem directory. */
+export class FileSystemStripeEventIdempotencyStore extends FileSystemAtomicIdempotencyStore implements StripeEventIdempotencyStore {}
+
 export interface StripeBillingDispatcherOptions {
   store: SubscriptionStore
   /** Maps a Stripe `customer.id` → the workspaceId the product uses to
@@ -199,6 +230,12 @@ export interface StripeBillingDispatcherOptions {
   now?(): number
   /** Max retries on `saveIfVersion` contention. Default 3. */
   maxCasRetries?: number
+  /** Separate atomic event store for direct dispatcher calls. */
+  idempotency?: StripeEventIdempotencyStore
+  /** Runtime controls the safe default. Production fails closed without a
+   *  shared store; test/development use an in-memory store when omitted. */
+  runtime?: IdempotencyRuntime
+  idempotencyTtlMs?: number
 }
 
 /* ---------------------------------------------------------------------- */
@@ -216,6 +253,8 @@ export class StripeBillingDispatcher {
   private readonly onError: NonNullable<StripeBillingDispatcherOptions['onError']>
   private readonly now: () => number
   private readonly maxCasRetries: number
+  private readonly idempotency: StripeEventIdempotencyStore
+  private readonly idempotencyTtlMs: number
 
   constructor(opts: StripeBillingDispatcherOptions) {
     this.store = opts.store
@@ -224,6 +263,12 @@ export class StripeBillingDispatcher {
     this.onError = opts.onError ?? defaultOnError
     this.now = opts.now ?? Date.now
     this.maxCasRetries = opts.maxCasRetries ?? 3
+    this.idempotency = resolveAtomicIdempotencyStore({
+      component: 'StripeBillingDispatcher',
+      store: opts.idempotency,
+      runtime: opts.runtime,
+    })
+    this.idempotencyTtlMs = opts.idempotencyTtlMs ?? 7 * 24 * 60 * 60 * 1000
   }
 
   /** Drive one envelope through the pipeline. Idempotent w.r.t. the
@@ -237,8 +282,21 @@ export class StripeBillingDispatcher {
       })
       return
     }
+    if (!(await this.idempotency.claim(evt.id, this.idempotencyTtlMs))) {
+      await this.emit({ kind: 'event_replay', eventId: evt.id, type: evt.type })
+      return
+    }
     try {
       await this.handle(evt)
+    } catch (err) {
+      await this.idempotency.release?.(evt.id)
+      this.onError(err, { eventId: evt.id, type: evt.type })
+      return
+    }
+    // Retain the durable replay claim, but clear process-local ownership so a
+    // later delivery can reclaim the key after the configured TTL.
+    try {
+      await this.idempotency.complete?.(evt.id)
     } catch (err) {
       this.onError(err, { eventId: evt.id, type: evt.type })
     }
@@ -272,13 +330,18 @@ export class StripeBillingDispatcher {
 
   private async handleSubCreated(evt: StripeEvent): Promise<void> {
     const sub = evt.data.object as StripeSubscriptionPayload
+    const identity = subscriptionIdentity(sub)
+    if (!identity) return this.emitUnbound(evt, 'subscription event is missing customer or subscription id')
     const workspaceId = await this.resolveWorkspaceId({
-      customerId: sub.customer,
+      customerId: identity.customerId,
       subscriptionMetadata: sub.metadata,
     })
     if (!workspaceId) return this.emitNoWorkspace(evt)
 
     const existing = await this.store.load(workspaceId)
+    if (existing && !matchesSubscription(existing, identity)) {
+      return this.emitUnbound(evt, 'subscription identity does not match the workspace record')
+    }
     if (existing && existing.lastEventId === evt.id) {
       return this.emit({ kind: 'event_replay', eventId: evt.id, type: evt.type })
     }
@@ -296,8 +359,8 @@ export class StripeBillingDispatcher {
 
     const record = makeSubscriptionRecord({
       workspaceId,
-      customerId: sub.customer,
-      subscriptionId: sub.id,
+      customerId: identity.customerId,
+      subscriptionId: identity.subscriptionId,
       state: parseState(sub.status, evt.id),
       priceId: extractPriceId(sub),
       currentPeriodEnd: sub.current_period_end ?? null,
@@ -308,14 +371,20 @@ export class StripeBillingDispatcher {
     const stamped: SubscriptionRecord = { ...record, lastEventId: evt.id }
     const expectedVersion = existing?.version ?? 0
     const written = await this.cas(stamped, expectedVersion)
-    if (!written) return
-    await this.emit({ kind: 'subscription.created', eventId: evt.id, record: stamped })
+    if (!written) return this.emitUnbound(evt, 'subscription create lost a concurrent compare-and-set')
+    await this.emit(
+      stamped.state === 'trialing'
+        ? { kind: 'subscription.trial_ignored', eventId: evt.id, record: stamped }
+        : { kind: 'subscription.created', eventId: evt.id, record: stamped },
+    )
   }
 
   private async handleSubUpdated(evt: StripeEvent): Promise<void> {
     const sub = evt.data.object as StripeSubscriptionPayload
+    const identity = subscriptionIdentity(sub)
+    if (!identity) return this.emitUnbound(evt, 'subscription event is missing customer or subscription id')
     const workspaceId = await this.resolveWorkspaceId({
-      customerId: sub.customer,
+      customerId: identity.customerId,
       subscriptionMetadata: sub.metadata,
     })
     if (!workspaceId) return this.emitNoWorkspace(evt)
@@ -337,15 +406,20 @@ export class StripeBillingDispatcher {
       )
       return {
         next,
-        emit: { kind: 'subscription.updated', eventId: evt.id, previousState: current.state, record: next },
+        emit:
+          nextState === 'trialing'
+            ? { kind: 'subscription.trial_ignored', eventId: evt.id, record: next }
+            : { kind: 'subscription.updated', eventId: evt.id, previousState: current.state, record: next },
       }
-    })
+    }, identity)
   }
 
   private async handleSubDeleted(evt: StripeEvent): Promise<void> {
     const sub = evt.data.object as StripeSubscriptionPayload
+    const identity = subscriptionIdentity(sub)
+    if (!identity) return this.emitUnbound(evt, 'subscription event is missing customer or subscription id')
     const workspaceId = await this.resolveWorkspaceId({
-      customerId: sub.customer,
+      customerId: identity.customerId,
       subscriptionMetadata: sub.metadata,
     })
     if (!workspaceId) return this.emitNoWorkspace(evt)
@@ -362,18 +436,23 @@ export class StripeBillingDispatcher {
         next,
         emit: { kind: 'subscription.deleted', eventId: evt.id, record: next },
       }
-    })
+    }, identity)
   }
 
   private async handleTrialWillEnd(evt: StripeEvent): Promise<void> {
     const sub = evt.data.object as StripeSubscriptionPayload
+    const identity = subscriptionIdentity(sub)
+    if (!identity) return this.emitUnbound(evt, 'subscription event is missing customer or subscription id')
     const workspaceId = await this.resolveWorkspaceId({
-      customerId: sub.customer,
+      customerId: identity.customerId,
       subscriptionMetadata: sub.metadata,
     })
     if (!workspaceId) return this.emitNoWorkspace(evt)
     const current = await this.store.load(workspaceId)
     if (!current) return this.emitNoWorkspace(evt)
+    if (!matchesSubscription(current, identity)) {
+      return this.emitUnbound(evt, 'subscription identity does not match the workspace record')
+    }
     if (current.lastEventId === evt.id) {
       return this.emit({ kind: 'event_replay', eventId: evt.id, type: evt.type })
     }
@@ -387,7 +466,7 @@ export class StripeBillingDispatcher {
       updatedAt: this.now(),
     }
     const written = await this.cas(next, current.version)
-    if (!written) return
+    if (!written) return this.emitUnbound(evt, 'trial update lost a concurrent compare-and-set')
     await this.emit({
       kind: 'subscription.trial_will_end',
       eventId: evt.id,
@@ -398,8 +477,10 @@ export class StripeBillingDispatcher {
 
   private async handleSubLifecycle(evt: StripeEvent, target: SubscriptionState): Promise<void> {
     const sub = evt.data.object as StripeSubscriptionPayload
+    const identity = subscriptionIdentity(sub)
+    if (!identity) return this.emitUnbound(evt, 'subscription event is missing customer or subscription id')
     const workspaceId = await this.resolveWorkspaceId({
-      customerId: sub.customer,
+      customerId: identity.customerId,
       subscriptionMetadata: sub.metadata,
     })
     if (!workspaceId) return this.emitNoWorkspace(evt)
@@ -410,36 +491,56 @@ export class StripeBillingDispatcher {
       const next = applyTransition(current, { state: target }, { eventId: evt.id, now: this.now })
       const kind = target === 'paused' ? 'subscription.paused' : 'subscription.resumed'
       return { next, emit: { kind, eventId: evt.id, record: next } }
-    })
+    }, identity)
   }
 
   /* ----------------------- invoice event handlers ---------------------- */
 
   private async handleInvoicePaid(evt: StripeEvent): Promise<void> {
     const inv = evt.data.object as StripeInvoicePayload
+    if (!invoiceIdentity(inv)) return this.emitUnbound(evt, 'paid invoice is missing customer or invoice id')
     const workspaceId = await this.resolveWorkspaceId({
       customerId: inv.customer ?? '',
       invoiceMetadata: inv.metadata,
     })
-    let record: SubscriptionRecord | null = null
-    if (workspaceId) record = await this.store.load(workspaceId)
+    const amountPaid = typeof inv.amount_paid === 'number' && Number.isFinite(inv.amount_paid) ? inv.amount_paid : 0
+    if (amountPaid <= 0) {
+      await this.emit({
+        kind: 'invoice.zero_dollar_ignored',
+        eventId: evt.id,
+        invoiceId: inv.id,
+        amountPaid,
+      })
+      return
+    }
+    if (!workspaceId) return this.emitNoWorkspace(evt)
+    const record = await this.store.load(workspaceId)
+    if (!record) return this.emitUnbound(evt, 'paid invoice has no subscription record')
+    if (record.customerId !== inv.customer || (inv.subscription && record.subscriptionId !== inv.subscription)) {
+      return this.emitUnbound(evt, 'paid invoice identity does not match the workspace record')
+    }
     await this.emit({
       kind: 'invoice.paid',
       eventId: evt.id,
       record,
       invoiceId: inv.id,
-      amountPaid: inv.amount_paid ?? 0,
+      amountPaid,
     })
   }
 
   private async handleInvoicePaymentFailed(evt: StripeEvent): Promise<void> {
     const inv = evt.data.object as StripeInvoicePayload
+    if (!invoiceIdentity(inv)) return this.emitUnbound(evt, 'failed invoice is missing customer or invoice id')
     const workspaceId = await this.resolveWorkspaceId({
       customerId: inv.customer ?? '',
       invoiceMetadata: inv.metadata,
     })
-    let record: SubscriptionRecord | null = null
-    if (workspaceId) record = await this.store.load(workspaceId)
+    if (!workspaceId) return this.emitNoWorkspace(evt)
+    const record = await this.store.load(workspaceId)
+    if (!record) return this.emitUnbound(evt, 'failed invoice has no subscription record')
+    if (record.customerId !== inv.customer || (inv.subscription && record.subscriptionId !== inv.subscription)) {
+      return this.emitUnbound(evt, 'failed invoice identity does not match the workspace record')
+    }
     await this.emit({
       kind: 'invoice.payment_failed',
       eventId: evt.id,
@@ -454,15 +555,20 @@ export class StripeBillingDispatcher {
   /** Load, apply a transformation, CAS-write. The transformation may
    *  return 'replay' / 'out_of_order' for the dispatcher to emit
    *  diagnostic events instead. Retries on contention up to
-   *  `maxCasRetries`; if exhausted, emits via `onError`. */
+   *  `maxCasRetries`; if exhausted, throws so the event claim is released
+   *  and the provider can retry. */
   private async advance(
     evt: StripeEvent,
     workspaceId: string,
     transform: (current: SubscriptionRecord) => { next: SubscriptionRecord; emit: StripeBillingEvent } | 'replay' | 'out_of_order',
+    identity?: StripeSubscriptionIdentity,
   ): Promise<void> {
     for (let attempt = 0; attempt < this.maxCasRetries; attempt++) {
       const current = await this.store.load(workspaceId)
       if (!current) return this.emitNoWorkspace(evt)
+      if (identity && !matchesSubscription(current, identity)) {
+        return this.emitUnbound(evt, 'subscription identity does not match the workspace record')
+      }
       const result = transform(current)
       if (result === 'replay') {
         return this.emit({ kind: 'event_replay', eventId: evt.id, type: evt.type })
@@ -478,19 +584,17 @@ export class StripeBillingDispatcher {
       const written = await this.store.saveIfVersion(result.next, current.version)
       if (written) return this.emit(result.emit)
     }
-    this.onError(new BillingError({
+    throw new BillingError({
       code: 'webhook_event_unknown',
       message: `CAS contention exhausted after ${this.maxCasRetries} attempts`,
       context: { workspaceId, eventId: evt.id },
-    }), { eventId: evt.id, type: evt.type })
+    })
   }
 
   private async cas(record: SubscriptionRecord, expectedVersion: number): Promise<boolean> {
-    for (let attempt = 0; attempt < this.maxCasRetries; attempt++) {
-      const ok = await this.store.saveIfVersion(record, expectedVersion + attempt)
-      if (ok) return true
-    }
-    return false
+    // The record was built from one loaded version. Retrying it against a
+    // newer expected version would overwrite another event with stale state.
+    return this.store.saveIfVersion(record, expectedVersion)
   }
 
   private async emit(event: StripeBillingEvent): Promise<void> {
@@ -513,6 +617,15 @@ export class StripeBillingDispatcher {
       reason: 'workspaceId could not be resolved from event payload',
     })
   }
+
+  private emitUnbound(evt: StripeEvent, reason: string): Promise<void> {
+    return this.emit({
+      kind: 'event_dropped_out_of_order',
+      eventId: evt.id,
+      type: evt.type,
+      reason,
+    })
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -531,6 +644,26 @@ function defaultResolveWorkspaceId(input: { subscriptionMetadata?: Record<string
   if (sub) return sub
   const inv = input.invoiceMetadata?.workspaceId
   return inv ?? null
+}
+
+function subscriptionIdentity(value: unknown): StripeSubscriptionIdentity | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as { customer?: unknown; id?: unknown }
+  if (typeof candidate.customer !== 'string' || !candidate.customer.trim()) return null
+  if (typeof candidate.id !== 'string' || !candidate.id.trim()) return null
+  return { customerId: candidate.customer, subscriptionId: candidate.id }
+}
+
+function invoiceIdentity(value: unknown): { customer: string; id: string } | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as { customer?: unknown; id?: unknown }
+  if (typeof candidate.customer !== 'string' || !candidate.customer.trim()) return null
+  if (typeof candidate.id !== 'string' || !candidate.id.trim()) return null
+  return { customer: candidate.customer, id: candidate.id }
+}
+
+function matchesSubscription(record: SubscriptionRecord, identity: StripeSubscriptionIdentity): boolean {
+  return record.customerId === identity.customerId && record.subscriptionId === identity.subscriptionId
 }
 
 function defaultOnError(err: unknown, context: { eventId: string; type: string }): void {

@@ -43,10 +43,16 @@
 import {
   createTangleIdentityClient,
   DEFAULT_TANGLE_PLATFORM_URL,
+  TANGLE_API_KEY_PREFIX,
+  TANGLE_BROKER_TOKEN_PREFIX,
   TangleIdentityUnreachableError,
   type TangleIdentityOptions,
   type TangleUserSummary,
 } from '../connectors/adapters/tangle-id.js'
+import {
+  isRealNonPlaceholderEmail,
+  PLATFORM_ACCESS_POLICY_VERSION,
+} from '../billing-access-policy.js'
 
 export interface ConnectFlowOptions extends TangleIdentityOptions {
   /** Base URL of id.tangle.tools (defaults to {@link DEFAULT_TANGLE_PLATFORM_URL}). */
@@ -89,6 +95,8 @@ export interface FinishConnectOutput {
   user: TangleUserSummary
   /** Initial balance the platform returns alongside the key. */
   balance: number
+  /** Versioned proof that Platform applied its current access policy. */
+  paidAccessPolicyVersion: typeof PLATFORM_ACCESS_POLICY_VERSION
 }
 
 /** Initiate a cross-product connect flow. Returns the URL the product
@@ -133,7 +141,11 @@ export async function finishConnectFlow(
     res = await fetchImpl(`${baseUrl}/cross-site/exchange`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code: input.code, app: input.appId }),
+      body: JSON.stringify({
+        code: input.code,
+        app: input.appId,
+        requireVerifiedEmail: true,
+      }),
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
@@ -155,22 +167,47 @@ export async function finishConnectFlow(
   const body = (await res.json().catch(() => null)) as
     | {
         apiKey?: string
-        user?: { id?: string; email?: string; name?: string | null; image?: string | null }
+        paidAccessPolicyVersion?: number
+        emailVerified?: boolean
+        user?: {
+          id?: string
+          email?: string
+          emailVerified?: boolean
+          name?: string | null
+          image?: string | null
+        }
         balance?: number
       }
     | null
-  if (!body || typeof body.apiKey !== 'string' || !body.user || typeof body.user.id !== 'string') {
-    throw new TangleIdentityUnreachableError('connect/finish: exchange response had an invalid shape')
+  if (
+    !body ||
+    typeof body.apiKey !== 'string' ||
+    !isNonEmptyTangleApiKey(body.apiKey) ||
+    body.paidAccessPolicyVersion !== PLATFORM_ACCESS_POLICY_VERSION ||
+    body.emailVerified !== true ||
+    !body.user ||
+    typeof body.user.id !== 'string' ||
+    !body.user.id.trim() ||
+    !isRealNonPlaceholderEmail(body.user.email) ||
+    body.user.emailVerified !== true ||
+    (body.balance !== undefined && (!Number.isFinite(body.balance) || body.balance < 0))
+  ) {
+    throw new TangleIdentityUnreachableError(
+      'connect/finish: Platform did not prove a verified real email and current access policy',
+      { status: 403 },
+    )
   }
   return {
     apiKey: body.apiKey,
     user: {
       id: body.user.id,
-      ...(typeof body.user.email === 'string' ? { email: body.user.email } : {}),
+      email: body.user.email,
+      emailVerified: true,
       ...(body.user.name !== undefined ? { name: body.user.name } : {}),
       ...(body.user.image !== undefined ? { image: body.user.image } : {}),
     },
     balance: typeof body.balance === 'number' && Number.isFinite(body.balance) ? body.balance : 0,
+    paidAccessPolicyVersion: PLATFORM_ACCESS_POLICY_VERSION,
   }
 }
 
@@ -179,11 +216,18 @@ export async function revokeConnectFlow(
   opts: ConnectFlowOptions,
   input: { apiKey: string },
 ): Promise<void> {
-  if (!input.apiKey) {
+  if (!isNonEmptyTangleApiKey(input.apiKey)) {
     throw new TangleIdentityUnreachableError('connect/revoke: apiKey is required')
   }
   const client = createTangleIdentityClient(opts)
   await client.revokeSession(input.apiKey)
+}
+
+function isNonEmptyTangleApiKey(value: unknown): value is string {
+  return typeof value === 'string' &&
+    value.startsWith(TANGLE_API_KEY_PREFIX) &&
+    !value.startsWith(TANGLE_BROKER_TOKEN_PREFIX) &&
+    value.length > TANGLE_API_KEY_PREFIX.length
 }
 
 /**

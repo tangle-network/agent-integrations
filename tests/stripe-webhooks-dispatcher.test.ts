@@ -79,7 +79,7 @@ describe('StripeBillingDispatcher — created', () => {
     expect(stored?.state).toBe('trialing')
     expect(stored?.lastEventId).toBe('evt_1')
     expect(captured).toHaveLength(1)
-    expect(captured[0]).toMatchObject({ kind: 'subscription.created', eventId: 'evt_1' })
+    expect(captured[0]).toMatchObject({ kind: 'subscription.trial_ignored', eventId: 'evt_1' })
   })
 
   it('drops a created event when a non-incomplete record already exists (out-of-order)', async () => {
@@ -194,6 +194,39 @@ describe('StripeBillingDispatcher — updated', () => {
       ),
     )
     expect(events[0]).toMatchObject({ kind: 'event_dropped_out_of_order' })
+  })
+
+  it('does not let a different Stripe subscription mutate the workspace record', async () => {
+    const store = new InMemorySubscriptionStore()
+    await store.save(makeSubscriptionRecord({
+      workspaceId: 'ws_1',
+      customerId: 'cus_1',
+      subscriptionId: 'sub_1',
+      state: 'active',
+      priceId: 'price_1',
+      currentPeriodEnd: 1,
+    }))
+    const events: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({
+      store,
+      listener: (event) => { events.push(event) },
+    })
+
+    await dispatcher.dispatch(makeEnvelope(
+      subEvent({
+        id: 'evt_foreign',
+        type: 'customer.subscription.updated',
+        status: 'canceled',
+        workspaceId: 'ws_1',
+        customerId: 'cus_attacker',
+        subscriptionId: 'sub_attacker',
+      }),
+      'customer.subscription.updated',
+    ))
+
+    expect((await store.load('ws_1'))?.state).toBe('active')
+    expect(events[0]).toMatchObject({ kind: 'event_dropped_out_of_order', eventId: 'evt_foreign' })
+    expect((events[0] as { reason: string }).reason).toContain('identity')
   })
 })
 
@@ -325,8 +358,96 @@ describe('StripeBillingDispatcher — invoice', () => {
     expect((events[0] as { record: SubscriptionRecord | null }).record?.workspaceId).toBe('ws_1')
   })
 
-  it('emits invoice.payment_failed and degrades to record:null when no workspaceId resolvable', async () => {
+  it('does not emit paid entitlement for a zero-dollar invoice', async () => {
+    const events: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({
+      store: new InMemorySubscriptionStore(),
+      listener: (event) => { events.push(event) },
+    })
+    await dispatcher.dispatch(makeEnvelope({
+      id: 'evt_zero',
+      type: 'invoice.paid',
+      data: { object: { id: 'in_zero', amount_paid: 0, customer: 'cus_1' } },
+    }, 'invoice.paid'))
+    expect(events).toEqual([{ kind: 'invoice.zero_dollar_ignored', eventId: 'evt_zero', invoiceId: 'in_zero', amountPaid: 0 }])
+  })
+
+  it('processes one of 100 concurrent copies of the same event', async () => {
+    const events: StripeBillingEvent[] = []
     const store = new InMemorySubscriptionStore()
+    await store.save(makeSubscriptionRecord({
+      workspaceId: 'ws_1',
+      customerId: 'cus_1',
+      subscriptionId: 'sub_1',
+      state: 'active',
+      priceId: 'price_1',
+      currentPeriodEnd: 1,
+    }))
+    const dispatcher = new StripeBillingDispatcher({
+      store,
+      listener: (event) => { events.push(event) },
+    })
+    const envelope = makeEnvelope({
+      id: 'evt_100',
+      type: 'invoice.paid',
+      data: {
+        object: {
+          id: 'in_100',
+          amount_paid: 100,
+          customer: 'cus_1',
+          subscription: 'sub_1',
+          metadata: { workspaceId: 'ws_1' },
+        },
+      },
+    }, 'invoice.paid')
+    await Promise.all(Array.from({ length: 100 }, () => dispatcher.dispatch(envelope)))
+    expect(events.filter((event) => event.kind === 'invoice.paid')).toHaveLength(1)
+  })
+
+  it('does not emit paid entitlement for a foreign invoice', async () => {
+    const store = new InMemorySubscriptionStore()
+    await store.save(makeSubscriptionRecord({
+      workspaceId: 'ws_1',
+      customerId: 'cus_1',
+      subscriptionId: 'sub_1',
+      state: 'active',
+      priceId: 'price_1',
+      currentPeriodEnd: 1,
+    }))
+    const events: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({
+      store,
+      listener: (event) => { events.push(event) },
+    })
+
+    await dispatcher.dispatch(makeEnvelope({
+      id: 'evt_foreign_invoice',
+      type: 'invoice.paid',
+      data: {
+        object: {
+          id: 'in_foreign',
+          amount_paid: 100,
+          customer: 'cus_attacker',
+          subscription: 'sub_attacker',
+          metadata: { workspaceId: 'ws_1' },
+        },
+      },
+    }, 'invoice.paid'))
+
+    expect(events.some((event) => event.kind === 'invoice.paid')).toBe(false)
+    expect(events[0]).toMatchObject({ kind: 'event_dropped_out_of_order', eventId: 'evt_foreign_invoice' })
+  })
+
+  it('emits invoice.payment_failed only for a bound subscription record', async () => {
+    const store = new InMemorySubscriptionStore()
+    await store.save(makeSubscriptionRecord({
+      workspaceId: 'ws_1',
+      customerId: 'cus_1',
+      subscriptionId: 'sub_1',
+      state: 'active',
+      priceId: 'price_1',
+      currentPeriodEnd: 1,
+    }))
     const events: StripeBillingEvent[] = []
     const dispatcher = new StripeBillingDispatcher({
       store,
@@ -339,7 +460,15 @@ describe('StripeBillingDispatcher — invoice', () => {
         {
           id: 'evt_if',
           type: 'invoice.payment_failed',
-          data: { object: { id: 'in_2', amount_due: 1000 } },
+          data: {
+            object: {
+              id: 'in_2',
+              amount_due: 1000,
+              customer: 'cus_1',
+              subscription: 'sub_1',
+              metadata: { workspaceId: 'ws_1' },
+            },
+          },
         },
         'invoice.payment_failed',
       ),
@@ -348,8 +477,22 @@ describe('StripeBillingDispatcher — invoice', () => {
       kind: 'invoice.payment_failed',
       invoiceId: 'in_2',
       amountDue: 1000,
-      record: null,
+      record: expect.objectContaining({ workspaceId: 'ws_1' }),
     })
+  })
+
+  it('drops a failed invoice when no workspace can be resolved', async () => {
+    const events: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({
+      store: new InMemorySubscriptionStore(),
+      listener: (event) => { events.push(event) },
+    })
+    await dispatcher.dispatch(makeEnvelope({
+      id: 'evt_if_unbound',
+      type: 'invoice.payment_failed',
+      data: { object: { id: 'in_unbound', amount_due: 1000, customer: 'cus_1' } },
+    }, 'invoice.payment_failed'))
+    expect(events[0]).toMatchObject({ kind: 'event_dropped_out_of_order', eventId: 'evt_if_unbound' })
   })
 })
 

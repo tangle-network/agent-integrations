@@ -11,21 +11,18 @@ import {
   stripeWebhookProvider,
   docusealWebhookProvider,
   slackWebhookProvider,
+  FileSystemWebhookIdempotencyStore,
 } from '@tangle-network/agent-integrations/webhooks'
 
-const idempotency = (() => {
-  const seen = new Set<string>()
-  return {
-    seen: (id: string) => seen.has(id),
-    remember: (id: string) => {
-      seen.add(id)
-    },
-  }
-})()
+// Every worker must mount this directory from the same durable filesystem.
+const idempotency = new FileSystemWebhookIdempotencyStore(
+  process.env.WEBHOOK_IDEMPOTENCY_DIR ?? './var/webhook-idempotency',
+)
 
 const router = new WebhookRouter({
   providers: [stripeWebhookProvider, docusealWebhookProvider, slackWebhookProvider],
   idempotency,
+  runtime: 'production',
   resolveSecret: async (providerId) => {
     // In production: pull from a secret manager keyed by the requesting
     // tenant. Headers (e.g., a Stripe Account-Id) are available to scope

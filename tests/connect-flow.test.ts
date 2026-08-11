@@ -47,7 +47,9 @@ describe('finishConnectFlow', () => {
       return new Response(
         JSON.stringify({
           apiKey: 'sk-tan-mintkey',
-          user: { id: 'usr_1', email: 'a@b.c', name: 'A B', image: null },
+          paidAccessPolicyVersion: 1,
+          emailVerified: true,
+          user: { id: 'usr_1', email: 'a@company.com', emailVerified: true, name: 'A B', image: null },
           balance: 100,
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -58,23 +60,61 @@ describe('finishConnectFlow', () => {
       { code: 'c1', appId: 'evals' },
     )
     expect(capturedUrl).toBe('https://id.example.com/cross-site/exchange')
-    expect(capturedBody).toEqual({ code: 'c1', app: 'evals' })
+    expect(capturedBody).toEqual({ code: 'c1', app: 'evals', requireVerifiedEmail: true })
     expect(out).toEqual({
       apiKey: 'sk-tan-mintkey',
-      user: { id: 'usr_1', email: 'a@b.c', name: 'A B', image: null },
+      user: { id: 'usr_1', email: 'a@company.com', emailVerified: true, name: 'A B', image: null },
       balance: 100,
+      paidAccessPolicyVersion: 1,
     })
   })
 
   it('returns balance 0 when the platform omits it (defensive default)', async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({ apiKey: 'sk-tan-k', user: { id: 'u' } }), {
+      new Response(JSON.stringify({ apiKey: 'sk-tan-k', paidAccessPolicyVersion: 1, emailVerified: true, user: { id: 'u', email: 'person@company.com', emailVerified: true } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
     )
     const out = await finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' })
     expect(out.balance).toBe(0)
+  })
+
+  it('rejects an exchange for an unverified human before returning the company key', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ apiKey: 'sk-tan-k', user: { id: 'u', emailVerified: false } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    await expect(
+      finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('rejects an exchange when the platform omits email verification', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ apiKey: 'sk-tan-k', user: { id: 'u' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    await expect(
+      finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('rejects a contradictory exchange with only top-level email verification', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({
+        apiKey: 'sk-tan-k',
+        paidAccessPolicyVersion: 1,
+        emailVerified: true,
+        user: { id: 'u', email: 'person@company.com' },
+      }), { status: 200 }),
+    )
+    await expect(finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }))
+      .rejects.toMatchObject({ status: 403 })
   })
 
   it('throws Unreachable on 401 from /cross-site/exchange (replay / expired code)', async () => {
@@ -94,6 +134,29 @@ describe('finishConnectFlow', () => {
     await expect(
       finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }),
     ).rejects.toBeInstanceOf(TangleIdentityUnreachableError)
+  })
+
+  it('rejects a non-sk-tan exchange key even when the rest of the response looks valid', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      apiKey: 'pk-live-not-a-tangle-key',
+      paidAccessPolicyVersion: 1,
+      emailVerified: true,
+      user: { id: 'u', email: 'person@company.com' },
+      balance: 100,
+    }), { status: 200 }))
+    await expect(finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }))
+      .rejects.toMatchObject({ status: 403 })
+  })
+
+  it('rejects a broker token at the user-key exchange boundary', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      apiKey: 'sk-tan-broker-not-a-user-key',
+      paidAccessPolicyVersion: 1,
+      emailVerified: true,
+      user: { id: 'u', email: 'person@company.com', emailVerified: true },
+    }), { status: 200 }))
+    await expect(finishConnectFlow({ fetchImpl }, { code: 'c', appId: 'a' }))
+      .rejects.toMatchObject({ status: 403 })
   })
 
   it('throws Unreachable on network failure', async () => {
@@ -118,14 +181,14 @@ describe('revokeConnectFlow', () => {
       const url = String(input)
       seen.push(`${init?.method ?? 'GET'} ${url.split('/').slice(3).join('/')}`)
       if (url.endsWith('/v1/keys/verify')) {
-        return new Response(JSON.stringify({ valid: true, userId: 'u', keyId: 'k1' }), {
+        return new Response(JSON.stringify({ valid: true, userId: 'u', keyId: 'k1', emailVerified: true, email: 'owner@company.com' }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         })
       }
       return new Response(null, { status: 204 })
     })
-    await revokeConnectFlow({ serviceToken: 'svc_x', fetchImpl }, { apiKey: 'sk-tan-x' })
+    await revokeConnectFlow({ serviceToken: 'svc_x', serviceName: 'test-suite', fetchImpl }, { apiKey: 'sk-tan-x' })
     expect(seen).toEqual(['POST v1/keys/verify', 'DELETE v1/keys/k1'])
   })
 

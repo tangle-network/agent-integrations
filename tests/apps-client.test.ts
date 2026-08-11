@@ -98,4 +98,79 @@ describe('TangleAppsClient', () => {
     await client.mintBrokerToken({ clientId: 'a', clientSecret: 'b', grantId: 'g' })
     expect(url).toBe(`${ENDPOINT}/v1/apps/grants/g/mint-broker-token`)
   })
+
+  it.each([
+    ['wrong prefix', { access_token: 'sk-other-token', expires_in: 60, scope: 'read' }],
+    ['missing token', { expires_in: 60, scope: 'read' }],
+    ['zero expiry', { access_token: 'sk-tan-broker-x', expires_in: 0, scope: 'read' }],
+    ['negative expiry', { access_token: 'sk-tan-broker-x', expires_in: -1, scope: 'read' }],
+    ['expiry beyond Platform maximum', { access_token: 'sk-tan-broker-x', expires_in: 3601, scope: 'read' }],
+    ['empty scope', { access_token: 'sk-tan-broker-x', expires_in: 60, scope: '  ' }],
+  ])('rejects broker response with %s', async (_label, response) => {
+    const client = new TangleAppsClient({
+      endpoint: ENDPOINT,
+      fetchImpl: mockFetch(() => jsonResponse({ success: true, data: response })),
+    })
+    await expect(client.mintBrokerToken({ clientId: 'a', clientSecret: 'b', grantId: 'g' })).rejects.toMatchObject({
+      code: 'input_invalid',
+      status: 502,
+    })
+  })
+
+  it('rejects an owner claim without a Platform owner policy', async () => {
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl: mockFetch(() => jsonResponse({})) })
+    await expect(client.mintBrokerToken({
+      clientId: 'a',
+      clientSecret: 'b',
+      grantId: 'g',
+      ownerUserId: 'user_1',
+    })).rejects.toMatchObject({ code: 'input_invalid', status: 403 })
+  })
+
+  it('does not accept a broker key as an app owner bearer', async () => {
+    const fetchImpl = mockFetch(() => jsonResponse({}))
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+    await expect(client.listApps('sk-tan-broker-owner')).rejects.toMatchObject({
+      code: 'input_invalid',
+      status: 400,
+    })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('does not send a broker request for a rejected owner claim', async () => {
+    const fetchImpl = mockFetch(() => jsonResponse({
+      access_token: 'sk-tan-broker-x',
+      expires_in: 60,
+      scope: 'read',
+    }))
+    const client = new TangleAppsClient({
+      endpoint: ENDPOINT,
+      fetchImpl,
+      ownerPolicy: { authorize: () => false },
+    })
+    await expect(client.exchangeAuthCode({
+      clientId: 'a',
+      clientSecret: 'b',
+      code: 'agc_code',
+      redirectUri: 'https://app/callback',
+      ownerUserId: 'user_1',
+    })).rejects.toMatchObject({ code: 'provider_auth_failed', status: 403 })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('does not let a blank owner claim bypass the owner policy', async () => {
+    const fetchImpl = mockFetch(() => jsonResponse({
+      access_token: 'sk-tan-broker-x',
+      expires_in: 60,
+      scope: 'read',
+    }))
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+    await expect(client.mintBrokerToken({
+      clientId: 'a',
+      clientSecret: 'b',
+      grantId: 'g',
+      ownerUserId: '   ',
+    })).rejects.toMatchObject({ code: 'input_invalid', status: 400 })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
 })
