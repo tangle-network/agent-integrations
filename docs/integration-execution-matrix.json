@@ -357,6 +357,10 @@
       "tokenUrl": "https://acuityscheduling.com/oauth2/token",
       "clientIdEnv": "ACUITY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ACUITY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -517,6 +521,10 @@
       "tokenUrl": "https://ims-na1.adobelogin.com/ims/token/v3",
       "clientIdEnv": "ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -11398,6 +11406,10 @@
       "tokenUrl": "https://app.asana.com/-/oauth_token",
       "clientIdEnv": "ASANA_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ASANA_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -12196,6 +12208,10 @@
       "tokenUrl": "https://app.attio.com/oauth/token",
       "clientIdEnv": "ATTIO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ATTIO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -12384,6 +12400,10 @@
       "tokenUrl": "https://auth0.auth0.com/oauth/token",
       "clientIdEnv": "AUTH0_OAUTH_CLIENT_ID",
       "clientSecretEnv": "AUTH0_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -14069,6 +14089,10 @@
       "tokenUrl": "https://launchpad.37signals.com/authorization/token",
       "clientIdEnv": "BASECAMP_OAUTH_CLIENT_ID",
       "clientSecretEnv": "BASECAMP_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/basecamp/callback",
@@ -14891,6 +14915,10 @@
       "tokenUrl": "https://login.bigcommerce.com/oauth2/token",
       "clientIdEnv": "BIGCOMMERCE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "BIGCOMMERCE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -16866,6 +16894,10 @@
       "tokenUrl": "https://api.box.com/oauth2/token",
       "clientIdEnv": "BOX_OAUTH_CLIENT_ID",
       "clientSecretEnv": "BOX_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -18337,6 +18369,10 @@
       "tokenUrl": "https://api.cal.com/v2/auth/oauth2/token",
       "clientIdEnv": "CALCOM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CALCOM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -18437,6 +18473,10 @@
       "tokenUrl": "https://auth.calendly.com/oauth/token",
       "clientIdEnv": "CALENDLY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CALENDLY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/calendly/callback",
@@ -18892,6 +18932,10 @@
       "tokenUrl": "https://api.canva.com/rest/oauth/token",
       "clientIdEnv": "CANVA_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CANVA_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -25603,6 +25647,10 @@
       "tokenUrl": "https://api.clickup.com/api/v2/oauth/token",
       "clientIdEnv": "CLICKUP_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CLICKUP_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/clickup/callback",
@@ -25653,6 +25701,10 @@
       "tokenUrl": "https://app.clio.com/oauth/token",
       "clientIdEnv": "CLIO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CLIO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/clio/callback",
@@ -26099,6 +26151,10 @@
       "tokenUrl": "https://api.close.com/oauth2/token/",
       "clientIdEnv": "CLOSE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CLOSE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -27156,6 +27212,10 @@
       "tokenUrl": "https://auth.atlassian.com/oauth/token",
       "clientIdEnv": "ATLASSIAN_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ATLASSIAN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -27539,6 +27599,10 @@
       "tokenUrl": "https://be.contentful.com/oauth/token",
       "clientIdEnv": "CONTENTFUL_OAUTH_CLIENT_ID",
       "clientSecretEnv": "CONTENTFUL_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -31933,6 +31997,10 @@
       "tokenUrl": "https://dialpad.com/oauth2/token",
       "clientIdEnv": "DIALPAD_OAUTH_CLIENT_ID",
       "clientSecretEnv": "DIALPAD_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -32427,6 +32495,10 @@
       "tokenUrl": "https://discord.com/api/oauth2/token",
       "clientIdEnv": "DISCORD_OAUTH_CLIENT_ID",
       "clientSecretEnv": "DISCORD_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -33275,6 +33347,10 @@
       "tokenUrl": "https://account.docusign.com/oauth/token",
       "clientIdEnv": "DOCUSIGN_OAUTH_CLIENT_ID",
       "clientSecretEnv": "DOCUSIGN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -33455,6 +33531,10 @@
       "tokenUrl": "https://api.dropboxapi.com/oauth2/token",
       "clientIdEnv": "DROPBOX_OAUTH_CLIENT_ID",
       "clientSecretEnv": "DROPBOX_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -34583,6 +34663,10 @@
       "tokenUrl": "https://api.ebay.com/identity/v1/oauth2/token",
       "clientIdEnv": "EBAY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "EBAY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_basic",
       "scopes": [
         {
@@ -36686,6 +36770,10 @@
       "tokenUrl": "https://api.etsy.com/v3/public/oauth/token",
       "clientIdEnv": "ETSY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ETSY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -37320,6 +37408,10 @@
       "tokenUrl": "https://graph.facebook.com/v19.0/oauth/access_token",
       "clientIdEnv": "FACEBOOK_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FACEBOOK_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -37496,6 +37588,10 @@
       "tokenUrl": "https://fathom.video/oauth/token",
       "clientIdEnv": "FATHOM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FATHOM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -38384,6 +38480,10 @@
       "tokenUrl": "https://api.figma.com/v1/oauth/token",
       "clientIdEnv": "FIGMA_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FIGMA_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -38475,6 +38575,10 @@
       "tokenUrl": "https://api.figma.com/v1/oauth/token",
       "clientIdEnv": "FIGMA_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FIGMA_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -38739,6 +38843,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "FIREBASE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FIREBASE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -40415,6 +40523,10 @@
       "tokenUrl": "https://{subdomain}.freshdesk.com/oauth/token",
       "clientIdEnv": "FRESHDESK_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FRESHDESK_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -40917,6 +41029,10 @@
       "tokenUrl": "https://app.frontapp.com/oauth/token",
       "clientIdEnv": "FRONT_OAUTH_CLIENT_ID",
       "clientSecretEnv": "FRONT_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42398,6 +42514,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42480,6 +42600,10 @@
       "tokenUrl": "https://app.gong.io/oauth2/generate-customer-token",
       "clientIdEnv": "GONG_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GONG_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42590,6 +42714,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42638,6 +42766,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42704,6 +42836,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42778,6 +42914,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42844,6 +42984,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -42940,6 +43084,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43014,6 +43162,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43088,6 +43240,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43336,6 +43492,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43561,6 +43721,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43627,6 +43791,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43691,6 +43859,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -43919,6 +44091,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -44009,6 +44185,10 @@
       "tokenUrl": "https://{subdomain}.gorgias.com/oauth2/token",
       "clientIdEnv": "GORGIAS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GORGIAS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -45301,6 +45481,10 @@
       "tokenUrl": "https://api.gusto.com/oauth/token",
       "clientIdEnv": "GUSTO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GUSTO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -45900,6 +46084,10 @@
       "tokenUrl": "https://app.hellosign.com/oauth/token",
       "clientIdEnv": "HELLOSIGN_OAUTH_CLIENT_ID",
       "clientSecretEnv": "HELLOSIGN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -45959,6 +46147,10 @@
       "tokenUrl": "https://api.helpscout.net/v2/oauth2/token",
       "clientIdEnv": "HELPSCOUT_OAUTH_CLIENT_ID",
       "clientSecretEnv": "HELPSCOUT_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -46036,6 +46228,10 @@
       "tokenUrl": "https://api.helpscout.net/v2/oauth2/token",
       "clientIdEnv": "HELPSCOUT_OAUTH_CLIENT_ID",
       "clientSecretEnv": "HELPSCOUT_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -47277,6 +47473,10 @@
       "tokenUrl": "https://api.hubapi.com/oauth/v1/token",
       "clientIdEnv": "HUBSPOT_OAUTH_CLIENT_ID",
       "clientSecretEnv": "HUBSPOT_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -49129,6 +49329,10 @@
       "tokenUrl": "https://graph.facebook.com/v21.0/oauth/access_token",
       "clientIdEnv": "INSTAGRAM_BUSINESS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "INSTAGRAM_BUSINESS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -49140,11 +49344,11 @@
           "dataClass": "private"
         },
         {
-          "normalized": "marketing.read",
+          "normalized": "marketing.write",
           "providerScope": "instagram_content_publish",
-          "title": "Instagram Business read",
-          "reason": "Read Instagram Business data for user-authorized agent workflows.",
-          "risk": "read",
+          "title": "Instagram Business write",
+          "reason": "Create or update Instagram Business resources after policy approval.",
+          "risk": "write",
           "dataClass": "private"
         },
         {
@@ -49620,6 +49824,10 @@
       "tokenUrl": "https://api.intercom.io/auth/eagle/token",
       "clientIdEnv": "INTERCOM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "INTERCOM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/intercom/callback",
@@ -50128,6 +50336,10 @@
       "tokenUrl": "https://ironcladapp.com/oauth/token",
       "clientIdEnv": "IRONCLAD_OAUTH_CLIENT_ID",
       "clientSecretEnv": "IRONCLAD_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -50542,6 +50754,10 @@
       "tokenUrl": "https://auth.atlassian.com/oauth/token",
       "clientIdEnv": "ATLASSIAN_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ATLASSIAN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -52810,6 +53026,10 @@
       "tokenUrl": "https://a.klaviyo.com/oauth/token",
       "clientIdEnv": "KLAVIYO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "KLAVIYO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -54636,6 +54856,10 @@
       "tokenUrl": "https://auth.lever.co/oauth/token",
       "clientIdEnv": "LEVER_OAUTH_CLIENT_ID",
       "clientSecretEnv": "LEVER_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -54942,6 +55166,10 @@
       "tokenUrl": "https://api.linear.app/oauth/token",
       "clientIdEnv": "LINEAR_OAUTH_CLIENT_ID",
       "clientSecretEnv": "LINEAR_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -56985,6 +57213,10 @@
       "tokenUrl": "https://www.linkedin.com/oauth/v2/accessToken",
       "clientIdEnv": "LINKEDIN_OAUTH_CLIENT_ID",
       "clientSecretEnv": "LINKEDIN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -59105,6 +59337,10 @@
       "tokenUrl": "https://login.mailchimp.com/oauth2/token",
       "clientIdEnv": "MAILCHIMP_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MAILCHIMP_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mailchimp/callback",
@@ -59972,6 +60208,10 @@
       "tokenUrl": "https://app.marketo.com/identity/oauth/token",
       "clientIdEnv": "MARKETO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MARKETO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/marketo/callback",
@@ -60947,6 +61187,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61024,6 +61268,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61101,6 +61349,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61194,6 +61446,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "BUSINESS_CENTRAL_OAUTH_CLIENT_ID",
       "clientSecretEnv": "BUSINESS_CENTRAL_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61271,6 +61527,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61338,6 +61598,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61448,6 +61712,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61531,6 +61799,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61600,6 +61872,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MICROSOFT_ONENOTE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MICROSOFT_ONENOTE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61685,6 +61961,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61770,6 +62050,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61837,6 +62121,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61912,6 +62200,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -61989,6 +62281,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -62114,6 +62410,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MICROSOFT_TODO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MICROSOFT_TODO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -62382,6 +62682,10 @@
       "tokenUrl": "https://api.miro.com/v1/oauth/token",
       "clientIdEnv": "MIRO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MIRO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -64168,6 +64472,10 @@
       "tokenUrl": "https://auth.monday.com/oauth_ms/oauth/token",
       "clientIdEnv": "MONDAY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MONDAY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -66515,6 +66823,10 @@
       "tokenUrl": "https://auth.mycase.com/tokens",
       "clientIdEnv": "MYCASE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MYCASE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
@@ -66549,6 +66861,10 @@
       "tokenUrl": "https://auth.mycase.com/tokens",
       "clientIdEnv": "MYCASE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MYCASE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/mycase/callback",
@@ -66814,6 +67130,10 @@
       "tokenUrl": "https://api.netlify.com/oauth/token",
       "clientIdEnv": "NETLIFY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "NETLIFY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/netlify/callback",
@@ -67657,6 +67977,10 @@
       "tokenUrl": "https://api.notion.com/v1/oauth/token",
       "clientIdEnv": "NOTION_OAUTH_CLIENT_ID",
       "clientSecretEnv": "NOTION_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [],
       "extraAuthParams": {
@@ -68936,6 +69260,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -70210,6 +70538,10 @@
       "tokenUrl": "https://app.opsgenie.com/oauth/token",
       "clientIdEnv": "OPSGENIE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "OPSGENIE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -71225,6 +71557,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -71450,6 +71786,10 @@
       "tokenUrl": "https://identity.pagerduty.com/oauth/token",
       "clientIdEnv": "PAGERDUTY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "PAGERDUTY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -71673,6 +72013,10 @@
       "tokenUrl": "https://api.pandadoc.com/oauth2/access_token",
       "clientIdEnv": "PANDADOC_OAUTH_CLIENT_ID",
       "clientSecretEnv": "PANDADOC_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -75863,6 +76207,10 @@
       "tokenUrl": "https://oauth.pipedrive.com/oauth/token",
       "clientIdEnv": "PIPEDRIVE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "PIPEDRIVE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -79129,6 +79477,10 @@
       "tokenUrl": "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
       "clientIdEnv": "QUICKBOOKS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "QUICKBOOKS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -81386,6 +81738,10 @@
       "tokenUrl": "https://platform.ringcentral.com/restapi/oauth/token",
       "clientIdEnv": "RINGCENTRAL_OAUTH_CLIENT_ID",
       "clientSecretEnv": "RINGCENTRAL_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -81469,6 +81825,10 @@
       "tokenUrl": "https://app.rippling.com/api/o/token/",
       "clientIdEnv": "RIPPLING_OAUTH_CLIENT_ID",
       "clientSecretEnv": "RIPPLING_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -82160,6 +82520,10 @@
       "tokenUrl": "https://login.salesforce.com/services/oauth2/token",
       "clientIdEnv": "SALESFORCE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SALESFORCE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -82275,6 +82639,10 @@
       "tokenUrl": "https://api.sanity.io/v1/oauth/token",
       "clientIdEnv": "SANITY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SANITY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -83982,6 +84350,10 @@
       "tokenUrl": "https://sentry.io/oauth/token/",
       "clientIdEnv": "SENTRY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SENTRY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -85029,6 +85401,10 @@
       "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       "clientIdEnv": "MS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "MS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -85430,6 +85806,10 @@
       "tokenUrl": "https://{shop}.myshopify.com/admin/oauth/access_token",
       "clientIdEnv": "SHOPIFY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SHOPIFY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -87857,6 +88237,10 @@
       "tokenUrl": "https://slack.com/api/oauth.v2.access",
       "clientIdEnv": "SLACK_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SLACK_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -89104,6 +89488,10 @@
       "tokenUrl": "https://app.snowflake.com/oauth/token",
       "clientIdEnv": "SNOWFLAKE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "SNOWFLAKE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -96439,26 +96827,53 @@
     "title": "TikTok",
     "category": "workflow",
     "catalogAuth": null,
-    "setupAuth": "oauth2",
-    "authFields": [
-      {
-        "label": "Client ID",
-        "description": "OAuth client ID.",
-        "secret": false
-      },
-      {
-        "label": "Client Secret",
-        "description": "OAuth client secret.",
-        "secret": true
-      }
-    ],
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.tiktok.com/v2/auth/authorize/",
+      "tokenUrl": "https://open.tiktokapis.com/v2/oauth/token/",
+      "clientIdEnv": "TIKTOK_OAUTH_CLIENT_KEY",
+      "clientSecretEnv": "TIKTOK_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_key",
+      "tokenClientIdParam": "client_key",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "user.info.basic",
+          "title": "TikTok read",
+          "reason": "Read TikTok data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "video.list",
+          "title": "TikTok read",
+          "reason": "Read TikTok data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "video.publish",
+          "title": "TikTok write",
+          "reason": "Create or update TikTok resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/tiktok/callback",
+      "pkce": "unsupported"
+    },
     "runtimePackage": null,
-    "actionCount": 0,
+    "actionCount": 7,
     "triggerCount": 0,
-    "setupStatus": "catalog",
-    "tangleContractStatus": "contract_ready",
-    "implementationKind": "contract_only",
-    "nativeAdapter": false,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": null,
     "quality": {
       "tangleContract": true,
@@ -96466,11 +96881,9 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": false,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
-    "missing": [
-      "native_adapter"
-    ]
+    "missing": []
   },
   {
     "id": "time-ops",
@@ -98232,6 +98645,10 @@
       "tokenUrl": "https://api.twitter.com/2/oauth2/token",
       "clientIdEnv": "TWITTER_OAUTH_CLIENT_ID",
       "clientSecretEnv": "TWITTER_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -98365,6 +98782,10 @@
       "tokenUrl": "https://api.typeform.com/oauth/token",
       "clientIdEnv": "TYPEFORM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "TYPEFORM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -101627,6 +102048,10 @@
       "tokenUrl": "https://api.vercel.com/v2/oauth/access_token",
       "clientIdEnv": "VERCEL_OAUTH_CLIENT_ID",
       "clientSecretEnv": "VERCEL_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -105189,6 +105614,10 @@
       "tokenUrl": "https://api.webflow.com/oauth/access_token",
       "clientIdEnv": "WEBFLOW_OAUTH_CLIENT_ID",
       "clientSecretEnv": "WEBFLOW_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -106443,6 +106872,10 @@
       "tokenUrl": "https://graph.facebook.com/v21.0/oauth/access_token",
       "clientIdEnv": "WHATSAPP_BUSINESS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "WHATSAPP_BUSINESS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -107269,6 +107702,10 @@
       "tokenUrl": "https://public-api.wordpress.com/oauth2/token",
       "clientIdEnv": "WORDPRESS_OAUTH_CLIENT_ID",
       "clientSecretEnv": "WORDPRESS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -107553,6 +107990,10 @@
       "tokenUrl": "https://{host}/ccx/oauth2/{tenant}/token",
       "clientIdEnv": "WORKDAY_OAUTH_CLIENT_ID",
       "clientSecretEnv": "WORKDAY_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -108079,6 +108520,10 @@
       "tokenUrl": "https://identity.xero.com/connect/token",
       "clientIdEnv": "XERO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "XERO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -108387,6 +108832,10 @@
       "tokenUrl": "https://oauth2.googleapis.com/token",
       "clientIdEnv": "GOOGLE_OAUTH_CLIENT_ID",
       "clientSecretEnv": "GOOGLE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -108591,6 +109040,10 @@
       "tokenUrl": "https://{subdomain}.zendesk.com/oauth/tokens",
       "clientIdEnv": "ZENDESK_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZENDESK_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -109668,6 +110121,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -109739,6 +110196,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -109802,6 +110263,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -109875,6 +110340,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -109956,6 +110425,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -110043,6 +110516,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -110108,6 +110585,10 @@
       "tokenUrl": "https://accounts.zoho.com/oauth/v2/token",
       "clientIdEnv": "ZOHO_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOHO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": ",",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {
@@ -110239,6 +110720,10 @@
       "tokenUrl": "https://zoom.us/oauth/token",
       "clientIdEnv": "ZOOM_OAUTH_CLIENT_ID",
       "clientSecretEnv": "ZOOM_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
       "tokenClientAuthMethod": "client_secret_post",
       "scopes": [
         {

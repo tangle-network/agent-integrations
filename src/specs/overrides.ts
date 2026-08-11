@@ -54,6 +54,76 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  tiktok: {
+    consoleUrl: 'https://developers.tiktok.com/apps/',
+    consoleSteps: [
+      {
+        id: 'app',
+        title: 'Create or select the TikTok app',
+        detail: 'Use one company-owned TikTok for Developers app for Tangle Integration Hub. Do not create a duplicate app.',
+      },
+      {
+        id: 'products',
+        title: 'Enable Login Kit and Content Posting',
+        detail: 'Enable Login Kit, Content Posting API, and the user.info.basic, video.list, and video.publish scopes.',
+      },
+      {
+        id: 'redirect',
+        title: 'Register the callback',
+        detail: 'Add {redirectUri} as an exact HTTPS web redirect URI.',
+        copyValue: '{redirectUri}',
+      },
+      {
+        id: 'urls',
+        title: 'Verify publishing URLs',
+        detail: 'Verify every HTTPS domain or URL prefix TikTok may pull videos and photos from.',
+      },
+      {
+        id: 'test',
+        title: 'Test a private post',
+        detail: 'Connect a test creator, read creator information, publish private test media, and poll the publish id until completion.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'private-until-audit',
+        severity: 'critical',
+        message: 'TikTok restricts unaudited Content Posting clients to private posts. Public visibility requires TikTok app review.',
+      },
+      {
+        id: 'verified-pull-url',
+        severity: 'critical',
+        message: 'Direct posts can pull media only from an HTTPS domain or URL prefix verified for this TikTok app.',
+      },
+      {
+        id: 'creator-preflight',
+        severity: 'warning',
+        message: 'TikTok requires current creator options before each direct post. The adapter performs this preflight and rejects unavailable privacy or duration choices.',
+      },
+      {
+        id: 'token-lifetime',
+        severity: 'info',
+        message: 'Access tokens last about 24 hours. Refresh tokens last about 365 days and may rotate on refresh.',
+      },
+    ],
+    postSetup: [
+      {
+        id: 'tiktok.private-publish',
+        title: 'Prove one private direct post',
+        detail: 'Publish media from a verified URL and poll the returned publish id until TikTok reports PUBLISH_COMPLETE.',
+      },
+      {
+        id: 'tiktok.refresh',
+        title: 'Prove token refresh',
+        detail: 'Refresh the short-lived access token and preserve TikTok’s newly returned refresh token.',
+      },
+    ],
+    healthcheck: {
+      id: 'tiktok.user.info',
+      level: 'connection',
+      description: 'Read the connected TikTok account with user.info.basic.',
+    },
+  },
   amplitude: {
     consoleUrl: 'https://analytics.amplitude.com/',
     credentialFields: [

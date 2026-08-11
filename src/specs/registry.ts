@@ -84,6 +84,10 @@ export interface ConnectorAuthSpec {
   redirectUriTemplate?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  scopeSeparator?: ' ' | ','
+  authorizationClientIdParam?: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
   tokenClientAuthMethod?: 'client_secret_post' | 'client_secret_basic'
   extraAuthParams?: Record<string, string>
 }
@@ -103,6 +107,10 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
       redirectUriTemplate: auth.redirectUriTemplate,
       clientIdEnv: auth.clientIdEnv,
       clientSecretEnv: auth.clientSecretEnv,
+      scopeSeparator: auth.scopeSeparator,
+      authorizationClientIdParam: auth.authorizationClientIdParam,
+      tokenClientIdParam: auth.tokenClientIdParam,
+      tokenClientSecretParam: auth.tokenClientSecretParam,
       tokenClientAuthMethod: auth.tokenClientAuthMethod,
       extraAuthParams: auth.extraAuthParams,
     }
@@ -288,6 +296,10 @@ function authFor(
     tokenUrl: real?.tokenUrl ?? f.tokenUrl,
     clientIdEnv: real?.clientIdEnv ?? f.credentialFields.find((field) => !field.secret)?.env,
     clientSecretEnv: real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
+    scopeSeparator: real?.scopeSeparator ?? ' ',
+    authorizationClientIdParam: real?.authorizationClientIdParam ?? 'client_id',
+    tokenClientIdParam: real?.tokenClientIdParam ?? 'client_id',
+    tokenClientSecretParam: real?.tokenClientSecretParam ?? 'client_secret',
     tokenClientAuthMethod: real?.tokenClientAuthMethod ?? 'client_secret_post',
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
@@ -341,7 +353,7 @@ function scopesFromManifest(
   const writePermission = permissions.find((permission) => permission.risk === 'write')
   const readPermission = permissions.find((permission) => permission.risk === 'read') ?? permissions[0]
   return providerScopes.map((providerScope): ScopeDescriptor => {
-    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|full|readwrite)(?:$|[.\/_:-])/i.test(
+    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|publish|full|readwrite)(?:$|[.\/_:-])/i.test(
       providerScope,
     )
     const base = (mutating ? writePermission : readPermission) ?? readPermission

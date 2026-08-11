@@ -30,6 +30,7 @@ import {
   runIntegrationHealthchecks,
   type ConnectorAdapter,
   type ConnectorCredentials,
+  type ConnectorInvocation,
   type IntegrationConnection,
   type IntegrationCredentialsRotatedEvent,
   type IntegrationManifest,
@@ -451,6 +452,53 @@ describe('production integration primitives', () => {
     expect(JSON.stringify(updated)).not.toContain('rotated')
   })
 
+  it.each([
+    ['rotating.read', 'read'],
+    ['rotating.write', 'mutation'],
+  ])('persists rotated credentials when a later %s action fails', async (action, failureKind) => {
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: `secret_failed_${failureKind}` }
+    const connection = activeConnection(`conn_failed_${failureKind}`, {
+      connectorId: 'rotating',
+      secretRef,
+    })
+    await connections.put(connection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'stale',
+      refreshToken: 'refresh-1',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+    const hostEvents: IntegrationCredentialsRotatedEvent[] = []
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [rotatingAdapter],
+      secrets,
+      connections,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+      onCredentialsRotated: (event) => { hostEvents.push(event) },
+    })
+
+    await expect(provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action,
+      input: { fail: true },
+    })).rejects.toThrow(`forced ${failureKind} failure`)
+
+    expect(hostEvents).toHaveLength(1)
+    expect(hostEvents[0]).toMatchObject({
+      connection: { id: connection.id },
+      secretRef,
+      credentials: {
+        kind: 'oauth2',
+        accessToken: 'rotated',
+        refreshToken: 'refresh-2',
+        expiresAt: expect.any(Number),
+      },
+    })
+    expect(await secrets.get(secretRef)).toEqual(hostEvents[0]?.credentials)
+  })
+
   it('builds bridge env payloads that sandboxes and executor-style CLIs can consume', async () => {
     const store = new InMemoryConnectionStore()
     const hub = new IntegrationHub({
@@ -667,24 +715,42 @@ const rotatingAdapter: ConnectorAdapter = {
     defaultConsistencyModel: 'authoritative',
     capabilities: [
       { name: 'rotating.read', class: 'read', description: 'Read.', parameters: {} },
+      { name: 'rotating.write', class: 'mutation', description: 'Write.', parameters: {}, cas: 'none', externalEffect: true },
     ],
   },
   async executeRead(invocation) {
-    const creds = invocation.source.credentials
-    if (creds.kind === 'oauth2' && (!creds.expiresAt || creds.expiresAt <= Date.now())) {
-      const next: ConnectorCredentials = {
-        kind: 'oauth2',
-        accessToken: 'rotated',
-        refreshToken: 'refresh-2',
-        expiresAt: Date.now() + 3_600_000,
-      }
-      invocation.onCredentialsRotated?.(next)
-    }
+    rotateInvocationCredentials(invocation)
+    if (invocation.args.fail) throw new Error('forced read failure')
     return { data: { ok: true }, fetchedAt: 1 }
+  },
+  async executeMutation(invocation) {
+    rotateInvocationCredentials(invocation)
+    if (invocation.args.fail) throw new Error('forced mutation failure')
+    return {
+      status: 'committed',
+      data: { ok: true },
+      committedAt: 1,
+      idempotentReplay: false,
+    }
   },
   async test() {
     return { ok: true }
   },
+}
+
+function rotateInvocationCredentials(invocation: ConnectorInvocation): void {
+  const credentials = invocation.source.credentials
+  if (
+    credentials.kind === 'oauth2' &&
+    (!credentials.expiresAt || credentials.expiresAt <= Date.now())
+  ) {
+    invocation.onCredentialsRotated?.({
+      kind: 'oauth2',
+      accessToken: 'rotated',
+      refreshToken: 'refresh-2',
+      expiresAt: Date.now() + 3_600_000,
+    })
+  }
 }
 
 const webhookAdapter: ConnectorAdapter = {

@@ -71,6 +71,10 @@ export interface OAuth2AuthSpec {
   tokenUrl?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  scopeSeparator?: ' ' | ','
+  authorizationClientIdParam?: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
   /** OAuth client authentication at the token endpoint. Defaults to
    * `client_secret_post` when omitted. */
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod

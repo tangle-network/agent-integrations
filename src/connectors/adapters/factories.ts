@@ -262,6 +262,7 @@ import { trelloConnector } from './trello.js'
 import { twentyConnector } from './twenty.js'
 import { typeformConnector } from './typeform.js'
 import { twitter, type TwitterOptions } from './twitter.js'
+import { tiktok, type TikTokOptions } from './tiktok.js'
 import { twilioSmsConnector } from './twilio-sms.js'
 import { voucheryIoConnector } from './vouchery-io.js'
 import {
@@ -558,6 +559,10 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter<TwitterOptions>(twitter, {
       clientId: 'TWITTER_OAUTH_CLIENT_ID',
       clientSecret: 'TWITTER_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter<TikTokOptions>(tiktok, {
+      clientId: 'TIKTOK_OAUTH_CLIENT_KEY',
+      clientSecret: 'TIKTOK_OAUTH_CLIENT_SECRET',
     }),
     // Declarative OAuth2 connectors: the manifest already pins clientIdEnv /
     // clientSecretEnv; the envMap re-pins the same names so registration is

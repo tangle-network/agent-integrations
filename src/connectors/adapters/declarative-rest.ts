@@ -69,6 +69,10 @@ export interface RestConnectorSpec {
    *  network targets. Use this for federated providers that cannot be pinned
    *  to one vendor suffix, such as Mastodon. */
   requirePublicHttpsBaseUrl?: boolean
+  /** HTTP statuses that mean the stored credential is unusable. Defaults to
+   *  401 and 403. Some providers use 403 for content-policy failures, so they
+   *  can narrow this list to 401 and preserve the provider error body. */
+  credentialsExpiredStatuses?: readonly number[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
@@ -428,7 +432,8 @@ export async function executeRestRequest(
     body: bodyString,
     signal: AbortSignal.timeout(20_000),
   })
-  if (res.status === 401 || res.status === 403) {
+  const credentialsExpiredStatuses = spec.credentialsExpiredStatuses ?? [401, 403]
+  if (credentialsExpiredStatuses.includes(res.status)) {
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
   }
   // A non-commit is reported on the ENVELOPE, never as a `status` field inside
