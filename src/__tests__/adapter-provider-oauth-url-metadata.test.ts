@@ -143,6 +143,82 @@ describe('OAuth provider base URL metadata', () => {
     expect(new URL(authUrl).origin).toBe('https://git.customer.example:8443')
   })
 
+  it('encodes a declared path segment without treating it as a host label', async () => {
+    const adapter = baseUrlOAuthAdapter({ kind: 'path-segment' }, 'tenant')
+    if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    adapter.manifest.auth.authorizationUrl = 'https://idp.example/ccx/oauth2/{tenant}/authorize'
+    adapter.manifest.auth.tokenUrl = 'https://idp.example/ccx/oauth2/{tenant}/token'
+    const provider = createConnectorAdapterProvider({
+      adapters: [adapter],
+      resolveDataSource: () => ({ kind: 'base-url-oauth', id: 'ds_path_segment' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'base-url-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      state: 'state_path_segment',
+      metadata: { tenant: 'Tangle_Impl~1' },
+    })
+    expect(new URL(started.authUrl).pathname).toBe('/ccx/oauth2/Tangle_Impl~1/authorize')
+  })
+
+  it.each([
+    '',
+    '.',
+    '..',
+    '../tenant',
+    'tenant/child',
+    'tenant?next=https://attacker.example',
+    'tenant#fragment',
+    '%2e%2e',
+  ])('rejects an unsafe OAuth path segment: %s', async (tenant) => {
+    const adapter = baseUrlOAuthAdapter({ kind: 'path-segment' }, 'tenant')
+    if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    adapter.manifest.auth.authorizationUrl = 'https://idp.example/ccx/oauth2/{tenant}/authorize'
+    adapter.manifest.auth.tokenUrl = 'https://idp.example/ccx/oauth2/{tenant}/token'
+    const provider = createConnectorAdapterProvider({
+      adapters: [adapter],
+      resolveDataSource: () => ({ kind: 'base-url-oauth', id: 'ds_path_segment' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+    })
+
+    await expect(provider.startAuth!({
+      connectorId: 'base-url-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      metadata: { tenant },
+    })).rejects.toMatchObject({ code: 'config_missing' })
+  })
+
+  it('rejects path-segment metadata declared in a hostname', async () => {
+    const adapter = baseUrlOAuthAdapter({ kind: 'path-segment' }, 'tenant')
+    if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    adapter.manifest.auth.authorizationUrl = 'https://{tenant}/oauth/authorize'
+    adapter.manifest.auth.tokenUrl = 'https://idp.example/oauth/token'
+    const provider = createConnectorAdapterProvider({
+      adapters: [adapter],
+      resolveDataSource: () => ({ kind: 'base-url-oauth', id: 'ds_path_host' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+    })
+
+    expect(validateConnectorManifest(adapter.manifest).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        message: 'OAuth path metadata {tenant} must occupy a complete URL path segment',
+      }),
+    ]))
+    await expect(provider.startAuth!({
+      connectorId: 'base-url-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      metadata: { tenant: 'attacker.example' },
+    })).rejects.toMatchObject({ code: 'config_missing' })
+  })
+
   it.each([
     ['missing', undefined, 'provider base URL'],
     ['non-string', 42, 'provider base URL'],

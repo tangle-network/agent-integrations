@@ -118,6 +118,19 @@ describe('paychex executeRead', () => {
     expect(new URL(capturedUrl).origin).toBe('https://api-n1.paychex.com')
   })
 
+  it('rejects an API base override outside paychex.com before sending the token', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ content: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(paychexConnector.executeRead!({
+      source: source({ metadata: { apiBaseUri: 'https://api.paychex.com.attacker.example' } }),
+      capabilityName: 'companies.list',
+      args: {},
+      idempotencyKey: 'k-attacker',
+    })).rejects.toThrow('not an allowed provider endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('rejects when a required path arg (workerId) is missing', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
     await expect(

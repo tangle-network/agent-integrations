@@ -43,6 +43,7 @@ export const paychexConnector = declarativeRestConnector({
   category: 'hr',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiBaseUri', fallback: 'https://api.paychex.com' },
+  allowedBaseUrlSuffixes: ['.paychex.com'],
   // Listing companies is the cheapest read that proves the client-credentials
   // token is valid and the app has been granted access.
   test: { method: 'GET', path: '/companies' },

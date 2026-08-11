@@ -177,12 +177,14 @@ describe('integration specs', () => {
         for (const match of url.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)) {
           const key = match[1]!
           const policy = spec.auth.urlTemplateMetadata?.[key]
-          const value = policy
+          const value = policy?.kind === 'base-url'
             ? policy.allowedBaseUrls?.[0]
               ?? (policy.allowedBaseUrlSuffixes?.[0]
                 ? `https://tenant${policy.allowedBaseUrlSuffixes[0]}`
                 : 'https://provider.example')
-            : 'tenant'
+            : policy?.kind === 'path-segment'
+              ? 'tenant_1'
+              : 'tenant'
           resolved = resolved.replaceAll(match[0], value)
         }
         expect(() => new URL(resolved), `${spec.kind} endpoint must parse after safe metadata`).not.toThrow()
@@ -241,6 +243,30 @@ describe('integration specs', () => {
         },
       },
     })
+    expect(authContract('rippling')).toMatchObject({
+      authorizationUrl: 'https://app.rippling.com/apps/PLATFORM/{appName}/authorize',
+      tokenUrl: 'https://api.rippling.com/api/o/token/',
+      tokenClientAuthMethod: 'client_secret_basic',
+      pkce: 'unsupported',
+      urlTemplateMetadata: {
+        appName: { kind: 'path-segment' },
+      },
+    })
+    expect(authContract('workday')).toMatchObject({
+      authorizationUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/authorize',
+      tokenUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/token',
+      tokenClientAuthMethod: 'client_secret_basic',
+      sendScopeParam: false,
+      pkce: 'unsupported',
+      urlTemplateMetadata: {
+        workdayBaseUrl: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.workday.com', '.myworkday.com'],
+        },
+        tenant: { kind: 'path-segment' },
+      },
+    })
+    expect(resolveConnectorAuthSpec('workday')).toMatchObject({ sendScopeParam: false })
   })
 
   it('an executable oauth2 spec can actually start a connect flow', () => {

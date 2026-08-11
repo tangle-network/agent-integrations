@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createConnectorAdapterProvider } from '../../../adapter-provider.js'
 import { workdayConnector } from '../workday.js'
 import type { ConnectorInvocation, ResolvedDataSource } from '../../types.js'
 
@@ -27,8 +28,8 @@ describe('workday adapter manifest', () => {
     const auth = workdayConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://{host}/ccx/oauth2/{tenant}/authorize')
-    expect(auth.tokenUrl).toBe('https://{host}/ccx/oauth2/{tenant}/token')
+    expect(auth.authorizationUrl).toBe('{workdayBaseUrl}/ccx/oauth2/{tenant}/authorize')
+    expect(auth.tokenUrl).toBe('{workdayBaseUrl}/ccx/oauth2/{tenant}/token')
     expect(auth.scopes).toEqual([
       'Staffing',
       'Organizations and Roles',
@@ -36,6 +37,94 @@ describe('workday adapter manifest', () => {
     ])
     expect(auth.clientIdEnv).toBe('WORKDAY_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('WORKDAY_OAUTH_CLIENT_SECRET')
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_basic')
+    expect(auth.sendScopeParam).toBe(false)
+    expect(auth.pkce).toBe('unsupported')
+    expect(auth.urlTemplateMetadata).toEqual({
+      workdayBaseUrl: {
+        kind: 'base-url',
+        allowedBaseUrlSuffixes: ['.workday.com', '.myworkday.com'],
+      },
+      tenant: { kind: 'path-segment' },
+    })
+  })
+
+  it('renders a tenant OAuth flow without a scope query and uses HTTP Basic at the token endpoint', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      access_token: 'workday-access',
+      refresh_token: 'workday-refresh',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+    const provider = createConnectorAdapterProvider({
+      adapters: [workdayConnector],
+      resolveDataSource: () => ({ kind: 'workday', id: 'ds_workday' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'workday-client', clientSecret: 'workday-secret' }),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+    const owner = { type: 'user' as const, id: 'user_workday' }
+    const redirectUri = 'https://id.tangle.tools/api/integrations/oauth/workday/callback'
+    const metadata = {
+      workdayBaseUrl: 'https://services1.myworkday.com',
+      tenant: 'tangle',
+    }
+
+    const started = await provider.startAuth!({
+      connectorId: 'workday',
+      owner,
+      requestedScopes: [],
+      redirectUri,
+      state: 'state_workday',
+      metadata,
+    })
+    const authorizationUrl = new URL(started.authUrl)
+    expect(authorizationUrl.origin + authorizationUrl.pathname).toBe(
+      'https://services1.myworkday.com/ccx/oauth2/tangle/authorize',
+    )
+    expect(authorizationUrl.searchParams.has('scope')).toBe(false)
+    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
+
+    await provider.completeAuth!({
+      connectorId: 'workday',
+      owner,
+      code: 'workday-code',
+      state: started.state,
+      redirectUri,
+      metadata,
+    })
+    const [tokenUrl, init] = fetchMock.mock.calls[0]!
+    expect(tokenUrl).toBe('https://services1.myworkday.com/ccx/oauth2/tangle/token')
+    expect(new Headers(init?.headers).get('authorization')).toBe(
+      `Basic ${btoa('workday-client:workday-secret')}`,
+    )
+  })
+
+  it.each([
+    {
+      workdayBaseUrl: 'https://services1.myworkday.com.attacker.example',
+      tenant: 'tangle',
+    },
+    {
+      workdayBaseUrl: 'https://services1.myworkday.com',
+      tenant: '../attacker',
+    },
+  ])('rejects unsafe OAuth metadata before provider traffic: $metadata', async (metadata) => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [workdayConnector],
+      resolveDataSource: () => ({ kind: 'workday', id: 'ds_workday' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'workday-client', clientSecret: 'workday-secret' }),
+      fetchImpl,
+    })
+    await expect(provider.startAuth!({
+      connectorId: 'workday',
+      owner: { type: 'user', id: 'user_workday' },
+      requestedScopes: [],
+      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/workday/callback',
+      metadata,
+    })).rejects.toMatchObject({ code: 'config_missing' })
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('exposes the HR action pack (workers, organizations, locations, time off) split between reads and mutations', () => {
@@ -199,5 +288,38 @@ describe('workday adapter execution', () => {
       idempotencyKey: 'idem_5',
     }
     await expect(workdayConnector.executeRead!(invocation)).rejects.toThrow(/apiBaseUrl/)
+  })
+
+  it('accepts a production myworkday.com API base and rejects an attacker host before sending the token', async () => {
+    const fetchMock = vi.fn(async (_input: URL | string, _init?: RequestInit) => new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await workdayConnector.executeRead!({
+      source: {
+        ...source,
+        metadata: { apiBaseUrl: 'https://services1.myworkday.com/ccx/api/v1/tangle' },
+      },
+      capabilityName: 'workers.list',
+      args: {},
+      idempotencyKey: 'idem_myworkday',
+    })
+    expect(String(fetchMock.mock.calls[0]![0])).toBe(
+      'https://services1.myworkday.com/ccx/api/v1/tangle/workers',
+    )
+
+    fetchMock.mockClear()
+    await expect(workdayConnector.executeRead!({
+      source: {
+        ...source,
+        metadata: { apiBaseUrl: 'https://services1.myworkday.com.attacker.example/ccx/api/v1/tangle' },
+      },
+      capabilityName: 'workers.list',
+      args: {},
+      idempotencyKey: 'idem_attacker',
+    })).rejects.toThrow('not an allowed provider endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
