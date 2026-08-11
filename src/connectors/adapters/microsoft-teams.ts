@@ -352,9 +352,9 @@ export function microsoftTeams(opts: MicrosoftTeamsOptions): ConnectorAdapter {
     async test(source) {
       try {
         const accessToken = await ensureFreshAccessToken(source.credentials, clientId, clientSecret)
-        // Cheapest call that proves the grant: GET /me. Same as the
-        // calendar adapter — we share the M365 user identity.
-        const res = await fetch(`${GRAPH}/me?$select=id`, {
+        // Probe a Teams endpoint so a valid token without a Teams license does
+        // not appear healthy. The identity-only /me endpoint misses that case.
+        const res = await fetch(`${GRAPH}/me/joinedTeams`, {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })

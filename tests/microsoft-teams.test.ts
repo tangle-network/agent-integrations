@@ -361,11 +361,17 @@ describe('microsoft-teams adapter', () => {
     })
   })
 
-  it('test() returns ok when Graph /me responds 200', async () => {
+  it('test() proves Teams access through the joinedTeams endpoint', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ id: 'u1' }))
     vi.stubGlobal('fetch', fetchMock)
     const out = await adapter.test(source())
     expect(out).toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://graph.microsoft.com/v1.0/me/joinedTeams',
+      expect.objectContaining({
+        headers: { authorization: 'Bearer at' },
+      }),
+    )
   })
 
   it('test() reports a reconnect reason when Graph rejects the token', async () => {
