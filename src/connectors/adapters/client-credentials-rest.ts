@@ -11,6 +11,7 @@ import {
   type RestCredentialPlacement,
   type RestConnectorSpec,
 } from './declarative-rest.js'
+import { createOAuthBasicAuthorizationHeader } from '../oauth.js'
 
 export interface ClientCredentialsRegion {
   apiBaseUrl: string
@@ -238,7 +239,10 @@ async function exchangeClientCredentials(
     'content-type': 'application/x-www-form-urlencoded',
   }
   if (credentialPlacement === 'basic') {
-    headers.authorization = `Basic ${Buffer.from(`${bundle.clientId}:${bundle.clientSecret}`).toString('base64')}`
+    headers.authorization = createOAuthBasicAuthorizationHeader(
+      bundle.clientId,
+      bundle.clientSecret,
+    )
   }
   const response = await fetch(region.tokenUrl, {
     method: 'POST',

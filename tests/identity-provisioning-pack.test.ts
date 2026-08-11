@@ -83,7 +83,7 @@ describe('PingOne client credentials and tenant isolation', () => {
     const pingSource = source(
       'ping-identity',
       { environmentId: 'env-eu-1', region: 'eu' },
-      { kind: 'custom', values: { clientId: 'ping-client', clientSecret: 'ping-secret' } },
+      { kind: 'custom', values: { clientId: 'client:id', clientSecret: 's+e%cret' } },
     )
     await Promise.all([
       pingIdentityConnector.executeRead!({
@@ -104,7 +104,9 @@ describe('PingOne client credentials and tenant isolation', () => {
     expect(tokenRequests).toHaveLength(1)
     expect(tokenRequests[0]).toEqual({
       url: 'https://auth.pingone.eu/env-eu-1/as/token',
-      authorization: `Basic ${Buffer.from('ping-client:ping-secret').toString('base64')}`,
+      authorization: `Basic ${Buffer.from(
+        'client%3Aid:s%2Be%25cret',
+      ).toString('base64')}`,
       body: 'grant_type=client_credentials',
     })
     expect(requests.filter((request) => request.url.startsWith('https://api.pingone.eu'))).toHaveLength(2)

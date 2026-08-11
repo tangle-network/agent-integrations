@@ -20,6 +20,11 @@
  */
 
 import { type ConnectorAdapter, type ConnectorCredentials } from '../types.js'
+import {
+  createOAuthBasicAuthorizationHeader,
+  oauthClientCredentialRedactionValues,
+  redactOAuthSensitiveText,
+} from '../oauth.js'
 import { declarativeRestConnector, type RestConnectorSpec } from './declarative-rest.js'
 
 const AUTH_URL = 'https://twitter.com/i/oauth2/authorize'
@@ -45,6 +50,7 @@ const TWITTER_SPEC: RestConnectorSpec = {
         scopes: SCOPES,
         clientIdEnv: 'TWITTER_OAUTH_CLIENT_ID',
         clientSecretEnv: 'TWITTER_OAUTH_CLIENT_SECRET',
+        tokenClientAuthMethod: 'client_secret_basic',
       },
       {
         kind: 'api-key',
@@ -367,35 +373,72 @@ interface TwitterTokens {
   scope?: string
 }
 
-/** X authenticates confidential clients on the token endpoint with HTTP
- *  Basic (base64 of client_id:client_secret) — body-only client credentials
- *  are rejected, so the generic `exchangeAuthorizationCode` helper (which
- *  posts them in the form body) can't be reused here. Same header on both
- *  the code exchange and the refresh grant. */
+/** X authenticates confidential clients on the token endpoint with RFC 6749
+ *  Basic credentials. It also requires client_id in both grant bodies. */
 async function twitterTokenRequest(
   clientId: string,
   clientSecret: string,
   params: Record<string, string>,
 ): Promise<TwitterTokens> {
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-      'content-type': 'application/x-www-form-urlencoded',
-      accept: 'application/json',
-    },
-    body: new URLSearchParams(params),
-    signal: AbortSignal.timeout(15_000),
-  })
+  const authorization = createOAuthBasicAuthorizationHeader(
+    clientId,
+    clientSecret,
+  )
+  const requestSecrets = [
+    params.code,
+    params.code_verifier,
+    params.refresh_token,
+  ].filter((value): value is string => typeof value === 'string' && value.length > 0)
+  const redactionValues = [
+    ...requestSecrets,
+    ...oauthClientCredentialRedactionValues(
+      clientId,
+      clientSecret,
+      authorization,
+    ),
+  ]
+  let res: Response
+  try {
+    res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        authorization,
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      },
+      body: new URLSearchParams(params),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (cause) {
+    const detail = redactOAuthSensitiveText(
+      (cause as Error)?.message ?? 'unknown',
+      redactionValues,
+    )
+    throw new Error(
+      `twitter ${params.grant_type} token transport error: ${detail}`,
+    )
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`twitter ${params.grant_type} token request failed: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`)
+    const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
+    const detail = redactOAuthSensitiveText(text, redactionValues).slice(0, 200)
+    throw new Error(
+      `twitter ${params.grant_type} token request failed: ${res.status} ${statusText} — ${detail}`,
+    )
   }
-  const json = (await res.json()) as {
+  let json: {
     access_token: string
     refresh_token?: string
     expires_in?: number
     scope?: string
+  }
+  try {
+    json = await res.json() as typeof json
+  } catch {
+    throw new Error(`twitter ${params.grant_type} token request returned invalid JSON`)
+  }
+  if (!json.access_token) {
+    throw new Error(`twitter ${params.grant_type} token request returned no access_token`)
   }
   return {
     accessToken: json.access_token,
