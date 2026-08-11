@@ -17,12 +17,13 @@ const activatedProviders = [
   'mastodon',
   'circle',
   'youtube',
+  'tiktok',
 ] as const
 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('social and community provider factories', () => {
-  it('activates five executable providers with actions', () => {
+  it('activates six executable providers with actions', () => {
     for (const kind of activatedProviders) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find(
         (candidate) => candidate.kind === kind,
@@ -50,6 +51,10 @@ describe('social and community provider factories', () => {
       linkedin: {
         clientId: 'LINKEDIN_OAUTH_CLIENT_ID',
         clientSecret: 'LINKEDIN_OAUTH_CLIENT_SECRET',
+      },
+      tiktok: {
+        clientId: 'TIKTOK_OAUTH_CLIENT_KEY',
+        clientSecret: 'TIKTOK_OAUTH_CLIENT_SECRET',
       },
       youtube: {
         clientId: 'GOOGLE_OAUTH_CLIENT_ID',
@@ -96,7 +101,6 @@ describe('social and community provider factories', () => {
       'facebook-pages',
       'facebook-leads',
       'bluesky',
-      'tiktok',
       'pinterest',
     ]) {
       expect(

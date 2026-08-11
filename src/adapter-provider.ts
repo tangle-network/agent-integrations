@@ -115,7 +115,14 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         request.connectorId,
       ))
       url.searchParams.set('response_type', 'code')
-      url.searchParams.set('client_id', client.clientId)
+      url.searchParams.set(
+        resolveOAuthParameterName(
+          auth.authorizationClientIdParam,
+          'client_id',
+          request.connectorId,
+        ),
+        client.clientId,
+      )
       url.searchParams.set('redirect_uri', request.redirectUri)
       if (scopes.length > 0) {
         url.searchParams.set('scope', scopes.join(auth.scopeSeparator ?? ' '))
@@ -190,8 +197,22 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       }
       const redactionValues = [request.code, client.clientId, client.clientSecret]
       if (tokenClientAuthMethod === 'client_secret_post') {
-        body.set('client_id', client.clientId)
-        body.set('client_secret', client.clientSecret)
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientIdParam,
+            'client_id',
+            request.connectorId,
+          ),
+          client.clientId,
+        )
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientSecretParam,
+            'client_secret',
+            request.connectorId,
+          ),
+          client.clientSecret,
+        )
       } else {
         const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret}`)}`
         headers.authorization = authorization
@@ -304,23 +325,27 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           await options.onCredentialsRotated({ connection, credentials: rotated })
         }
       }
-      if (capability.class === 'read') {
-        if (!adapter.executeRead) {
-          throw new IntegrationError(`Connector ${connection.connectorId} does not implement reads.`, 'action_not_found')
+      try {
+        if (capability.class === 'read') {
+          if (!adapter.executeRead) {
+            throw new IntegrationError(`Connector ${connection.connectorId} does not implement reads.`, 'action_not_found')
+          }
+          const result = await adapter.executeRead(invocation)
+          return readResultToAction(request, result)
         }
-        const result = await adapter.executeRead(invocation)
-        await persistRotation()
-        return readResultToAction(request, result)
-      }
-      if (capability.class === 'mutation') {
-        if (!adapter.executeMutation) {
-          throw new IntegrationError(`Connector ${connection.connectorId} does not implement mutations.`, 'action_not_found')
+        if (capability.class === 'mutation') {
+          if (!adapter.executeMutation) {
+            throw new IntegrationError(`Connector ${connection.connectorId} does not implement mutations.`, 'action_not_found')
+          }
+          const result = await adapter.executeMutation(invocation)
+          return mutationResultToAction(request, result)
         }
-        const result = await adapter.executeMutation(invocation)
+        throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')
+      } finally {
+        // A provider can rotate a refresh token before the requested action
+        // fails. Persist that full envelope regardless of the action outcome.
         await persistRotation()
-        return mutationResultToAction(request, result)
       }
-      throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')
     },
   }
 }
@@ -460,6 +485,21 @@ function resolveTokenClientAuthMethod(
     `Connector ${connectorId} has an unsupported OAuth token client authentication method.`,
     'config_missing',
   )
+}
+
+function resolveOAuthParameterName(
+  value: string | undefined,
+  fallback: string,
+  connectorId: string,
+): string {
+  const name = value ?? fallback
+  if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)) {
+    throw new IntegrationError(
+      `Connector ${connectorId} declares an invalid OAuth parameter name.`,
+      'config_missing',
+    )
+  }
+  return name
 }
 
 /** Encodes UTF-8 credentials without importing Node's Buffer, so the adapter

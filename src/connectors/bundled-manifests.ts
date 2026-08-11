@@ -182,6 +182,10 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       scopes: string[]
       clientIdEnv: string
       clientSecretEnv: string
+      scopeSeparator: ' ' | ','
+      authorizationClientIdParam: string
+      tokenClientIdParam: string
+      tokenClientSecretParam: string
       tokenClientAuthMethod: 'client_secret_post' | 'client_secret_basic'
       extraAuthParams?: Record<string, string>
     }
@@ -201,6 +205,10 @@ export function bundledOAuth2Auth(manifest: ConnectorManifest):
       scopes: candidate.scopes,
       clientIdEnv: candidate.clientIdEnv,
       clientSecretEnv: candidate.clientSecretEnv,
+      scopeSeparator: candidate.scopeSeparator ?? ' ',
+      authorizationClientIdParam: candidate.authorizationClientIdParam ?? 'client_id',
+      tokenClientIdParam: candidate.tokenClientIdParam ?? 'client_id',
+      tokenClientSecretParam: candidate.tokenClientSecretParam ?? 'client_secret',
       tokenClientAuthMethod: candidate.tokenClientAuthMethod ?? 'client_secret_post',
       extraAuthParams: candidate.extraAuthParams,
     }

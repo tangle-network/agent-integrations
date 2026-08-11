@@ -203,7 +203,9 @@ export interface ConnectorInvocation {
    *  reconnect. Adapters MUST invoke this with the FULL rotated envelope,
    *  not a partial — the previous refresh token is preserved by the caller's
    *  refresh logic, not inferred here. */
-  onCredentialsRotated?: (credentials: ConnectorCredentials) => void
+  onCredentialsRotated?: (
+    credentials: ConnectorCredentials,
+  ) => Promise<void> | void
 }
 
 /** A single inbound event extracted from a push payload. The webhook
@@ -290,7 +292,13 @@ export interface ConnectorAdapter {
    *  UI. Should perform the cheapest possible read that proves the grant
    *  is still valid. Returns `{ok: false, reason}` rather than throwing
    *  for the common case (token expired, scope missing). */
-  test(source: ResolvedDataSource): Promise<{ ok: true } | { ok: false; reason: string }>
+  test(
+    source: ResolvedDataSource,
+    /** Optional persistence sink for credentials rotated by the health check. */
+    onCredentialsRotated?: (
+      credentials: ConnectorCredentials,
+    ) => Promise<void> | void,
+  ): Promise<{ ok: true } | { ok: false; reason: string }>
 }
 
 /** Static manifest a connector module exports. Drives the UI catalog,
@@ -383,6 +391,9 @@ type OAuth2AuthSpec = {
   /** Separator used when serializing multiple scopes into the authorization
    *  URL. OAuth defaults to spaces; Zoho requires comma-delimited scopes. */
   scopeSeparator?: ' ' | ','
+  /** Query parameter that receives the OAuth client id on the authorization
+   *  URL. Defaults to `client_id`; TikTok calls this value `client_key`. */
+  authorizationClientIdParam?: string
   /** Whether the connector supports incremental authorization (Google
    *  does; many don't). */
   incremental?: boolean
@@ -390,6 +401,12 @@ type OAuth2AuthSpec = {
   clientIdEnv: string
   /** Env-var name holding the OAuth client_secret. */
   clientSecretEnv: string
+  /** Form parameter that receives the client id during token exchange.
+   *  Defaults to `client_id`; TikTok calls this value `client_key`. */
+  tokenClientIdParam?: string
+  /** Form parameter that receives the client secret during token exchange.
+   *  Defaults to `client_secret`. */
+  tokenClientSecretParam?: string
   /** OAuth client authentication for the authorization-code token exchange.
    * Defaults to `client_secret_post` for backward compatibility. */
   tokenClientAuthMethod?: OAuth2TokenClientAuthMethod

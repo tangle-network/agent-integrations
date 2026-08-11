@@ -78,6 +78,9 @@ export interface StartOAuthInput {
   /** OAuth defaults to spaces; set `,` for providers such as Zoho. */
   scopeSeparator?: ' ' | ','
   clientId: string
+  /** Authorization query parameter for the client id. Defaults to
+   *  `client_id`; TikTok uses `client_key`. */
+  authorizationClientIdParam?: string
   redirectUri: string
   /** Optional extra query params; Google needs `access_type=offline` and
    *  `prompt=consent` to issue refresh tokens reliably. */
@@ -120,7 +123,10 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
 
   const url = new URL(input.authorizationUrl)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('client_id', input.clientId)
+  url.searchParams.set(
+    oauthParameterName(input.authorizationClientIdParam, 'client_id'),
+    input.clientId,
+  )
   url.searchParams.set('redirect_uri', input.redirectUri)
   url.searchParams.set('scope', input.scopes.join(input.scopeSeparator ?? ' '))
   url.searchParams.set('state', state)
@@ -149,6 +155,8 @@ export interface ExchangeCodeInput {
   tokenUrl: string
   clientId: string
   clientSecret: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
   code: string
   codeVerifier: string
   redirectUri: string
@@ -174,12 +182,12 @@ export interface OAuthTokens {
 export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promise<OAuthTokens> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
-    client_id: input.clientId,
-    client_secret: input.clientSecret,
     code: input.code,
     redirect_uri: input.redirectUri,
     code_verifier: input.codeVerifier,
   })
+  body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
+  body.set(oauthParameterName(input.tokenClientSecretParam, 'client_secret'), input.clientSecret)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
@@ -212,6 +220,8 @@ export interface RefreshInput {
   tokenUrl: string
   clientId: string
   clientSecret: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
   refreshToken: string
   fetchImpl?: typeof fetch
   signal?: AbortSignal
@@ -222,10 +232,10 @@ export interface RefreshInput {
 export async function refreshAccessToken(input: RefreshInput): Promise<OAuthTokens> {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
-    client_id: input.clientId,
-    client_secret: input.clientSecret,
     refresh_token: input.refreshToken,
   })
+  body.set(oauthParameterName(input.tokenClientIdParam, 'client_id'), input.clientId)
+  body.set(oauthParameterName(input.tokenClientSecretParam, 'client_secret'), input.clientSecret)
   const res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
@@ -258,6 +268,14 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
 
 function base64Url(buf: Buffer): string {
   return buf.toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+function oauthParameterName(value: string | undefined, fallback: string): string {
+  const name = value ?? fallback
+  if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)) {
+    throw new Error('Invalid OAuth parameter name')
+  }
+  return name
 }
 
 /** Test-only — drop pending flows between unit-test runs. */
