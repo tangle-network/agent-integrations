@@ -31,6 +31,7 @@ import {
   type CapabilityMutationResult,
   type ConnectorCredentials,
   CredentialsExpired,
+  ProviderConfigError,
 } from '../types.js'
 import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
 import { decodeJwt } from 'jose'
@@ -357,9 +358,7 @@ export function microsoftTeams(opts: MicrosoftTeamsOptions): ConnectorAdapter {
           headers: { authorization: `Bearer ${accessToken}` },
           signal: AbortSignal.timeout(8_000),
         })
-        if (res.status === 401 || res.status === 403) {
-          return { ok: false, reason: `Microsoft rejected token (${res.status}) — reconnect required` }
-        }
+        if (res.status === 401 || res.status === 403) return microsoftGraphTestFailure(res)
         if (!res.ok) return { ok: false, reason: `Microsoft Graph returned ${res.status}` }
         return { ok: true }
       } catch (err) {
@@ -444,7 +443,7 @@ async function graphGet<T>(url: string, accessToken: string, dataSourceId: strin
     signal: AbortSignal.timeout(10_000),
   })
   if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, dataSourceId)
+    await throwMicrosoftGraphAccessError(res, dataSourceId)
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -471,13 +470,87 @@ async function graphPost<T>(
     signal: AbortSignal.timeout(15_000),
   })
   if (res.status === 401 || res.status === 403) {
-    throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, dataSourceId)
+    await throwMicrosoftGraphAccessError(res, dataSourceId)
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`microsoft-teams ${op} ${res.status}: ${text.slice(0, 200)}`)
   }
   return (await res.json()) as T
+}
+
+type MicrosoftGraphErrorBody = {
+  error?: {
+    code?: unknown
+    message?: unknown
+  }
+}
+
+async function microsoftGraphErrorBody(res: Response): Promise<MicrosoftGraphErrorBody | undefined> {
+  try {
+    const body: unknown = await res.json()
+    return body && typeof body === 'object' ? (body as MicrosoftGraphErrorBody) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function microsoftGraphErrorText(body: MicrosoftGraphErrorBody | undefined): string {
+  const code = typeof body?.error?.code === 'string' ? body.error.code : ''
+  const message = typeof body?.error?.message === 'string' ? body.error.message : ''
+  return `${code} ${message}`.trim()
+}
+
+function microsoftGraphRequiresLicense(body: MicrosoftGraphErrorBody | undefined): boolean {
+  return /\b(?:valid\s+)?licen[cs]e\b/i.test(microsoftGraphErrorText(body))
+}
+
+async function throwMicrosoftGraphAccessError(
+  res: Response,
+  dataSourceId: string,
+): Promise<never> {
+  const body = await microsoftGraphErrorBody(res)
+  if (microsoftGraphRequiresLicense(body)) {
+    throw new ProviderConfigError(
+      'Microsoft Teams requires a valid Microsoft 365 or Teams license',
+      dataSourceId,
+      { status: res.status, reason: 'licenseRequired', body },
+    )
+  }
+  if (res.status === 403) {
+    throw new ProviderConfigError('Microsoft Graph denied the requested permission', dataSourceId, {
+      status: res.status,
+      reason:
+        typeof body?.error?.code === 'string' && body.error.code
+          ? body.error.code
+          : 'forbidden',
+      body,
+    })
+  }
+  throw new CredentialsExpired(`Microsoft Graph rejected token (${res.status})`, dataSourceId, {
+    status: res.status,
+    reason:
+      typeof body?.error?.code === 'string' && body.error.code
+        ? body.error.code
+        : 'unauthorized',
+    body,
+  })
+}
+
+async function microsoftGraphTestFailure(
+  res: Response,
+): Promise<{ ok: false; reason: string }> {
+  const body = await microsoftGraphErrorBody(res)
+  if (microsoftGraphRequiresLicense(body)) {
+    return {
+      ok: false,
+      reason: 'Microsoft Teams requires a valid Microsoft 365 or Teams license',
+    }
+  }
+  if (res.status === 403) {
+    return { ok: false, reason: 'Microsoft Graph denied the requested permission' }
+  }
+  return { ok: false, reason: `Microsoft rejected token (${res.status}) — reconnect required` }
 }
 
 /** OData $filter string-literal escape — single quotes are doubled, no

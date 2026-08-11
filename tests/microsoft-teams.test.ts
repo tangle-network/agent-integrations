@@ -313,6 +313,54 @@ describe('microsoft-teams adapter', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
+  it('maps a Teams license rejection to ProviderConfigError without requesting reconnect', async () => {
+    const body = {
+      error: {
+        code: 'Unauthorized',
+        message: 'Invoked API requires a valid license. No valid license found.',
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(body, { status: 401 })))
+
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'list_joined_teams',
+        args: {},
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toMatchObject({
+      name: 'ProviderConfigError',
+      status: 401,
+      reason: 'licenseRequired',
+      body,
+    })
+  })
+
+  it('maps a Graph permission rejection to ProviderConfigError', async () => {
+    const body = {
+      error: {
+        code: 'Forbidden',
+        message: 'Insufficient privileges to complete the operation.',
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(body, { status: 403 })))
+
+    await expect(
+      adapter.executeRead!({
+        source: source(),
+        capabilityName: 'list_joined_teams',
+        args: {},
+        idempotencyKey: 'k1',
+      }),
+    ).rejects.toMatchObject({
+      name: 'ProviderConfigError',
+      status: 403,
+      reason: 'Forbidden',
+      body,
+    })
+  })
+
   it('test() returns ok when Graph /me responds 200', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ id: 'u1' }))
     vi.stubGlobal('fetch', fetchMock)
@@ -326,5 +374,29 @@ describe('microsoft-teams adapter', () => {
     const out = await adapter.test(source())
     expect(out.ok).toBe(false)
     if (!out.ok) expect(out.reason).toMatch(/reconnect required/i)
+  })
+
+  it('test() reports a license blocker without recommending reconnect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse(
+          {
+            error: {
+              code: 'Unauthorized',
+              message: 'Invoked API requires a valid license. No valid license found.',
+            },
+          },
+          { status: 401 },
+        ),
+      ),
+    )
+
+    const out = await adapter.test(source())
+
+    expect(out).toEqual({
+      ok: false,
+      reason: 'Microsoft Teams requires a valid Microsoft 365 or Teams license',
+    })
   })
 })
