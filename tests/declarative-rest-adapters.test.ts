@@ -3,6 +3,7 @@ import {
   airtableConnector,
   asanaConnector,
   createConnectorAdapterProvider,
+  declarativeRestConnector,
   githubConnector,
   gitlabConnector,
   salesforceConnector,
@@ -98,6 +99,42 @@ describe('declarative REST adapters', () => {
     expect(JSON.parse(String((sfFetchMock.mock.calls[0]![1] as RequestInit).body))).toEqual({ Name: 'Tangle' })
   })
 
+  it('form-encodes flat scalar bodies and omits nullish fields', async () => {
+    const fetchMock = mockFetch({ ok: true })
+
+    await formConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'form-test' }),
+      capabilityName: 'records.create',
+      args: {
+        name: 'Ada Lovelace',
+        active: true,
+        count: 2,
+        omitted: null,
+      },
+      idempotencyKey: 'form-1',
+    })
+
+    const [, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
+    expect(new Headers(init.headers).get('content-type')).toBe('application/x-www-form-urlencoded')
+    expect(Object.fromEntries(new URLSearchParams(String(init.body)))).toEqual({
+      name: 'Ada Lovelace',
+      active: 'true',
+      count: '2',
+    })
+  })
+
+  it('rejects nested form fields before provider traffic', async () => {
+    const fetchMock = mockFetch({ ok: true })
+
+    await expect(formConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'form-test' }),
+      capabilityName: 'records.create',
+      args: { nested: { unsafe: true } },
+      idempotencyKey: 'form-2',
+    })).rejects.toThrow('form field nested must be a scalar value')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('uses provider-specific credential placement for GitLab', async () => {
     const fetchMock = mockFetch([{ id: 1 }])
     const provider = createConnectorAdapterProvider({
@@ -114,6 +151,30 @@ describe('declarative REST adapters', () => {
     const [_url, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
     expect((init as RequestInit).headers).toMatchObject({ 'PRIVATE-TOKEN': 'token_123' })
   })
+})
+
+const formConnector = declarativeRestConnector({
+  kind: 'form-test',
+  displayName: 'Form Test',
+  description: 'Exercises form request serialization.',
+  auth: { kind: 'api-key', hint: 'Test token.' },
+  category: 'other',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://form.example.test',
+  capabilities: [{
+    name: 'records.create',
+    class: 'mutation',
+    description: 'Create a record.',
+    parameters: { type: 'object', properties: {} },
+    request: {
+      method: 'POST',
+      path: '/records',
+      body: 'args',
+      bodyEncoding: 'form',
+    },
+    cas: 'none',
+    externalEffect: true,
+  }],
 })
 
 function sourceFor(conn: IntegrationConnection): ResolvedDataSource {

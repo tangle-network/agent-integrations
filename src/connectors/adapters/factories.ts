@@ -71,7 +71,7 @@ import { opsgenieConnector } from './opsgenie.js'
 import { pagerdutyConnector } from './pagerduty.js'
 import { paychexConnector } from './paychex.js'
 import { pushbulletConnector } from './pushbullet.js'
-import { redditConnector } from './reddit.js'
+import { reddit, type RedditOptions } from './reddit.js'
 import { ripplingConnector } from './rippling.js'
 import { sanityConnector } from './sanity.js'
 import { sendpulseConnector } from './sendpulse.js'
@@ -1015,7 +1015,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'PUSHBULLET_OAUTH_CLIENT_ID',
       clientSecret: 'PUSHBULLET_OAUTH_CLIENT_SECRET',
     }),
-    defineFactoryAdapter(() => redditConnector, {
+    defineFactoryAdapter<RedditOptions>(reddit, {
       clientId: 'REDDIT_OAUTH_CLIENT_ID',
       clientSecret: 'REDDIT_OAUTH_CLIENT_SECRET',
     }),

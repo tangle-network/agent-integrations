@@ -21,6 +21,7 @@ import type {
   StartAuthResult,
 } from './core-types.js'
 import { IntegrationError } from './core-error.js'
+import { createOAuthTokenRequestHeaders } from './connectors/oauth.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
@@ -219,10 +220,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         ? undefined
         : requirePkceVerifier(request.codeVerifier, request.connectorId)
       if (codeVerifier) body.set('code_verifier', codeVerifier)
-      const headers: Record<string, string> = {
-        'content-type': 'application/x-www-form-urlencoded',
-        accept: 'application/json',
-      }
+      const headers = createOAuthTokenRequestHeaders(auth.tokenRequestHeaders)
       const redactionValues = [
         request.code,
         client.clientId,
