@@ -6,10 +6,12 @@ import {
   resolveConnectorAdapterFactoryOptions,
 } from '../src/connectors/adapters/index'
 import {
+  bundledAuthMode,
   getBundledAdapterManifest,
   listBundledAdapterKinds,
   listBundledConnectorAdapters,
 } from '../src/connectors/bundled-manifests'
+import { buildDefaultIntegrationRegistry } from '../src/registry'
 import { listTangleNativeAdapterIds } from '../src/tangle-catalog'
 
 describe('connector adapter factory registry', () => {
@@ -51,6 +53,21 @@ describe('connector adapter factory registry', () => {
     for (const definition of CONNECTOR_ADAPTER_FACTORIES) {
       expect(nativeIds.has(definition.kind), definition.kind).toBe(true)
     }
+  })
+
+  it('keeps every OAuth factory discoverable through the default registry', () => {
+    const registry = buildDefaultIntegrationRegistry()
+    const missing = CONNECTOR_ADAPTER_FACTORIES
+      .filter((definition) => {
+        const manifest = getBundledAdapterManifest(definition.kind)
+        if (!manifest) return false
+        const mode = bundledAuthMode(manifest)
+        return mode === 'oauth2' || mode === 'oauth2_client_credentials'
+      })
+      .map((definition) => definition.kind)
+      .filter((kind) => !registry.byId.has(kind))
+
+    expect(missing).toEqual([])
   })
 
   it('keeps Bigin OAuth credentials separate from the Zoho CRM aliases', () => {
