@@ -347,7 +347,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     expect(conn.id).toMatch(/^conn_/)
   })
 
-  it('completeAuth sends client_secret_basic credentials only in the Authorization header', async () => {
+  it('completeAuth form-encodes client_secret_basic credentials in the Authorization header', async () => {
     const basicAdapter = oauthAdapter()
     if (basicAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
     basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
@@ -358,7 +358,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       expect(headers).toEqual({
         'content-type': 'application/x-www-form-urlencoded',
         accept: 'application/json',
-        authorization: 'Basic Y2lkX2xpdmU6c2VjX2xpdmU=',
+        authorization: `Basic ${Buffer.from('client%3Aid:s%2Be%25cret').toString('base64')}`,
       })
       const body = init?.body as URLSearchParams
       expect(body.get('grant_type')).toBe('authorization_code')
@@ -372,7 +372,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     const provider = createConnectorAdapterProvider({
       adapters: [basicAdapter],
       resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
-      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      resolveOAuthClient: () => ({ clientId: 'client:id', clientSecret: 's+e%cret' }),
       fetchImpl,
     })
 

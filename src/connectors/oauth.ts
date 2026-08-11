@@ -308,6 +308,10 @@ export function createOAuthTokenRequestHeaders(
   return Object.fromEntries(headers.entries())
 }
 
+export function formEncodeOAuthClientCredential(value: string): string {
+  return new URLSearchParams({ value }).toString().slice('value='.length)
+}
+
 function applyTokenClientAuthentication(
   input: {
     clientId: string
@@ -336,8 +340,10 @@ function applyTokenClientAuthentication(
     return
   }
   if (method === 'client_secret_basic') {
+    const encodedClientId = formEncodeOAuthClientCredential(input.clientId)
+    const encodedClientSecret = formEncodeOAuthClientCredential(input.clientSecret)
     headers.authorization = `Basic ${Buffer.from(
-      `${input.clientId}:${input.clientSecret}`,
+      `${encodedClientId}:${encodedClientSecret}`,
       'utf8',
     ).toString('base64')}`
     return

@@ -21,7 +21,10 @@ import type {
   StartAuthResult,
 } from './core-types.js'
 import { IntegrationError } from './core-error.js'
-import { createOAuthTokenRequestHeaders } from './connectors/oauth.js'
+import {
+  createOAuthTokenRequestHeaders,
+  formEncodeOAuthClientCredential,
+} from './connectors/oauth.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
@@ -254,7 +257,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           client.clientSecret!,
         )
       } else {
-        const authorization = `Basic ${base64Encode(`${client.clientId}:${client.clientSecret!}`)}`
+        const encodedClientId = formEncodeOAuthClientCredential(client.clientId)
+        const encodedClientSecret = formEncodeOAuthClientCredential(client.clientSecret!)
+        const authorization = `Basic ${base64Encode(
+          `${encodedClientId}:${encodedClientSecret}`,
+        )}`
         headers.authorization = authorization
         redactionValues.push(authorization)
       }

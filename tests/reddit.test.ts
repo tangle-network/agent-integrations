@@ -73,7 +73,7 @@ describe('reddit OAuth request shape', () => {
     const provider = createConnectorAdapterProvider({
       adapters: [redditConnector],
       resolveDataSource: () => source(),
-      resolveOAuthClient: () => ({ clientId: 'reddit_client', clientSecret: 'reddit_secret' }),
+      resolveOAuthClient: () => ({ clientId: 'client:id', clientSecret: 's+e%cret' }),
       fetchImpl: tokenFetch as unknown as typeof fetch,
     })
 
@@ -102,7 +102,7 @@ describe('reddit OAuth request shape', () => {
     const [tokenUrl, tokenInit] = tokenFetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(tokenUrl).toBe('https://www.reddit.com/api/v1/access_token')
     expect(headerValue(tokenInit.headers, 'authorization')).toBe(
-      `Basic ${Buffer.from('reddit_client:reddit_secret').toString('base64')}`,
+      `Basic ${Buffer.from('client%3Aid:s%2Be%25cret').toString('base64')}`,
     )
     expect(headerValue(tokenInit.headers, 'user-agent')).toBe(EXPECTED_USER_AGENT)
     const tokenBody = tokenInit.body as URLSearchParams
@@ -121,8 +121,8 @@ describe('reddit OAuth request shape', () => {
       scope: 'identity read submit edit',
     }))
     const adapter = reddit({
-      clientId: 'reddit_client',
-      clientSecret: 'reddit_secret',
+      clientId: 'client:id',
+      clientSecret: 's+e%cret',
       fetchImpl: tokenFetch as unknown as typeof fetch,
       now: () => now,
     })
@@ -146,7 +146,7 @@ describe('reddit OAuth request shape', () => {
     const [tokenUrl, tokenInit] = tokenFetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(tokenUrl).toBe('https://www.reddit.com/api/v1/access_token')
     expect(headerValue(tokenInit.headers, 'authorization')).toBe(
-      `Basic ${Buffer.from('reddit_client:reddit_secret').toString('base64')}`,
+      `Basic ${Buffer.from('client%3Aid:s%2Be%25cret').toString('base64')}`,
     )
     expect(headerValue(tokenInit.headers, 'user-agent')).toBe(EXPECTED_USER_AGENT)
     expect(headerValue(tokenInit.headers, 'content-type')).toBe('application/x-www-form-urlencoded')
