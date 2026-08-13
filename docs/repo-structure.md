@@ -51,6 +51,13 @@ This repo intentionally separates catalog breadth from executable runtime code.
   snapshot from the built runtime registry.
 - `scripts/check-bundled-manifest-freshness.mjs` rejects stale snapshots during
   `prepack` and in the publish workflow.
+- `scripts/release.mjs` is the lifecycle-independent release entry point.
+  It builds, generates into a temporary file, checks freshness, packs one exact
+  archive, tests that archive, and publishes it only when `--publish` is set.
+  It skips an existing version only when the registry integrity matches the
+  tested archive.
+- `scripts/test-release-artifact.mjs` verifies the metadata, exports, bundled
+  manifest freshness, and Worker entry point inside the exact archive.
 - `tests/worker-safe-bundles.test.ts` packs the npm artifact and verifies the
   `/worker`, `/specs`, and `/catalog` exports as browser bundles.
 

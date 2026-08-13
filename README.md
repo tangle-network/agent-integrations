@@ -440,8 +440,14 @@ pnpm test
 pnpm build
 pnpm run check:bundled-manifest-freshness
 pnpm pack
+pnpm run release
 ```
 
+`pnpm run release` builds the package, generates and checks bundled adapter
+metadata, packs one exact archive, and tests that archive without publishing.
+Use `pnpm run release -- --publish` for the npm release path; it publishes that
+tested archive with lifecycle scripts disabled and skips an existing version only
+when its registry integrity matches the tested archive.
 Packaging rebuilds the distribution and rejects stale bundled adapter metadata.
 The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
 `/catalog` for a browser Worker runtime.
