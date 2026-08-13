@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Verify bundled manifest freshness
+        run: pnpm run check:bundled-manifest-freshness
+
       - name: Verify tag/version lock
         run: |
           NPM_VERSION=$(node -p "require('./package.json').version")
@@ -70,6 +73,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+      - run: pnpm run check:bundled-manifest-freshness
 
       # Idempotent: re-running a tag whose npm version is already published
       # must not fail the workflow. Auth is npm OIDC trusted publishing

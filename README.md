@@ -199,6 +199,7 @@ OAuth credentials.
 
 Use `@tangle-network/agent-integrations/worker` for guard, audit, policy, and
 core contracts in a Worker or other non-Node runtime.
+This entry uses Web Crypto and contains no Node builtins.
 
 Use `/specs` for setup metadata and `/catalog` for pure tool-catalog helpers.
 These subpaths bundle static data without importing executable adapters or their
@@ -437,7 +438,13 @@ pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm run check:bundled-manifest-freshness
+pnpm pack
 ```
+
+Packaging rebuilds the distribution and rejects stale bundled adapter metadata.
+The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
+`/catalog` for a browser Worker runtime.
 
 ## License
 

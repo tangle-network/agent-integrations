@@ -29,6 +29,8 @@ This repo intentionally separates catalog breadth from executable runtime code.
   sandbox runtimes.
 - `src/worker.ts` is the Worker-safe entry point for guard, audit, policy, and
   core contracts.
+- `src/web-crypto.ts` provides the Web Crypto hashing and UUID helpers used by
+  the Worker-safe security primitives.
 
 ## Data
 
@@ -42,6 +44,15 @@ This repo intentionally separates catalog breadth from executable runtime code.
 - `dist/` is published because the package ships compiled ESM and `.d.ts`
   files to npm.
 - `node_modules/` is local development state and is not published.
+
+## Release Checks
+
+- `scripts/generate-bundled-manifest-data.mjs` writes the adapter manifest
+  snapshot from the built runtime registry.
+- `scripts/check-bundled-manifest-freshness.mjs` rejects stale snapshots during
+  `prepack` and in the publish workflow.
+- `tests/worker-safe-bundles.test.ts` packs the npm artifact and verifies the
+  `/worker`, `/specs`, and `/catalog` exports as browser bundles.
 
 ## Docs
 

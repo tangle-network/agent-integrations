@@ -11,6 +11,7 @@ import {
   type IntegrationRegistrySummary,
   type IntegrationSupportTier,
 } from './registry-core.js'
+import { decodeUtf8Base64Url, encodeUtf8Base64Url } from './base64.js'
 
 export interface IntegrationToolDefinition {
   name: string
@@ -249,11 +250,11 @@ function tokenize(value: string): string[] {
 }
 
 function encodeToolPart(value: string): string {
-  return Buffer.from(value, 'utf8').toString('base64url').replace(/_/g, '.')
+  return encodeUtf8Base64Url(value).replace(/_/g, '.')
 }
 
 function decodeToolPart(value: string): string {
-  return Buffer.from(value.replace(/\./g, '_'), 'base64url').toString('utf8')
+  return decodeUtf8Base64Url(value.replace(/\./g, '_'))
 }
 
 function unique<T>(values: T[]): T[] {
