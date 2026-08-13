@@ -5,6 +5,8 @@ export default defineConfig({
     index: 'src/index.ts',
     consumer: 'src/consumer.ts',
     catalog: 'src/catalog.ts',
+    worker: 'src/worker.ts',
+    'internal/bundled-manifest-runtime': 'src/connectors/bundled-manifest-runtime.ts',
     registry: 'src/registry.ts',
     runtime: 'src/runtime.ts',
     specs: 'src/specs/index.ts',

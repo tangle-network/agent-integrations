@@ -20,17 +20,22 @@ This repo intentionally separates catalog breadth from executable runtime code.
   `src/audit.ts`, `src/healthcheck.ts`, `src/credentials.ts`, and
   `src/events.ts` are production control-plane primitives.
 - `src/connectors/` contains first-party adapter contracts and implementations.
+- `src/connectors/bundled-manifest-data.ts` contains the static manifest snapshot;
+  `src/connectors/bundled-manifests.ts` keeps runtime adapter discovery separate.
 - `src/specs/` is the structured OAuth/setup/runbook source of truth.
-- `src/registry.ts`, `src/gateway-catalog.ts`, `src/coverage-catalog.ts`, and
-  `src/tangle-catalog.ts` compose broad connector catalogs while keeping
-  execution behind configured native, gateway, or sandbox runtimes.
+- `src/registry-core.ts`, `src/registry.ts`, `src/gateway-catalog.ts`,
+  `src/coverage-catalog.ts`, and `src/tangle-catalog.ts` compose broad connector
+  catalogs while keeping execution behind configured native, gateway, or
+  sandbox runtimes.
+- `src/worker.ts` is the Worker-safe entry point for guard, audit, policy, and
+  core contracts.
 
 ## Data
 
-- Imported catalog JSON is large by design. It is lazy-loaded and keeps
+- Imported catalog JSON is large by design. Data-only runtime modules keep
   long-tail discovery out of TypeScript source so `tsc --watch` does not
-  re-check a generated 40k-line module. It is catalog metadata, not executable
-  support.
+  re-check a generated 40k-line module. Bundled `/specs` and `/catalog` data
+  does not import executable adapters or their Node-only clients.
 
 ## Build Artifacts
 

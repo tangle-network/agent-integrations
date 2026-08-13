@@ -6,7 +6,7 @@ import type {
   IntegrationGuardContext,
   IntegrationPolicyDecision,
   IntegrationPolicyEngine,
-} from './index.js'
+} from './core-types.js'
 
 export type IntegrationPolicyEffect = 'allow' | 'require_approval' | 'deny'
 

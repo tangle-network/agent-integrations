@@ -4,13 +4,13 @@ import type {
   IntegrationConnectorCategory,
   IntegrationActionRisk,
   IntegrationDataClass,
-} from './index.js'
+} from './core-types.js'
 import {
   summarizeIntegrationRegistry,
   type IntegrationRegistry,
   type IntegrationRegistrySummary,
   type IntegrationSupportTier,
-} from './registry.js'
+} from './registry-core.js'
 
 export interface IntegrationToolDefinition {
   name: string

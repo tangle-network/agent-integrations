@@ -8,7 +8,7 @@ import type {
   IntegrationConnectorAction,
   IntegrationDataClass,
   IntegrationGuardContext,
-} from './index.js'
+} from './core-types.js'
 
 export type IntegrationAuditEventType =
   | 'connection.created'

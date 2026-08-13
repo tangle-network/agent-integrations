@@ -26,6 +26,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const NATIVE_CLIENTS = ['@duckdb/node-api', 'ssh2-sftp-client', 'ssh2', 'cpu-features']
+const ADAPTER_SOURCE_ROOT = `${resolve(__dirname)}/connectors/adapters/`
 
 /**
  * A LITERAL dynamic import is not an escape either. A bundler resolves
@@ -52,7 +53,7 @@ const STATIC_FROM = /(?:^|\n)\s*(?:import|export)[\s\S]{0,400}?from\s*['"]([^'"]
 function resolveLocal(fromFile: string, spec: string): string | null {
   if (!spec.startsWith('.')) return null
   const base = join(dirname(fromFile), spec.replace(/\.js$/, ''))
-  for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
+  for (const candidate of [join(dirname(fromFile), spec), `${base}.ts`, `${base}.tsx`, `${base}.mjs`, join(base, 'index.ts')]) {
     try {
       readFileSync(candidate, 'utf8')
       return candidate
@@ -89,7 +90,12 @@ function nativeImportsReachableFrom(entry: string): string[] {
         continue
       }
       const local = resolveLocal(file, spec)
-      if (local) stack.push(local)
+      if (local) {
+        if (local.startsWith(ADAPTER_SOURCE_ROOT)) {
+          hits.push(`${file.replace(`${SRC}/`, '')} reaches adapter source ${local.replace(`${SRC}/`, '')}`)
+        }
+        stack.push(local)
+      }
     }
     // Comments are prose, not imports. A scanner that reads them reports the
     // sentence explaining the rule as a violation of it.
@@ -102,7 +108,7 @@ function nativeImportsReachableFrom(entry: string): string[] {
 }
 
 describe('worker-safe subpaths', () => {
-  for (const entry of ['catalog.ts', 'specs/index.ts']) {
+  for (const entry of ['catalog.ts', 'specs/index.ts', 'worker.ts']) {
     it(`/${entry.replace(/(\/index)?\.ts$/, '')} reaches no native client`, () => {
       expect(nativeImportsReachableFrom(join(SRC, entry))).toEqual([])
     })

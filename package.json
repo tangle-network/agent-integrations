@@ -24,6 +24,11 @@
       "import": "./dist/catalog.js",
       "default": "./dist/catalog.js"
     },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js",
+      "default": "./dist/worker.js"
+    },
     "./connectors": {
       "types": "./dist/connectors/index.d.ts",
       "import": "./dist/connectors/index.js",
@@ -107,6 +112,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "generate:bundled-manifests": "pnpm build && node scripts/generate-bundled-manifest-data.mjs && pnpm build",
     "dev": "tsup --watch",
     "audit:execution": "pnpm build >/dev/null && node scripts/audit-integration-execution.mjs",
     "prepare": "tsup",

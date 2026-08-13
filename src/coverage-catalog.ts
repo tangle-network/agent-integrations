@@ -4,7 +4,7 @@ import type {
   IntegrationConnectorCategory,
   IntegrationConnectorTrigger,
   IntegrationProviderKind,
-} from './index.js'
+} from './core-types.js'
 
 export type IntegrationCoveragePriority = 'tier_0' | 'tier_1' | 'tier_2' | 'long_tail'
 

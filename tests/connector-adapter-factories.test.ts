@@ -9,8 +9,10 @@ import {
   bundledAuthMode,
   getBundledAdapterManifest,
   listBundledAdapterKinds,
+  listBundledAdapterManifests,
   listBundledConnectorAdapters,
 } from '../src/connectors/bundled-manifests'
+import { buildRuntimeBundledAdapterManifests } from '../src/connectors/bundled-manifest-runtime'
 import { buildDefaultIntegrationRegistry } from '../src/registry'
 import { listTangleNativeAdapterIds } from '../src/tangle-catalog'
 
@@ -34,6 +36,16 @@ describe('connector adapter factory registry', () => {
         definition.kind,
       ).toBe(definition.kind)
     }
+  })
+
+  it('keeps the Worker manifest snapshot byte-equivalent to runtime adapter manifests', () => {
+    const runtime = buildRuntimeBundledAdapterManifests().sort((a, b) => a.kind.localeCompare(b.kind))
+    const staticManifests = listBundledAdapterManifests()
+    const encodeUndefined = (_key: string, value: unknown) => value === undefined
+      ? { __tangleUndefined: true }
+      : value
+
+    expect(JSON.stringify(staticManifests, encodeUndefined)).toBe(JSON.stringify(runtime, encodeUndefined))
   })
 
   it('fails closed when required factory configuration is absent', () => {

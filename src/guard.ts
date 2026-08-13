@@ -3,7 +3,7 @@ import type {
   IntegrationActionGuard,
   IntegrationActionResult,
   IntegrationGuardContext,
-} from './index.js'
+} from './core-types.js'
 import type { IntegrationAuditSink } from './audit.js'
 import { createIntegrationAuditEvent } from './audit.js'
 

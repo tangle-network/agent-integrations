@@ -21,6 +21,7 @@ provider SDK.
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Core Primitives](#core-primitives)
+- [Worker-safe Imports](#worker-safe-imports)
 - [Catalog Registry](#catalog-registry)
 - [Product Adoption](#product-adoption)
 - [Provider Strategy](#provider-strategy)
@@ -193,6 +194,15 @@ OAuth credentials.
 | `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
 | `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |
 | `validateCredentialSet` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
+
+## Worker-safe Imports
+
+Use `@tangle-network/agent-integrations/worker` for guard, audit, policy, and
+core contracts in a Worker or other non-Node runtime.
+
+Use `/specs` for setup metadata and `/catalog` for pure tool-catalog helpers.
+These subpaths bundle static data without importing executable adapters or their
+Node-only clients.
 
 ## Catalog Registry
 
