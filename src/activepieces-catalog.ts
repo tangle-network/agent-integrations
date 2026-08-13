@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
 import type {
   IntegrationActionRisk,
   IntegrationConnector,
@@ -8,8 +5,9 @@ import type {
   IntegrationConnectorCategory,
   IntegrationConnectorTrigger,
   IntegrationDataClass,
-} from './index.js'
+} from './core-types.js'
 import { getActivepiecesOverride } from './activepieces-overrides.js'
+import { catalogData } from './activepieces-catalog-data.mjs'
 
 export interface ActivepiecesCatalogEntry {
   id: string
@@ -48,18 +46,10 @@ export interface ActivepiecesCatalogAuthField {
   description?: string
 }
 
-const CATALOG_RESOURCE_RELATIVE = '../data/activepieces-catalog.json'
-
-let CACHED_CATALOG: ReadonlyArray<ActivepiecesCatalogEntry> | undefined
+const CACHED_CATALOG = catalogData as unknown as ReadonlyArray<ActivepiecesCatalogEntry>
 
 function loadCatalog(): ReadonlyArray<ActivepiecesCatalogEntry> {
-  if (CACHED_CATALOG) return CACHED_CATALOG
-  const here = dirname(fileURLToPath(import.meta.url))
-  const path = resolve(here, CATALOG_RESOURCE_RELATIVE)
-  const raw = readFileSync(path, 'utf8')
-  const parsed = JSON.parse(raw) as ActivepiecesCatalogEntry[]
-  CACHED_CATALOG = parsed
-  return parsed
+  return CACHED_CATALOG
 }
 
 export function listActivepiecesCatalogEntries(): ActivepiecesCatalogEntry[] {

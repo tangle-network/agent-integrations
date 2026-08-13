@@ -29,8 +29,8 @@ jobs:
       - name: Test
         run: pnpm run test
 
-      - name: Build
-        run: pnpm run build
+      - name: Build, pack, and test release artifact
+        run: pnpm run release
 
       - name: Verify tag/version lock
         run: |
@@ -69,22 +69,12 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
 
-      # Idempotent: re-running a tag whose npm version is already published
-      # must not fail the workflow. Auth is npm OIDC trusted publishing
+      # Idempotent: re-running a tag whose exact npm artifact is already
+      # published skips publish. A same-version integrity mismatch fails
+      # closed. Auth is npm OIDC trusted publishing
       # (no NPM_TOKEN). The id-token: write permission above lets the
       # runner mint the short-lived OIDC token npm exchanges for publish
       # rights, and emits Sigstore provenance attestations.
-      - name: Publish to npm (skip if already published)
-        run: |
-          NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
-          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
-            echo "$NAME@$VERSION already on registry; skipping publish"
-          else
-            pnpm publish --no-git-checks --access public --provenance || {
-              echo "::error::npm publish failed. Verify the trusted publisher entry exists at https://www.npmjs.com/package/@tangle-network/agent-integrations/access (workflow=publish.yml, env=blank)."
-              exit 1
-            }
-          fi
+      - name: Build, pack, test, and publish exact artifact
+        run: pnpm run release -- --publish

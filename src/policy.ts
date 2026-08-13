@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type {
   IntegrationActionRisk,
   IntegrationApprovalRequest,
@@ -6,7 +5,8 @@ import type {
   IntegrationGuardContext,
   IntegrationPolicyDecision,
   IntegrationPolicyEngine,
-} from './index.js'
+} from './core-types.js'
+import { createWebCryptoUuid } from './web-crypto.js'
 
 export type IntegrationPolicyEffect = 'allow' | 'require_approval' | 'deny'
 
@@ -90,7 +90,7 @@ export function buildApprovalRequest(
     throw new Error('Cannot build approval request without an action descriptor.')
   }
   return {
-    id: `approval_${randomUUID()}`,
+    id: `approval_${createWebCryptoUuid()}`,
     connectionId: ctx.connection.id,
     providerId: ctx.connection.providerId,
     connectorId: ctx.connection.connectorId,

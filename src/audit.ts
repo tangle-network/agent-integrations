@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type {
   IntegrationActionGuard,
   IntegrationActionRequest,
@@ -8,7 +7,8 @@ import type {
   IntegrationConnectorAction,
   IntegrationDataClass,
   IntegrationGuardContext,
-} from './index.js'
+} from './core-types.js'
+import { createWebCryptoUuid } from './web-crypto.js'
 
 export type IntegrationAuditEventType =
   | 'connection.created'
@@ -81,7 +81,7 @@ export function createIntegrationAuditEvent(input: Omit<IntegrationAuditEvent, '
     : input.occurredAt ?? (input.now?.() ?? new Date()).toISOString()
   return {
     ...input,
-    id: input.id ?? `audit_${randomUUID()}`,
+    id: input.id ?? `audit_${createWebCryptoUuid()}`,
     occurredAt,
     metadata: input.metadata ? redactUnknown(input.metadata) as Record<string, unknown> : undefined,
   }

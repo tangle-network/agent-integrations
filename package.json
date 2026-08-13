@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.53.53",
+  "version": "0.53.54",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -23,6 +23,11 @@
       "types": "./dist/catalog.d.ts",
       "import": "./dist/catalog.js",
       "default": "./dist/catalog.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js",
+      "default": "./dist/worker.js"
     },
     "./connectors": {
       "types": "./dist/connectors/index.d.ts",
@@ -107,7 +112,12 @@
   },
   "scripts": {
     "build": "tsup",
+    "generate:bundled-manifests": "pnpm build && node scripts/generate-bundled-manifest-data.mjs && pnpm build",
+    "check:bundled-manifest-freshness": "node scripts/check-bundled-manifest-freshness.mjs",
     "dev": "tsup --watch",
+    "prepack": "pnpm run build && pnpm run check:bundled-manifest-freshness",
+    "prepublishOnly": "pnpm run check:bundled-manifest-freshness",
+    "release": "node scripts/release.mjs",
     "audit:execution": "pnpm build >/dev/null && node scripts/audit-integration-execution.mjs",
     "prepare": "tsup",
     "test": "vitest run",
@@ -118,6 +128,7 @@
     "@types/node": "^26.1.2",
     "@types/pg": "8.20.0",
     "@types/ssh2-sftp-client": "9.0.6",
+    "esbuild": "0.28.1",
     "tsup": "^8.0.0",
     "typescript": "^5.9.3",
     "vite": "^8.1.5",

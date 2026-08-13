@@ -16,6 +16,10 @@ describe('package exports', () => {
         types: './dist/catalog.d.ts',
         import: './dist/catalog.js',
       },
+      './worker': {
+        types: './dist/worker.d.ts',
+        import: './dist/worker.js',
+      },
       './connectors': {
         types: './dist/connectors/index.d.ts',
         import: './dist/connectors/index.js',

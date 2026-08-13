@@ -5,7 +5,7 @@ import type {
   IntegrationConnectorCategory,
   IntegrationConnectorTrigger,
   IntegrationDataClass,
-} from '../index.js'
+} from '../core-types.js'
 import type {
   OAuth2TokenClientAuthMethod,
   OAuth2UrlTemplateMetadataSpec,

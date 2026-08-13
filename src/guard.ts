@@ -1,11 +1,11 @@
-import { createHash } from 'node:crypto'
 import type {
   IntegrationActionGuard,
   IntegrationActionResult,
   IntegrationGuardContext,
-} from './index.js'
+} from './core-types.js'
 import type { IntegrationAuditSink } from './audit.js'
 import { createIntegrationAuditEvent } from './audit.js'
+import { sha256Base64Url } from './web-crypto.js'
 
 export interface IntegrationIdempotencyRecord {
   key: string
@@ -64,7 +64,6 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
 
   async invokeAction(ctx: IntegrationGuardContext, proceed: () => Promise<IntegrationActionResult>): Promise<IntegrationActionResult> {
     const idempotencyKey = ctx.request.idempotencyKey
-    const requestHash = hashRequest(ctx)
     if (this.requireIdempotencyForMutations && ctx.action?.risk !== 'read' && !idempotencyKey) {
       return {
         ok: false,
@@ -75,7 +74,8 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
         },
       }
     }
-    if (idempotencyKey && this.idempotency) {
+    const requestHash = idempotencyKey && this.idempotency ? await hashRequest(ctx) : undefined
+    if (idempotencyKey && this.idempotency && requestHash) {
       const existing = await this.idempotency.get(idempotencyKey)
       if (existing) {
         if (existing.requestHash !== requestHash) {
@@ -150,8 +150,8 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
     }
   }
 
-  private async writeIdempotency(key: string | undefined, requestHash: string, result: IntegrationActionResult): Promise<void> {
-    if (!key || !this.idempotency) return
+  private async writeIdempotency(key: string | undefined, requestHash: string | undefined, result: IntegrationActionResult): Promise<void> {
+    if (!key || !this.idempotency || !requestHash) return
     await this.idempotency.put({
       key,
       requestHash,
@@ -165,11 +165,11 @@ export function createDefaultIntegrationActionGuard(options: ConstructorParamete
   return new DefaultIntegrationActionGuard(options)
 }
 
-function hashRequest(ctx: IntegrationGuardContext): string {
-  return createHash('sha256').update(JSON.stringify({
+async function hashRequest(ctx: IntegrationGuardContext): Promise<string> {
+  return sha256Base64Url(JSON.stringify({
     connectionId: ctx.connection.id,
     action: ctx.request.action,
     input: ctx.request.input ?? null,
     dryRun: ctx.request.dryRun ?? false,
-  })).digest('base64url')
+  }))
 }

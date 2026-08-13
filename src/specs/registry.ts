@@ -8,13 +8,13 @@ import type {
   IntegrationConnectorAction,
   IntegrationConnectorTrigger,
   IntegrationDataClass,
-} from '../index.js'
+} from '../core-types.js'
 import {
   bundledApiKeyHint,
   bundledAuthMode,
   bundledOAuth2AuthContract,
   getBundledAdapterManifest,
-} from '../connectors/bundled-manifests.js'
+} from '../connectors/bundled-manifest-data.js'
 import type {
   ConnectorManifest,
   OAuth2TokenClientAuthMethod,
