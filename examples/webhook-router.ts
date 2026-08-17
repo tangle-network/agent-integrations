@@ -6,6 +6,7 @@
  * durable, idempotent enqueue before it resolves.
  */
 
+import { createHash } from 'node:crypto'
 import {
   WebhookRouter,
   stripeWebhookProvider,
@@ -18,6 +19,21 @@ import {
 const idempotency = new FileSystemWebhookIdempotencyStore(
   process.env.WEBHOOK_IDEMPOTENCY_DIR ?? './var/webhook-idempotency',
 )
+
+/**
+ * Stable key for the durable enqueue.
+ *
+ * Not every provider sends an event id: the Slack handshake carries none, and
+ * a DocuSeal payload can omit `event_id`. `WebhookRouter` already dedupes those
+ * on a hash of the signed body, so the queue key follows the same rule instead
+ * of rejecting the event.
+ */
+function enqueueKey(event: { provider: string; eventType: string; providerEventId?: string; payload: unknown }): string {
+  const id = event.providerEventId?.trim()
+  if (id) return `${event.provider}:id:${id}`
+  const digest = createHash('sha256').update(JSON.stringify(event.payload), 'utf8').digest('hex')
+  return `${event.provider}:body:${event.eventType}:${digest}`
+}
 
 const router = new WebhookRouter({
   providers: [stripeWebhookProvider, docusealWebhookProvider, slackWebhookProvider],
@@ -33,14 +49,17 @@ const router = new WebhookRouter({
     return null
   },
   deliver: async (event) => {
-    if (!event.providerEventId) throw new Error('A stable provider event id is required for durable enqueue')
+    // The Slack handshake is not a business event. Acknowledge it and stop:
+    // a throw here returns 503 and the Slack app install fails.
+    if (event.eventType === 'slack.url_verification') return
+
     const queueUrl = process.env.WEBHOOK_QUEUE_URL
     if (!queueUrl) throw new Error('WEBHOOK_QUEUE_URL is required')
     const queued = await fetch(queueUrl, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'idempotency-key': event.providerEventId,
+        'idempotency-key': enqueueKey(event),
       },
       body: JSON.stringify(event),
     })

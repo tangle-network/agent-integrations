@@ -82,9 +82,12 @@ process.once('message', async (message) => {
 })
 `
 
+// The workers import the built dist, so the bundle must exist before they run.
+// The budget tracks the whole package's build, which grows with the connector
+// catalog — it is not a per-test latency assertion.
 beforeAll(async () => {
   await runCommand('pnpm', ['build'])
-}, 30_000)
+}, 300_000)
 
 afterAll(async () => {
   const { rm } = await import('node:fs/promises')
@@ -109,24 +112,28 @@ describe('filesystem stores across processes', () => {
     await Promise.all(workers.map(waitForExit))
   }, 20_000)
 
+  // The lease is 10 heartbeats wide, so a single late heartbeat on a loaded
+  // machine cannot expire it and hand the claim to the contender. A narrower
+  // ratio makes the assertion measure host scheduling, not lease renewal.
   it('renews an active owner beyond its lease and blocks a second process', async () => {
     const root = resolve(await temporaryDirectory('over-lease'))
     const owner = startWorker(idempotencyWorker, {
       STORE_ROOT: root,
       CLAIM_KEY: 'over-lease-active',
       WORKER_MODE: 'hold',
-      LEASE_MS: '90',
-      HEARTBEAT_MS: '20',
+      LEASE_MS: '400',
+      HEARTBEAT_MS: '40',
     })
     await waitForMessage(owner, 'ready')
     const claimed = waitForMessage<{ acquired: boolean }>(owner, 'claimed')
     owner.send('go')
     expect((await claimed).acquired).toBe(true)
 
-    await delay(280)
+    // Past three whole leases, so the claim survives only by renewal.
+    await delay(1_300)
     const contender = new FileSystemAtomicIdempotencyStore(root, {
-      processingLeaseMs: 90,
-      heartbeatIntervalMs: 20,
+      processingLeaseMs: 400,
+      heartbeatIntervalMs: 40,
     })
     expect(await contender.claim('over-lease-active', 60_000)).toBe(false)
 
