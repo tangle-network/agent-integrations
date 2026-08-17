@@ -67,6 +67,12 @@ export interface DelegatedToolCallSeams {
     workspaceId: string,
     tool: ResolvedDelegatedTool,
   ): Promise<boolean> | boolean
+  /** Re-checks that the product still owns this delegated workspace. */
+  authorizeOwner(input: {
+    workspaceId: string
+    operation: 'initialize' | 'list' | 'call'
+    toolName?: string
+  }): Promise<boolean> | boolean
   /**
    * Optional advertised name/version for the JSON-RPC `initialize` handshake.
    * Defaults to `{ name: 'delegated-tools', version: '1' }`.
@@ -128,6 +134,9 @@ export async function handleDelegatedToolCall(
   if (!claims) return rpcError(id, -32001, 'Unauthorized')
 
   if (method === 'initialize') {
+    if (!(await seams.authorizeOwner({ workspaceId: claims.workspaceId, operation: 'initialize' }))) {
+      return rpcError(id, -32001, 'Unauthorized')
+    }
     const info = seams.serverInfo ?? { name: 'delegated-tools', version: '1' }
     return rpcResult(id, {
       protocolVersion: PROTOCOL_VERSION,
@@ -137,6 +146,9 @@ export async function handleDelegatedToolCall(
   }
 
   if (method === 'tools/list') {
+    if (!(await seams.authorizeOwner({ workspaceId: claims.workspaceId, operation: 'list' }))) {
+      return rpcError(id, -32001, 'Unauthorized')
+    }
     const tools: DelegatedToolDescriptor[] = []
     for (const name of claims.allowedTools) {
       const tool = await seams.resolveTool(claims.workspaceId, name)
@@ -160,6 +172,9 @@ export async function handleDelegatedToolCall(
         : {}
 
     if (!name) return rpcError(id, -32602, 'Missing tool name')
+    if (!(await seams.authorizeOwner({ workspaceId: claims.workspaceId, operation: 'call', toolName: name }))) {
+      return rpcError(id, -32001, 'Unauthorized')
+    }
     if (!claims.allowedTools.includes(name)) {
       return rpcError(id, -32602, `Tool not delegated to this session: ${name}`)
     }

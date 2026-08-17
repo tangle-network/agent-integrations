@@ -15,11 +15,12 @@
  *      checks the session cookie; if absent it punts to the login page
  *      with a callback back to /cross-site/authorize.
  *
- *   2. callback({ code, app, state }) → { apiKey, user, workspaceId }
+ *   2. callback({ code, app, state }) → { keyId, apiKey?, user }
  *      id.tangle.tools redirects back to the product's `returnUrl` with
  *      `?code=…&app=…&state=…`. The product calls `finish()` with the
- *      code; the helper POSTs /cross-site/exchange and returns the minted
- *      key + identity. `state` is verified by the caller against its own
+ *      code; the helper POSTs /cross-site/exchange and returns the stable
+ *      key id, optional one-time secret, and identity. `state` is verified
+ *      by the caller against its own
  *      session (we never see it twice; CSRF is the caller's responsibility
  *      per the platform contract — see `cross-site.ts` line 148).
  *
@@ -31,7 +32,8 @@
  * encrypted-credentials store the product already runs (sandbox uses Redis,
  * gtm uses Postgres, blueprints uses CF KV). The recipe is identical to
  * sandbox/api/src/lib/platform-client.ts — caller supplies a store, this
- * module hands back the raw key once and never persists it.
+ * module hands back the raw key once and never persists it. A replay returns
+ * the stable key id without returning the secret again.
  *
  * Why not invent a new wire protocol: tcloud + sandbox already speak this
  * one against the live platform deployment. Diverging breaks the boundary
@@ -43,10 +45,50 @@
 import {
   createTangleIdentityClient,
   DEFAULT_TANGLE_PLATFORM_URL,
+  TANGLE_API_KEY_PREFIX,
+  TANGLE_BROKER_TOKEN_PREFIX,
   TangleIdentityUnreachableError,
   type TangleIdentityOptions,
   type TangleUserSummary,
 } from '../connectors/adapters/tangle-id.js'
+import {
+  isRealNonPlaceholderEmail,
+  PLATFORM_ACCESS_POLICY_VERSION,
+} from '../billing-access-policy.js'
+
+/** Request accepted by Platform's `/cross-site/exchange` route. */
+export interface PlatformExchangeRequest {
+  code: string
+  app: string
+}
+
+/**
+ * Platform's shared `ExchangeResponse` contract.
+ *
+ * `emailVerified` is intentionally top-level. Platform checks eligibility
+ * before it consumes the code or replaces the product key. The nested user
+ * object does not contain another verification flag.
+ */
+export interface PlatformExchangeResponse {
+  apiKey?: string
+  keyId: string
+  paidAccessPolicyVersion: typeof PLATFORM_ACCESS_POLICY_VERSION
+  emailVerified: true
+  user: {
+    id: string
+    email: string
+    name?: string | null
+    image?: string | null
+  }
+  subscription?: {
+    plan: 'free' | 'pro' | 'enterprise'
+    sandboxTier: 'free' | 'pro' | 'enterprise'
+    routerTier: 'free' | 'pro' | 'enterprise'
+    status: string
+    currentPeriodEnd: string | null
+  }
+  balance: 0
+}
 
 export interface ConnectFlowOptions extends TangleIdentityOptions {
   /** Base URL of id.tangle.tools (defaults to {@link DEFAULT_TANGLE_PLATFORM_URL}). */
@@ -81,14 +123,16 @@ export interface FinishConnectInput {
 }
 
 export interface FinishConnectOutput {
-  /** Newly-minted `sk-tan-*` API key bound to the calling user. Returned
-   *  ONCE — caller is responsible for stashing it in the product's
-   *  encrypted credentials store. */
-  apiKey: string
+  /** Stable Platform key id. Persist this even when a replay omits the secret. */
+  keyId: string
+  /** Newly minted secret. Platform intentionally omits it on a replay. */
+  apiKey?: string
   /** Identity hydrated from the exchange response. */
   user: TangleUserSummary
   /** Initial balance the platform returns alongside the key. */
   balance: number
+  /** Versioned proof that Platform applied its current access policy. */
+  paidAccessPolicyVersion: typeof PLATFORM_ACCESS_POLICY_VERSION
 }
 
 /** Initiate a cross-product connect flow. Returns the URL the product
@@ -114,7 +158,7 @@ export function startConnectFlow(
 }
 
 /** Finish a cross-product connect flow. Calls /cross-site/exchange and
- *  returns the minted API key + hydrated user identity. */
+ *  returns the stable key binding plus hydrated user identity. */
 export async function finishConnectFlow(
   opts: ConnectFlowOptions,
   input: FinishConnectInput,
@@ -133,7 +177,10 @@ export async function finishConnectFlow(
     res = await fetchImpl(`${baseUrl}/cross-site/exchange`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code: input.code, app: input.appId }),
+      body: JSON.stringify({
+        code: input.code,
+        app: input.appId,
+      } satisfies PlatformExchangeRequest),
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
@@ -152,25 +199,37 @@ export async function finishConnectFlow(
       { status: res.status },
     )
   }
-  const body = (await res.json().catch(() => null)) as
-    | {
-        apiKey?: string
-        user?: { id?: string; email?: string; name?: string | null; image?: string | null }
-        balance?: number
-      }
-    | null
-  if (!body || typeof body.apiKey !== 'string' || !body.user || typeof body.user.id !== 'string') {
-    throw new TangleIdentityUnreachableError('connect/finish: exchange response had an invalid shape')
+  const body = (await res.json().catch(() => null)) as Partial<PlatformExchangeResponse> | null
+  if (
+    !body ||
+    (body.apiKey !== undefined && !isNonEmptyTangleApiKey(body.apiKey)) ||
+    typeof body.keyId !== 'string' ||
+    !body.keyId.trim() ||
+    body.paidAccessPolicyVersion !== PLATFORM_ACCESS_POLICY_VERSION ||
+    body.emailVerified !== true ||
+    !body.user ||
+    typeof body.user.id !== 'string' ||
+    !body.user.id.trim() ||
+    !isRealNonPlaceholderEmail(body.user.email) ||
+    body.balance !== 0
+  ) {
+    throw new TangleIdentityUnreachableError(
+      'connect/finish: Platform returned an invalid exchange contract',
+      { status: 403 },
+    )
   }
   return {
-    apiKey: body.apiKey,
+    keyId: body.keyId,
+    ...(body.apiKey ? { apiKey: body.apiKey } : {}),
     user: {
       id: body.user.id,
-      ...(typeof body.user.email === 'string' ? { email: body.user.email } : {}),
+      email: body.user.email,
+      emailVerified: true,
       ...(body.user.name !== undefined ? { name: body.user.name } : {}),
       ...(body.user.image !== undefined ? { image: body.user.image } : {}),
     },
-    balance: typeof body.balance === 'number' && Number.isFinite(body.balance) ? body.balance : 0,
+    balance: 0,
+    paidAccessPolicyVersion: PLATFORM_ACCESS_POLICY_VERSION,
   }
 }
 
@@ -179,11 +238,18 @@ export async function revokeConnectFlow(
   opts: ConnectFlowOptions,
   input: { apiKey: string },
 ): Promise<void> {
-  if (!input.apiKey) {
+  if (!isNonEmptyTangleApiKey(input.apiKey)) {
     throw new TangleIdentityUnreachableError('connect/revoke: apiKey is required')
   }
   const client = createTangleIdentityClient(opts)
   await client.revokeSession(input.apiKey)
+}
+
+function isNonEmptyTangleApiKey(value: unknown): value is string {
+  return typeof value === 'string' &&
+    value.startsWith(TANGLE_API_KEY_PREFIX) &&
+    !value.startsWith(TANGLE_BROKER_TOKEN_PREFIX) &&
+    value.length > TANGLE_API_KEY_PREFIX.length
 }
 
 /**

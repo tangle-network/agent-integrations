@@ -81,11 +81,15 @@ describe('requireTangleAuth', () => {
       valid: true,
       kind: 'api_key',
       userId: 'usr_1',
+      email: 'owner@company.com',
       workspaceId: 'team_1',
       scopes: ['gmail:read'],
       ownerType: 'team',
+      emailVerified: true,
       credentialId: 'key_1',
-      product: 'legal',
+      apiKeyId: 'key_1',
+      product: 'legal-agent',
+      provisionedByService: 'legal-agent',
       expiresAt: 1_700_000_000_000,
     }))
     const out = await requireTangleAuth(reqWith({ authorization: 'Bearer sk-tan-x' }), { client })
@@ -97,9 +101,27 @@ describe('requireTangleAuth', () => {
       kind: 'api_key',
       ownerType: 'team',
       credentialId: 'key_1',
-      product: 'legal',
+      apiKeyId: 'key_1',
+      product: 'legal-agent',
+      provisionedByService: 'legal-agent',
       expiresAt: 1_700_000_000_000,
+      emailVerified: true,
+      email: 'owner@company.com',
     })
+  })
+
+  it('returns 403 when a valid credential is not tied to a verified email', async () => {
+    const client = makeClient(async () => ({
+      valid: true,
+      kind: 'api_key',
+      userId: 'usr_1',
+      workspaceId: 'usr_1',
+      scopes: [],
+      ownerType: 'user',
+      emailVerified: false,
+    }))
+    const out = await requireTangleAuth(reqWith({ authorization: 'Bearer sk-tan-x' }), { client })
+    expect(out).toEqual({ ok: false, status: 403, reason: 'email_verification_required' })
   })
 
   it('maps service_token_refused to 403 (distinct from 401 bad-token)', async () => {
@@ -156,9 +178,11 @@ describe('honoTangleAuthMiddleware', () => {
       valid: true,
       kind: 'session',
       userId: 'u',
+      email: 'owner@company.com',
       workspaceId: 'u',
       scopes: [],
       ownerType: 'user',
+      emailVerified: true,
     }))
     const handler = honoTangleAuthMiddleware({ client })
     const set = vi.fn()
@@ -209,9 +233,11 @@ describe('expressTangleAuthMiddleware', () => {
       valid: true,
       kind: 'session',
       userId: 'u',
+      email: 'owner@company.com',
       workspaceId: 'u',
       scopes: [],
       ownerType: 'user',
+      emailVerified: true,
     }))
     const handler = expressTangleAuthMiddleware({ client })
     const req: ExpressLikeRequest = {

@@ -113,6 +113,7 @@ describe('issueDelegatedToolLease', () => {
       secret: SECRET,
       callbackUrl: 'https://app.example/api/delegated/mcp',
       now: t0,
+      ownerPolicy: { authorize: () => true },
     })
     expect(lease).not.toBeNull()
     expect(lease!.allowedTools).toEqual(['gcal__events.create'])
@@ -124,8 +125,24 @@ describe('issueDelegatedToolLease', () => {
 
   it('fail-closed: no secret ⇒ null lease', async () => {
     expect(
-      await issueDelegatedToolLease({ workspaceId: WORKSPACE, allowedTools: ['x'], ttlSeconds: 60 }),
+      await issueDelegatedToolLease({ workspaceId: WORKSPACE, allowedTools: ['x'], ttlSeconds: 60, ownerPolicy: { authorize: () => true } }),
     ).toBeNull()
+  })
+
+  it('fail-closed: missing or denying owner policy ⇒ null lease', async () => {
+    await expect(issueDelegatedToolLease({
+      workspaceId: WORKSPACE,
+      allowedTools: ['x'],
+      ttlSeconds: 60,
+      secret: SECRET,
+    })).resolves.toBeNull()
+    await expect(issueDelegatedToolLease({
+      workspaceId: WORKSPACE,
+      allowedTools: ['x'],
+      ttlSeconds: 60,
+      secret: SECRET,
+      ownerPolicy: { authorize: () => false },
+    })).resolves.toBeNull()
   })
 })
 
@@ -142,6 +159,7 @@ function seams(overrides: Partial<DelegatedToolCallSeams> = {}): DelegatedToolCa
     verifyToken: async (bearer) => verifyDelegatedToolToken(bearer, { secret: SECRET }),
     resolveTool: async (_ws, name) => (name === 'gcal__create' ? tool(name) : null),
     isIntegrationConnected: async () => true,
+    authorizeOwner: async () => true,
     ...overrides,
   }
 }
@@ -256,6 +274,20 @@ describe('handleDelegatedToolCall — fail-closed gates', () => {
       seams({ verifyToken: async (b) => verifyDelegatedToolToken(b, { secret: SECRET, now: t0 + 120_000 }) }),
     )
     expect(res.error?.code).toBe(-32001)
+  })
+
+  it('owner policy blocks a valid bearer before tool lookup', async () => {
+    let resolved = false
+    const res = await handleDelegatedToolCall(
+      { id: 6, method: 'tools/call', params: { name: 'gcal__create' } },
+      await bearer(['gcal__create']),
+      seams({
+        authorizeOwner: async () => false,
+        resolveTool: async () => { resolved = true; return null },
+      }),
+    )
+    expect(res.error?.code).toBe(-32001)
+    expect(resolved).toBe(false)
   })
 })
 

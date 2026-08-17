@@ -49,6 +49,11 @@ import type {
 } from './runtime.js'
 import type { IntegrationHealthcheckResult } from './healthcheck.js'
 import { DEFAULT_TANGLE_PLATFORM_URL } from './connectors/adapters/tangle-id.js'
+import {
+  TANGLE_API_KEY_PREFIX,
+  TANGLE_BROKER_TOKEN_PREFIX,
+  TANGLE_SERVICE_TOKEN_PREFIX,
+} from './connectors/adapters/tangle-id.js'
 
 /** Matches the platform's `PLATFORM_USER_ID_PATTERN` (`auth.ts`). A user id
  *  that fails this is rejected client-side before the request leaves. */
@@ -91,6 +96,21 @@ export interface IntegrationHubClientOptions {
   /** Max attempts on transient (network / 502 / 503 / 504) failures.
    *  Default 2 — i.e. one retry. */
   maxAttempts?: number
+  /**
+   * Authoritative owner check for caller-supplied user ids. Service-token
+   * requests may use the Platform's authenticated named-service context; a
+   * user-key request must provide a Platform-backed policy.
+   */
+  ownerPolicy?: IntegrationOwnerPolicy
+}
+
+export interface IntegrationOwnerPolicy {
+  authorize(input: {
+    userId: string
+    product: string
+    authMode: IntegrationHubAuth['mode']
+    serviceName?: string
+  }): Promise<boolean> | boolean
 }
 
 /** Thrown for every non-2xx response and every transport failure. Carries the
@@ -200,26 +220,39 @@ export class IntegrationHubClient {
   private readonly fetchImpl: typeof fetch
   private readonly timeoutMs: number
   private readonly maxAttempts: number
+  private readonly ownerPolicy: IntegrationOwnerPolicy
 
   constructor(options: IntegrationHubClientOptions) {
-    if (!options.product) {
+    if (!options.product?.trim()) {
       throw new Error('IntegrationHubClient: product is required')
     }
-    if (options.auth.mode === 'service' && !options.auth.serviceToken) {
+    if (
+      options.auth.mode === 'service' &&
+      (!options.auth.serviceToken?.startsWith(TANGLE_SERVICE_TOKEN_PREFIX) ||
+        options.auth.serviceToken.length <= TANGLE_SERVICE_TOKEN_PREFIX.length)
+    ) {
       throw new Error('IntegrationHubClient: service auth requires a serviceToken')
     }
-    if (options.auth.mode === 'service' && !options.auth.serviceName) {
+    if (options.auth.mode === 'service' && !options.auth.serviceName?.trim()) {
       throw new Error('IntegrationHubClient: service auth requires a serviceName')
     }
-    if (options.auth.mode === 'user-key' && !options.auth.apiKey) {
+    if (
+      options.auth.mode === 'user-key' &&
+      (!options.auth.apiKey?.startsWith(TANGLE_API_KEY_PREFIX) ||
+        options.auth.apiKey.startsWith(TANGLE_BROKER_TOKEN_PREFIX) ||
+        options.auth.apiKey.length <= TANGLE_API_KEY_PREFIX.length)
+    ) {
       throw new Error('IntegrationHubClient: user-key auth requires an apiKey')
     }
     this.endpoint = (options.endpoint ?? DEFAULT_TANGLE_PLATFORM_URL).replace(/\/+$/, '')
-    this.product = options.product
+    this.product = options.product.trim()
     this.auth = options.auth
     this.fetchImpl = options.fetchImpl ?? fetch
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
     this.maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)
+    this.ownerPolicy = options.ownerPolicy ?? {
+      authorize: ({ authMode, serviceName }) => authMode === 'service' && Boolean(serviceName?.trim()),
+    }
   }
 
   /**
@@ -229,8 +262,10 @@ export class IntegrationHubClient {
    * reachable by a service token by design.
    */
   async resolveManifest(input: ResolveManifestInput): Promise<IntegrationManifestResolution> {
+    const product = input.product?.trim() ?? this.product
+    if (!product) throw new Error('IntegrationHubClient: per-call product is required')
     return this.request<IntegrationManifestResolution>('POST', '/resolve-manifest', input.userId, {
-      product: input.product ?? this.product,
+      product,
       manifest: input.manifest,
       ownerUserId: input.userId,
     })
@@ -364,6 +399,23 @@ export class IntegrationHubClient {
         status: 0,
         code: 'invalid_user_id',
         message: `userId ${JSON.stringify(userId)} is not a valid platform user id`,
+        endpoint: `${method} ${path}`,
+        retryable: false,
+      })
+    }
+    const requestedProduct =
+      body && typeof body.product === 'string' && body.product.trim() ? body.product.trim() : this.product
+    const ownerAllowed = await this.ownerPolicy.authorize({
+      userId,
+      product: requestedProduct,
+      authMode: this.auth.mode,
+      ...(this.auth.mode === 'service' ? { serviceName: this.auth.serviceName } : {}),
+    })
+    if (!ownerAllowed) {
+      throw new IntegrationHubRequestError({
+        status: 403,
+        code: 'owner_policy_denied',
+        message: `${method} ${path} rejected: Platform owner policy did not authorize user ${userId}`,
         endpoint: `${method} ${path}`,
         retryable: false,
       })

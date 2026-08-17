@@ -73,6 +73,22 @@ export const stripeWebhookProvider: WebhookProvider = {
 
 /** Slack Events API provider. Handles the `url_verification` handshake
  *  by emitting a synthetic event the consumer's `deliver()` can echo. */
+/**
+ * Answer for Slack's app-config handshake, or `null` when the body is not one.
+ *
+ * Slack accepts an app install only when the response body carries the
+ * `challenge` value from the request. `WebhookRouter` shapes its own 200 body
+ * and `deliver()` returns void, so the handshake cannot be answered through the
+ * router — call this in the HTTP handler ahead of `router.handle` and return
+ * its result when it is not `null`.
+ */
+export function slackHandshakeResponse(rawBody: string): { challenge: string } | null {
+  const parsed = safeJson(rawBody) as { type?: unknown; challenge?: unknown } | null
+  if (!parsed || typeof parsed !== 'object') return null
+  if (parsed.type !== 'url_verification') return null
+  return { challenge: typeof parsed.challenge === 'string' ? parsed.challenge : '' }
+}
+
 export const slackWebhookProvider: WebhookProvider = {
   id: 'slack',
   verifySignature({ rawBody, headers, secret }): SignatureVerification {

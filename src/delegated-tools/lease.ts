@@ -25,6 +25,16 @@ export interface IssueDelegatedToolLeaseInput {
   callbackUrl?: string
   /** Override the clock (epoch ms) — for tests. */
   now?: number
+  /** Product-owned check that this workspace may delegate these tools now. */
+  ownerPolicy?: DelegatedToolOwnerPolicy
+}
+
+export interface DelegatedToolOwnerPolicy {
+  authorize(input: {
+    workspaceId: string
+    allowedTools: readonly string[]
+    operation: 'issue_lease'
+  }): Promise<boolean> | boolean
 }
 
 export interface DelegatedToolLease {
@@ -45,10 +55,16 @@ export interface DelegatedToolLease {
 export async function issueDelegatedToolLease(
   input: IssueDelegatedToolLeaseInput,
 ): Promise<DelegatedToolLease | null> {
+  const workspaceId = input.workspaceId.trim()
+  const allowedTools = input.allowedTools.filter((tool) => typeof tool === 'string' && tool.trim())
+  if (!workspaceId || allowedTools.length === 0 || allowedTools.length !== input.allowedTools.length) return null
+  if (!Number.isInteger(input.ttlSeconds) || input.ttlSeconds <= 0 || input.ttlSeconds > 3600) return null
+  if (!input.ownerPolicy) return null
+  if (!(await input.ownerPolicy.authorize({ workspaceId, allowedTools, operation: 'issue_lease' }))) return null
   const now = input.now ?? Date.now()
   const token = await mintDelegatedToolToken({
-    workspaceId: input.workspaceId,
-    allowedTools: input.allowedTools,
+    workspaceId,
+    allowedTools,
     ttlSeconds: input.ttlSeconds,
     secret: input.secret,
     prefix: input.prefix,
@@ -57,7 +73,7 @@ export async function issueDelegatedToolLease(
   if (!token) return null
   return {
     token,
-    allowedTools: input.allowedTools,
+    allowedTools,
     expiresAt: now + input.ttlSeconds * 1000,
     callbackUrl: input.callbackUrl,
   }

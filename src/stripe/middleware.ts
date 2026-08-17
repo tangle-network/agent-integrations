@@ -9,10 +9,10 @@
  *     → 'allow' | { allowed: false, error: BillingError }
  *
  *   withTrialAccess({ workspaceId, days, trialStore })
- *     → allow while trial < days expired since workspace creation
+ *     → always deny product-funded trial access
  *
  *   getRemainingFreeTier({ workspaceId, freeTierStore })
- *     → { remaining: number, total: number }
+ *     → always { remaining: 0, total: 0, exhausted: true }
  *
  * Frameworks: we don't import Hono / Express. The middleware shape is a
  * pure async function returning a decision. The product wires it into
@@ -26,6 +26,7 @@
  */
 
 import { BillingError } from './errors.js'
+import { decideBillingAccess } from '../billing-access-policy.js'
 import {
   gateAccess,
   type SubscriptionRecord,
@@ -39,6 +40,10 @@ import {
 export interface RequireActiveSubscriptionInput {
   workspaceId: string
   store: SubscriptionStore
+  /** Parsed Platform proof for the owner or an explicitly named service/admin. */
+  accessEvidence?: import('../billing-access-policy.js').TrustedPlatformEvidence
+  /** Optional owner id to compare with Platform proof. */
+  expectedUserId?: string
   /** Strict mode: reject `past_due`. Default false (allow with warn). */
   denyPastDue?: boolean
 }
@@ -50,10 +55,10 @@ export type SubscriptionGateResult =
 /**
  * Gate decision for a route that requires an active subscription.
  *
- * Returns `{ allowed: true }` on `active` / `trialing` and on
- * `past_due` (unless `denyPastDue`). Returns `{ allowed: false, error }`
- * with a typed `BillingError` for any other state — the consumer maps
- * the error's `status` to the HTTP response.
+ * Returns `{ allowed: true }` on `active` and on `past_due` (unless
+ * `denyPastDue`). A `trialing` record is denied because product-funded
+ * trials are disabled. Returns `{ allowed: false, error }` with a typed
+ * `BillingError` for any other state.
  */
 export async function requireActiveSubscription(
   input: RequireActiveSubscriptionInput,
@@ -69,12 +74,54 @@ export async function requireActiveSubscription(
       }),
     }
   }
+  const accessDecision = decideBillingAccess({
+    evidence: input.accessEvidence,
+    expectedUserId: input.expectedUserId,
+  })
+  if (!accessDecision.allowed) {
+    return {
+      allowed: false,
+      error: new BillingError({
+        code: accessDecision.code,
+        message: accessDecision.reason,
+        context: { workspaceId: input.workspaceId },
+      }),
+    }
+  }
+  if (
+    accessDecision.basis !== 'paid_subscription' &&
+    accessDecision.principal.kind === 'human'
+  ) {
+    return {
+      allowed: false,
+      error: new BillingError({
+        code: 'paid_evidence_required',
+        message: 'Active subscription access requires matching paid subscription evidence.',
+        context: { workspaceId: input.workspaceId },
+      }),
+    }
+  }
+  if (
+    input.accessEvidence?.funding.kind === 'paid_subscription' &&
+    input.accessEvidence.funding.subscriptionId !== record.subscriptionId
+  ) {
+    return {
+      allowed: false,
+      error: new BillingError({
+        code: 'platform_evidence_subject_mismatch',
+        message: 'Subscription evidence does not match the stored subscription.',
+        context: { workspaceId: input.workspaceId, subscriptionId: record.subscriptionId },
+      }),
+    }
+  }
   const decision = gateAccess(record.state)
   if (!decision.allowed) {
     return {
       allowed: false,
       error: new BillingError({
-        code: decision.reason === 'subscription_inactive'
+        code: decision.reason === 'trial_expired'
+          ? 'trial_expired'
+          : decision.reason === 'subscription_inactive'
           ? 'subscription_inactive'
           : decision.reason === 'subscription_past_due'
           ? 'subscription_past_due'
@@ -102,26 +149,16 @@ export async function requireActiveSubscription(
       }),
     }
   }
-  // Surface `trial_ending` warn when within 72h of trial end.
-  let warn = decision.warn
-  if (!warn && record.state === 'trialing' && record.trialEnd) {
-    const TRIAL_WARN_SECONDS = 72 * 60 * 60
-    const nowSec = Math.floor(Date.now() / 1000)
-    if (record.trialEnd - nowSec < TRIAL_WARN_SECONDS) {
-      warn = 'trial_ending'
-    }
-  }
-  return { allowed: true, record, warn }
+  return { allowed: true, record, warn: decision.warn }
 }
 
 /* ---------------------------------------------------------------------- */
 /*                          withTrialAccess                                */
 /* ---------------------------------------------------------------------- */
 
-/** Workspace creation timestamp store — required by `withTrialAccess`. */
+/** Legacy workspace timestamp store retained for source compatibility. */
 export interface TrialStore {
-  /** Returns workspace creation timestamp (ms epoch), or null if the
-   *  workspace doesn't exist yet. */
+  /** Returns a workspace creation timestamp (ms epoch), or null. */
   getCreatedAt(workspaceId: string): Promise<number | null> | number | null
 }
 
@@ -135,54 +172,33 @@ export interface WithTrialAccessInput {
 }
 
 export interface TrialAccessResult {
-  /** Whether the workspace is still inside its free-trial window. */
+  /** Always false while product-funded trials are disabled. */
   inTrial: boolean
-  /** Days remaining (rounded down). Zero when `inTrial` is false. */
+  /** Always zero while product-funded trials are disabled. */
   daysRemaining: number
-  /** Trial end timestamp (ms epoch), null when no workspace found. */
+  /** Always null while product-funded trials are disabled. */
   trialEndsAt: number | null
 }
 
 /**
- * Free-trial gate independent of Stripe state. Use BEFORE a workspace
- * has a Stripe subscription (the product's onboarding period). Compose
- * with `requireActiveSubscription`: trial OR active sub passes the gate.
+ * Legacy compatibility helper. Product-funded trials are disabled, so this
+ * function always returns a denied trial result without reading the store.
  *
- * Composition pattern:
- *
- *   const trial = await withTrialAccess(...)
- *   if (trial.inTrial) return next()
- *   const sub = await requireActiveSubscription(...)
- *   if (sub.allowed) return next()
- *   return respond(sub.error)
+ * Callers must use `requireActiveSubscription` for product access.
  */
 export async function withTrialAccess(input: WithTrialAccessInput): Promise<TrialAccessResult> {
-  const createdAt = await input.trialStore.getCreatedAt(input.workspaceId)
-  if (createdAt === null) {
-    return { inTrial: false, daysRemaining: 0, trialEndsAt: null }
-  }
-  const now = (input.now ?? Date.now)()
-  const trialEndsAt = createdAt + input.days * 24 * 60 * 60 * 1000
-  const remainingMs = trialEndsAt - now
-  if (remainingMs <= 0) {
-    return { inTrial: false, daysRemaining: 0, trialEndsAt }
-  }
-  const daysRemaining = Math.floor(remainingMs / (24 * 60 * 60 * 1000))
-  return { inTrial: true, daysRemaining, trialEndsAt }
+  const decision = decideBillingAccess({})
+  if (decision.allowed) throw new Error('billing: unexpected trial access allowance')
+  return { inTrial: false, daysRemaining: 0, trialEndsAt: null }
 }
 
 /* ---------------------------------------------------------------------- */
 /*                         getRemainingFreeTier                            */
 /* ---------------------------------------------------------------------- */
 
-/** Free-tier counter store — abstract over the consumer's metering
- *  pipeline. The interface is read-only; products own counter increment
- *  on usage (e.g., increment on every API call in their own metrics
- *  layer). */
+/** Legacy read-only counter store retained for source compatibility. */
 export interface FreeTierStore {
-  /** Returns `{ used, total }` for the workspace. Implementations
-   *  return `{ used: 0, total: <default> }` for unknown workspaces if
-   *  the product wants implicit free-tier grant. */
+  /** Returns `{ used, total }` for a workspace. */
   getUsage(workspaceId: string): Promise<{ used: number; total: number }> | { used: number; total: number }
 }
 
@@ -201,21 +217,15 @@ export interface FreeTierResult {
 }
 
 /**
- * Return how much free-tier quota the workspace has left. Pure projection
- * over the store; consumers use the result to decide whether to grant the
- * route or return `BillingError(code: 'free_tier_exhausted')`.
- *
- * Why this isn't a gate function itself: free-tier "exhausted" is rarely
- * a hard deny — most products throttle, queue, or upsell instead. The
- * decision is product-specific; we provide the read and the typed error
- * but stop short of opining on the response shape.
+ * Legacy compatibility helper. Product-funded free-tier quota is disabled,
+ * so this function always returns zero without reading the consumer store.
  */
 export async function getRemainingFreeTier(
   input: GetRemainingFreeTierInput,
 ): Promise<FreeTierResult> {
-  const { used, total } = await input.freeTierStore.getUsage(input.workspaceId)
-  const remaining = Math.max(0, total - used)
-  return { remaining, total, exhausted: remaining === 0 }
+  const decision = decideBillingAccess({})
+  if (decision.allowed) throw new Error('billing: unexpected free-tier allowance')
+  return { remaining: 0, total: 0, exhausted: true }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -225,6 +235,8 @@ export async function getRemainingFreeTier(
 export interface ComposedGateInput {
   workspaceId: string
   store: SubscriptionStore
+  accessEvidence?: import('../billing-access-policy.js').TrustedPlatformEvidence
+  expectedUserId?: string
   trialStore?: TrialStore
   trialDays?: number
   denyPastDue?: boolean
@@ -232,49 +244,17 @@ export interface ComposedGateInput {
 }
 
 /**
- * Compose `withTrialAccess` || `requireActiveSubscription`. Most product
- * routes want this exact combo — passes if EITHER the workspace is
- * inside its free trial OR has an active subscription. Returns the
- * subscription error from `requireActiveSubscription` when both fail
- * (the more actionable of the two — the customer can convert it into
- * a checkout).
+ * Legacy compatibility helper. Trial inputs are ignored and access depends
+ * only on the paid subscription state.
  */
 export async function gateSubscriptionOrTrial(
   input: ComposedGateInput,
 ): Promise<SubscriptionGateResult & { viaTrial?: boolean; daysRemaining?: number }> {
-  if (input.trialStore && input.trialDays) {
-    const trial = await withTrialAccess({
-      workspaceId: input.workspaceId,
-      days: input.trialDays,
-      trialStore: input.trialStore,
-      now: input.now,
-    })
-    if (trial.inTrial) {
-      // Synthesize a record-shaped result so the consumer's downstream
-      // code path is uniform — but flag it as via-trial.
-      const trialRecord = trialSyntheticRecord(input.workspaceId, trial.trialEndsAt ?? 0)
-      return { allowed: true, record: trialRecord, viaTrial: true, daysRemaining: trial.daysRemaining }
-    }
-  }
   return requireActiveSubscription({
     workspaceId: input.workspaceId,
     store: input.store,
+    accessEvidence: input.accessEvidence,
+    expectedUserId: input.expectedUserId,
     denyPastDue: input.denyPastDue,
   })
-}
-
-function trialSyntheticRecord(workspaceId: string, trialEndsAt: number): SubscriptionRecord {
-  return {
-    workspaceId,
-    customerId: '',
-    subscriptionId: '',
-    state: 'trialing',
-    priceId: null,
-    currentPeriodEnd: Math.floor(trialEndsAt / 1000),
-    trialEnd: Math.floor(trialEndsAt / 1000),
-    cancelAtPeriodEnd: false,
-    version: 0,
-    lastEventId: null,
-    updatedAt: Date.now(),
-  }
 }
