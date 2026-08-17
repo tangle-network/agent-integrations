@@ -365,7 +365,16 @@ export class StripeBillingDispatcher {
     if (!workspaceId) return this.emitNoWorkspace(evt)
 
     const existing = await this.store.load(workspaceId)
-    if (existing && !matchesSubscription(existing, identity)) {
+    // A `created` event names a subscription the record does not hold. That is
+    // a foreign event unless the same customer is starting a new subscription
+    // after the recorded one reached a terminal state — the resubscribe path.
+    // Rebinding only from a terminal state keeps a live subscription bound.
+    const rebinds =
+      existing !== null &&
+      !matchesSubscription(existing, identity) &&
+      existing.customerId === identity.customerId &&
+      isTerminalSubscriptionState(existing.state)
+    if (existing && !matchesSubscription(existing, identity) && !rebinds) {
       return this.emitUnbound(evt, 'subscription identity does not match the workspace record')
     }
     this.assertNoPendingSubscriptionEvent(existing, evt)
@@ -396,8 +405,29 @@ export class StripeBillingDispatcher {
     }
 
     const nextState = parseState(sub.status, evt.id)
-    const record = existing
-      ? applyTransition(
+    const freshRecord = makeSubscriptionRecord({
+      workspaceId,
+      customerId: identity.customerId,
+      subscriptionId: identity.subscriptionId,
+      state: nextState,
+      priceId: extractPriceId(sub),
+      currentPeriodEnd: sub.current_period_end ?? null,
+      trialEnd: sub.trial_end ?? null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+      eventId: evt.id,
+      eventCreatedAt,
+      pendingEventId: evt.id,
+      now: this.now,
+    })
+    // A rebind writes a fresh record rather than a transition: `applyTransition`
+    // spreads the base, which would carry the terminal subscription's id into
+    // the new one. The version still advances, so a concurrent writer's
+    // compare-and-set fails as it does on every other path.
+    const record = !existing
+      ? freshRecord
+      : rebinds
+      ? { ...freshRecord, version: existing.version + 1 }
+      : applyTransition(
           existing,
           {
             state: nextState,
@@ -408,20 +438,6 @@ export class StripeBillingDispatcher {
           },
           { eventId: evt.id, eventCreatedAt, pendingEventId: evt.id, now: this.now },
         )
-      : makeSubscriptionRecord({
-          workspaceId,
-          customerId: identity.customerId,
-          subscriptionId: identity.subscriptionId,
-          state: nextState,
-          priceId: extractPriceId(sub),
-          currentPeriodEnd: sub.current_period_end ?? null,
-          trialEnd: sub.trial_end ?? null,
-          cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-          eventId: evt.id,
-          eventCreatedAt,
-          pendingEventId: evt.id,
-          now: this.now,
-        })
     const expectedVersion = existing?.version ?? 0
     const written = await this.cas(record, expectedVersion)
     if (!written) return this.emitUnbound(evt, 'subscription create lost a concurrent compare-and-set')
@@ -978,11 +994,21 @@ function parseState(status: string, eventId: string): SubscriptionState {
   }
 }
 
+/**
+ * States a subscription cannot leave, so the customer can only return through
+ * a new subscription. A `created` event for a different subscription id is a
+ * resubscribe from one of these, and a foreign event from any other state.
+ */
+function isTerminalSubscriptionState(state: SubscriptionState): boolean {
+  return state === 'canceled' || state === 'incomplete_expired'
+}
+
 function canApplyFreshCreate(state: SubscriptionState): boolean {
-  // A 'created' event on a record that already advanced past
-  // incomplete means we've already processed the lifecycle and a
-  // retried-late 'created' should be dropped.
-  return state === 'incomplete'
+  // A 'created' event on a record that already advanced past incomplete means
+  // the lifecycle was processed and a retried-late 'created' should be dropped.
+  // A terminal state is the exception: it accepts the customer's next
+  // subscription, which is the only way back from it.
+  return state === 'incomplete' || isTerminalSubscriptionState(state)
 }
 
 function extractPriceId(sub: StripeSubscriptionSnapshot): string | null {

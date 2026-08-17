@@ -995,3 +995,102 @@ describe('combineListeners', () => {
     expect(calls).toEqual(['a:event_unhandled', 'b:event_unhandled'])
   })
 })
+
+describe('StripeBillingDispatcher — resubscribe after a terminal state', () => {
+  async function seed(state: 'canceled' | 'incomplete_expired' | 'active') {
+    const store = new InMemorySubscriptionStore()
+    await store.save(
+      makeSubscriptionRecord({
+        workspaceId: 'ws_1',
+        customerId: 'cus_1',
+        subscriptionId: 'sub_1',
+        state,
+        priceId: 'price_1',
+        currentPeriodEnd: 1_700_000_000,
+        eventId: 'evt_seed',
+        eventCreatedAt: 100,
+      }),
+    )
+    return store
+  }
+
+  it('rebinds a canceled workspace to the customer next subscription', async () => {
+    const store = await seed('canceled')
+    const captured: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({ store, listener: (e) => { captured.push(e) } })
+
+    await dispatcher.dispatch(makeEnvelope(subEvent({
+      id: 'evt_resub',
+      type: 'customer.subscription.created',
+      status: 'active',
+      workspaceId: 'ws_1',
+      subscriptionId: 'sub_2',
+      created: 200,
+    }), 'customer.subscription.created'))
+
+    const record = await store.load('ws_1')
+    expect(record?.subscriptionId).toBe('sub_2')
+    expect(record?.state).toBe('active')
+    // The version advances, so a concurrent writer's compare-and-set still loses.
+    expect(record?.version ?? 0).toBeGreaterThan(0)
+    expect(captured.map((e) => e.kind)).toContain('subscription.created')
+  })
+
+  it('rebinds an expired workspace to the customer next subscription', async () => {
+    const store = await seed('incomplete_expired')
+    const dispatcher = new StripeBillingDispatcher({ store })
+
+    await dispatcher.dispatch(makeEnvelope(subEvent({
+      id: 'evt_resub_expired',
+      type: 'customer.subscription.created',
+      status: 'active',
+      workspaceId: 'ws_1',
+      subscriptionId: 'sub_3',
+      created: 200,
+    }), 'customer.subscription.created'))
+
+    const record = await store.load('ws_1')
+    expect(record?.subscriptionId).toBe('sub_3')
+    expect(record?.state).toBe('active')
+  })
+
+  it('refuses a foreign subscription while the recorded one is live', async () => {
+    const store = await seed('active')
+    const captured: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({ store, listener: (e) => { captured.push(e) } })
+
+    await dispatcher.dispatch(makeEnvelope(subEvent({
+      id: 'evt_foreign',
+      type: 'customer.subscription.created',
+      status: 'active',
+      workspaceId: 'ws_1',
+      subscriptionId: 'sub_9',
+      created: 200,
+    }), 'customer.subscription.created'))
+
+    const record = await store.load('ws_1')
+    expect(record?.subscriptionId).toBe('sub_1')
+    expect(captured.map((e) => e.kind)).toContain('event_dropped_out_of_order')
+  })
+
+  it('refuses another customer subscription on a canceled record', async () => {
+    const store = await seed('canceled')
+    const captured: StripeBillingEvent[] = []
+    const dispatcher = new StripeBillingDispatcher({ store, listener: (e) => { captured.push(e) } })
+
+    await dispatcher.dispatch(makeEnvelope(subEvent({
+      id: 'evt_other_customer',
+      type: 'customer.subscription.created',
+      status: 'active',
+      workspaceId: 'ws_1',
+      customerId: 'cus_2',
+      subscriptionId: 'sub_4',
+      created: 200,
+    }), 'customer.subscription.created'))
+
+    const record = await store.load('ws_1')
+    expect(record?.subscriptionId).toBe('sub_1')
+    expect(record?.customerId).toBe('cus_1')
+    expect(captured.map((e) => e.kind)).toContain('event_dropped_out_of_order')
+  })
+})
