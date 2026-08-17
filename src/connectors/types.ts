@@ -203,7 +203,9 @@ export interface ConnectorInvocation {
    *  reconnect. Adapters MUST invoke this with the FULL rotated envelope,
    *  not a partial — the previous refresh token is preserved by the caller's
    *  refresh logic, not inferred here. */
-  onCredentialsRotated?: (credentials: ConnectorCredentials) => void
+  onCredentialsRotated?: (
+    credentials: ConnectorCredentials,
+  ) => Promise<void> | void
 }
 
 /** A single inbound event extracted from a push payload. The webhook
@@ -233,6 +235,12 @@ export interface EventHandlerResult {
 export interface ConnectorAdapter {
   /** Manifest entry the registry uses to render UI + validate args. */
   manifest: ConnectorManifest
+  /**
+   * True when this adapter only receives provider events and must not appear
+   * in public connector or action discovery. Hosts can still register it
+   * explicitly for their inbound route, which preserves its stable kind id.
+   */
+  inboundOnly?: boolean
   /** Read invocation. Required when manifest.capabilities contains reads.
    *  Should return whatever shape the capability declared
    *  in its parameters output schema. */
@@ -270,7 +278,8 @@ export interface ConnectorAdapter {
   exchangeOAuth?(input: {
     code: string
     state: string
-    codeVerifier: string
+    /** Required unless this connector declares PKCE as unsupported. */
+    codeVerifier?: string
     redirectUri: string
   }): Promise<{
     credentials: ConnectorCredentials
@@ -284,7 +293,13 @@ export interface ConnectorAdapter {
    *  UI. Should perform the cheapest possible read that proves the grant
    *  is still valid. Returns `{ok: false, reason}` rather than throwing
    *  for the common case (token expired, scope missing). */
-  test(source: ResolvedDataSource): Promise<{ ok: true } | { ok: false; reason: string }>
+  test(
+    source: ResolvedDataSource,
+    /** Optional persistence sink for credentials rotated by the health check. */
+    onCredentialsRotated?: (
+      credentials: ConnectorCredentials,
+    ) => Promise<void> | void,
+  ): Promise<{ ok: true } | { ok: false; reason: string }>
 }
 
 /** Static manifest a connector module exports. Drives the UI catalog,
@@ -349,6 +364,34 @@ export interface RateLimitSpec {
  *  rather than silently capturing nothing. */
 export type TokenMetadataSource = string | { field: string; required?: boolean }
 
+/** How an OAuth token endpoint authenticates this client.
+ *
+ * Public clients use `none` and send only the client id. OAuth providers
+ * otherwise default to `client_secret_post`, which sends both values in the
+ * form body. `client_secret_basic` sends an HTTP Basic header instead. */
+export type OAuth2TokenClientAuthMethod =
+  | 'none'
+  | 'client_secret_post'
+  | 'client_secret_basic'
+
+export type OAuth2UrlTemplateMetadataSpec =
+  | {
+      /** A complete HTTPS provider base URL, substituted for a URL template
+       *  placeholder such as `{accountUrl}`. */
+      kind: 'base-url'
+      /** Exact provider roots accepted for finite regional endpoint sets. */
+      allowedBaseUrls?: readonly string[]
+      /** HTTPS hostname suffixes accepted for tenant-specific provider roots. */
+      allowedBaseUrlSuffixes?: readonly string[]
+      /** Permit a caller-selected public HTTPS root for self-hosted providers. */
+      requirePublicHttps?: boolean
+    }
+  | {
+      /** One RFC 3986 unreserved path segment. The resolver encodes it and
+       *  rejects separators, dot segments, query data, and fragments. */
+      kind: 'path-segment'
+    }
+
 type OAuth2AuthSpec = {
   kind: 'oauth2'
   /** OAuth2 grant type. Defaults to `'authorization_code'` (the interactive
@@ -365,17 +408,42 @@ type OAuth2AuthSpec = {
   /** Scopes requested in the authorization grant. The user UI shows
    *  these so the customer knows what's being shared. */
   scopes: string[]
+  /** Separator used when serializing multiple scopes into the authorization
+   *  URL. OAuth defaults to spaces; Zoho requires comma-delimited scopes. */
+  scopeSeparator?: ' ' | ','
+  /** Provider PKCE posture. Defaults to the host flow policy when omitted. */
+  pkce?: 'required' | 'supported' | 'unsupported'
+  /** Query parameter that receives the OAuth client id on the authorization
+   *  URL. Defaults to `client_id`; TikTok calls this value `client_key`. */
+  authorizationClientIdParam?: string
   /** Whether the connector supports incremental authorization (Google
    *  does; many don't). */
   incremental?: boolean
   /** Env-var name holding the OAuth client_id. */
   clientIdEnv: string
-  /** Env-var name holding the OAuth client_secret. */
-  clientSecretEnv: string
+  /** Env-var name holding the OAuth client_secret. Omit only for public
+   *  clients whose tokenClientAuthMethod is `none`. */
+  clientSecretEnv?: string
+  /** Form parameter that receives the client id during token exchange.
+   *  Defaults to `client_id`; TikTok calls this value `client_key`. */
+  tokenClientIdParam?: string
+  /** Form parameter that receives the client secret during token exchange.
+   *  Defaults to `client_secret`. */
+  tokenClientSecretParam?: string
+  /** OAuth client authentication for the authorization-code token exchange.
+   * Defaults to `client_secret_post` for backward compatibility. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   /** Optional extra params attached to the authorization URL (e.g.,
    *  Google's `access_type=offline&prompt=consent` to obtain refresh
    *  tokens). */
   extraAuthParams?: Record<string, string>
+  /** Rules for metadata placeholders that represent provider roots or path
+   *  segments. Placeholders without a rule remain single DNS labels. */
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
+  /** Non-secret headers sent to the token endpoint. Use this for provider
+   *  identification headers such as Reddit's required User-Agent. The runtime
+   *  always owns Authorization and Content-Type. */
+  tokenRequestHeaders?: Record<string, string>
   /** Whether to send the `scope` query param on the authorization URL.
    *  Defaults to true. Set false for providers that reject a per-request
    *  scope and pin scopes app-side (e.g. HelloSign/Dropbox Sign). */
@@ -559,9 +627,7 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
 
 function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIssue[]): void {
   if (auth.kind === 'oauth2') {
-    if ((auth.grantType ?? 'authorization_code') === 'authorization_code' && !auth.authorizationUrl?.trim()) {
-      issues.push({ path: 'auth.authorizationUrl', message: 'authorization_code grant requires authorizationUrl' })
-    }
+    validateOAuth2AuthSpec(auth, issues, 'auth')
     return
   }
   if (auth.kind !== 'one_of') return
@@ -571,6 +637,135 @@ function validateAuthSpec(auth: AuthSpec, issues: ConnectorManifestValidationIss
   const optionKinds = new Set(auth.options.map((option) => option.kind))
   if (!optionKinds.has(auth.preferred)) {
     issues.push({ path: 'auth.preferred', message: 'one_of preferred auth must match an option kind' })
+  }
+  for (const [index, option] of auth.options.entries()) {
+    if (option.kind === 'oauth2') {
+      validateOAuth2AuthSpec(option, issues, `auth.options[${index}]`)
+    }
+  }
+}
+
+function validateOAuth2AuthSpec(
+  auth: OAuth2AuthSpec,
+  issues: ConnectorManifestValidationIssue[],
+  path: string,
+): void {
+  if ((auth.grantType ?? 'authorization_code') === 'authorization_code' && !auth.authorizationUrl?.trim()) {
+    issues.push({ path: `${path}.authorizationUrl`, message: 'authorization_code grant requires authorizationUrl' })
+  }
+  if (
+    auth.pkce !== undefined &&
+    auth.pkce !== 'required' &&
+    auth.pkce !== 'supported' &&
+    auth.pkce !== 'unsupported'
+  ) {
+    issues.push({
+      path: `${path}.pkce`,
+      message: 'pkce must be required, supported, or unsupported',
+    })
+  }
+  for (const [key, spec] of Object.entries(auth.urlTemplateMetadata ?? {})) {
+    if (spec.kind !== 'base-url' && spec.kind !== 'path-segment') {
+      issues.push({
+        path: `${path}.urlTemplateMetadata.${key}.kind`,
+        message: 'OAuth URL metadata kind must be base-url or path-segment',
+      })
+      continue
+    }
+    const placeholder = `{${key}}`
+    if (!auth.authorizationUrl?.includes(placeholder) && !auth.tokenUrl.includes(placeholder)) {
+      issues.push({
+        path: `${path}.urlTemplateMetadata.${key}`,
+        message: `OAuth URL metadata is unused; add ${placeholder} to an OAuth endpoint`,
+      })
+    }
+    if (spec.kind === 'base-url') {
+      if (
+        !spec.requirePublicHttps &&
+        !spec.allowedBaseUrls?.length &&
+        !spec.allowedBaseUrlSuffixes?.length
+      ) {
+        issues.push({
+          path: `${path}.urlTemplateMetadata.${key}`,
+          message: 'OAuth base URL metadata requires an allowlist or public HTTPS policy',
+        })
+      }
+      for (const suffix of spec.allowedBaseUrlSuffixes ?? []) {
+        if (!/^\.[a-z0-9.-]+$/i.test(suffix)) {
+          issues.push({
+            path: `${path}.urlTemplateMetadata.${key}.allowedBaseUrlSuffixes`,
+            message: 'OAuth base URL hostname suffixes must start with a dot',
+          })
+        }
+      }
+    } else {
+      for (const endpoint of [auth.authorizationUrl, auth.tokenUrl]) {
+        if (
+          endpoint?.includes(placeholder) &&
+          !isOAuthPathSegmentPlaceholder(endpoint, placeholder)
+        ) {
+          issues.push({
+            path: `${path}.urlTemplateMetadata.${key}`,
+            message: `OAuth path metadata ${placeholder} must occupy a complete URL path segment`,
+          })
+        }
+      }
+    }
+  }
+  if (
+    auth.tokenClientAuthMethod !== undefined &&
+    auth.tokenClientAuthMethod !== 'none' &&
+    auth.tokenClientAuthMethod !== 'client_secret_post' &&
+    auth.tokenClientAuthMethod !== 'client_secret_basic'
+  ) {
+    issues.push({
+      path: `${path}.tokenClientAuthMethod`,
+      message: 'tokenClientAuthMethod must be none, client_secret_post, or client_secret_basic',
+    })
+  }
+  if (
+    (auth.tokenClientAuthMethod ?? 'client_secret_post') !== 'none' &&
+    !auth.clientSecretEnv?.trim()
+  ) {
+    issues.push({
+      path: `${path}.clientSecretEnv`,
+      message: 'confidential OAuth clients require clientSecretEnv',
+    })
+  }
+  for (const header of Object.keys(auth.tokenRequestHeaders ?? {})) {
+    if (header.toLowerCase() === 'authorization' || header.toLowerCase() === 'content-type') {
+      issues.push({
+        path: `${path}.tokenRequestHeaders.${header}`,
+        message: 'tokenRequestHeaders cannot override Authorization or Content-Type',
+      })
+    }
+  }
+}
+
+function isOAuthPathSegmentPlaceholder(template: string, placeholder: string): boolean {
+  const schemeIndex = template.indexOf('://')
+  const rootEnd = schemeIndex >= 0
+    ? schemeIndex + 3
+    : template.startsWith('{')
+      ? template.indexOf('}') + 1
+      : 0
+  const pathStart = template.indexOf('/', rootEnd)
+  const queryStart = template.search(/[?#]/)
+  let cursor = 0
+  while (true) {
+    const index = template.indexOf(placeholder, cursor)
+    if (index < 0) return true
+    const end = index + placeholder.length
+    if (
+      pathStart < 0 ||
+      index < pathStart ||
+      (queryStart >= 0 && index >= queryStart) ||
+      template[index - 1] !== '/' ||
+      (end < template.length && template[end] !== '/' && template[end] !== '?' && template[end] !== '#')
+    ) {
+      return false
+    }
+    cursor = end
   }
 }
 

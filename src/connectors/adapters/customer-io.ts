@@ -53,6 +53,7 @@ export const customerIoConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'baseUrl', fallback: 'https://api.customer.io' },
+  allowedBaseUrls: ['https://api.customer.io', 'https://api-eu.customer.io'],
   test: { method: 'GET', path: '/v1/api/info/ip_addresses' },
   capabilities: [
     {

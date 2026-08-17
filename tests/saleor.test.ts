@@ -117,6 +117,28 @@ describe('saleor orders.cancel', () => {
   })
 })
 
+describe('saleor endpoint boundary', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([
+    'http://shop.example/graphql/',
+    'https://localhost/graphql/',
+    'https://127.0.0.1/graphql/',
+    'https://10.0.0.8/graphql/',
+  ])('rejects non-public GraphQL endpoint %s before sending the token', async (apiUrl) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(saleorConnector.executeRead!({
+      source: source({ metadata: { apiUrl } }),
+      capabilityName: 'orders.get',
+      args: { orderId: 'order_1' },
+      idempotencyKey: 'read_boundary',
+    })).rejects.toThrow('public HTTPS endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('saleor orders.fulfill', () => {
   afterEach(() => vi.unstubAllGlobals())
 

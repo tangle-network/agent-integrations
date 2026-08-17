@@ -36,7 +36,10 @@ export const firebaseConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://firestore.googleapis.com',
-  test: { method: 'GET', path: '/v1/projects/{projectId}/databases/(default)/documents' },
+  test: {
+    method: 'GET',
+    path: '/v1/projects/{connection.projectId}/databases/(default)/documents',
+  },
   capabilities: [
     {
       name: 'documents.list',

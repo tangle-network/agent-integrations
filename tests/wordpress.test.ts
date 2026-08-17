@@ -41,6 +41,17 @@ describe('wordpress adapter manifest', () => {
     expect(auth.scopes).toEqual(expect.arrayContaining(['posts', 'media', 'comments']))
   })
 
+  it('probes the authenticated user instead of an incomplete site URL', async () => {
+    const fetchMock = mockFetch({ ID: 123 })
+
+    const result = await wordpressConnector.test!(sourceFor(connection))
+
+    expect(result).toEqual({ ok: true })
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'https://public-api.wordpress.com/rest/v1.1/me',
+    )
+  })
+
   it('exposes the documented posts + pages + media + comments + taxonomies + users surface', () => {
     const names = wordpressConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(

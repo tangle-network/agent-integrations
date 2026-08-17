@@ -17,9 +17,11 @@ describe('bigin-by-zoho declarative adapter', () => {
       expect.arrayContaining([
         'ZohoBigin.modules.ALL',
         'ZohoBigin.users.READ',
-        'offline_access',
       ]),
     )
+    expect(auth.scopes).not.toContain('offline_access')
+    expect(auth.scopeSeparator).toBe(',')
+    expect(auth.extraAuthParams).toEqual({ access_type: 'offline', prompt: 'consent' })
     expect(auth.clientIdEnv).toBe('BIGIN_BY_ZOHO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET')
   })

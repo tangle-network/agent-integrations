@@ -7,14 +7,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * adapter resolves `baseUrl` from `metadata.restEndpoint` populated during
  * connection setup.
  *
- * Marketo's primary machine-to-machine auth is client_credentials against
- * `/identity/oauth/token`. For embedded LaunchPoint apps the same identity
- * service exposes a 3-legged authorize endpoint at `/identity/oauth/authorize`
- * which we surface here so the hub OAuth handler can negotiate a per-user
- * token. Marketo does not honour granular OAuth scopes — capability is gated
- * by the service user's API Role in the Marketo Admin UI — so we leave the
- * scope set empty and document the requirement in the auth hint via the
- * description on each capability.
+ * Marketo authenticates Custom Services with the client_credentials grant
+ * against the subscription's Identity URL. There is no user authorization
+ * redirect. Marketo does not honour granular OAuth scopes. The API-Only
+ * user's role controls the service's capabilities.
  *
  * Lead upserts use POST /rest/v1/leads.json with an `action` of
  * `createOrUpdate`; Marketo returns per-row status (`created`, `updated`,
@@ -27,15 +23,24 @@ export const marketoConnector = declarativeRestConnector({
   description: 'Manage Marketo leads, static lists, and smart campaigns through the REST API v1.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://app.marketo.com/identity/oauth/authorize',
-    tokenUrl: 'https://app.marketo.com/identity/oauth/token',
+    grantType: 'client_credentials',
+    tokenUrl: '{restEndpoint}/identity/oauth/token',
     scopes: [],
     clientIdEnv: 'MARKETO_OAUTH_CLIENT_ID',
     clientSecretEnv: 'MARKETO_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_post',
+    pkce: 'unsupported',
+    urlTemplateMetadata: {
+      restEndpoint: {
+        kind: 'base-url',
+        allowedBaseUrlSuffixes: ['.mktorest.com'],
+      },
+    },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'restEndpoint' },
+  allowedBaseUrlSuffixes: ['.mktorest.com'],
   test: { method: 'GET', path: '/rest/v1/stats/usage.json' },
   capabilities: [
     {

@@ -68,6 +68,7 @@ describe('confluence adapter manifest', () => {
         'pages.create',
         'pages.update',
         'pages.delete',
+        'resources.list',
         'spaces.list',
         'spaces.get',
         'search.cql',
@@ -79,7 +80,7 @@ describe('confluence adapter manifest', () => {
       .filter((c) => c.class === 'mutation')
       .map((c) => c.name)
       .sort()
-    expect(reads).toEqual(['pages.get', 'pages.list', 'search.cql', 'spaces.get', 'spaces.list'])
+    expect(reads).toEqual(['pages.get', 'pages.list', 'resources.list', 'search.cql', 'spaces.get', 'spaces.list'])
     expect(mutations).toEqual(['comments.create', 'pages.create', 'pages.delete', 'pages.update'])
 
     const pagesCreate = confluenceConnector.manifest.capabilities.find((c) => c.name === 'pages.create')!
@@ -127,6 +128,32 @@ describe('confluence comments.create execution', () => {
 })
 
 describe('confluence adapter execution', () => {
+  it('discovers the authorized Atlassian sites needed by cloudId-scoped actions', async () => {
+    const resources = [
+      {
+        id: 'cloud_abc',
+        url: 'https://acme.atlassian.net',
+        name: 'Acme',
+        scopes: ['read:confluence-content.all'],
+      },
+    ]
+    const fetchMock = mockFetch(resources)
+    const invocation: ConnectorInvocation = {
+      source,
+      capabilityName: 'resources.list',
+      args: {},
+      idempotencyKey: 'idem_resources',
+    }
+
+    const result = await confluenceConnector.executeRead!(invocation)
+
+    expect(result.data).toEqual(resources)
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(String(url)).toBe('https://api.atlassian.com/oauth/token/accessible-resources')
+    expect(init.method).toBe('GET')
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer token_xyz')
+  })
+
   it('routes pages.get through the api.atlassian.com gateway with the cloudId in the path', async () => {
     const fetchMock = mockFetch({ id: 'page_1', title: 'Hello' })
     const invocation: ConnectorInvocation = {

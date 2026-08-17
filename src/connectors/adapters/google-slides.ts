@@ -15,7 +15,9 @@ export const googleSlidesConnector = declarativeRestConnector({
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://slides.googleapis.com/v1',
-  test: { method: 'GET', path: '/presentations' },
+  // Slides has no resource-free read endpoint: every GET requires a caller-
+  // supplied presentation id. OAuth token exchange/refresh is therefore the
+  // connection health signal; probing `/presentations` always returns 404.
   capabilities: [
     {
       name: 'presentation.get',

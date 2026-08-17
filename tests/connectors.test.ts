@@ -169,15 +169,63 @@ describe('startOAuthFlow / consumePendingFlow', () => {
       scopes: ['https://www.googleapis.com/auth/calendar'],
       clientId: 'CID',
       redirectUri: 'https://app.example.com/cb',
-      extraAuthParams: { access_type: 'offline', prompt: 'consent' },
+      extraAuthParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+        code_challenge: 'manifest-must-not-replace-host-challenge',
+        code_challenge_method: 'plain',
+      },
     })
     const url = new URL(out.authorizationUrl)
     expect(url.searchParams.get('response_type')).toBe('code')
     expect(url.searchParams.get('client_id')).toBe('CID')
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
-    expect(url.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(url.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(url.searchParams.get('access_type')).toBe('offline')
     expect(url.searchParams.get('state')).toBe(out.state)
+  })
+
+  it('supports provider-specific comma-delimited OAuth scopes', () => {
+    const out = startOAuthFlow({
+      projectId: 'p1',
+      kind: 'zoho-books',
+      label: 'Books',
+      authorizationUrl: 'https://accounts.zoho.com/oauth/v2/auth',
+      scopes: ['ZohoBooks.fullaccess.all', 'ZohoInvoice.fullaccess.all'],
+      scopeSeparator: ',',
+      clientId: 'CID',
+      redirectUri: 'https://app.example.com/cb',
+    })
+    expect(new URL(out.authorizationUrl).searchParams.get('scope')).toBe(
+      'ZohoBooks.fullaccess.all,ZohoInvoice.fullaccess.all',
+    )
+  })
+
+  it('omits PKCE for a provider that explicitly rejects it', async () => {
+    const store = new InMemoryOAuthFlowStore()
+    const out = startOAuthFlow({
+      projectId: 'p1',
+      kind: 'tiktok',
+      label: 'TikTok',
+      authorizationUrl: 'https://www.tiktok.com/v2/auth/authorize/',
+      scopes: ['user.info.basic', 'video.list'],
+      scopeSeparator: ',',
+      clientId: 'CLIENT_KEY',
+      authorizationClientIdParam: 'client_key',
+      pkce: 'unsupported',
+      redirectUri: 'https://app.example.com/cb',
+      extraAuthParams: {
+        code_challenge: 'manifest-must-not-force-pkce',
+        code_challenge_method: 'S256',
+      },
+      store,
+    })
+    const url = new URL(out.authorizationUrl)
+    expect(url.searchParams.get('client_key')).toBe('CLIENT_KEY')
+    expect(url.searchParams.get('scope')).toBe('user.info.basic,video.list')
+    expect(url.searchParams.has('code_challenge')).toBe(false)
+    expect(url.searchParams.has('code_challenge_method')).toBe(false)
+    expect((await consumePendingFlow(out.state, store)).codeVerifier).toBeUndefined()
   })
 
   it('round-trips a pending flow', async () => {
@@ -188,7 +236,7 @@ describe('startOAuthFlow / consumePendingFlow', () => {
     })
     const flow = await consumePendingFlow(out.state)
     expect(flow.projectId).toBe('p1')
-    expect(flow.codeVerifier.length).toBeGreaterThan(40)
+    expect(flow.codeVerifier?.length).toBeGreaterThan(40)
   })
 
   it('round-trips through an injected flow store', async () => {
@@ -260,6 +308,101 @@ describe('validateConnectorManifest', () => {
       'rateLimit.requests',
       'rateLimit.windowMs',
     ]))
+  })
+
+  it('rejects an unknown OAuth token client authentication method', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: {
+        kind: 'oauth2',
+        authorizationUrl: 'https://x/auth',
+        tokenUrl: 'https://x/token',
+        scopes: ['calendar.read'],
+        clientIdEnv: 'CID',
+        clientSecretEnv: 'SECRET',
+        tokenClientAuthMethod: 'not-a-real-method',
+      } as never,
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [],
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      issues: [{
+        path: 'auth.tokenClientAuthMethod',
+        message: 'tokenClientAuthMethod must be none, client_secret_post, or client_secret_basic',
+      }],
+    })
+  })
+
+  it('rejects an unknown OAuth token client authentication method inside a one_of option', () => {
+    const result = validateConnectorManifest({
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      auth: {
+        kind: 'one_of',
+        preferred: 'oauth2',
+        options: [
+          {
+            kind: 'oauth2',
+            authorizationUrl: 'https://x/auth',
+            tokenUrl: 'https://x/token',
+            scopes: ['calendar.read'],
+            clientIdEnv: 'CID',
+            clientSecretEnv: 'SECRET',
+            tokenClientAuthMethod: 'not-a-real-method',
+          },
+          { kind: 'api-key', hint: 'Token' },
+        ],
+      } as never,
+      defaultConsistencyModel: 'authoritative',
+      category: 'calendar',
+      capabilities: [],
+    })
+
+    expect(result.issues).toContainEqual({
+      path: 'auth.options[0].tokenClientAuthMethod',
+      message: 'tokenClientAuthMethod must be none, client_secret_post, or client_secret_basic',
+    })
+  })
+
+  it('allows a public OAuth client without a secret env and rejects confidential omissions', () => {
+    const base = {
+      kind: 'calendar',
+      displayName: 'Calendar',
+      description: 'Calendar connector',
+      defaultConsistencyModel: 'authoritative' as const,
+      category: 'calendar' as const,
+      capabilities: [],
+    }
+    expect(validateConnectorManifest({
+      ...base,
+      auth: {
+        kind: 'oauth2',
+        authorizationUrl: 'https://x/auth',
+        tokenUrl: 'https://x/token',
+        scopes: ['calendar.read'],
+        clientIdEnv: 'CID',
+        tokenClientAuthMethod: 'none',
+      },
+    })).toEqual({ ok: true, issues: [] })
+    expect(validateConnectorManifest({
+      ...base,
+      auth: {
+        kind: 'oauth2',
+        authorizationUrl: 'https://x/auth',
+        tokenUrl: 'https://x/token',
+        scopes: ['calendar.read'],
+        clientIdEnv: 'CID',
+      },
+    }).issues).toContainEqual({
+      path: 'auth.clientSecretEnv',
+      message: 'confidential OAuth clients require clientSecretEnv',
+    })
   })
 
   it('assertValidConnectorManifest throws with actionable paths', () => {

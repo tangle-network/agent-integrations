@@ -4,7 +4,7 @@ import { fathomConnector } from '../src/connectors/adapters/fathom.js'
 describe('fathom adapter manifest', () => {
   it('exposes the fathom kind under the other category with authoritative consistency', () => {
     expect(fathomConnector.manifest.kind).toBe('fathom')
-    expect(fathomConnector.manifest.category).toBe('other')
+    expect(fathomConnector.manifest.category).toBe('comms')
     expect(fathomConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 

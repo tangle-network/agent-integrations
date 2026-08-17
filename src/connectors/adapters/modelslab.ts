@@ -1,125 +1,169 @@
-import { declarativeRestConnector } from './declarative-rest.js'
+import {
+  type CapabilityMutationResult,
+  type CapabilityReadResult,
+  type ConnectorAdapter,
+  CredentialsExpired,
+  ProviderRateLimited,
+  type ResolvedDataSource,
+} from '../types.js'
 
-/**
- * ModelsLab generative-media connector.
- *
- * Authentication: workspace API key. ModelsLab's documented contract is to
- * pass the key as a `key` field inside the JSON body; the V6 API also honours
- * `Authorization: Bearer <key>` on the same routes, which is the form the
- * declarative-rest engine can express. Callers that hit a route lacking
- * bearer support must pass `key` explicitly inside args until the engine
- * grows a body-credential placement.
- *
- * Capability surface mirrors the activepieces actions list one-for-one
- * (currently a single `text.to.image` action). The route covered is
- * `POST /api/v6/realtime/text2img` — the realtime variant runs synchronously
- * and returns image URLs in the same response, which fits the
- * declarative-rest one-shot request model. Async / queued endpoints
- * (`fetch_queued_response`) belong in a follow-on bespoke adapter once
- * polling is wired through the engine.
- */
+const baseUrl = 'https://modelslab.com/api/v6/images'
 
-export const modelslabConnector = declarativeRestConnector({
-  kind: 'modelslab',
-  displayName: 'ModelsLab',
-  description:
-    'Developer-first generative-media API — synchronous text-to-image generation via the realtime endpoint, returning hosted image URLs.',
-  auth: {
-    kind: 'api-key',
-    hint: 'ModelsLab API key (generated at modelslab.com → Dashboard → API Keys). Sent as Authorization: Bearer.',
-  },
-  category: 'other',
-  defaultConsistencyModel: 'advisory',
-  baseUrl: 'https://modelslab.com',
-  // Mirror the documented body-key contract via the bearer header. The
-  // engine cannot inject credentials into a JSON body, and ModelsLab accepts
-  // bearer on all V6 realtime routes.
-  credentialPlacement: { kind: 'bearer' },
-  capabilities: [
-    {
-      name: 'text.to.image',
-      class: 'mutation',
-      description:
-        'Generate one or more images from a text prompt using ModelsLab Realtime. Returns hosted output URLs synchronously when the model is warm; falls back to a queued status payload when capacity is constrained.',
-      parameters: {
-        type: 'object',
-        properties: {
-          prompt: {
-            type: 'string',
-            description: 'Text prompt describing the desired image.',
-          },
-          negative_prompt: {
-            type: 'string',
-            description: 'Concepts, styles, or artefacts to exclude from the output.',
-          },
-          model_id: {
-            type: 'string',
-            description:
-              'ModelsLab model identifier (e.g. sdxl, midjourney, realtime-v2). Defaults to the workspace-configured realtime model when omitted.',
-          },
-          width: {
-            type: 'integer',
-            minimum: 256,
-            maximum: 1024,
-            description: 'Output width in pixels. Must be divisible by 8.',
-          },
-          height: {
-            type: 'integer',
-            minimum: 256,
-            maximum: 1024,
-            description: 'Output height in pixels. Must be divisible by 8.',
-          },
-          num_inference_steps: {
-            type: 'integer',
-            minimum: 20,
-            maximum: 50,
-            description: 'Denoising steps. Higher values trade latency for fidelity.',
-          },
-          guidance_scale: {
-            type: 'number',
-            minimum: 1,
-            maximum: 20,
-            description: 'Classifier-free guidance scale — how strictly the model follows the prompt.',
-          },
-          samples: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 4,
-            description: 'Number of independent images to return in a single response.',
-          },
-          seed: {
-            type: 'integer',
-            description: 'Deterministic seed for reproducibility. Pass -1 to randomise (the ModelsLab default).',
-          },
-          safety_checker: {
-            type: 'boolean',
-            description: 'Enable the upstream NSFW safety filter. Defaults to true server-side.',
-          },
-          enhance_prompt: {
-            type: 'boolean',
-            description: 'Let ModelsLab rewrite the prompt for better prompt-fidelity before generation.',
-          },
-          webhook: {
-            type: 'string',
-            description: 'Optional callback URL — ModelsLab POSTs the completed payload here if the request goes async.',
-          },
-          track_id: {
-            type: 'string',
-            description: 'Caller-supplied correlation id echoed back in webhook callbacks.',
-          },
-        },
-        required: ['prompt'],
-      },
-      request: {
-        method: 'POST',
-        path: '/api/v6/realtime/text2img',
-        body: 'args',
-      },
-      // Generative inference is not idempotent — replaying the same prompt
-      // yields a new sample (modulo a fixed seed, which the caller owns).
-      // ModelsLab does not honour an idempotency key on /text2img.
-      cas: 'none',
-      externalEffect: true,
+export const modelslabConnector: ConnectorAdapter = {
+  manifest: {
+    kind: 'modelslab',
+    displayName: 'ModelsLab',
+    description: 'Submit text-to-image generations and fetch queued ModelsLab results.',
+    auth: {
+      kind: 'api-key',
+      hint: 'ModelsLab API key from modelslab.com/account/api-key.',
     },
-  ],
-})
+    category: 'other',
+    defaultConsistencyModel: 'advisory',
+    capabilities: [
+      {
+        name: 'text.to.image',
+        class: 'mutation',
+        description: 'Submit a text-to-image generation. Poll images.status when ModelsLab returns processing.',
+        parameters: {
+          type: 'object',
+          properties: {
+            prompt: { type: 'string' },
+            negative_prompt: { type: 'string' },
+            model_id: { type: 'string' },
+            width: { type: 'integer', minimum: 256, maximum: 1024 },
+            height: { type: 'integer', minimum: 256, maximum: 1024 },
+            num_inference_steps: { type: 'integer', minimum: 20, maximum: 50 },
+            guidance_scale: { type: 'number', minimum: 1, maximum: 20 },
+            samples: { type: 'integer', minimum: 1, maximum: 4 },
+            seed: { type: 'integer' },
+            safety_checker: { type: 'boolean' },
+          },
+          required: ['prompt'],
+        },
+        cas: 'none',
+        externalEffect: true,
+      },
+      {
+        name: 'images.status',
+        class: 'read',
+        description: 'Fetch a queued image generation by request id.',
+        parameters: {
+          type: 'object',
+          properties: { requestId: { type: 'string' } },
+          required: ['requestId'],
+        },
+      },
+    ],
+  },
+
+  async executeMutation(inv): Promise<CapabilityMutationResult> {
+    if (inv.capabilityName !== 'text.to.image') {
+      throw new Error(`modelslab: unknown mutation capability ${inv.capabilityName}`)
+    }
+    const prompt = requiredString(inv.args, 'prompt')
+    const data = await request(inv.source, `${baseUrl}/text2img`, {
+      ...pick(inv.args, [
+        'negative_prompt',
+        'model_id',
+        'width',
+        'height',
+        'num_inference_steps',
+        'guidance_scale',
+        'samples',
+        'seed',
+        'safety_checker',
+      ]),
+      prompt,
+    })
+    return {
+      status: 'committed',
+      data,
+      committedAt: Date.now(),
+      idempotentReplay: false,
+    }
+  },
+
+  async executeRead(inv): Promise<CapabilityReadResult> {
+    if (inv.capabilityName !== 'images.status') {
+      throw new Error(`modelslab: unknown read capability ${inv.capabilityName}`)
+    }
+    const requestId = encodeURIComponent(requiredString(inv.args, 'requestId'))
+    const data = await request(inv.source, `${baseUrl}/fetch/${requestId}`, {})
+    return { data, fetchedAt: Date.now() }
+  },
+
+  async test(source) {
+    try {
+      await request(source, 'https://modelslab.com/api/wallet_balance', {})
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : 'unknown error' }
+    }
+  },
+}
+
+async function request(
+  source: ResolvedDataSource,
+  url: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const apiKey = credential(source)
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...body, key: apiKey }),
+    signal: AbortSignal.timeout(20_000),
+  })
+  const responseBody = await readBody(response)
+  if (response.status === 401 || response.status === 403) {
+    throw new CredentialsExpired(`ModelsLab rejected credentials (${response.status})`, source.id)
+  }
+  if (response.status === 429) {
+    throw new ProviderRateLimited('ModelsLab rate limit (429)', source.id, {
+      status: 429,
+      body: responseBody,
+      retryAfterMs: retryAfterMs(response.headers.get('retry-after')),
+    })
+  }
+  if (!response.ok) throw new Error(`modelslab POST ${new URL(url).pathname} HTTP ${response.status}`)
+  if (isErrorResponse(responseBody)) throw new Error('ModelsLab rejected the image request')
+  return responseBody
+}
+
+function credential(source: ResolvedDataSource): string {
+  if (source.credentials.kind !== 'api-key' || !source.credentials.apiKey.trim()) {
+    throw new Error('modelslab: API key required')
+  }
+  return source.credentials.apiKey
+}
+
+function requiredString(args: Record<string, unknown>, key: string): string {
+  const value = args[key]
+  if (typeof value !== 'string' || !value) throw new Error(`modelslab: ${key} is required`)
+  return value
+}
+
+function pick(args: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(keys.filter((key) => args[key] !== undefined).map((key) => [key, args[key]]))
+}
+
+async function readBody(response: Response): Promise<unknown> {
+  const text = await response.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return text
+  }
+}
+
+function isErrorResponse(value: unknown): boolean {
+  return Boolean(value && typeof value === 'object' && (value as Record<string, unknown>).status === 'error')
+}
+
+function retryAfterMs(value: string | null): number {
+  if (!value) return 60_000
+  const seconds = Number(value)
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.max(1_000, seconds * 1_000) : 60_000
+}

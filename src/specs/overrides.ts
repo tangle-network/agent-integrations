@@ -54,6 +54,656 @@ export interface IntegrationOverride {
 }
 
 export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+  tiktok: {
+    consoleUrl: 'https://developers.tiktok.com/apps/',
+    consoleSteps: [
+      {
+        id: 'app',
+        title: 'Create or select the TikTok app',
+        detail: 'Use one company-owned TikTok for Developers app for Tangle Integration Hub. Do not create a duplicate app.',
+      },
+      {
+        id: 'products',
+        title: 'Enable Login Kit and Content Posting',
+        detail: 'Enable Login Kit, Content Posting API, and the user.info.basic, video.list, and video.publish scopes.',
+      },
+      {
+        id: 'redirect',
+        title: 'Register the callback',
+        detail: 'Add {redirectUri} as an exact HTTPS web redirect URI.',
+        copyValue: '{redirectUri}',
+      },
+      {
+        id: 'urls',
+        title: 'Verify publishing URLs',
+        detail: 'Verify every HTTPS domain or URL prefix TikTok may pull videos and photos from.',
+      },
+      {
+        id: 'test',
+        title: 'Test a private post',
+        detail: 'Connect a test creator, read creator information, publish private test media, and poll the publish id until completion.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'private-until-audit',
+        severity: 'critical',
+        message: 'TikTok restricts unaudited Content Posting clients to private posts. Public visibility requires TikTok app review.',
+      },
+      {
+        id: 'verified-pull-url',
+        severity: 'critical',
+        message: 'Direct posts can pull media only from an HTTPS domain or URL prefix verified for this TikTok app.',
+      },
+      {
+        id: 'creator-preflight',
+        severity: 'warning',
+        message: 'TikTok requires current creator options before each direct post. The adapter performs this preflight and rejects unavailable privacy or duration choices.',
+      },
+      {
+        id: 'token-lifetime',
+        severity: 'info',
+        message: 'Access tokens last about 24 hours. Refresh tokens last about 365 days and may rotate on refresh.',
+      },
+    ],
+    postSetup: [
+      {
+        id: 'tiktok.private-publish',
+        title: 'Prove one private direct post',
+        detail: 'Publish media from a verified URL and poll the returned publish id until TikTok reports PUBLISH_COMPLETE.',
+      },
+      {
+        id: 'tiktok.refresh',
+        title: 'Prove token refresh',
+        detail: 'Refresh the short-lived access token and preserve TikTok’s newly returned refresh token.',
+      },
+    ],
+    healthcheck: {
+      id: 'tiktok.user.info',
+      level: 'connection',
+      description: 'Read the connected TikTok account with user.info.basic.',
+    },
+  },
+  amplitude: {
+    consoleUrl: 'https://analytics.amplitude.com/',
+    credentialFields: [
+      {
+        label: 'Amplitude project credential JSON',
+        description: 'JSON containing the API key and secret key for one Amplitude project.',
+        example: '{"apiKey":"...","secretKey":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      {
+        id: 'project',
+        title: 'Select one Amplitude project',
+        detail: 'Open Project Settings > General for the project that Tangle may access.',
+      },
+      {
+        id: 'credentials',
+        title: 'Copy the project credentials',
+        detail: 'Copy the API key and secret key into one JSON credential bundle.',
+      },
+      {
+        id: 'region',
+        title: 'Set the data region',
+        detail: 'Use the default US host. Set apiBaseUrl to the documented EU host only for an EU project.',
+      },
+      {
+        id: 'test',
+        title: 'Test the project connection',
+        detail: 'The connection check lists visible project events without changing analytics data.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'project-bound',
+        severity: 'warning',
+        message: 'The API key and secret key belong to one project. Use a separate connection for each project.',
+      },
+      {
+        id: 'region-bound',
+        severity: 'critical',
+        message: 'US and EU projects use different hosts. Tangle accepts only the two official Amplitude API hosts.',
+      },
+      {
+        id: 'annotation-authority',
+        severity: 'warning',
+        message: 'Annotation changes require suitable Amplitude authority and remain approval-gated.',
+      },
+    ],
+    healthcheck: {
+      id: 'amplitude.connection',
+      level: 'connection',
+      description: 'Authenticate with the project credential pair and list visible events.',
+    },
+  },
+  cloudflare: {
+    consoleUrl: 'https://dash.cloudflare.com/profile/api-tokens/',
+    credentialFields: [
+      {
+        label: 'Dedicated Cloudflare API token',
+        description: 'Create a new resource-scoped token for Tangle Integration Hub. Do not reuse an infrastructure token.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      {
+        id: 'token',
+        title: 'Create a dedicated API token',
+        detail: 'Create a custom token named Tangle Integration Hub. Do not use the legacy Global API Key.',
+      },
+      {
+        id: 'permissions',
+        title: 'Grant narrow permissions',
+        detail: 'Grant Account Settings Read, Zone Read, Zone Settings Read, and DNS Read or DNS Edit only.',
+      },
+      {
+        id: 'resources',
+        title: 'Limit the token to selected zones',
+        detail: 'Include only the accounts and zones that this connection must manage.',
+      },
+      {
+        id: 'store',
+        title: 'Store the one-time token',
+        detail: 'Copy the token once. Tangle Hub seals it before persistence.',
+      },
+      {
+        id: 'test',
+        title: 'Verify token status',
+        detail: 'The connection check calls the token verification endpoint and requires active status.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'no-global-key',
+        severity: 'critical',
+        message: 'Global API keys grant full user authority and are unsupported. Use a scoped API token.',
+      },
+      {
+        id: 'no-token-reuse',
+        severity: 'critical',
+        message: 'Never reuse a token used by Tangle deployment, Workers, Terraform, DNS automation, or other infrastructure.',
+      },
+      {
+        id: 'dns-impact',
+        severity: 'critical',
+        message: 'DNS updates can interrupt production traffic. Every DNS mutation remains approval-gated.',
+      },
+    ],
+    healthcheck: {
+      id: 'cloudflare.token',
+      level: 'connection',
+      description: 'Verify that the dedicated API token is valid and active.',
+    },
+  },
+  nango: {
+    consoleUrl: 'https://nango.dev/docs/getting-started/intro-to-nango',
+    credentialFields: [],
+    consoleSteps: [
+      {
+        id: 'gateway',
+        title: 'Choose a Nango gateway deployment',
+        detail: 'Use Nango only when a product intentionally deploys Nango Cloud or a self-hosted Nango environment.',
+      },
+      {
+        id: 'runtime',
+        title: 'Configure the gateway runtime',
+        detail: 'Store the Nango host and environment secret in the product-owned gateway service, not as provider OAuth credentials.',
+      },
+      {
+        id: 'providers',
+        title: 'Configure real provider integrations',
+        detail: 'Register each external provider in Nango and test its connection lifecycle separately.',
+      },
+    ],
+    knownQuirks: [
+      {
+        id: 'gateway-not-provider',
+        severity: 'critical',
+        message: 'Nango is an integration gateway, not an end-user OAuth provider. This catalog entry has no generic Connect flow.',
+      },
+      {
+        id: 'no-runtime',
+        severity: 'critical',
+        message: 'This package does not ship a Nango gateway backend. The entry remains non-executable until a product deploys one.',
+      },
+    ],
+    healthcheck: {
+      id: 'nango.static',
+      level: 'static',
+      description: 'No Nango gateway runtime is configured by this package.',
+    },
+  },
+  mongodb: {
+    credentialFields: [
+      {
+        label: 'MongoDB connection JSON',
+        description: 'JSON containing a public MongoDB host, database, user, password, optional port/auth source, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cluster.example.mongodb.net","port":27017,"database":"app","user":"tangle_reader","password":"...","authSource":"admin"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only MongoDB user', detail: 'Grant read on the intended database only. Do not grant write, cluster administration, JavaScript execution, or cross-database roles.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose one MongoDB node through a public TLS endpoint and restrict its firewall to Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only user, password, auth source, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed ping command.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes collection/index metadata, structured scalar document reads, and counts only. Raw queries, JavaScript, aggregation, writes, and administrative commands are unavailable.' },
+      { id: 'direct-node', severity: 'warning', message: 'The hosted adapter pins one public seed and disables topology discovery so a server cannot redirect Hub to unvalidated private nodes.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain MongoDB connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'bounded-results', severity: 'info', message: 'Document reads return at most 1,000 documents and 10 MiB and accept fixed scalar predicates instead of raw MongoDB query objects.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'Change-stream triggers remain unavailable until a durable worker persists resume tokens and deliveries.' },
+    ],
+    healthcheck: {
+      id: 'mongodb.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed ping command.',
+    },
+  },
+  postgres: {
+    credentialFields: [
+      {
+        label: 'PostgreSQL connection JSON',
+        description: 'JSON containing a public PostgreSQL host, database, user, password, optional port, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"postgres.example.com","port":5432,"database":"app","user":"tangle_reader","password":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only PostgreSQL role', detail: 'Grant CONNECT on the database, USAGE on intended schemas, and SELECT on intended tables or views. Do not grant write, DDL, function execution, or replication privileges.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose PostgreSQL through a public TLS endpoint and restrict its firewall to the Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only role, password, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed current-database query.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes metadata and structured SELECT reads only. Arbitrary SQL, functions, writes, DDL, COPY, and replication are not available.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain PostgreSQL connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'bounded-results', severity: 'info', message: 'Reads return at most 10,000 rows and 10 MiB and use bounded scalar predicates instead of raw SQL.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'Database-change triggers remain unavailable until a durable logical-decoding or polling worker persists cursors and deliveries.' },
+    ],
+    healthcheck: {
+      id: 'postgres.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed current-database query.',
+    },
+  },
+  neverbounce: {
+    consoleUrl: 'https://app.neverbounce.com/',
+    credentialFields: [
+      {
+        label: 'NeverBounce API key',
+        description: 'Create a dedicated API key in Apps > API. Verification calls consume account credits.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'key', title: 'Create a dedicated API key', detail: 'Open Apps > API in NeverBounce and create a key for Tangle Integration Hub.' },
+      { id: 'store', title: 'Store the API key', detail: 'Paste the key once. Tangle Hub seals it before persistence.' },
+      { id: 'test', title: 'Test account access', detail: 'The connection check reads account information without verifying an address or spending a verification credit.' },
+    ],
+    knownQuirks: [
+      { id: 'metered-verification', severity: 'warning', message: 'Every address verification can consume NeverBounce credits and remains approval-gated by default.' },
+      { id: 'query-auth', severity: 'warning', message: 'NeverBounce requires the API key in the request query string. Tangle redacts it from errors and logs.' },
+    ],
+    healthcheck: {
+      id: 'neverbounce.connection',
+      level: 'connection',
+      description: 'Read NeverBounce account information without consuming a verification credit.',
+    },
+  },
+  redshift: {
+    credentialFields: [
+      {
+        label: 'Redshift connection JSON',
+        description: 'JSON containing a public Redshift host, database, user, password, optional port, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cluster.region.redshift.amazonaws.com","port":5439,"database":"analytics","user":"tangle_reader","password":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'user', title: 'Create a read-only Redshift user', detail: 'Grant USAGE on intended schemas and SELECT on intended tables or views. Do not grant write, DDL, COPY, UNLOAD, or external-function privileges.' },
+      { id: 'network', title: 'Allow the Hub connection', detail: 'Expose the cluster through a public TLS endpoint and restrict its security group or firewall to the Hub egress addresses when available.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the endpoint, database, read-only user, password, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The check pins a public address, verifies the TLS hostname and certificate, authenticates, and runs a fixed current-database query.' },
+    ],
+    knownQuirks: [
+      { id: 'read-only', severity: 'info', message: 'The pack exposes metadata and structured SELECT reads only. Arbitrary SQL, writes, DDL, COPY, UNLOAD, and external functions are not available.' },
+      { id: 'tls-only', severity: 'critical', message: 'Plain PostgreSQL connections are rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'bounded-results', severity: 'info', message: 'Reads return at most 10,000 rows and 10 MiB and use bounded scalar predicates instead of raw SQL.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'The cataloged record-change trigger remains unavailable until an incremental polling worker persists its cursor and deliveries durably.' },
+    ],
+    healthcheck: {
+      id: 'redshift.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, and run a fixed current-database query.',
+    },
+  },
+  redis: {
+    credentialFields: [
+      {
+        label: 'Redis connection JSON',
+        description: 'JSON containing a public host, password, optional ACL username/database, and optional CA certificate. Verified TLS is mandatory.',
+        example: '{"host":"cache.example.com","port":6380,"username":"default","password":"...","database":0}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted Redis user', detail: 'Grant only PING, SCAN, TYPE, PTTL, GET, SET, DEL, and EVAL access for the intended key patterns.' },
+      { id: 'tls', title: 'Require verified TLS', detail: 'Use a public hostname with a valid certificate on the TLS listener. Plain Redis connections are rejected.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the host, port, restricted ACL credentials, database number, and optional CA certificate in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check pins a public address, verifies the TLS hostname and certificate, authenticates, and sends PING.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plain Redis is rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'standalone', severity: 'warning', message: 'This pack targets one standalone or managed primary endpoint. Redis Cluster and Sentinel discovery are not followed.' },
+      { id: 'bounded-scan', severity: 'info', message: 'Key discovery uses bounded SCAN pages and never runs the blocking KEYS command.' },
+      { id: 'string-writes', severity: 'info', message: 'Writes are limited to conditional string set/delete operations. Arbitrary commands and unconditional deletes are not exposed.' },
+      { id: 'trigger-runtime', severity: 'warning', message: 'The cataloged key-change trigger remains unavailable until a durable subscriber can persist keyspace events before acknowledging delivery.' },
+    ],
+    healthcheck: {
+      id: 'redis.connection',
+      level: 'connection',
+      description: 'Resolve and pin a public address, negotiate verified TLS, authenticate, send PING, and close.',
+    },
+  },
+  rabbitmq: {
+    credentialFields: [
+      {
+        label: 'RabbitMQ connection JSON',
+        description: 'JSON containing a public host, username, password, optional port/vhost, and optional CA or mutual-TLS credentials. Verified TLS is mandatory.',
+        example: '{"host":"rabbitmq.example.com","port":5671,"username":"tangle","password":"...","vhost":"/tenant"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted RabbitMQ user', detail: 'Grant only configure, write, and read permissions required for the intended virtual host and resources.' },
+      { id: 'tls', title: 'Expose a verified TLS listener', detail: 'Use an AMQPS listener on a public hostname with a valid certificate. Plain AMQP is rejected.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Save the host, virtual host, restricted user, password, and optional TLS material in the encrypted credential field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check verifies public routing, TLS certificate validation, and RabbitMQ authentication without publishing a message.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plaintext AMQP is rejected. TLS 1.2 or newer and valid server certificates are mandatory.' },
+      { id: 'public-host', severity: 'warning', message: 'Hosted Hub rejects private, loopback, link-local, and mixed public/private DNS targets.' },
+      { id: 'publisher-confirms', severity: 'info', message: 'Publish actions wait for broker confirmation and require the target queue or exchange to exist.' },
+      { id: 'consumer-runtime', severity: 'warning', message: 'The cataloged Message Received trigger still requires a durable polling worker that persists each event before acknowledging it.' },
+    ],
+    healthcheck: {
+      id: 'rabbitmq.connection',
+      level: 'connection',
+      description: 'Resolve a public host, negotiate verified TLS, authenticate, and close without publishing.',
+    },
+  },
+  duckdb: {
+    consoleSteps: [
+      { id: 'ready', title: 'Use the built-in runtime', detail: 'No provider account, endpoint, or credential is required. Each invocation uses a new in-memory database.' },
+      { id: 'query', title: 'Use query parameters', detail: 'Pass dynamic values through $1, $2, and the args array instead of interpolating them into SQL.' },
+    ],
+    knownQuirks: [
+      { id: 'ephemeral', severity: 'info', message: 'Tables exist only for one invocation and are discarded immediately afterward.' },
+      { id: 'external-access', severity: 'critical', message: 'File, network, extension, and attached-database access is disabled and locked before input tables are loaded.' },
+      { id: 'bounded-runtime', severity: 'warning', message: 'Input, output, rows, schema depth and width, memory, threads, and execution time are bounded for hosted Hub safety.' },
+      { id: 'integer-json', severity: 'info', message: 'DuckDB 64-bit integer results are serialized as decimal strings so JSON does not lose precision.' },
+    ],
+    healthcheck: {
+      id: 'duckdb.runtime',
+      level: 'connection',
+      description: 'Open a secured in-memory DuckDB instance and execute SELECT 1.',
+    },
+  },
+  kafka: {
+    credentialFields: [
+      {
+        label: 'Kafka connection JSON',
+        description: 'JSON containing public broker host:port entries and optional SASL or mutual-TLS credentials. TLS is always required.',
+        example: '{"brokers":["broker.example.com:9093"],"saslMechanism":"scram-sha-512","saslUsername":"...","saslPassword":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted Kafka principal', detail: 'Grant only the topics, groups, and administrative operations required by approved Tangle workflows.' },
+      { id: 'network', title: 'Expose TLS broker endpoints', detail: 'Use public TLS endpoints whose advertised broker addresses also resolve publicly.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Paste brokers plus SASL or mutual-TLS credentials into the encrypted connection field.' },
+      { id: 'test', title: 'Test topic discovery', detail: 'The connection check verifies public routing, TLS certificates, authentication, and topic-list permission without producing a record.' },
+    ],
+    knownQuirks: [
+      { id: 'tls-only', severity: 'critical', message: 'Plaintext Kafka is rejected. TLS 1.2 or newer and valid broker certificates are mandatory.' },
+      { id: 'public-brokers', severity: 'warning', message: 'Every bootstrap and advertised broker address must resolve publicly for hosted Hub execution.' },
+      { id: 'consumer-rebalance', severity: 'warning', message: 'A bounded consume joins the supplied consumer group and may rebalance its members, so it always requires approval.' },
+      { id: 'explicit-commit', severity: 'critical', message: 'Bounded consume never commits offsets automatically. Commit the returned next offsets only after downstream work succeeds.' },
+    ],
+    healthcheck: {
+      id: 'kafka.connection',
+      level: 'connection',
+      description: 'Connect over TLS, authenticate, and list topics without producing or consuming records.',
+    },
+  },
+  sftp: {
+    credentialFields: [
+      {
+        label: 'SFTP connection JSON',
+        description: 'JSON containing host, username, SHA-256 hostFingerprint, and password or privateKey; optional port, passphrase, and rootPath.',
+        example: '{"host":"sftp.example.com","username":"integration","password":"...","hostFingerprint":"SHA256:...","rootPath":"/incoming"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Create a restricted SFTP account', detail: 'Use a customer-owned account limited to the directories and operations Tangle needs.' },
+      { id: 'fingerprint', title: 'Copy the server fingerprint', detail: 'Obtain the SHA-256 host-key fingerprint from the server administrator or a trusted out-of-band channel.' },
+      { id: 'credential', title: 'Store the connection JSON', detail: 'Paste the host, username, authentication secret, host fingerprint, and optional root path into the encrypted connection field.' },
+      { id: 'test', title: 'Test the connection', detail: 'The connection check verifies DNS, public routing, the pinned host key, authentication, and the configured root directory.' },
+    ],
+    knownQuirks: [
+      { id: 'public-endpoint', severity: 'warning', message: 'The hosted Hub rejects private and local SFTP targets. Expose a restricted public endpoint or use customer-hosted execution.' },
+      { id: 'host-key', severity: 'critical', message: 'Connections fail closed when the server host key differs from the stored SHA-256 fingerprint.' },
+      { id: 'root-scope', severity: 'critical', message: 'All paths are confined to rootPath, including after symbolic-link resolution.' },
+    ],
+    healthcheck: {
+      id: 'sftp.connection',
+      level: 'connection',
+      description: 'Connect, verify the pinned host key, authenticate, and read the current SFTP directory without modifying files.',
+    },
+  },
+  'azure-event-grid': {
+    consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.EventGrid%2Ftopics',
+    credentialFields: [
+      {
+        label: 'Azure Event Grid credential bundle',
+        description: 'JSON containing the custom topic or domain endpoint, one topic access key, and a random delivery secret of at least 32 characters.',
+        example: '{"endpoint":"https://topic.region.eventgrid.azure.net/api/events","accessKey":"...","deliverySecret":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'topic', title: 'Select a custom topic or domain', detail: 'Open the customer-owned Event Grid topic or domain and copy its /api/events endpoint.' },
+      { id: 'key', title: 'Copy one topic access key', detail: 'Use either active key and rotate between the primary and secondary keys without downtime.' },
+      { id: 'secret', title: 'Generate a delivery secret', detail: 'Generate at least 32 random characters and store it with the endpoint and access key.' },
+      { id: 'subscription', title: 'Configure authenticated delivery', detail: 'On each event subscription, add x-tangle-eventgrid-secret as a static secret delivery header with the same value.' },
+    ],
+    knownQuirks: [
+      { id: 'static-health', severity: 'info', message: 'The setup check validates endpoint and credential structure. A live publish would create a real external event and remains approval-gated.' },
+      { id: 'delivery-secret', severity: 'critical', message: 'Inbound delivery is rejected unless the event subscription sends the matching x-tangle-eventgrid-secret static delivery header.' },
+    ],
+    healthcheck: {
+      id: 'azure-event-grid.credentials',
+      level: 'static',
+      description: 'Validate endpoint, topic key, and delivery-secret structure without publishing an event.',
+    },
+  },
+  'azure-service-bus': {
+    consoleUrl: 'https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.ServiceBus%2Fnamespaces',
+    credentialFields: [
+      {
+        label: 'Azure Service Bus connection string',
+        description: 'Use a dedicated shared access policy with only Send, Listen, or Manage rights required by approved workflows. EntityPath may restrict the connection to one queue or topic.',
+        example: 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=...;SharedAccessKey=...;EntityPath=optional',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'namespace', title: 'Select the customer namespace', detail: 'Open the existing Azure Service Bus namespace or create one under the customer subscription.' },
+      { id: 'policy', title: 'Create a narrow shared access policy', detail: 'Grant only Send, Listen, or Manage rights required by approved workflows.' },
+      { id: 'entity', title: 'Prefer an entity-scoped connection', detail: 'Use a queue or topic EntityPath when namespace-wide discovery is not required.' },
+      { id: 'store', title: 'Store the connection string', detail: 'Copy the primary or secondary connection string into the encrypted connection credential field.' },
+    ],
+    knownQuirks: [
+      { id: 'destructive-receive', severity: 'critical', message: 'Receive-and-delete permanently removes the message as it is returned. Use it only when downstream handling can tolerate loss after a process failure.' },
+      { id: 'format-only-health', severity: 'info', message: 'The setup health check validates connection-string structure without consuming or sending a message. Live permissions are confirmed on the first approved operation.' },
+    ],
+    healthcheck: {
+      id: 'azure-service-bus.credentials',
+      level: 'static',
+      description: 'Validate the Azure Service Bus connection-string structure without sending or consuming a message.',
+    },
+  },
+  'gcloud-pubsub': {
+    consoleUrl: 'https://console.cloud.google.com/cloudpubsub',
+    credentialFields: [
+      {
+        label: 'Google Cloud service-account key JSON',
+        description: 'Create a dedicated service account, grant only the required Pub/Sub roles, and paste its downloaded JSON key.',
+        example: '{"type":"service_account","project_id":"...","client_email":"...","private_key":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'api', title: 'Enable the Pub/Sub API', detail: 'Enable Google Cloud Pub/Sub for the customer project.' },
+      { id: 'service-account', title: 'Create a service account', detail: 'Create a dedicated Tangle Integration Hub service account.' },
+      { id: 'roles', title: 'Grant narrow Pub/Sub roles', detail: 'Grant only viewer, publisher, subscriber, or editor access required by approved workflows.' },
+      { id: 'key', title: 'Create and store a JSON key', detail: 'Create one JSON key and save it in the encrypted connection credential field.' },
+    ],
+    knownQuirks: [
+      { id: 'at-least-once', severity: 'warning', message: 'Pub/Sub delivery is at-least-once by default. Consumers must deduplicate messages by a stable application identifier.' },
+      { id: 'pull-ack', severity: 'warning', message: 'Pulling a message starts its acknowledgement deadline. Acknowledge it only after downstream work succeeds.' },
+    ],
+  },
+  'digital-ocean': {
+    consoleUrl: 'https://cloud.digitalocean.com/account/api/tokens',
+    credentialFields: [{ label: 'DigitalOcean personal access token', description: 'Create a dedicated token with only the read or write scopes required by approved workflows.', secret: true }],
+    consoleSteps: [
+      { id: 'token', title: 'Create a scoped token', detail: 'Create a dedicated token under API > Tokens with the smallest required scopes.' },
+      { id: 'projects', title: 'Limit resource ownership', detail: 'Use dedicated projects and tags so connected automation touches only intended resources.' },
+      { id: 'store', title: 'Store the token', detail: 'Paste the token once. Tangle Hub seals it before persistence.' },
+    ],
+    knownQuirks: [
+      { id: 'billable-resources', severity: 'critical', message: 'Droplet, database, volume, and app creation can incur immediate charges. Keep all create, resize, action, and delete operations approval-gated.' },
+      { id: 'irreversible-delete', severity: 'critical', message: 'Resource deletion can permanently destroy data. Require explicit destructive-action approval and verified backups.' },
+    ],
+  },
+  clicksend: {
+    consoleUrl: 'https://dashboard.clicksend.com/#/account/subaccounts',
+    credentialFields: [
+      {
+        label: 'ClickSend API credential bundle',
+        description: 'JSON containing username and apiKey from the ClickSend dashboard.',
+        example: '{"username":"...","apiKey":"..."}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'account', title: 'Use a dedicated subaccount', detail: 'Create a restricted subaccount for Tangle Integration Hub when account isolation is required.' },
+      { id: 'credentials', title: 'Copy API credentials', detail: 'Copy the ClickSend username and API key into the encrypted credential bundle.' },
+      { id: 'sender', title: 'Configure approved senders', detail: 'Register and approve sender names or numbers before enabling outbound workflows.' },
+    ],
+    knownQuirks: [
+      { id: 'paid-delivery', severity: 'warning', message: 'Outbound SMS and voice delivery incurs provider charges. Connection health and read operations do not send messages; keep outbound actions approval-gated.' },
+      { id: 'sender-rules', severity: 'warning', message: 'Sender ID, consent, quiet-hours, and opt-out rules vary by destination country and remain the customer’s responsibility.' },
+    ],
+  },
+  discourse: {
+    consoleUrl: 'https://meta.discourse.org/t/create-and-configure-an-api-key/230124',
+    credentialFields: [
+      {
+        label: 'Discourse API credential bundle',
+        description: 'JSON containing apiKey and apiUsername. Store the public HTTPS forum root as connection metadata baseUrl.',
+        example: '{"apiKey":"...","apiUsername":"system"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'key', title: 'Create a scoped API key', detail: 'In Admin > API > Keys, create a dedicated key with the smallest required scope and user level.' },
+      { id: 'username', title: 'Choose the acting user', detail: 'Use a dedicated service user whenever site-wide administrator authority is not required.' },
+      { id: 'host', title: 'Record the forum URL', detail: 'Store the public HTTPS forum root as connection metadata baseUrl.' },
+      { id: 'store', title: 'Store the credential bundle', detail: 'Save apiKey and apiUsername in the encrypted connection credential bundle.' },
+    ],
+    knownQuirks: [
+      { id: 'acting-user', severity: 'warning', message: 'Every action is attributed to Api-Username and limited by both that user and the key scopes. Use separate keys for automation with different authority.' },
+      { id: 'admin-actions', severity: 'warning', message: 'Category creation and moderation require staff or administrator authority and should remain approval-gated.' },
+    ],
+  },
+  baserow: {
+    consoleUrl: 'https://baserow.io/dashboard/settings/database-tokens',
+    credentialFields: [
+      {
+        label: 'Baserow database token',
+        description: 'Create a dedicated database token and grant only the required tables and create/read/update/delete permissions.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'token', title: 'Create a database token', detail: 'Open workspace settings, create a dedicated token, and name it Tangle Integration Hub.' },
+      { id: 'permissions', title: 'Limit table permissions', detail: 'Grant only the tables and create, read, update, or delete operations required by approved workflows.' },
+      { id: 'store', title: 'Store the token', detail: 'Paste the token once. Tangle Hub seals it before persistence.' },
+    ],
+    knownQuirks: [
+      { id: 'token-scope', severity: 'info', message: 'Database tokens intentionally cannot create tables or manage webhooks. Those account-level operations require a short-lived user JWT and are not advertised by this connector.' },
+      { id: 'self-hosted-url', severity: 'info', message: 'For self-hosted Baserow, store the public HTTPS API root in connection metadata as baseUrl.' },
+    ],
+  },
+  'ping-identity': {
+    consoleUrl: 'https://console.pingone.com/',
+    credentialFields: [
+      {
+        label: 'PingOne worker credential bundle',
+        description: 'JSON containing clientId, clientSecret, and region (us, ca, eu, au, or asia). Store the PingOne environment id as connection metadata.',
+        example: '{"clientId":"...","clientSecret":"...","region":"us"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'worker-app', title: 'Create a worker application', detail: 'Create a dedicated PingOne worker application with the minimum user and group administration roles.' },
+      { id: 'environment', title: 'Record environment and region', detail: 'Copy the PingOne environment id and select its deployment region.' },
+      { id: 'credentials', title: 'Store worker credentials', detail: 'Save the client id and client secret in the encrypted connection credential bundle.' },
+    ],
+  },
+  onelogin: {
+    consoleUrl: 'https://admin.us.onelogin.com/api_credentials',
+    credentialFields: [
+      {
+        label: 'OneLogin API credential bundle',
+        description: 'JSON containing clientId, clientSecret, and region (us or eu).',
+        example: '{"clientId":"...","clientSecret":"...","region":"us"}',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'credentials', title: 'Create API credentials', detail: 'Create dedicated OneLogin API credentials with Manage users or the smallest sufficient privilege.' },
+      { id: 'region', title: 'Select tenant region', detail: 'Choose us or eu to pin both token and API requests to the tenant region.' },
+      { id: 'store', title: 'Store credentials', detail: 'Save the client id and client secret in the encrypted connection credential bundle.' },
+    ],
+  },
+  scim: {
+    credentialFields: [
+      {
+        label: 'SCIM bearer token',
+        description: 'Long-lived bearer token issued by the customer SCIM service provider.',
+        secret: true,
+      },
+    ],
+    consoleSteps: [
+      { id: 'endpoint', title: 'Record the SCIM base URL', detail: 'Use the public HTTPS SCIM 2.0 root, including any tenant path such as /scim/v2.' },
+      { id: 'token', title: 'Create a provisioning token', detail: 'Issue a dedicated least-privileged bearer token for users, groups, and membership operations.' },
+      { id: 'test', title: 'Test ServiceProviderConfig', detail: 'Verify the endpoint and token can read the SCIM ServiceProviderConfig resource.' },
+    ],
+    knownQuirks: [
+      { id: 'provider-variance', severity: 'warning', message: 'SCIM providers vary in supported filters, PATCH paths, and ETag behavior; use provider-native PatchOp payloads when a service diverges from RFC 7644.' },
+    ],
+  },
   affinity: {
     consoleUrl: 'https://support.affinity.co/s/article/How-to-Create-and-Manage-API-Keys',
     credentialFields: [

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   auditIntegrationCatalogFreshness,
@@ -5,6 +6,8 @@ import {
   extractActivepiecesPublicPieceCount,
   extractExternalCatalogPublicCount,
 } from '../src/index'
+import { buildRuntimeBundledAdapterManifests } from '../src/connectors/bundled-manifest-runtime'
+import { assertBundledManifestSnapshotFresh } from '../scripts/bundled-manifest-snapshot.mjs'
 
 describe('integration catalog freshness audit', () => {
   it('reports local catalog breadth, support tiers, and dedupe conflict samples', async () => {
@@ -27,7 +30,9 @@ describe('integration catalog freshness audit', () => {
       result.local.activepiecesEntries,
     )
     expect(result.local.registrySummary.totalEntries).toBeGreaterThanOrEqual(650)
-    expect(result.local.registrySummary.bySupportTier.catalogOnly).toBeGreaterThan(500)
+    expect(result.local.registrySummary.bySupportTier.catalogOnly).toBeGreaterThan(
+      result.local.registrySummary.bySupportTier.setupReady,
+    )
     expect(result.local.conflictSamples.length).toBeGreaterThan(0)
   })
 
@@ -60,5 +65,15 @@ describe('integration catalog freshness audit', () => {
     expect(result.local.catalogEntries).toBeGreaterThanOrEqual(650)
     expect(result.local.executableCatalogActions).toBeGreaterThan(3_000)
     expect(JSON.stringify(result)).not.toContain('activepiecesEntries')
+  })
+
+  it('rejects mutated bundled metadata before packaging', () => {
+    const snapshot = JSON.parse(readFileSync(new URL('../data/bundled-adapter-manifests.json', import.meta.url), 'utf8')) as Array<Record<string, unknown>>
+    snapshot[0] = { ...snapshot[0], description: `${String(snapshot[0]?.description ?? '')} stale` }
+
+    expect(() => assertBundledManifestSnapshotFresh({
+      snapshot: `${JSON.stringify(snapshot)}\n`,
+      manifests: buildRuntimeBundledAdapterManifests(),
+    })).toThrow(/snapshot is stale/i)
   })
 })

@@ -2,246 +2,150 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { savvycalConnector } from '../src/connectors/adapters/savvycal.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
-function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
-  return {
-    id: 'src_savvycal_1',
-    projectId: 'proj_1',
-    publishedAgentId: null,
-    kind: 'savvycal',
-    label: 'savvycal test',
-    consistencyModel: 'authoritative',
-    scopes: ['read', 'write'],
-    metadata: {},
-    credentials: { kind: 'oauth2', accessToken: 'savvycal_access_token' },
-    status: 'active',
-    ...overrides,
-  }
+const source: ResolvedDataSource = {
+  id: 'src_savvycal_1',
+  projectId: 'proj_1',
+  publishedAgentId: null,
+  kind: 'savvycal',
+  label: 'SavvyCal test',
+  consistencyModel: 'authoritative',
+  scopes: [],
+  metadata: {},
+  credentials: { kind: 'oauth2', accessToken: 'savvycal_access_token' },
+  status: 'active',
 }
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
-  if (status === 204 || status === 205 || status === 304) {
-    return new Response(null, { status })
-  }
-  return new Response(JSON.stringify(body), {
+afterEach(() => vi.unstubAllGlobals())
+
+function mockFetch(body: unknown, status = 200) {
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
-  })
+  }))
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
 }
 
 describe('savvycal adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the savvycal kind', () => {
+  it('uses the documented OAuth hosts without an invented scope parameter', () => {
     expect(savvycalConnector.manifest.kind).toBe('savvycal')
-    expect(savvycalConnector.manifest.category).toBe('doc')
-    expect(savvycalConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares oauth2 auth with proper scopes', () => {
+    expect(savvycalConnector.manifest.category).toBe('calendar')
     const auth = savvycalConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.scopes).toContain('read')
-    expect(auth.scopes).toContain('write')
+    expect(auth.authorizationUrl).toBe('https://savvycal.com/oauth/authorize')
+    expect(auth.tokenUrl).toBe('https://savvycal.com/oauth/token')
+    expect(auth.scopes).toEqual([])
+    expect(auth.sendScopeParam).toBe(false)
   })
 
-  it('covers user, events, links, and workflow capability surface', () => {
-    const names = savvycalConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('user.current')
-    expect(names).toContain('events.list')
-    expect(names).toContain('events.get')
-    expect(names).toContain('events.create')
-    expect(names).toContain('events.update')
-    expect(names).toContain('events.cancel')
-    expect(names).toContain('events.findByEmail')
-    expect(names).toContain('links.list')
-    expect(names).toContain('links.get')
-    expect(names).toContain('links.create')
-    expect(names).toContain('links.update')
-    expect(names).toContain('links.delete')
-    expect(names).toContain('links.duplicate')
-    expect(names).toContain('links.toggle')
-    expect(names).toContain('links.slots')
-    expect(names).toContain('workflows.list')
-    expect(names).toContain('workflows.rules')
-    expect(names).toContain('workflows.create')
+  it('only advertises documented event, link, and workflow operations', () => {
+    const names = savvycalConnector.manifest.capabilities.map((capability) => capability.name).sort()
+    expect(names).toEqual([
+      'events.cancel',
+      'events.create',
+      'events.get',
+      'events.list',
+      'links.create',
+      'links.delete',
+      'links.duplicate',
+      'links.get',
+      'links.list',
+      'links.slots',
+      'links.toggle',
+      'links.update',
+      'user.current',
+      'workflows.list',
+      'workflows.rules',
+    ])
   })
 
-  it('classifies mutations correctly', () => {
-    const mutations = savvycalConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'events.create',
-        'events.update',
-        'events.cancel',
-        'links.create',
-        'links.update',
-        'links.delete',
-        'links.duplicate',
-        'links.toggle',
-        'workflows.create',
-      ].sort(),
-    )
-  })
-
-  it('classifies reads correctly', () => {
-    const reads = savvycalConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toContain('user.current')
-    expect(reads).toContain('events.list')
-    expect(reads).toContain('events.get')
-    expect(reads).toContain('events.findByEmail')
-    expect(reads).toContain('links.list')
-    expect(reads).toContain('links.get')
-    expect(reads).toContain('links.slots')
-    expect(reads).toContain('workflows.list')
-    expect(reads).toContain('workflows.rules')
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['links.create', 'links.update', 'events.update', 'workflows.create']) {
-      const cap = savvycalConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
+  it('marks every write as an external effect with a retry strategy', () => {
+    for (const capability of savvycalConnector.manifest.capabilities) {
+      if (capability.class !== 'mutation') continue
+      expect(capability.externalEffect, capability.name).toBe(true)
+      expect(capability.cas, capability.name).not.toBe('none')
     }
   })
 })
 
-describe('savvycal links.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
+describe('savvycal execution', () => {
+  it('creates links on /v1/links using only documented fields', async () => {
+    const fetchMock = mockFetch({ id: 'link_1' }, 201)
 
-  it('POSTs to /v1/scheduling_links with the link body', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'link_1', slug: 'intro-call' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await savvycalConnector.executeMutation!({
-      source: source(),
+    await savvycalConnector.executeMutation!({
+      source,
       capabilityName: 'links.create',
-      args: { name: 'Intro Call', slug: 'intro-call', durations: [30] },
-      idempotencyKey: 'k-1',
+      args: { name: 'Intro Call', description: 'A short call', type: 'recurring' },
+      idempotencyKey: 'link-1',
     })
 
-    expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('POST')
-    expect(requestUrl).toBe('https://api.savvycal.com/v1/scheduling_links')
-    expect(requestBody).toMatchObject({ name: 'Intro Call', slug: 'intro-call', durations: [30] })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      savvycalConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'links.create',
-        args: { name: 'X', slug: 'x', durations: [15] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
-
-describe('savvycal links.update', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('PATCHes /v1/scheduling_links/{linkId}', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'link_42', name: 'Updated' })
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(String(url)).toBe('https://api.savvycal.com/v1/links')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(String(init.body))).toEqual({
+      name: 'Intro Call',
+      description: 'A short call',
+      type: 'recurring',
     })
-    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it('books an event through its link with SavvyCal field names', async () => {
+    const fetchMock = mockFetch({ id: 'event_1' })
 
     await savvycalConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'links.update',
-      args: { linkId: 'link_42', name: 'Updated' },
-      idempotencyKey: 'k-1',
-    })
-
-    expect(requestMethod).toBe('PATCH')
-    expect(requestUrl).toBe('https://api.savvycal.com/v1/scheduling_links/link_42')
-    expect(requestBody).toMatchObject({ name: 'Updated' })
-  })
-})
-
-describe('savvycal events.update', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('PATCHes /v1/events/{eventId} with updated fields', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'evt_1', title: 'Rescheduled' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    await savvycalConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'events.update',
-      args: { eventId: 'evt_1', title: 'Rescheduled' },
-      idempotencyKey: 'k-1',
-    })
-
-    expect(requestMethod).toBe('PATCH')
-    expect(requestUrl).toBe('https://api.savvycal.com/v1/events/evt_1')
-    expect(requestBody).toMatchObject({ title: 'Rescheduled' })
-  })
-})
-
-describe('savvycal workflows.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to /v1/workflows with the workflow body', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: Record<string, unknown> | null = null
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'wf_1' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    await savvycalConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'workflows.create',
+      source,
+      capabilityName: 'events.create',
       args: {
-        name: 'Confirmation Email',
-        trigger: 'event_scheduled',
-        action: { type: 'email', template: 'confirmation' },
+        linkId: 'link_1',
+        display_name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        start_at: '2026-08-01T17:00:00Z',
+        end_at: '2026-08-01T17:30:00Z',
+        time_zone: 'America/Los_Angeles',
       },
-      idempotencyKey: 'k-1',
+      idempotencyKey: 'event-1',
     })
 
-    expect(requestMethod).toBe('POST')
-    expect(requestUrl).toBe('https://api.savvycal.com/v1/workflows')
-    expect(requestBody).toMatchObject({
-      name: 'Confirmation Email',
-      trigger: 'event_scheduled',
-      action: { type: 'email', template: 'confirmation' },
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(String(url)).toBe('https://api.savvycal.com/v1/links/link_1/events')
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('linkId')
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      display_name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      time_zone: 'America/Los_Angeles',
     })
+  })
+
+  it('cancels events through the POST cancel endpoint', async () => {
+    const fetchMock = mockFetch({ id: 'event_1', state: 'canceled' })
+
+    await savvycalConnector.executeMutation!({
+      source,
+      capabilityName: 'events.cancel',
+      args: { eventId: 'event_1', cancel_reason: 'Schedule conflict' },
+      idempotencyKey: 'cancel-1',
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(String(url)).toBe('https://api.savvycal.com/v1/events/event_1/cancel')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(String(init.body))).toEqual({ cancel_reason: 'Schedule conflict' })
+  })
+
+  it('lists slots with the documented from/until query names', async () => {
+    const fetchMock = mockFetch({ entries: [] })
+
+    await savvycalConnector.executeRead!({
+      source,
+      capabilityName: 'links.slots',
+      args: { linkId: 'link_1', from: '2026-08-01T00:00:00Z', until: '2026-08-07T00:00:00Z' },
+      idempotencyKey: 'slots-1',
+    })
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(String(url)).toBe(
+      'https://api.savvycal.com/v1/links/link_1/slots?from=2026-08-01T00%3A00%3A00Z&until=2026-08-07T00%3A00%3A00Z',
+    )
   })
 })

@@ -8,6 +8,11 @@ export const circleConnector = declarativeRestConnector({
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://app.circle.so/api/v1',
+  credentialPlacement: {
+    kind: 'header',
+    header: 'Authorization',
+    prefix: 'Token ',
+  },
   test: { method: 'GET', path: '/community_members/search' },
   capabilities: [
     {

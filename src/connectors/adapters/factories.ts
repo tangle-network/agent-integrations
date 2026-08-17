@@ -1,21 +1,206 @@
 import type { ConnectorAdapter } from '../types.js'
+import { oktaConnector } from './okta.js'
+import { oneloginConnector } from './onelogin.js'
+import { pingIdentityConnector } from './ping-identity.js'
+import { scimConnector } from './scim.js'
+import { actualbudgetConnector } from './actualbudget.js'
+import { aianswerConnector } from './aianswer.js'
+import { airparserConnector } from './airparser.js'
+import { anyhookWebsocketConnector } from './anyhook-websocket.js'
+import { apifyConnector } from './apify.js'
+import { askHandleConnector } from './ask-handle.js'
+import { bannerbearConnector } from './bannerbear.js'
+import { base44Connector } from './base44.js'
+import { beehiivConnector } from './beehiiv.js'
+import { bikaConnector } from './bika.js'
+import { buttondownConnector } from './buttondown.js'
+import { cambAiConnector } from './camb-ai.js'
+import { cartloomConnector } from './cartloom.js'
+import { csvFilesConnector } from './csv-files.js'
+import { chainAwareConnector } from './chain-aware.js'
+import { chaindeskConnector } from './chaindesk.js'
+import { chatAidConnector } from './chat-aid.js'
+import { chatsistantConnector } from './chatsistant.js'
+import { claudeConnector } from './claude.js'
+import { clearoutphoneConnector } from './clearoutphone.js'
+import { clickfunnelsConnector } from './clickfunnels.js'
+import { codyConnector } from './cody.js'
+import { contextualAiConnector } from './contextual-ai.js'
+import { contiguityConnector } from './contiguity.js'
+import { couchbaseConnector } from './couchbase.js'
+import { dappierConnector } from './dappier.js'
+import { deepgramConnector } from './deepgram.js'
+import { detectingAiConnector } from './detecting-ai.js'
+import { digitalPilotConnector } from './digital-pilot.js'
+import { duckdbConnector } from './duckdb.js'
+import { docsbotConnector } from './docsbot.js'
+import { dripConnector } from './drip.js'
+import { echowinConnector } from './echowin.js'
+import { elevenlabsConnector } from './elevenlabs.js'
+import { excelFilesConnector } from './excel-files.js'
+import { everhourConnector } from './everhour.js'
+import { featheryConnector } from './feathery.js'
+import { fellowConnector } from './fellow.js'
+import { flowParserConnector } from './flow-parser.js'
+import { gammaConnector } from './gamma.js'
+import { genderApiConnector } from './gender-api.js'
+import { generatebannersConnector } from './generatebanners.js'
+import { giftbitConnector } from './giftbit.js'
+import { modelslabConnector } from './modelslab.js'
+import { adobeCreativeCloudConnector } from './adobe-creative-cloud.js'
+import { adpConnector } from './adp.js'
+import { bexioConnector } from './bexio.js'
+import { bigcommerceConnector } from './bigcommerce.js'
+import { canvaConnector } from './canva.js'
+import { clicdataConnector } from './clicdata.js'
+import { clioConnector } from './clio.js'
+import { cloudconvertConnector } from './cloudconvert.js'
+import { constantContactConnector } from './constant-contact.js'
+import { demandbaseConnector } from './demandbase.js'
+import { discordConnector } from './discord.js'
+import { formstackConnector } from './formstack.js'
+import { freeAgentConnector } from './free-agent.js'
+import { giteaConnector } from './gitea.js'
+import { gustoConnector } from './gusto.js'
+import { instaChartsConnector } from './insta-charts.js'
+import { leverConnector } from './lever.js'
+import { lightfunnelsConnector } from './lightfunnels.js'
+import { netlifyConnector } from './netlify.js'
+import { niftyConnector } from './nifty.js'
+import { opsgenieConnector } from './opsgenie.js'
+import { pagerdutyConnector } from './pagerduty.js'
+import { paychexConnector } from './paychex.js'
+import { pushbulletConnector } from './pushbullet.js'
+import { reddit, type RedditOptions } from './reddit.js'
+import { ripplingConnector } from './rippling.js'
+import { sanityConnector } from './sanity.js'
+import { sendpulseConnector } from './sendpulse.js'
+import { snowflakeConnector } from './snowflake.js'
+import { teableConnector } from './teable.js'
+import { tenzoConnector } from './tenzo.js'
+import { vercelConnector } from './vercel.js'
+import { videoaskConnector } from './videoask.js'
+import { wootricConnector } from './wootric.js'
+import { workdayConnector } from './workday.js'
+import { zoominfoConnector } from './zoominfo.js'
+import { zuoraConnector } from './zuora.js'
+import { adobeSignConnector } from './adobe-sign.js'
+import { aircallConnector } from './aircall.js'
+import { affinityConnector } from './affinity.js'
+import { amplitudeConnector } from './amplitude.js'
+import { amazonEventBridgeConnector } from './amazon-eventbridge.js'
+import { amazonCloudWatchConnector } from './amazon-cloudwatch.js'
+import { amazonLambdaConnector } from './amazon-lambda.js'
+import { amazonS3Connector } from './amazon-s3.js'
+import { amazonSnsConnector } from './amazon-sns.js'
+import { amazonSqsConnector } from './amazon-sqs.js'
+import { asanaConnector } from './asana.js'
+import { attioConnector } from './attio.js'
+import { auth0Connector } from './auth0.js'
+import { acuitySchedulingConnector } from './acuity-scheduling.js'
+import { avomaConnector } from './avoma.js'
+import { avalaraConnector } from './avalara.js'
+import { azureAdConnector } from './azure-ad.js'
+import { azureBlobStorageConnector } from './azure-blob-storage.js'
+import { azureEventGridConnector } from './azure-event-grid.js'
+import { azureServiceBusConnector } from './azure-service-bus.js'
+import { basecampConnector } from './basecamp.js'
+import { backblazeConnector } from './backblaze.js'
+import { biginByZohoConnector } from './bigin-by-zoho.js'
+import { boxConnector } from './box.js'
+import { baremetricsConnector } from './baremetrics.js'
+import { brexConnector } from './brex.js'
+import { billComConnector } from './bill-com.js'
+import { billplzConnector } from './billplz.js'
+import { calCom, type CalComOptions } from './cal-com.js'
+import { calendlyConnector } from './calendly.js'
+import { capsuleCrmConnector } from './capsule-crm.js'
+import { closeConnector } from './close.js'
+import { clickupConnector } from './clickup.js'
+import { cloudflareConnector } from './cloudflare.js'
+import { cloudinaryConnector } from './cloudinary.js'
+import { codaConnector } from './coda.js'
+import { confluenceConnector } from './confluence.js'
+import { contentfulConnector } from './contentful.js'
+import { copperConnector } from './copper.js'
+import { chargebeeConnector } from './chargebee.js'
+import { recurlyConnector } from './recurly.js'
+import { taxjarConnector } from './taxjar.js'
+import { cashfreePaymentsConnector } from './cashfree-payments.js'
+import { circleConnector } from './circle.js'
+import { checkoutConnector } from './checkout.js'
+import { chessComConnector } from './chess-com.js'
 import { docuseal, type DocuSealOptions } from './docuseal.js'
+import { docusignConnector } from './docusign.js'
+import { dialpadConnector } from './dialpad.js'
+import { dropboxConnector } from './dropbox.js'
+import { ebayConnector } from './ebay.js'
 import { etsyConnector, type EtsyOptions } from './etsy.js'
+import { fathomConnector } from './fathom.js'
+import { fireberryConnector } from './fireberry.js'
+import { firefliesAiConnector } from './fireflies-ai.js'
+import { figjamConnector } from './figjam.js'
+import { figmaConnector } from './figma.js'
+import { filloutFormsConnector } from './fillout-forms.js'
+import { flowluConnector } from './flowlu.js'
+import { folkConnector } from './folk.js'
+import { freshdeskConnector } from './freshdesk.js'
+import { freshsalesConnector } from './freshsales.js'
+import { frontConnector } from './front.js'
 import { gmail, type GmailOptions } from './gmail.js'
+import { gongConnector } from './gong.js'
+import { gorgiasConnector } from './gorgias.js'
 import {
   googleCalendar,
   type GoogleCalendarOptions,
 } from './google-calendar.js'
+import { googleAnalyticsConnector } from './google-analytics.js'
+import { googleCloudStorageConnector } from './google-cloud-storage.js'
+import { googlePubSubConnector } from './google-pubsub.js'
+import { googleContactsConnector } from './google-contacts.js'
 import { googleDocs, type GoogleDocsOptions } from './google-docs.js'
 import { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 import { googleForms, type GoogleFormsOptions } from './google-forms.js'
+import { googleMeetConnector } from './google-meet.js'
+import { googleMyBusinessConnector } from './google-my-business.js'
+import { googleSearchConsoleConnector } from './google-search-console.js'
 import { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
+import { googleSlidesConnector } from './google-slides.js'
+import { googleTasksConnector } from './google-tasks.js'
+import { googlechatConnector } from './googlechat.js'
+import { granolaConnector } from './granola.js'
 import { hellosign, type HelloSignOptions } from './hellosign.js'
+import { harvestConnector } from './harvest.js'
+import { helpscoutConnector } from './helpscout.js'
 import { hubspot, type HubSpotOptions } from './hubspot.js'
+import { httpConnector } from './http.js'
+import { intercomConnector } from './intercom.js'
+import { instagramBusinessConnector } from './instagram-business.js'
+import { insightlyConnector } from './insightly.js'
+import { invoiceninjaConnector } from './invoiceninja.js'
+import { ironcladConnector } from './ironclad.js'
+import { jiraCloudConnector } from './jira-cloud.js'
+import { jotformConnector } from './jotform.js'
+import { justcallConnector } from './justcall.js'
+import { kafkaConnector } from './kafka.js'
+import { leadConnectorConnector } from './lead-connector.js'
+import { lemonSqueezyConnector } from './lemon-squeezy.js'
+import { linearConnector } from './linear.js'
+import { linkedinConnector } from './linkedin.js'
+import { makeConnector } from './make.js'
+import {
+  microsoft365PeopleConnector,
+} from './microsoft-365-people.js'
+import {
+  microsoft365PlannerConnector,
+} from './microsoft-365-planner.js'
 import {
   microsoftCalendar,
   type MicrosoftCalendarOptions,
 } from './microsoft-calendar.js'
+import { microsoftDynamics365BusinessCentralConnector } from './microsoft-dynamics-365-business-central.js'
+import { microsoftDynamicsCrmConnector } from './microsoft-dynamics-crm.js'
+import { microsoftExcel365Connector } from './microsoft-excel-365.js'
 import {
   microsoftGraph,
   type MicrosoftGraphOptions,
@@ -24,17 +209,114 @@ import {
   microsoftTeams,
   type MicrosoftTeamsOptions,
 } from './microsoft-teams.js'
+import { microsoftOnenoteConnector } from './microsoft-onenote.js'
+import { microsoftPowerBiConnector } from './microsoft-power-bi.js'
+import { microsoftTodoConnector } from './microsoft-todo.js'
+import { mastodonConnector } from './mastodon.js'
+import { meetgeekAiConnector } from './meetgeek-ai.js'
+import { mollieConnector } from './mollie.js'
+import { miroConnector } from './miro.js'
+import { mondayConnector } from './monday.js'
+import { mongodbConnector } from './mongodb.js'
+import { mycaseConnector } from './mycase.js'
 import { notion, type NotionOptions } from './notion.js'
+import { n8nConnector } from './n8n.js'
+import { netsuiteConnector } from './netsuite.js'
+import { ninjapipeConnector } from './ninjapipe.js'
+import { openPhoneConnector } from './open-phone.js'
 import { oneDrive, type OneDriveOptions } from './onedrive.js'
+import { oneSpanSignConnector } from './onespan-sign.js'
 import { outlookMail, type OutlookMailOptions } from './outlook-mail.js'
 import { pandadoc, type PandaDocOptions } from './pandadoc.js'
+import { paddleConnector } from './paddle.js'
+import { plaidConnector } from './plaid.js'
+import { pipedreamConnector } from './pipedream.js'
+import { pipedriveConnector } from './pipedrive.js'
+import { parquetFilesConnector } from './parquet-files.js'
+import { quickbooksConnector } from './quickbooks.js'
+import { rabbitMqConnector } from './rabbitmq.js'
+import { redisConnector } from './redis.js'
+import { redshiftConnector } from './redshift.js'
+import { postgresConnector } from './postgres.js'
+import { recallAiConnector } from './recall-ai.js'
+import { rampConnector } from './ramp.js'
+import { ringcentralConnector } from './ringcentral.js'
+import { rssConnector } from './rss.js'
+import { salesforceConnector } from './salesforce.js'
+import { sftpConnector } from './sftp.js'
+import { saleorConnector } from './saleor.js'
+import { savvycalConnector } from './savvycal.js'
 import { sharepoint, type SharePointOptions } from './sharepoint.js'
+import { shippoConnector } from './shippo.js'
+import { signNowConnector } from './sign-now.js'
 import { slack, type SlackOptions } from './slack.js'
+import { sageIntacctConnector } from './sage-intacct.js'
+import { shopifyConnector } from './shopify.js'
+import { squareConnector } from './square.js'
+import { stripePackConnector } from './stripe-pack.js'
+import { tallyConnector } from './tally.js'
+import { ticktickConnector } from './ticktick.js'
+import { tlDvConnector } from './tl-dv.js'
+import { todoistConnector } from './todoist.js'
+import { trelloConnector } from './trello.js'
+import { twentyConnector } from './twenty.js'
+import { typeformConnector } from './typeform.js'
 import { twitter, type TwitterOptions } from './twitter.js'
+import { tiktok, type TikTokOptions } from './tiktok.js'
+import { twilioSmsConnector } from './twilio-sms.js'
+import { voucheryIoConnector } from './vouchery-io.js'
 import {
   whatsappBusiness,
   type WhatsappBusinessOptions,
 } from './whatsapp-business.js'
+import { xeroConnector } from './xero.js'
+import { webflowConnector } from './webflow.js'
+import { wordpressConnector } from './wordpress.js'
+import { wrikeConnector } from './wrike.js'
+import { youtubeDataConnector } from './youtube-data.js'
+import { zapierConnector } from './zapier.js'
+import { zendeskConnector } from './zendesk.js'
+import { zoomConnector } from './zoom.js'
+import { zohoBookingsConnector } from './zoho-bookings.js'
+import { zohoDeskConnector } from './zoho-desk.js'
+import { zohoCrmConnector } from './zoho-crm.js'
+import { zohoBooksConnector } from './zoho-books.js'
+import { zohoCampaignsConnector } from './zoho-campaigns.js'
+import { zohoInvoiceConnector } from './zoho-invoice.js'
+import { zohoMailConnector } from './zoho-mail.js'
+import { apolloConnector } from './apollo.js'
+import { brazeConnector } from './braze.js'
+import { customerIoConnector } from './customer-io.js'
+import { klaviyoConnector } from './klaviyo.js'
+import { lemlistConnector } from './lemlist.js'
+import { mailchimpConnector } from './mailchimp.js'
+import { marketoConnector } from './marketo.js'
+import { outreachConnector } from './outreach.js'
+import { salesloftConnector } from './salesloft.js'
+import { smartleadConnector } from './smartlead.js'
+import { chatwootConnector } from './chatwoot.js'
+import { matrixConnector } from './matrix.js'
+import { mattermostConnector } from './mattermost.js'
+import { telegramConnector } from './telegram.js'
+import { airtableConnector } from './airtable.js'
+import { baserowConnector } from './baserow.js'
+import { datadogConnector } from './datadog.js'
+import { discourseConnector } from './discourse.js'
+import { digitalOceanConnector } from './digital-ocean.js'
+import { clicksendConnector } from './clicksend.js'
+import { firebaseConnector } from './firebase.js'
+import { googleBigqueryConnector } from './google-bigquery.js'
+import { hightouchConnector } from './hightouch.js'
+import { metabaseConnector } from './metabase.js'
+import { mysqlConnector } from './mysql.js'
+import { segmentConnector } from './segment.js'
+import { supabaseConnector } from './supabase.js'
+import { builtwithConnector } from './builtwith.js'
+import { fullenrichConnector } from './fullenrich.js'
+import { hunterConnector } from './hunter.js'
+import { neverbounceConnector } from './neverbounce.js'
+import { theirstackConnector } from './theirstack.js'
+import { zerobounceConnector } from './zerobounce.js'
 
 export type ConnectorAdapterFactoryEnvNames =
   | string
@@ -73,12 +355,35 @@ const googleOAuthEnvMap = {
   clientSecret: 'GOOGLE_OAUTH_CLIENT_SECRET',
 } as const
 
+const figmaOAuthEnvMap = {
+  clientId: 'FIGMA_OAUTH_CLIENT_ID',
+  clientSecret: 'FIGMA_OAUTH_CLIENT_SECRET',
+} as const
+
 const microsoftOAuthEnvMap = {
   clientId: ['MICROSOFT_OAUTH_CLIENT_ID', 'MS_OAUTH_CLIENT_ID'],
   clientSecret: [
     'MICROSOFT_OAUTH_CLIENT_SECRET',
     'MS_OAUTH_CLIENT_SECRET',
   ],
+} as const
+
+const zohoOAuthEnvMap = {
+  clientId: [
+    'ZOHO_OAUTH_CLIENT_ID',
+    'ZOHO_CRM_OAUTH_CLIENT_ID',
+    'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+  ],
+  clientSecret: [
+    'ZOHO_OAUTH_CLIENT_SECRET',
+    'ZOHO_CRM_OAUTH_CLIENT_SECRET',
+    'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
+  ],
+} as const
+
+const biginByZohoOAuthEnvMap = {
+  clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
+  clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
 } as const
 
 /**
@@ -107,10 +412,26 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       googleForms,
       googleOAuthEnvMap,
     ),
+    defineFactoryAdapter(() => googleContactsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleSlidesConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googlechatConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleAnalyticsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleMeetConnector, googleOAuthEnvMap),
+    // Business Profile uses the existing Google OAuth app. Keeping the
+    // credentials as one pair prevents a partial dedicated configuration from
+    // being combined with a shared secret; enable the Business Profile APIs on
+    // that Google Cloud project before connecting an account.
+    defineFactoryAdapter(() => googleMyBusinessConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleSearchConsoleConnector, googleOAuthEnvMap),
     defineFactoryAdapter<SlackOptions>(slack, {
       clientId: 'SLACK_OAUTH_CLIENT_ID',
       clientSecret: 'SLACK_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter(() => telegramConnector, {}),
+    defineFactoryAdapter(() => mattermostConnector, {}),
+    defineFactoryAdapter(() => matrixConnector, {}),
+    defineFactoryAdapter(() => chatwootConnector, {}),
     defineFactoryAdapter<HubSpotOptions>(hubspot, {
       clientId: 'HUBSPOT_OAUTH_CLIENT_ID',
       clientSecret: 'HUBSPOT_OAUTH_CLIENT_SECRET',
@@ -143,6 +464,81 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       sharepoint,
       microsoftOAuthEnvMap,
     ),
+    defineFactoryAdapter(() => microsoftExcel365Connector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoft365PeopleConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoft365PlannerConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftTodoConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftOnenoteConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftPowerBiConnector, microsoftOAuthEnvMap),
+    defineFactoryAdapter(() => googleBigqueryConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => firebaseConnector, {
+      clientId: [
+        'FIREBASE_OAUTH_CLIENT_ID',
+        'GOOGLE_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'FIREBASE_OAUTH_CLIENT_SECRET',
+        'GOOGLE_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => supabaseConnector, {}),
+    defineFactoryAdapter(() => airtableConnector, {}),
+    defineFactoryAdapter(() => baserowConnector, {}),
+    defineFactoryAdapter(() => actualbudgetConnector, {}),
+    defineFactoryAdapter(() => aianswerConnector, {}),
+    defineFactoryAdapter(() => airparserConnector, {}),
+    defineFactoryAdapter(() => anyhookWebsocketConnector, {}),
+    defineFactoryAdapter(() => apifyConnector, {}),
+    defineFactoryAdapter(() => askHandleConnector, {}),
+    defineFactoryAdapter(() => bannerbearConnector, {}),
+    defineFactoryAdapter(() => base44Connector, {}),
+    defineFactoryAdapter(() => beehiivConnector, {}),
+    defineFactoryAdapter(() => bikaConnector, {}),
+    defineFactoryAdapter(() => buttondownConnector, {}),
+    defineFactoryAdapter(() => cambAiConnector, {}),
+    defineFactoryAdapter(() => cartloomConnector, {}),
+    defineFactoryAdapter(() => chainAwareConnector, {}),
+    defineFactoryAdapter(() => chaindeskConnector, {}),
+    defineFactoryAdapter(() => chatAidConnector, {}),
+    defineFactoryAdapter(() => chatsistantConnector, {}),
+    defineFactoryAdapter(() => claudeConnector, {}),
+    defineFactoryAdapter(() => clearoutphoneConnector, {}),
+    defineFactoryAdapter(() => clickfunnelsConnector, {}),
+    defineFactoryAdapter(() => codyConnector, {}),
+    defineFactoryAdapter(() => contextualAiConnector, {}),
+    defineFactoryAdapter(() => contiguityConnector, {}),
+    defineFactoryAdapter(() => couchbaseConnector, {}),
+    defineFactoryAdapter(() => dappierConnector, {}),
+    defineFactoryAdapter(() => deepgramConnector, {}),
+    defineFactoryAdapter(() => detectingAiConnector, {}),
+    defineFactoryAdapter(() => digitalPilotConnector, {}),
+    defineFactoryAdapter(() => docsbotConnector, {}),
+    defineFactoryAdapter(() => dripConnector, {}),
+    defineFactoryAdapter(() => echowinConnector, {}),
+    defineFactoryAdapter(() => elevenlabsConnector, {}),
+    defineFactoryAdapter(() => everhourConnector, {}),
+    defineFactoryAdapter(() => featheryConnector, {}),
+    defineFactoryAdapter(() => fellowConnector, {}),
+    defineFactoryAdapter(() => flowParserConnector, {}),
+    defineFactoryAdapter(() => gammaConnector, {}),
+    defineFactoryAdapter(() => genderApiConnector, {}),
+    defineFactoryAdapter(() => generatebannersConnector, {}),
+    defineFactoryAdapter(() => giftbitConnector, {}),
+    defineFactoryAdapter(() => modelslabConnector, {}),
+    defineFactoryAdapter(() => segmentConnector, {}),
+    defineFactoryAdapter(() => hightouchConnector, {}),
+    defineFactoryAdapter(() => datadogConnector, {}),
+    defineFactoryAdapter(() => amplitudeConnector, {}),
+    defineFactoryAdapter(() => cloudflareConnector, {}),
+    defineFactoryAdapter(() => discourseConnector, {}),
+    defineFactoryAdapter(() => digitalOceanConnector, {}),
+    defineFactoryAdapter(() => clicksendConnector, {}),
+    defineFactoryAdapter(() => metabaseConnector, {}),
+    defineFactoryAdapter(() => mysqlConnector, {}),
+    defineFactoryAdapter(
+      () => microsoftDynamics365BusinessCentralConnector,
+      microsoftOAuthEnvMap,
+    ),
     defineFactoryAdapter<WhatsappBusinessOptions>(whatsappBusiness, {
       clientId: 'WHATSAPP_OAUTH_CLIENT_ID',
       clientSecret: 'WHATSAPP_OAUTH_CLIENT_SECRET',
@@ -164,6 +560,520 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
       clientId: 'TWITTER_OAUTH_CLIENT_ID',
       clientSecret: 'TWITTER_OAUTH_CLIENT_SECRET',
     }),
+    defineFactoryAdapter<TikTokOptions>(tiktok, {
+      clientId: 'TIKTOK_OAUTH_CLIENT_KEY',
+      clientSecret: 'TIKTOK_OAUTH_CLIENT_SECRET',
+    }),
+    // Declarative OAuth2 connectors: the manifest already pins clientIdEnv /
+    // clientSecretEnv; the envMap re-pins the same names so registration is
+    // gated on the OAuth app actually being configured (no half-live connector).
+    defineFactoryAdapter(() => quickbooksConnector, {
+      clientId: 'QUICKBOOKS_OAUTH_CLIENT_ID',
+      clientSecret: 'QUICKBOOKS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => xeroConnector, {
+      clientId: 'XERO_OAUTH_CLIENT_ID',
+      clientSecret: 'XERO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => salesforceConnector, {
+      clientId: 'SALESFORCE_OAUTH_CLIENT_ID',
+      clientSecret: 'SALESFORCE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => dropboxConnector, {
+      clientId: 'DROPBOX_OAUTH_CLIENT_ID',
+      clientSecret: 'DROPBOX_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => boxConnector, {
+      clientId: 'BOX_OAUTH_CLIENT_ID',
+      clientSecret: 'BOX_OAUTH_CLIENT_SECRET',
+    }),
+    // File storage and knowledge providers. API-key providers receive their
+    // credentials from each connection; OAuth providers are registered only
+    // when the shared application credentials are present.
+    defineFactoryAdapter(() => amazonEventBridgeConnector, {}),
+    defineFactoryAdapter(() => amazonLambdaConnector, {}),
+    defineFactoryAdapter(() => amazonCloudWatchConnector, {}),
+    defineFactoryAdapter(() => amazonS3Connector, {}),
+    defineFactoryAdapter(() => amazonSnsConnector, {}),
+    defineFactoryAdapter(() => amazonSqsConnector, {}),
+    defineFactoryAdapter(() => httpConnector, {}),
+    defineFactoryAdapter(() => rssConnector, {}),
+    defineFactoryAdapter(() => kafkaConnector, {}),
+    defineFactoryAdapter(() => duckdbConnector, {}),
+    defineFactoryAdapter(() => rabbitMqConnector, {}),
+    defineFactoryAdapter(() => redisConnector, {}),
+    defineFactoryAdapter(() => redshiftConnector, {}),
+    defineFactoryAdapter(() => postgresConnector, {}),
+    defineFactoryAdapter(() => mongodbConnector, {}),
+    defineFactoryAdapter(() => csvFilesConnector, {}),
+    defineFactoryAdapter(() => excelFilesConnector, {}),
+    defineFactoryAdapter(() => parquetFilesConnector, {}),
+    defineFactoryAdapter(() => sftpConnector, {}),
+    defineFactoryAdapter(() => chessComConnector, {}),
+    defineFactoryAdapter(() => zapierConnector, {}),
+    defineFactoryAdapter(() => makeConnector, {}),
+    defineFactoryAdapter(() => n8nConnector, {}),
+    defineFactoryAdapter(() => pipedreamConnector, {}),
+    defineFactoryAdapter(() => googleCloudStorageConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googlePubSubConnector, {}),
+    defineFactoryAdapter(() => azureBlobStorageConnector, {}),
+    defineFactoryAdapter(() => azureEventGridConnector, {}),
+    defineFactoryAdapter(() => azureServiceBusConnector, {}),
+    defineFactoryAdapter(() => backblazeConnector, {}),
+    defineFactoryAdapter(() => cloudinaryConnector, {}),
+    defineFactoryAdapter(() => codaConnector, {}),
+    defineFactoryAdapter(() => confluenceConnector, {
+      clientId: 'ATLASSIAN_OAUTH_CLIENT_ID',
+      clientSecret: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => contentfulConnector, {
+      clientId: 'CONTENTFUL_OAUTH_CLIENT_ID',
+      clientSecret: 'CONTENTFUL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zoomConnector, {
+      clientId: 'ZOOM_OAUTH_CLIENT_ID',
+      clientSecret: 'ZOOM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => calendlyConnector, {
+      clientId: 'CALENDLY_OAUTH_CLIENT_ID',
+      clientSecret: 'CALENDLY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => acuitySchedulingConnector, {
+      clientId: 'ACUITY_OAUTH_CLIENT_ID',
+      clientSecret: 'ACUITY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter<CalComOptions>(calCom, {
+      clientId: 'CALCOM_OAUTH_CLIENT_ID',
+    }),
+    defineFactoryAdapter(() => savvycalConnector, {
+      clientId: 'SAVVYCAL_OAUTH_CLIENT_ID',
+      clientSecret: 'SAVVYCAL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => typeformConnector, {
+      clientId: 'TYPEFORM_OAUTH_CLIENT_ID',
+      clientSecret: 'TYPEFORM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => jotformConnector, {}),
+    defineFactoryAdapter(() => tallyConnector, {}),
+    defineFactoryAdapter(() => filloutFormsConnector, {}),
+    defineFactoryAdapter(() => webflowConnector, {
+      clientId: 'WEBFLOW_OAUTH_CLIENT_ID',
+      clientSecret: 'WEBFLOW_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wordpressConnector, {
+      clientId: 'WORDPRESS_OAUTH_CLIENT_ID',
+      clientSecret: 'WORDPRESS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => asanaConnector, {
+      clientId: 'ASANA_OAUTH_CLIENT_ID',
+      clientSecret: 'ASANA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => figmaConnector, figmaOAuthEnvMap),
+    defineFactoryAdapter(() => figjamConnector, figmaOAuthEnvMap),
+    defineFactoryAdapter(() => linearConnector, {
+      clientId: 'LINEAR_OAUTH_CLIENT_ID',
+      clientSecret: 'LINEAR_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => miroConnector, {
+      clientId: 'MIRO_OAUTH_CLIENT_ID',
+      clientSecret: 'MIRO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mondayConnector, {
+      clientId: 'MONDAY_OAUTH_CLIENT_ID',
+      clientSecret: 'MONDAY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clickupConnector, {
+      clientId: 'CLICKUP_OAUTH_CLIENT_ID',
+      clientSecret: 'CLICKUP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => basecampConnector, {
+      clientId: 'BASECAMP_OAUTH_CLIENT_ID',
+      clientSecret: 'BASECAMP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => todoistConnector, {
+      clientId: 'TODOIST_OAUTH_CLIENT_ID',
+      clientSecret: 'TODOIST_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => trelloConnector, {}),
+    defineFactoryAdapter(() => jiraCloudConnector, {
+      clientId: 'ATLASSIAN_OAUTH_CLIENT_ID',
+      clientSecret: 'ATLASSIAN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wrikeConnector, {
+      clientId: 'WRIKE_OAUTH_CLIENT_ID',
+      clientSecret: 'WRIKE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ringcentralConnector, {
+      clientId: 'RINGCENTRAL_OAUTH_CLIENT_ID',
+      clientSecret: 'RINGCENTRAL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => dialpadConnector, {
+      clientId: 'DIALPAD_OAUTH_CLIENT_ID',
+      clientSecret: 'DIALPAD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => aircallConnector, {}),
+    defineFactoryAdapter(() => openPhoneConnector, {}),
+    defineFactoryAdapter(() => twilioSmsConnector, {}),
+    defineFactoryAdapter(() => justcallConnector, {}),
+    defineFactoryAdapter(() => granolaConnector, {}),
+    defineFactoryAdapter(() => firefliesAiConnector, {}),
+    defineFactoryAdapter(() => gongConnector, {
+      clientId: 'GONG_OAUTH_CLIENT_ID',
+      clientSecret: 'GONG_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => fathomConnector, {
+      clientId: 'FATHOM_OAUTH_CLIENT_ID',
+      clientSecret: 'FATHOM_OAUTH_CLIENT_SECRET',
+    }),
+    // Customer-supplied API keys gate these direct adapters at connection
+    // time; no shared deployment credential is required.
+    defineFactoryAdapter(() => avomaConnector, {}),
+    defineFactoryAdapter(() => tlDvConnector, {}),
+    defineFactoryAdapter(() => meetgeekAiConnector, {}),
+    defineFactoryAdapter(() => recallAiConnector, {}),
+    defineFactoryAdapter(() => docusignConnector, {
+      clientId: 'DOCUSIGN_OAUTH_CLIENT_ID',
+      clientSecret: 'DOCUSIGN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => adobeSignConnector, {
+      clientId: 'ADOBE_SIGN_OAUTH_CLIENT_ID',
+      clientSecret: 'ADOBE_SIGN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ironcladConnector, {
+      clientId: 'IRONCLAD_OAUTH_CLIENT_ID',
+      clientSecret: 'IRONCLAD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mycaseConnector, {
+      clientId: 'MYCASE_OAUTH_CLIENT_ID',
+      clientSecret: 'MYCASE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => signNowConnector, {}),
+    defineFactoryAdapter(() => oneSpanSignConnector, {}),
+    defineFactoryAdapter(() => affinityConnector, {}),
+    defineFactoryAdapter(() => copperConnector, {}),
+    defineFactoryAdapter(() => attioConnector, {
+      clientId: 'ATTIO_OAUTH_CLIENT_ID',
+      clientSecret: 'ATTIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pipedriveConnector, {
+      clientId: 'PIPEDRIVE_OAUTH_CLIENT_ID',
+      clientSecret: 'PIPEDRIVE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => closeConnector, {
+      clientId: 'CLOSE_OAUTH_CLIENT_ID',
+      clientSecret: 'CLOSE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zohoCrmConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoDeskConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoBookingsConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoBooksConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoInvoiceConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoMailConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => zohoCampaignsConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => microsoftDynamicsCrmConnector, {
+      clientId: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_ID'],
+      clientSecret: ['MICROSOFT_DYNAMICS_CRM_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_SECRET'],
+    }),
+    defineFactoryAdapter(() => azureAdConnector, {
+      clientId: [
+        'AZURE_AD_OAUTH_CLIENT_ID',
+        'MICROSOFT_OAUTH_CLIENT_ID',
+        'MS_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'AZURE_AD_OAUTH_CLIENT_SECRET',
+        'MICROSOFT_OAUTH_CLIENT_SECRET',
+        'MS_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => auth0Connector, {
+      clientId: 'AUTH0_OAUTH_CLIENT_ID',
+      clientSecret: 'AUTH0_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => oktaConnector, {}),
+    defineFactoryAdapter(() => pingIdentityConnector, {}),
+    defineFactoryAdapter(() => oneloginConnector, {}),
+    defineFactoryAdapter(() => scimConnector, {}),
+    defineFactoryAdapter(() => twentyConnector, {}),
+    defineFactoryAdapter(() => folkConnector, {}),
+    defineFactoryAdapter(() => freshsalesConnector, {}),
+    defineFactoryAdapter(() => capsuleCrmConnector, {
+      clientId: 'CAPSULE_CRM_OAUTH_CLIENT_ID',
+      clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => insightlyConnector, {}),
+    defineFactoryAdapter(() => biginByZohoConnector, biginByZohoOAuthEnvMap),
+    defineFactoryAdapter(() => fireberryConnector, {}),
+    defineFactoryAdapter(() => flowluConnector, {}),
+    defineFactoryAdapter(() => leadConnectorConnector, {
+      clientId: 'LEAD_CONNECTOR_OAUTH_CLIENT_ID',
+      clientSecret: 'LEAD_CONNECTOR_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ninjapipeConnector, {}),
+    defineFactoryAdapter(() => instagramBusinessConnector, {
+      clientId: [
+        'INSTAGRAM_BUSINESS_OAUTH_CLIENT_ID',
+        'FACEBOOK_OAUTH_CLIENT_ID',
+      ],
+      clientSecret: [
+        'INSTAGRAM_BUSINESS_OAUTH_CLIENT_SECRET',
+        'FACEBOOK_OAUTH_CLIENT_SECRET',
+      ],
+    }),
+    defineFactoryAdapter(() => linkedinConnector, {
+      clientId: 'LINKEDIN_OAUTH_CLIENT_ID',
+      clientSecret: 'LINKEDIN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mastodonConnector, {}),
+    defineFactoryAdapter(() => circleConnector, {}),
+    defineFactoryAdapter(() => youtubeDataConnector, googleOAuthEnvMap),
+    // Revenue/accounting providers use customer-supplied access tokens or
+    // credential bundles, so no shared deployment secret gates registration.
+    defineFactoryAdapter(() => stripePackConnector, {}),
+    defineFactoryAdapter(() => chargebeeConnector, {}),
+    defineFactoryAdapter(() => recurlyConnector, {}),
+    defineFactoryAdapter(() => avalaraConnector, {}),
+    defineFactoryAdapter(() => taxjarConnector, {}),
+    defineFactoryAdapter(() => paddleConnector, {}),
+    defineFactoryAdapter(() => plaidConnector, {}),
+    defineFactoryAdapter(() => rampConnector, {}),
+    defineFactoryAdapter(() => brexConnector, {}),
+    defineFactoryAdapter(() => billComConnector, {}),
+    defineFactoryAdapter(() => netsuiteConnector, {}),
+    defineFactoryAdapter(() => sageIntacctConnector, {}),
+    defineFactoryAdapter(() => checkoutConnector, {}),
+    defineFactoryAdapter(() => mollieConnector, {}),
+    defineFactoryAdapter(() => invoiceninjaConnector, {}),
+    defineFactoryAdapter(() => baremetricsConnector, {}),
+    defineFactoryAdapter(() => squareConnector, {
+      clientId: 'SQUARE_OAUTH_CLIENT_ID',
+      clientSecret: 'SQUARE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => shopifyConnector, {
+      clientId: 'SHOPIFY_OAUTH_CLIENT_ID',
+      clientSecret: 'SHOPIFY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ebayConnector, {
+      clientId: 'EBAY_OAUTH_CLIENT_ID',
+      clientSecret: 'EBAY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => lemonSqueezyConnector, {}),
+    defineFactoryAdapter(() => shippoConnector, {}),
+    defineFactoryAdapter(() => billplzConnector, {}),
+    defineFactoryAdapter(() => voucheryIoConnector, {}),
+    defineFactoryAdapter(() => saleorConnector, {}),
+    defineFactoryAdapter(() => cashfreePaymentsConnector, {}),
+    defineFactoryAdapter(() => harvestConnector, {
+      clientId: 'HARVEST_OAUTH_CLIENT_ID',
+      clientSecret: 'HARVEST_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => frontConnector, {
+      clientId: 'FRONT_OAUTH_CLIENT_ID',
+      clientSecret: 'FRONT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zendeskConnector, {
+      clientId: 'ZENDESK_OAUTH_CLIENT_ID',
+      clientSecret: 'ZENDESK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => intercomConnector, {
+      clientId: 'INTERCOM_OAUTH_CLIENT_ID',
+      clientSecret: 'INTERCOM_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => helpscoutConnector, {
+      clientId: 'HELPSCOUT_OAUTH_CLIENT_ID',
+      clientSecret: 'HELPSCOUT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => freshdeskConnector, {
+      clientId: 'FRESHDESK_OAUTH_CLIENT_ID',
+      clientSecret: 'FRESHDESK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => gorgiasConnector, {
+      clientId: 'GORGIAS_OAUTH_CLIENT_ID',
+      clientSecret: 'GORGIAS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => outreachConnector, {
+      clientId: 'OUTREACH_OAUTH_CLIENT_ID',
+      clientSecret: 'OUTREACH_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => salesloftConnector, {
+      clientId: 'SALESLOFT_OAUTH_CLIENT_ID',
+      clientSecret: 'SALESLOFT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => mailchimpConnector, {
+      clientId: 'MAILCHIMP_OAUTH_CLIENT_ID',
+      clientSecret: 'MAILCHIMP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => marketoConnector, {
+      clientId: 'MARKETO_OAUTH_CLIENT_ID',
+      clientSecret: 'MARKETO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => klaviyoConnector, {
+      clientId: 'KLAVIYO_OAUTH_CLIENT_ID',
+      clientSecret: 'KLAVIYO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => apolloConnector, {}),
+    defineFactoryAdapter(() => customerIoConnector, {}),
+    defineFactoryAdapter(() => brazeConnector, {}),
+    defineFactoryAdapter(() => smartleadConnector, {}),
+    defineFactoryAdapter(() => lemlistConnector, {}),
+    // Additional OAuth2 packs. Keep each manifest's declared env names as
+    // the deployment contract so a provider cannot accidentally resolve a
+    // different application's credentials.
+    defineFactoryAdapter(() => adobeCreativeCloudConnector, {
+      clientId: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_ID',
+      clientSecret: 'ADOBE_CREATIVE_CLOUD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => adpConnector, {
+      clientId: 'ADP_OAUTH_CLIENT_ID',
+      clientSecret: 'ADP_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => bexioConnector, {
+      clientId: 'BEXIO_OAUTH_CLIENT_ID',
+      clientSecret: 'BEXIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => bigcommerceConnector, {
+      clientId: 'BIGCOMMERCE_OAUTH_CLIENT_ID',
+      clientSecret: 'BIGCOMMERCE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => canvaConnector, {
+      clientId: 'CANVA_OAUTH_CLIENT_ID',
+      clientSecret: 'CANVA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clicdataConnector, {
+      clientId: 'CLICDATA_OAUTH_CLIENT_ID',
+      clientSecret: 'CLICDATA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => clioConnector, {
+      clientId: 'CLIO_OAUTH_CLIENT_ID',
+      clientSecret: 'CLIO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => cloudconvertConnector, {
+      clientId: 'CLOUDCONVERT_OAUTH_CLIENT_ID',
+      clientSecret: 'CLOUDCONVERT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => constantContactConnector, {
+      clientId: 'CONSTANT_CONTACT_OAUTH_CLIENT_ID',
+      clientSecret: 'CONSTANT_CONTACT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => demandbaseConnector, {
+      clientId: 'DEMANDBASE_OAUTH_CLIENT_ID',
+      clientSecret: 'DEMANDBASE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => discordConnector, {
+      clientId: 'DISCORD_OAUTH_CLIENT_ID',
+      clientSecret: 'DISCORD_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => formstackConnector, {
+      clientId: 'FORMSTACK_OAUTH_CLIENT_ID',
+      clientSecret: 'FORMSTACK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => freeAgentConnector, {
+      clientId: 'FREE_AGENT_OAUTH_CLIENT_ID',
+      clientSecret: 'FREE_AGENT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => giteaConnector, {
+      clientId: 'GITEA_OAUTH_CLIENT_ID',
+      clientSecret: 'GITEA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => gustoConnector, {
+      clientId: 'GUSTO_OAUTH_CLIENT_ID',
+      clientSecret: 'GUSTO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => instaChartsConnector, {
+      clientId: 'INSTACHARTS_OAUTH_CLIENT_ID',
+      clientSecret: 'INSTACHARTS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => leverConnector, {
+      clientId: 'LEVER_OAUTH_CLIENT_ID',
+      clientSecret: 'LEVER_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => lightfunnelsConnector, {
+      clientId: 'LIGHTFUNNELS_OAUTH_CLIENT_ID',
+      clientSecret: 'LIGHTFUNNELS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => netlifyConnector, {
+      clientId: 'NETLIFY_OAUTH_CLIENT_ID',
+      clientSecret: 'NETLIFY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => niftyConnector, {
+      clientId: 'NIFTY_OAUTH_CLIENT_ID',
+      clientSecret: 'NIFTY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => opsgenieConnector, {}),
+    defineFactoryAdapter(() => pagerdutyConnector, {
+      clientId: 'PAGERDUTY_OAUTH_CLIENT_ID',
+      clientSecret: 'PAGERDUTY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => paychexConnector, {
+      clientId: 'PAYCHEX_OAUTH_CLIENT_ID',
+      clientSecret: 'PAYCHEX_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pushbulletConnector, {
+      clientId: 'PUSHBULLET_OAUTH_CLIENT_ID',
+      clientSecret: 'PUSHBULLET_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter<RedditOptions>(reddit, {
+      clientId: 'REDDIT_OAUTH_CLIENT_ID',
+      clientSecret: 'REDDIT_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ripplingConnector, {
+      clientId: 'RIPPLING_OAUTH_CLIENT_ID',
+      clientSecret: 'RIPPLING_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => sanityConnector, {
+      clientId: 'SANITY_OAUTH_CLIENT_ID',
+      clientSecret: 'SANITY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => sendpulseConnector, {
+      clientId: 'SENDPULSE_CLIENT_ID',
+      clientSecret: 'SENDPULSE_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => snowflakeConnector, {
+      clientId: 'SNOWFLAKE_OAUTH_CLIENT_ID',
+      clientSecret: 'SNOWFLAKE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => teableConnector, {
+      clientId: 'TEABLE_OAUTH_CLIENT_ID',
+      clientSecret: 'TEABLE_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => tenzoConnector, {
+      clientId: 'TENZO_OAUTH_CLIENT_ID',
+      clientSecret: 'TENZO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => vercelConnector, {
+      clientId: 'VERCEL_OAUTH_CLIENT_ID',
+      clientSecret: 'VERCEL_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => videoaskConnector, {
+      clientId: 'VIDEOASK_OAUTH_CLIENT_ID',
+      clientSecret: 'VIDEOASK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => wootricConnector, {
+      clientId: 'WOOTRIC_OAUTH_CLIENT_ID',
+      clientSecret: 'WOOTRIC_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => workdayConnector, {
+      clientId: 'WORKDAY_OAUTH_CLIENT_ID',
+      clientSecret: 'WORKDAY_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zoominfoConnector, {
+      clientId: 'ZOOMINFO_OAUTH_CLIENT_ID',
+      clientSecret: 'ZOOMINFO_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => zuoraConnector, {
+      clientId: 'ZUORA_OAUTH_CLIENT_ID',
+      clientSecret: 'ZUORA_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => ticktickConnector, {
+      clientId: 'TICKTICK_OAUTH_CLIENT_ID',
+      clientSecret: 'TICKTICK_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => builtwithConnector, {}),
+    defineFactoryAdapter(() => fullenrichConnector, {}),
+    defineFactoryAdapter(() => hunterConnector, {}),
+    defineFactoryAdapter(() => neverbounceConnector, {}),
+    defineFactoryAdapter(() => theirstackConnector, {}),
+    defineFactoryAdapter(() => zerobounceConnector, {}),
   ]
 
 export function resolveConnectorAdapterFactoryOptions(

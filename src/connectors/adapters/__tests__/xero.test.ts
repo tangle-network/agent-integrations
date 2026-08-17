@@ -9,7 +9,7 @@ const source: ResolvedDataSource = {
   kind: 'xero',
   label: 'Xero (Acme)',
   consistencyModel: 'authoritative',
-  scopes: ['accounting.contacts', 'accounting.transactions', 'accounting.settings.read'],
+  scopes: ['accounting.contacts', 'accounting.invoices', 'accounting.settings.read'],
   metadata: {},
   credentials: { kind: 'oauth2', accessToken: 'token_xyz' },
   status: 'active',
@@ -29,12 +29,20 @@ describe('xero adapter manifest', () => {
     expect(auth.scopes).toEqual([
       'offline_access',
       'accounting.contacts',
-      'accounting.transactions',
+      'accounting.contacts.read',
+      'accounting.invoices',
+      'accounting.invoices.read',
+      'accounting.payments',
       'accounting.settings.read',
-      'accounting.reports.read',
+      'accounting.reports.aged.read',
+      'accounting.reports.balancesheet.read',
+      'accounting.reports.banksummary.read',
+      'accounting.reports.profitandloss.read',
+      'accounting.reports.trialbalance.read',
     ])
     expect(auth.clientIdEnv).toBe('XERO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('XERO_OAUTH_CLIENT_SECRET')
+    expect(auth.scopes).not.toContain('app.connections')
   })
 
   it('classifies itself as crm with authoritative consistency', () => {
@@ -85,11 +93,17 @@ describe('xero adapter manifest', () => {
     ])
 
     const contactRead = xeroConnector.manifest.capabilities.find((c) => c.name === 'contacts.search')!
-    expect(contactRead.requiredScopes).toEqual(['accounting.contacts'])
+    expect(contactRead.requiredScopes).toEqual(['accounting.contacts.read'])
     const invoiceCreate = xeroConnector.manifest.capabilities.find((c) => c.name === 'invoices.create')!
-    expect(invoiceCreate.requiredScopes).toEqual(['accounting.transactions'])
+    expect(invoiceCreate.requiredScopes).toEqual(['accounting.invoices'])
+    const invoiceRead = xeroConnector.manifest.capabilities.find((c) => c.name === 'invoices.search')!
+    expect(invoiceRead.requiredScopes).toEqual(['accounting.invoices.read'])
+    const paymentCreate = xeroConnector.manifest.capabilities.find((c) => c.name === 'payments.create')!
+    expect(paymentCreate.requiredScopes).toEqual(['accounting.payments'])
     const accountsRead = xeroConnector.manifest.capabilities.find((c) => c.name === 'accounts.search')!
     expect(accountsRead.requiredScopes).toEqual(['accounting.settings.read'])
+    const tenantList = xeroConnector.manifest.capabilities.find((c) => c.name === 'tenants.list')!
+    expect(tenantList.requiredScopes).toBeUndefined()
   })
 })
 

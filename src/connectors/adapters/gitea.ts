@@ -6,16 +6,31 @@ export const giteaConnector = declarativeRestConnector({
   description: 'Self-hosted Git service for creating and managing repositories, issues, and pull requests.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://api.gitea.io/login/oauth/authorize',
-    tokenUrl: 'https://api.gitea.io/login/oauth/access_token',
-    scopes: ['repo', 'admin'],
+    authorizationUrl: '{instanceUrl}/login/oauth/authorize',
+    tokenUrl: '{instanceUrl}/login/oauth/access_token',
+    scopes: [
+      'read:user',
+      'write:user',
+      'read:issue',
+      'write:issue',
+      'read:repository',
+      'write:repository',
+    ],
     clientIdEnv: 'GITEA_OAUTH_CLIENT_ID',
     clientSecretEnv: 'GITEA_OAUTH_CLIENT_SECRET',
+    pkce: 'supported',
+    urlTemplateMetadata: {
+      instanceUrl: {
+        kind: 'base-url',
+        requirePublicHttps: true,
+      },
+    },
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://api.gitea.io/api/v1',
-  test: { method: 'GET', path: '/user' },
+  baseUrl: { metadataKey: 'instanceUrl' },
+  requirePublicHttpsBaseUrl: true,
+  test: { method: 'GET', path: '/api/v1/user' },
   capabilities: [
     {
       name: 'repos.list',
@@ -29,8 +44,8 @@ export const giteaConnector = declarativeRestConnector({
         },
         required: ['owner'],
       },
-      request: { method: 'GET', path: '/users/{owner}/repos', query: { limit: '{limit}' } },
-      requiredScopes: ['repo'],
+      request: { method: 'GET', path: '/api/v1/users/{owner}/repos', query: { limit: '{limit}' } },
+      requiredScopes: ['read:user'],
     },
     {
       name: 'issues.create',
@@ -50,7 +65,7 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'POST',
-        path: '/repos/{owner}/{repo}/issues',
+        path: '/api/v1/repos/{owner}/{repo}/issues',
         body: {
           title: '{title}',
           body: '{body}',
@@ -59,7 +74,7 @@ export const giteaConnector = declarativeRestConnector({
         }
       },
       cas: 'native-idempotency',
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:issue'],
     },
     {
       name: 'issues.update',
@@ -79,7 +94,7 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'PATCH',
-        path: '/repos/{owner}/{repo}/issues/{index}',
+        path: '/api/v1/repos/{owner}/{repo}/issues/{index}',
         body: {
           title: '{title}',
           body: '{body}',
@@ -87,7 +102,7 @@ export const giteaConnector = declarativeRestConnector({
         }
       },
       cas: 'etag-if-match',
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:issue'],
     },
     {
       name: 'comments.create',
@@ -105,11 +120,11 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'POST',
-        path: '/repos/{owner}/{repo}/issues/{index}/comments',
+        path: '/api/v1/repos/{owner}/{repo}/issues/{index}/comments',
         body: { body: '{body}' }
       },
       cas: 'native-idempotency',
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:issue'],
     },
     {
       name: 'pull-requests.list',
@@ -127,10 +142,10 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'GET',
-        path: '/repos/{owner}/{repo}/pulls',
+        path: '/api/v1/repos/{owner}/{repo}/pulls',
         query: { state: '{state}', limit: '{limit}' }
       },
-      requiredScopes: ['repo'],
+      requiredScopes: ['read:repository'],
     },
     {
       name: 'pull-requests.create',
@@ -150,7 +165,7 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'POST',
-        path: '/repos/{owner}/{repo}/pulls',
+        path: '/api/v1/repos/{owner}/{repo}/pulls',
         body: {
           title: '{title}',
           body: '{body}',
@@ -159,7 +174,7 @@ export const giteaConnector = declarativeRestConnector({
         }
       },
       cas: 'native-idempotency',
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:repository'],
     },
     {
       name: 'branches.list',
@@ -175,9 +190,9 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'GET',
-        path: '/repos/{owner}/{repo}/branches',
+        path: '/api/v1/repos/{owner}/{repo}/branches',
       },
-      requiredScopes: ['repo'],
+      requiredScopes: ['read:repository'],
     },
     {
       name: 'repos.create',
@@ -196,12 +211,12 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'POST',
-        path: '/user/repos',
+        path: '/api/v1/user/repos',
         body: 'args',
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:user'],
     },
     {
       name: 'repos.delete',
@@ -217,11 +232,11 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'DELETE',
-        path: '/repos/{owner}/{repo}',
+        path: '/api/v1/repos/{owner}/{repo}',
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['repo', 'admin'],
+      requiredScopes: ['write:repository'],
     },
     {
       name: 'pull-requests.merge',
@@ -241,12 +256,12 @@ export const giteaConnector = declarativeRestConnector({
       },
       request: {
         method: 'POST',
-        path: '/repos/{owner}/{repo}/pulls/{index}/merge',
+        path: '/api/v1/repos/{owner}/{repo}/pulls/{index}/merge',
         body: 'args',
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['repo'],
+      requiredScopes: ['write:repository'],
     },
   ],
 })

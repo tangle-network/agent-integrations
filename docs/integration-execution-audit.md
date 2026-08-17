@@ -22,20 +22,20 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 178 |
-| Executable setup specs | 137 |
-| Catalog/setup-only specs | 41 |
+| Setup specs | 246 |
+| Executable setup specs | 234 |
+| Catalog/setup-only specs | 12 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
 | Contracts with mapped actions | 669 |
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
-| Native adapter backends | 444 |
-| Native adapter surfaces shipped | 535 |
-| Package-runtime backends | 225 |
-| Runtime manifest dependencies for catalog-only connectors | 226 |
-| Catalog-only connectors exposable behind runtime | 225 |
-| Catalog-only actions exposable behind runtime | 964 |
+| Native adapter backends | 516 |
+| Native adapter surfaces shipped | 627 |
+| Package-runtime backends | 153 |
+| Runtime manifest dependencies for catalog-only connectors | 162 |
+| Catalog-only connectors exposable behind runtime | 153 |
+| Catalog-only actions exposable behind runtime | 678 |
 
 Full machine-readable matrix: [integration-execution-matrix.json](./integration-execution-matrix.json).
 
@@ -53,9 +53,9 @@ Full machine-readable matrix: [integration-execution-matrix.json](./integration-
 | Category | Connectors |
 | --- | --- |
 | workflow | 271 |
-| crm | 178 |
+| crm | 179 |
 | docs | 76 |
-| chat | 58 |
+| chat | 57 |
 | storage | 29 |
 | database | 28 |
 | webhook | 18 |
@@ -69,22 +69,28 @@ These are direct in-repo implementations. They are not the only first-class cont
 The full set is in the machine-readable matrix; representative native adapters:
 
 - `activecampaign`
+- `actualbudget`
+- `acuity-scheduling`
 - `acumbamail`
 - `adobe-creative-cloud`
+- `adobe-sign`
 - `adp`
 - `affinity`
 - `afforai`
 - `agentx`
+- `aianswer`
 - `aidbase`
 - `aiprise`
 - `air-ops`
 - `aircall`
+- `airparser`
 - `airtable`
 - `airtop`
 - `alai`
 - `alt-text-ai`
 - `alttextify`
 - `amazon-bedrock`
+- `amazon-eventbridge`
 - `amazon-s3`
 - `amazon-secrets-manager`
 - `amazon-ses`
@@ -94,111 +100,169 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `aminos`
 - `ampeco`
 - `amplemarket`
+- `amplitude`
 - `anthropic`
+- `anyhook-websocket`
+- `apify`
 - `apitable`
 - `apitemplate-io`
 - `apollo`
 - `appfollow`
 - `asana`
 - `ashby`
+- `ask-handle`
 - `asknews`
 - `assemblyai`
 - `attio`
 - `auth0`
 - `autobound`
 - `autocalls`
+- `avalara`
 - `avian`
 - `avoma`
+- `aws-cloudwatch`
+- `aws-lambda`
 - `azure-ad`
+- `azure-blob-storage`
 - `azure-communication-services`
+- `azure-event-grid`
 - `azure-openai`
+- `azure-service-bus`
 - `backblaze`
 - `bamboohr`
+- `bannerbear`
 - `barcode-lookup`
 - `baremetrics`
+- `base44`
 - `basecamp`
+- `baserow`
 - `beamer`
+- `beehiiv`
 - `bettercontact`
 - `bettermode`
 - `bexio`
 - `bigcommerce`
 - `bigin-by-zoho`
+- `bika`
+- `bill-com`
 - `billplz`
 - `bitly`
 - `bland-ai`
-- `bluesky`
-- `bolna`
-- `bonjoro`
-- `bookedin`
-- `box`
-- `brave-search`
-- `braze`
-- `brightdata`
-- `brilliant-directories`
-- `browse-ai`
-- `builtwith`
-- `cal-com`
-- `calendly`
-- `campaign-monitor`
-- `canny`
-- `canva`
-- `capsule-crm`
-- `captain-data`
-- `cashfree-payments`
-- `certopus`
-- `chainalysis-api`
-- `chargebee`
 
-...and 455 more native adapter surfaces.
+...and 547 more native adapter surfaces.
 
 Executable setup specs:
 
+- `actualbudget`
+- `acuity-scheduling`
 - `adobe-creative-cloud`
 - `affinity`
+- `aianswer`
 - `aircall`
+- `airparser`
 - `airtable`
+- `amazon-eventbridge`
 - `amazon-s3`
 - `amazon-sns`
 - `amazon-sqs`
+- `amplitude`
 - `anthropic`
+- `anyhook-websocket`
+- `apify`
 - `asana`
+- `ask-handle`
 - `attio`
 - `auth0`
+- `avalara`
+- `aws-cloudwatch`
+- `aws-lambda`
+- `azure-blob-storage`
+- `azure-event-grid`
+- `azure-service-bus`
 - `bamboohr`
+- `bannerbear`
+- `base44`
 - `basecamp`
+- `baserow`
+- `beehiiv`
 - `bigcommerce`
+- `bika`
+- `bill-com`
 - `box`
 - `braze`
+- `brex`
+- `buttondown`
 - `cal-com`
 - `calendly`
+- `camb-ai`
 - `canva`
+- `cartloom`
+- `chain-aware`
+- `chaindesk`
+- `chargebee`
+- `chat-aid`
+- `chatsistant`
+- `chess-com`
+- `claude`
+- `clearoutphone`
+- `clickfunnels`
+- `clicksend`
 - `clickup`
 - `clio`
 - `close`
+- `cloudflare`
 - `coda`
+- `cody`
 - `confluence`
 - `contentful`
+- `contextual-ai`
+- `contiguity`
+- `couchbase`
+- `csv-files`
 - `customer-io`
+- `dappier`
 - `datadog`
+- `deepgram`
+- `detecting-ai`
 - `dialpad`
+- `digital-ocean`
+- `digital-pilot`
 - `discord`
+- `discourse`
+- `docsbot`
 - `docusign`
+- `drip`
 - `dropbox`
+- `duckdb`
 - `ebay`
+- `echowin`
+- `elevenlabs`
 - `etsy`
+- `everhour`
+- `excel-files`
 - `facebook-pages`
 - `fathom`
+- `feathery`
+- `fellow`
 - `figjam`
 - `figma`
 - `firebase`
 - `fireflies-ai`
+- `flow-parser`
+- `freshdesk`
 - `front`
+- `gamma`
+- `gcloud-pubsub`
 - `gemini`
+- `gender-api`
+- `generatebanners`
+- `giftbit`
 - `github`
 - `gitlab`
 - `gmail`
 - `gong`
 - `google-analytics`
+- `google-bigquery`
 - `google-calendar`
 - `google-cloud-storage`
 - `google-contacts`
@@ -219,11 +283,16 @@ Executable setup specs:
 - `http`
 - `hubspot`
 - `huggingface`
+- `instagram-business`
 - `intercom`
+- `ironclad`
+- `jira-cloud`
 - `jotform`
+- `kafka`
 - `klaviyo`
 - `lever`
 - `linear`
+- `linkedin`
 - `mailchimp`
 - `make`
 - `marketo`
@@ -240,41 +309,63 @@ Executable setup specs:
 - `microsoft-todo`
 - `miro`
 - `mixpanel`
+- `modelslab`
 - `monday`
 - `mongodb`
+- `mycase`
+- `mysql`
 - `netlify`
+- `netsuite`
+- `neverbounce`
 - `notion`
+- `okta`
 - `onedrive`
+- `onelogin`
 - `open-phone`
 - `openai`
 - `opsgenie`
 - `outlook-mail`
+- `paddle`
 - `pagerduty`
 - `pandadoc`
+- `parquet-files`
 - `phony`
 - `pinecone`
+- `ping-identity`
 - `pipedream`
 - `pipedrive`
+- `plaid`
 - `postgres`
 - `postmark`
 - `qdrant`
 - `quickbooks`
+- `rabbitmq`
+- `ramp`
+- `redis`
+- `redshift`
 - `ringcentral`
 - `rippling`
 - `rss`
+- `sage-intacct`
 - `salesforce`
 - `sanity`
+- `scim`
+- `segment`
 - `sendgrid`
 - `sentry`
+- `sftp`
 - `sharepoint`
 - `shopify`
 - `slack`
 - `snowflake`
 - `stripe-pack`
 - `supabase`
+- `taxjar`
 - `telegram`
+- `tiktok`
 - `trello`
 - `twilio-sms`
+- `twitter`
 - `typeform`
 - `vercel`
 - `weaviate`
@@ -288,7 +379,13 @@ Executable setup specs:
 - `youtube`
 - `zapier`
 - `zendesk`
+- `zoho-bookings`
+- `zoho-books`
+- `zoho-campaigns`
 - `zoho-crm`
+- `zoho-desk`
+- `zoho-invoice`
+- `zoho-mail`
 - `zoom`
 
 ## Flow Readiness
@@ -297,9 +394,9 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 535 reviewed native adapter surfaces ship from this package; 444 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 178 setup specs exist; 137 are executable setup specs and 41 are catalog/setup-only. |
-| Direct adapter backlog | Tracked | 225 contracts still need native/direct adapters before they should be product-executable. |
+| Native adapter execution | Done for listed native backends | 627 reviewed native adapter surfaces ship from this package; 516 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 246 setup specs exist; 234 are executable setup specs and 12 are catalog/setup-only. |
+| Direct adapter backlog | Tracked | 153 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
 | Long-tail credential mapping | Mostly mapped | 648 connectors have auth field metadata. 0 custom-auth connectors still need exact manual auth fields. |
@@ -311,8 +408,8 @@ Executable setup specs:
 
 | Bucket | Count | What it means |
 | --- | ---: | --- |
-| Contracts needing native/direct adapters | 225 | Connector has a Tangle contract but no reviewed direct adapter yet. |
-| Commercial/setup-only provider contracts | 33 | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
+| Contracts needing native/direct adapters | 153 | Connector has a Tangle contract but no reviewed direct adapter yet. |
+| Commercial/setup-only provider contracts | 12 | Provider is discoverable with honest setup metadata but cannot execute until a supported API backend and customer credentials exist. |
 | Catalog connectors with zero upstream action names | 0 | These entries need catalog action-name mapping before exact package-runtime invocation can work. |
 | Custom-auth catalog connectors needing manual credential-field mapping | 0 | These are still custom auth and no field names were extracted from source. |
 | Catalog connectors with triggers needing runtime-service hosting | 288 | Trigger metadata and provider hooks exist; runtime services still need package-specific webhook/polling hosting. |
@@ -320,23 +417,10 @@ Executable setup specs:
 Examples needing native/direct adapter ports:
 
 - `activepieces` -> `@activepieces/piece-activepieces`
-- `actualbudget` -> `@activepieces/piece-actualbudget`
-- `acuity-scheduling` -> `@activepieces/piece-acuity-scheduling`
 - `ai` -> `@activepieces/piece-ai`
-- `aianswer` -> `@activepieces/piece-aianswer`
-- `airparser` -> `@activepieces/piece-airparser`
 - `algolia` -> `@activepieces/piece-algolia`
 - `anyhook-graphql` -> `@activepieces/piece-anyhook-graphql`
-- `anyhook-websocket` -> `@activepieces/piece-anyhook-websocket`
-- `apify` -> `@activepieces/piece-apify`
-- `ask-handle` -> `@activepieces/piece-ask-handle`
 - `assembled` -> `@activepieces/piece-assembled`
-- `azure-blob-storage` -> `@activepieces/piece-azure-blob-storage`
-- `bannerbear` -> `@activepieces/piece-bannerbear`
-- `base44` -> `@activepieces/piece-base44`
-- `baserow` -> `@activepieces/piece-baserow`
-- `beehiiv` -> `@activepieces/piece-beehiiv`
-- `bika` -> `@activepieces/piece-bika`
 - `binance` -> `@activepieces/piece-binance`
 - `blockscout` -> `@activepieces/piece-blockscout`
 - `bokio` -> `@activepieces/piece-bokio`
@@ -344,28 +428,41 @@ Examples needing native/direct adapter ports:
 - `bubble` -> `@activepieces/piece-bubble`
 - `bumpups` -> `@activepieces/piece-bumpups`
 - `bursty-ai` -> `@activepieces/piece-bursty-ai`
-- `buttondown` -> `@activepieces/piece-buttondown`
 - `call-rounded` -> `@activepieces/piece-rounded-studio`
-- `camb-ai` -> `@activepieces/piece-camb-ai`
 - `carbone` -> `@activepieces/piece-carbone`
-- `cartloom` -> `@activepieces/piece-cartloom`
-- `chain-aware` -> `@activepieces/piece-chain-aware`
-- `chaindesk` -> `@activepieces/piece-chaindesk`
-- `chat-aid` -> `@activepieces/piece-chat-aid`
 - `chatfly` -> `@activepieces/piece-chatfly`
-- `chatsistant` -> `@activepieces/piece-chatsistant`
-- `chess-com` -> `@activepieces/piece-chess-com`
 - `clarifai` -> `@activepieces/piece-clarifai`
-- `claude` -> `@activepieces/piece-claude`
-- `clearoutphone` -> `@activepieces/piece-clearoutphone`
-- `clickfunnels` -> `@activepieces/piece-clickfunnels`
+- `coralogix` -> `@activepieces/piece-coralogix`
+- `cursor` -> `@activepieces/piece-cursor`
+- `cyberark` -> `@activepieces/piece-cyberark`
+- `deepl` -> `@activepieces/piece-deepl`
+- `deftform` -> `@activepieces/piece-deftform`
+- `dimo` -> `@activepieces/piece-dimo`
+- `drupal` -> `@activepieces/piece-drupal`
+- `eth-name-service` -> `@activepieces/piece-eth-name-service`
+- `extracta-ai` -> `@activepieces/piece-extracta-ai`
+- `famulor` -> `@activepieces/piece-famulor`
+- `fliqr-ai` -> `@activepieces/piece-fliqr-ai`
+- `flow-helper` -> `@activepieces/piece-flow-helper`
+- `formitable` -> `@activepieces/piece-formitable`
+- `formsite` -> `@activepieces/piece-formsite`
+- `formspark` -> `@activepieces/piece-formspark`
+- `gladia` -> `@activepieces/piece-gladia`
+- `goodmem` -> `@activepieces/piece-goodmem`
+- `gravityforms` -> `@activepieces/piece-gravityforms`
+- `grok-xai` -> `@activepieces/piece-grok-xai`
+- `groq` -> `@activepieces/piece-groq`
+- `hackernews` -> `@activepieces/piece-hackernews`
+- `http-oauth2` -> `@activepieces/piece-http-oauth2`
+- `instabase` -> `@activepieces/piece-instabase`
+- `intruder` -> `@activepieces/piece-intruder`
 
 Manual custom auth mapping gap: none.
 
 ## Completion Claims And Remaining Proof Gates
 
 1. **Tangle first-class connector contracts are complete.**
-   All 669 catalog entries have Tangle-owned contracts. 444 use native adapter backends; 225 are backlog for native ports.
+   All 669 catalog entries have Tangle-owned contracts. 516 use native adapter backends; 153 are backlog for native ports.
 
 2. **Action-name mapping exists for cataloged actions.**
    Done for cataloged actions: the catalog currently has 3790 actions and 3790 upstream action-name mappings in the checked-in catalog. Direct adapters should preserve stable Tangle action ids when porting demanded backlog connectors.
@@ -377,13 +474,13 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 535 native adapter surfaces. 444 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 627 native adapter surfaces. 516 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
 - It is accurate to say: **we have 669 first-class Tangle integration contracts.**
 - It is accurate to say: **product execution should use direct/native adapters.**
-- It is accurate to say: **the remaining 225 catalog-only contracts are backlog, not runtime-ready product surface.**
+- It is accurate to say: **the remaining 153 catalog-only contracts are backlog, not runtime-ready product surface.**
 
 ## Native Port Gate
 

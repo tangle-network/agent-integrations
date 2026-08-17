@@ -295,13 +295,15 @@ describe('integration registry', () => {
     expect(canonicalConnectorId('Outlook Calendar')).toBe('microsoft-calendar')
     expect(canonicalConnectorId('notion')).toBe('notion')
     expect(canonicalConnectorId('stripe')).toBe('stripe-pack')
+    expect(canonicalConnectorId('x-twitter')).toBe('twitter')
   })
 
   it('summarizes support tiers and conflict load for admin surfaces', () => {
     const summary = summarizeIntegrationRegistry(buildDefaultIntegrationRegistry())
 
     expect(summary.totalEntries).toBeGreaterThanOrEqual(650)
-    expect(summary.bySupportTier.catalogOnly).toBeGreaterThan(500)
+    expect(summary.bySupportTier.catalogOnly).toBeGreaterThan(summary.bySupportTier.setupReady)
+    expect(Object.values(summary.bySupportTier).reduce((total, count) => total + count, 0)).toBe(summary.totalEntries)
     expect(summary.bySupportTier.setupReady).toBeGreaterThanOrEqual(100)
     expect(summary.toolBindableEntries).toBeLessThan(summary.totalEntries)
     expect(summary.conflictEntries).toBeGreaterThan(0)

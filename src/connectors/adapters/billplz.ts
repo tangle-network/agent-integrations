@@ -25,6 +25,7 @@ export const billplzConnector = declarativeRestConnector({
   category: 'commerce',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://www.billplz.com/api/v3',
+  credentialPlacement: { kind: 'basic-api-key' },
   test: { method: 'GET', path: '/collections' },
   capabilities: [
     {

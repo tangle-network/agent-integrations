@@ -25,16 +25,25 @@ describe('marketo adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('declares oauth2 against app.marketo.com identity service with marketo-shaped env names', () => {
+  it('declares tenant-scoped client credentials with no browser authorization flow', () => {
     const auth = marketoConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://app.marketo.com/identity/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://app.marketo.com/identity/oauth/token')
+    expect(auth.grantType).toBe('client_credentials')
+    expect(auth.authorizationUrl).toBeUndefined()
+    expect(auth.tokenUrl).toBe('{restEndpoint}/identity/oauth/token')
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_post')
+    expect(auth.pkce).toBe('unsupported')
     // Marketo gates capability by API Role assigned to the service user, not by OAuth scopes.
     expect(auth.scopes).toEqual([])
     expect(auth.clientIdEnv).toBe('MARKETO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('MARKETO_OAUTH_CLIENT_SECRET')
+    expect(auth.urlTemplateMetadata).toEqual({
+      restEndpoint: {
+        kind: 'base-url',
+        allowedBaseUrlSuffixes: ['.mktorest.com'],
+      },
+    })
   })
 
   it('exposes the lead+list+campaign+activity action surface with the right read/mutation split', () => {

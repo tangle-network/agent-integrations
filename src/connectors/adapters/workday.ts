@@ -9,10 +9,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  *
  *   1. The authorize/token endpoints are tenant-scoped under the tenant's
  *      Workday host:
- *        - Authorize: https://{host}/ccx/oauth2/{tenant}/authorize
- *        - Token:     https://{host}/ccx/oauth2/{tenant}/token
- *      `host` is the Workday data center the tenant lives in (e.g.
- *      `wd5.workday.com`, `wd2-impl-services1.workday.com`); `tenant` is
+ *        - Authorize: {workdayBaseUrl}/ccx/oauth2/{tenant}/authorize
+ *        - Token:     {workdayBaseUrl}/ccx/oauth2/{tenant}/token
+ *      `workdayBaseUrl` is the Workday data-center origin (e.g.
+ *      `https://wd5.workday.com`, `https://services1.myworkday.com`); `tenant` is
  *      the customer's tenant id. The operator persists the tenant-resolved
  *      values on the OAuth client record when they register an integration
  *      for that tenant — the manifest below carries the documented URL
@@ -59,13 +59,13 @@ export const workdayConnector = declarativeRestConnector({
     'Read Workday workers, organizations, locations, and time-off data and submit time-off requests through the tenant-scoped Workday REST API.',
   auth: {
     kind: 'oauth2',
-    // Tenant-scoped at OAuth-client registration time. {host} resolves to
-    // the customer's Workday data center (wd5.workday.com, wd2-impl-...),
+    // Tenant-scoped at OAuth-client registration time. {workdayBaseUrl}
+    // resolves to the customer's Workday data-center origin,
     // {tenant} to the customer's tenant id. The platform stores the
     // resolved URLs alongside the OAuth client record, the same pattern
     // Auth0 uses for its tenant-scoped Management API client.
-    authorizationUrl: 'https://{host}/ccx/oauth2/{tenant}/authorize',
-    tokenUrl: 'https://{host}/ccx/oauth2/{tenant}/token',
+    authorizationUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/authorize',
+    tokenUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/token',
     // Workday scopes are Functional Area names; the tenant admin enables
     // matching functional areas on the API Client and the OAuth flow
     // narrows further per request. The set below maps to the action pack:
@@ -74,6 +74,16 @@ export const workdayConnector = declarativeRestConnector({
     scopes: ['Staffing', 'Organizations and Roles', 'Time Off and Leave'],
     clientIdEnv: 'WORKDAY_OAUTH_CLIENT_ID',
     clientSecretEnv: 'WORKDAY_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_basic',
+    sendScopeParam: false,
+    pkce: 'unsupported',
+    urlTemplateMetadata: {
+      workdayBaseUrl: {
+        kind: 'base-url',
+        allowedBaseUrlSuffixes: ['.workday.com', '.myworkday.com'],
+      },
+      tenant: { kind: 'path-segment' },
+    },
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
@@ -84,6 +94,7 @@ export const workdayConnector = declarativeRestConnector({
   // `../staffing/v1/{tenant}` so the staffing functional surface stays
   // reachable from the same connection without a second base URL.
   baseUrl: { metadataKey: 'apiBaseUrl' },
+  allowedBaseUrlSuffixes: ['.workday.com', '.myworkday.com'],
   defaultHeaders: {
     accept: 'application/json',
   },

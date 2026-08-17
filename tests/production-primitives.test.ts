@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   ApprovalBackedPolicyEngine,
@@ -26,14 +27,20 @@ import {
   dispatchIntegrationInvocation,
   parseIntegrationBridgeEnvironment,
   receiveIntegrationWebhook,
+  revokeConnection,
   resolveIntegrationApproval,
   runIntegrationHealthchecks,
   type ConnectorAdapter,
   type ConnectorCredentials,
+  type ConnectorInvocation,
   type IntegrationConnection,
   type IntegrationCredentialsRotatedEvent,
   type IntegrationManifest,
   type IntegrationOAuthState,
+  type IntegrationProvider,
+  type IntegrationSecretStore,
+  type StartAuthRequest,
+  type CompleteAuthRequest,
   type ResolvedDataSource,
 } from '../src/index'
 
@@ -299,6 +306,266 @@ describe('production integration primitives', () => {
     expect(JSON.stringify(updated)).not.toContain('new')
   })
 
+  it('coalesces concurrent expired credential refreshes and updates every waiting connection', async () => {
+    const backingSecrets = new InMemoryIntegrationSecretStore()
+    let blockPersistence = false
+    let markPersistenceStarted: (() => void) | undefined
+    const persistenceStarted = new Promise<void>((resolve) => {
+      markPersistenceStarted = resolve
+    })
+    let releasePersistence: (() => void) | undefined
+    const persistenceBlocked = new Promise<void>((resolve) => {
+      releasePersistence = resolve
+    })
+    const secrets: IntegrationSecretStore = {
+      get: (ref) => backingSecrets.get(ref),
+      async put(ref, credentials) {
+        if (blockPersistence) {
+          markPersistenceStarted?.()
+          await persistenceBlocked
+        }
+        backingSecrets.put(ref, credentials)
+      },
+      delete: (ref) => backingSecrets.delete(ref),
+    }
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: 'shared_refresh' }
+    const firstConnection = activeConnection('conn_notes_first', {
+      secretRef,
+      expiresAt: '2026-05-04T00:00:00.000Z',
+    })
+    const secondConnection = activeConnection('conn_notes_second', {
+      secretRef,
+      expiresAt: '2026-05-04T00:00:00.000Z',
+    })
+    await connections.put(firstConnection)
+    await connections.put(secondConnection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'old-access',
+      refreshToken: 'old-refresh',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+    blockPersistence = true
+
+    let refreshCalls = 0
+    let markRefreshStarted: (() => void) | undefined
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let releaseRefresh: (() => void) | undefined
+    const refreshBlocked = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const adapter: ConnectorAdapter = {
+      ...notesAdapter,
+      async refreshToken(credentials) {
+        refreshCalls += 1
+        expect(credentials).toMatchObject({
+          kind: 'oauth2',
+          refreshToken: 'old-refresh',
+        })
+        markRefreshStarted?.()
+        await refreshBlocked
+        return {
+          kind: 'oauth2',
+          accessToken: 'shared-access',
+          refreshToken: 'rotated-refresh',
+          expiresAt: Date.parse('2026-05-06T00:00:00.000Z'),
+        }
+      },
+    }
+    const resolver = createConnectionCredentialResolver({
+      secrets,
+      connections,
+      adapters: [adapter],
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    })
+
+    const first = resolver(firstConnection)
+    let firstResolved = false
+    void first.then(
+      () => { firstResolved = true },
+      () => undefined,
+    )
+    await refreshStarted
+    const second = resolver(secondConnection)
+    await Promise.resolve()
+    expect(refreshCalls).toBe(1)
+    releaseRefresh?.()
+    await persistenceStarted
+    await Promise.resolve()
+    expect(firstResolved).toBe(false)
+    expect(await backingSecrets.get(secretRef)).toMatchObject({
+      accessToken: 'old-access',
+      refreshToken: 'old-refresh',
+    })
+    releasePersistence?.()
+
+    const [firstSource, secondSource] = await Promise.all([first, second])
+    expect(refreshCalls).toBe(1)
+    expect(firstSource.credentials).toEqual(secondSource.credentials)
+    expect(firstSource.credentials).toMatchObject({
+      kind: 'oauth2',
+      accessToken: 'shared-access',
+      refreshToken: 'rotated-refresh',
+    })
+    expect(await backingSecrets.get(secretRef)).toEqual(firstSource.credentials)
+    expect(await connections.get(firstConnection.id)).toMatchObject({
+      status: 'active',
+      expiresAt: '2026-05-06T00:00:00.000Z',
+    })
+    expect(await connections.get(secondConnection.id)).toMatchObject({
+      status: 'active',
+      expiresAt: '2026-05-06T00:00:00.000Z',
+    })
+  })
+
+  it('clears a failed shared refresh and preserves each connection error transition', async () => {
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: 'failed_shared_refresh' }
+    const firstConnection = activeConnection('conn_failed_refresh_first', { secretRef })
+    const secondConnection = activeConnection('conn_failed_refresh_second', { secretRef })
+    await connections.put(firstConnection)
+    await connections.put(secondConnection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'expired-access',
+      refreshToken: 'retryable-refresh',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+
+    let refreshCalls = 0
+    let failRefresh = true
+    let markRefreshStarted: (() => void) | undefined
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let releaseRefresh: (() => void) | undefined
+    const refreshBlocked = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const adapter: ConnectorAdapter = {
+      ...notesAdapter,
+      async refreshToken() {
+        refreshCalls += 1
+        if (failRefresh) {
+          markRefreshStarted?.()
+          await refreshBlocked
+          throw new Error('provider rejected refresh')
+        }
+        return {
+          kind: 'oauth2',
+          accessToken: 'recovered-access',
+          refreshToken: 'recovered-refresh',
+          expiresAt: Date.parse('2026-05-06T00:00:00.000Z'),
+        }
+      },
+    }
+    const markedErrors: string[] = []
+    const resolver = createConnectionCredentialResolver({
+      secrets,
+      connections,
+      adapters: [adapter],
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+      markConnectionError: (connection) => {
+        markedErrors.push(connection.id)
+      },
+    })
+
+    const first = resolver(firstConnection)
+    await refreshStarted
+    const second = resolver(secondConnection)
+    await Promise.resolve()
+    expect(refreshCalls).toBe(1)
+    releaseRefresh?.()
+    const failures = await Promise.allSettled([first, second])
+
+    expect(failures.map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+    ])
+    expect(markedErrors.sort()).toEqual([
+      firstConnection.id,
+      secondConnection.id,
+    ].sort())
+    expect(await connections.get(firstConnection.id)).toMatchObject({ status: 'expired' })
+    expect(await connections.get(secondConnection.id)).toMatchObject({ status: 'expired' })
+    expect(await secrets.get(secretRef)).toMatchObject({
+      accessToken: 'expired-access',
+      refreshToken: 'retryable-refresh',
+    })
+
+    failRefresh = false
+    await expect(resolver(firstConnection)).resolves.toMatchObject({
+      credentials: {
+        accessToken: 'recovered-access',
+        refreshToken: 'recovered-refresh',
+      },
+    })
+    expect(refreshCalls).toBe(2)
+    expect(await connections.get(firstConnection.id)).toMatchObject({ status: 'active' })
+  })
+
+  it('does not resurrect a secret or connection revoked during refresh', async () => {
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: 'revoked_during_refresh' }
+    const connection = activeConnection('conn_revoked_during_refresh', { secretRef })
+    await connections.put(connection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'expired-access',
+      refreshToken: 'revoked-refresh',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+
+    let markRefreshStarted: (() => void) | undefined
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let releaseRefresh: (() => void) | undefined
+    const refreshBlocked = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const adapter: ConnectorAdapter = {
+      ...notesAdapter,
+      async refreshToken() {
+        markRefreshStarted?.()
+        await refreshBlocked
+        return {
+          kind: 'oauth2',
+          accessToken: 'must-not-resurrect',
+          refreshToken: 'must-not-resurrect-either',
+          expiresAt: Date.parse('2026-05-06T00:00:00.000Z'),
+        }
+      },
+    }
+    const resolver = createConnectionCredentialResolver({
+      secrets,
+      connections,
+      adapters: [adapter],
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    })
+
+    const resolving = resolver(connection)
+    await refreshStarted
+    await revokeConnection({
+      connection,
+      connections,
+      secrets,
+      now: () => new Date('2026-05-05T00:00:01.000Z'),
+    })
+    expect(await connections.get(connection.id)).toMatchObject({ status: 'revoked' })
+    expect(await secrets.get(secretRef)).toBeUndefined()
+
+    releaseRefresh?.()
+    await expect(resolving).rejects.toThrow(/revoked during credential refresh/)
+    expect(await connections.get(connection.id)).toMatchObject({ status: 'revoked' })
+    expect(await secrets.get(secretRef)).toBeUndefined()
+  })
+
   it('InMemoryIntegrationOAuthStateStore enforces single-use + expiry and returns typed outcomes', async () => {
     const store = new InMemoryIntegrationOAuthStateStore()
     const record: IntegrationOAuthState = {
@@ -393,6 +660,95 @@ describe('production integration primitives', () => {
     })).rejects.toMatchObject({ code: 'capability_invalid' })
   })
 
+  it.each([
+    ['omitted', undefined],
+    ['required', 'required'],
+    ['supported', 'supported'],
+  ] as const)('IntegrationHub owns the %s PKCE verifier and pins start-time context', async (_label, mode) => {
+    let startRequest: StartAuthRequest | undefined
+    let completeRequest: CompleteAuthRequest | undefined
+    const provider: IntegrationProvider = {
+      id: 'pkce-provider',
+      kind: 'custom',
+      listConnectors: () => [{
+        id: 'pkce-demo',
+        providerId: 'pkce-provider',
+        title: 'PKCE Demo',
+        category: 'other',
+        auth: 'oauth2',
+        scopes: [],
+        actions: [],
+        metadata: mode ? { oauthPkce: mode } : {},
+      }],
+      startAuth(request) {
+        startRequest = request
+        return {
+          providerId: 'pkce-provider',
+          connectorId: request.connectorId,
+          authUrl: `https://idp.example/authorize?state=${request.state}`,
+          state: request.state ?? 'generated-state',
+        }
+      },
+      completeAuth(request) {
+        completeRequest = request
+        return {
+          id: 'conn_pkce',
+          owner: request.owner,
+          providerId: 'pkce-provider',
+          connectorId: request.connectorId,
+          status: 'active',
+          grantedScopes: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+          metadata: request.metadata,
+        }
+      },
+      invokeAction: async (_connection, request) => ({ ok: true, action: request.action }),
+    }
+    const hub = new IntegrationHub({
+      providers: [provider],
+      store: new InMemoryConnectionStore(),
+      capabilitySecret: 'secret',
+    })
+    const callerChallenge = 'x'.repeat(43)
+    const callerVerifier = 'y'.repeat(64)
+
+    const started = await hub.startAuth('pkce-provider', {
+      connectorId: 'pkce-demo',
+      owner,
+      requestedScopes: [],
+      redirectUri: 'https://app.example/callback',
+      state: `state_${_label}`,
+      codeChallenge: callerChallenge,
+      metadata: { shop: 'pinned-shop' },
+    })
+    expect(startRequest?.codeChallenge).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(startRequest?.codeChallenge).not.toBe(callerChallenge)
+    expect(started).not.toHaveProperty('codeVerifier')
+
+    const connection = await hub.completeAuth('pkce-provider', {
+      connectorId: 'pkce-demo',
+      owner: { type: 'user', id: 'attacker-owner' },
+      code: 'authorization-code',
+      state: started.state,
+      redirectUri: 'https://app.example/callback',
+      codeVerifier: callerVerifier,
+      metadata: { shop: 'tampered-shop', realmId: 'realm-from-callback' },
+    })
+    const verifier = completeRequest?.codeVerifier
+    expect(verifier).toMatch(/^[A-Za-z0-9._~-]{43,128}$/)
+    expect(verifier).not.toBe(callerVerifier)
+    expect(createHash('sha256').update(verifier!).digest('base64url')).toBe(
+      startRequest?.codeChallenge,
+    )
+    expect(completeRequest?.owner).toEqual(owner)
+    expect(completeRequest?.metadata).toEqual({
+      shop: 'pinned-shop',
+      realmId: 'realm-from-callback',
+    })
+    expect(connection.owner).toEqual(owner)
+  })
+
   it('surfaces rotated credentials through the invoke path so the host re-persists them', async () => {
     const secrets = new InMemoryIntegrationSecretStore()
     const connections = new InMemoryConnectionStore()
@@ -449,6 +805,96 @@ describe('production integration primitives', () => {
     const updated = await connections.get('conn_rot')
     expect(updated?.status).toBe('active')
     expect(JSON.stringify(updated)).not.toContain('rotated')
+  })
+
+  it.each([
+    ['rotating.read', 'read'],
+    ['rotating.write', 'mutation'],
+  ])('persists rotated credentials when a later %s action fails', async (action, failureKind) => {
+    const secrets = new InMemoryIntegrationSecretStore()
+    const connections = new InMemoryConnectionStore()
+    const secretRef = { provider: 'vault', id: `secret_failed_${failureKind}` }
+    const connection = activeConnection(`conn_failed_${failureKind}`, {
+      connectorId: 'rotating',
+      secretRef,
+    })
+    await connections.put(connection)
+    await secrets.put(secretRef, {
+      kind: 'oauth2',
+      accessToken: 'stale',
+      refreshToken: 'refresh-1',
+      expiresAt: Date.parse('2026-05-04T00:00:00.000Z'),
+    })
+    const hostEvents: IntegrationCredentialsRotatedEvent[] = []
+    const provider = createCredentialBackedAdapterProvider({
+      adapters: [rotatingAdapter],
+      secrets,
+      connections,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+      onCredentialsRotated: (event) => { hostEvents.push(event) },
+    })
+
+    await expect(provider.invokeAction(connection, {
+      connectionId: connection.id,
+      action,
+      input: { fail: true },
+    })).rejects.toThrow(`forced ${failureKind} failure`)
+
+    expect(hostEvents).toHaveLength(1)
+    expect(hostEvents[0]).toMatchObject({
+      connection: { id: connection.id },
+      secretRef,
+      credentials: {
+        kind: 'oauth2',
+        accessToken: 'rotated',
+        refreshToken: 'refresh-2',
+        expiresAt: expect.any(Number),
+      },
+    })
+    expect(await secrets.get(secretRef)).toEqual(hostEvents[0]?.credentials)
+  })
+
+  it('handles a fast rotation persistence rejection when an adapter ignores the callback promise', async () => {
+    const adapter: ConnectorAdapter = {
+      ...notesAdapter,
+      manifest: {
+        ...notesAdapter.manifest,
+        kind: 'rotation-callback-not-awaited',
+      },
+      async executeRead(invocation) {
+        invocation.onCredentialsRotated?.({
+          kind: 'oauth2',
+          accessToken: 'rotated-access',
+          refreshToken: 'rotated-refresh',
+        })
+        await new Promise((resolve) => setTimeout(resolve, 25))
+        return { data: {}, fetchedAt: 1 }
+      },
+    }
+    const connection = activeConnection('conn_rotation_rejection', {
+      connectorId: 'rotation-callback-not-awaited',
+    })
+    const provider = createConnectorAdapterProvider({
+      adapters: [adapter],
+      resolveDataSource: () => sourceFor(connection.id),
+      onCredentialsRotated: async () => {
+        throw new Error('persist failed')
+      },
+    })
+    const unhandled: unknown[] = []
+    const captureUnhandled = (reason: unknown) => { unhandled.push(reason) }
+    process.on('unhandledRejection', captureUnhandled)
+    try {
+      await expect(provider.invokeAction(connection, {
+        connectionId: connection.id,
+        action: 'notes.search',
+        input: {},
+      })).rejects.toThrow('persist failed')
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', captureUnhandled)
+    }
   })
 
   it('builds bridge env payloads that sandboxes and executor-style CLIs can consume', async () => {
@@ -667,24 +1113,42 @@ const rotatingAdapter: ConnectorAdapter = {
     defaultConsistencyModel: 'authoritative',
     capabilities: [
       { name: 'rotating.read', class: 'read', description: 'Read.', parameters: {} },
+      { name: 'rotating.write', class: 'mutation', description: 'Write.', parameters: {}, cas: 'none', externalEffect: true },
     ],
   },
   async executeRead(invocation) {
-    const creds = invocation.source.credentials
-    if (creds.kind === 'oauth2' && (!creds.expiresAt || creds.expiresAt <= Date.now())) {
-      const next: ConnectorCredentials = {
-        kind: 'oauth2',
-        accessToken: 'rotated',
-        refreshToken: 'refresh-2',
-        expiresAt: Date.now() + 3_600_000,
-      }
-      invocation.onCredentialsRotated?.(next)
-    }
+    rotateInvocationCredentials(invocation)
+    if (invocation.args.fail) throw new Error('forced read failure')
     return { data: { ok: true }, fetchedAt: 1 }
+  },
+  async executeMutation(invocation) {
+    rotateInvocationCredentials(invocation)
+    if (invocation.args.fail) throw new Error('forced mutation failure')
+    return {
+      status: 'committed',
+      data: { ok: true },
+      committedAt: 1,
+      idempotentReplay: false,
+    }
   },
   async test() {
     return { ok: true }
   },
+}
+
+function rotateInvocationCredentials(invocation: ConnectorInvocation): void {
+  const credentials = invocation.source.credentials
+  if (
+    credentials.kind === 'oauth2' &&
+    (!credentials.expiresAt || credentials.expiresAt <= Date.now())
+  ) {
+    invocation.onCredentialsRotated?.({
+      kind: 'oauth2',
+      accessToken: 'rotated',
+      refreshToken: 'refresh-2',
+      expiresAt: Date.now() + 3_600_000,
+    })
+  }
 }
 
 const webhookAdapter: ConnectorAdapter = {

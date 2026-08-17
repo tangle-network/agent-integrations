@@ -23,6 +23,8 @@ export const makeConnector = declarativeRestConnector({
   category: 'other',
   defaultConsistencyModel: 'advisory',
   baseUrl: { metadataKey: 'zoneUrl' },
+  allowedBaseUrlSuffixes: ['.make.com'],
+  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Token ' },
   test: { method: 'GET', path: '/api/v2/users/me' },
   capabilities: [
     {

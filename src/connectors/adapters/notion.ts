@@ -20,7 +20,12 @@ import {
   type ConnectorCredentials,
   type ConnectorInvocation,
 } from '../types.js'
-import { refreshAccessToken } from '../oauth.js'
+import {
+  createOAuthBasicAuthorizationHeader,
+  oauthClientCredentialRedactionValues,
+  redactOAuthSensitiveText,
+  refreshAccessToken,
+} from '../oauth.js'
 import {
   declarativeRestConnector,
   executeRestRequest,
@@ -45,6 +50,7 @@ const NOTION_SPEC: RestConnectorSpec = {
     scopes: [],
     clientIdEnv: 'NOTION_OAUTH_CLIENT_ID',
     clientSecretEnv: 'NOTION_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_basic',
     extraAuthParams: { owner: 'user' },
   },
   category: 'doc',
@@ -390,15 +396,16 @@ export function notion(opts: NotionOptions): ConnectorAdapter {
 
     /**
      * Notion's token endpoint follows RFC 6749 with one twist — it REQUIRES
-     * HTTP Basic auth (client_id:client_secret) and does NOT accept the client
-     * credentials in the form body, so we POST inline rather than via the
-     * generic `exchangeAuthorizationCode` helper. The workspace_id/bot_id come
-     * back in the response and we stash them in `metadata` so the agent can
-     * address resources by workspace where useful.
+     * HTTP Basic auth and returns workspace metadata with the grant. We use
+     * the shared Basic encoding and redaction primitives, then retain that
+     * metadata for resource selection.
      */
     async exchangeOAuth(input) {
       if (!clientId || !clientSecret) {
         throw new Error('Notion OAuth client not configured (NOTION_OAUTH_CLIENT_ID / _SECRET)')
+      }
+      if (!input.codeVerifier) {
+        throw new Error('notion.exchangeOAuth: missing PKCE code verifier')
       }
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -406,28 +413,68 @@ export function notion(opts: NotionOptions): ConnectorAdapter {
         redirect_uri: input.redirectUri,
         code_verifier: input.codeVerifier,
       })
-      const res = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-          'content-type': 'application/x-www-form-urlencoded',
-          accept: 'application/json',
-          'Notion-Version': NOTION_VERSION,
-        },
-        body,
-        signal: AbortSignal.timeout(15_000),
-      })
+      const authorization = createOAuthBasicAuthorizationHeader(
+        clientId,
+        clientSecret,
+      )
+      const redactionValues = [
+        input.code,
+        input.codeVerifier,
+        ...oauthClientCredentialRedactionValues(
+          clientId,
+          clientSecret,
+          authorization,
+        ),
+      ]
+      let res: Response
+      try {
+        res = await fetch(TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            authorization,
+            'content-type': 'application/x-www-form-urlencoded',
+            accept: 'application/json',
+            'Notion-Version': NOTION_VERSION,
+          },
+          body,
+          signal: AbortSignal.timeout(15_000),
+        })
+      } catch (cause) {
+        const detail = redactOAuthSensitiveText(
+          (cause as Error)?.message ?? 'unknown',
+          redactionValues,
+        )
+        throw new Error(`Notion OAuth token exchange transport error: ${detail}`)
+      }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        throw new Error(`Notion OAuth token exchange failed: ${res.status} — ${text.slice(0, 200)}`)
+        const statusText = redactOAuthSensitiveText(
+          res.statusText,
+          redactionValues,
+        )
+        const detail = redactOAuthSensitiveText(text, redactionValues).slice(
+          0,
+          200,
+        )
+        throw new Error(
+          `Notion OAuth token exchange failed: ${res.status} ${statusText} — ${detail}`,
+        )
       }
-      const json = (await res.json()) as {
+      let json: {
         access_token: string
         refresh_token?: string
         bot_id?: string
         workspace_id?: string
         workspace_name?: string
         duplicated_template_id?: string
+      }
+      try {
+        json = await res.json() as typeof json
+      } catch {
+        throw new Error('Notion OAuth token exchange returned invalid JSON')
+      }
+      if (!json.access_token) {
+        throw new Error('Notion OAuth token exchange returned no access_token')
       }
       return {
         credentials: {
@@ -460,6 +507,7 @@ export function notion(opts: NotionOptions): ConnectorAdapter {
         tokenUrl: TOKEN_URL,
         clientId,
         clientSecret,
+        tokenClientAuthMethod: 'client_secret_basic',
         refreshToken: creds.refreshToken,
       })
       return {

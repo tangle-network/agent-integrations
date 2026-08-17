@@ -201,6 +201,7 @@ describe('parseAwsCredentialBundle', () => {
         region: 'eu-west-1',
         sessionToken: 'tok',
         endpoint: 'https://s3.example.com',
+        bucket: 'customer-files',
       }),
     })
     expect(bundle).toEqual({
@@ -209,6 +210,7 @@ describe('parseAwsCredentialBundle', () => {
       region: 'eu-west-1',
       sessionToken: 'tok',
       endpoint: 'https://s3.example.com',
+      bucket: 'customer-files',
     })
   })
 
@@ -220,6 +222,19 @@ describe('parseAwsCredentialBundle', () => {
     expect(bundle.accessKeyId).toBe('AKIA')
     expect(bundle.secretAccessKey).toBe('sk')
     expect(bundle.region).toBe('us-east-2')
+  })
+
+  it('accepts a bucketName alias as a non-secret request default', () => {
+    const bundle = parseAwsCredentialBundle({
+      kind: 'api-key',
+      apiKey: JSON.stringify({
+        accessKeyId: 'AKIA',
+        secretAccessKey: 'sk',
+        region: 'us-west-001',
+        bucketName: 'customer-files',
+      }),
+    })
+    expect(bundle.bucket).toBe('customer-files')
   })
 
   it('throws a clear error for a non-JSON api key', () => {

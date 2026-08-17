@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildHealthcheckPlan,
   bundledAuthMode,
+  bundledOAuth2AuthContract,
   getBundledAdapterManifest,
   getIntegrationSpec,
   hasBundledAdapter,
@@ -77,9 +78,38 @@ describe('integration specs', () => {
       authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
       tokenUrl: 'https://oauth2.googleapis.com/token',
       pkce: 'supported',
+      tokenClientAuthMethod: 'client_secret_post',
     })
     expect(google!.requestedScopes).toContain('https://www.googleapis.com/auth/calendar')
     expect(google!.requestedScopes.every((scope) => scope.length > 0)).toBe(true)
+
+    const clickup = resolveConnectorAuthSpec('clickup')
+    expect(clickup).toMatchObject({
+      kind: 'clickup',
+      authKind: 'oauth2',
+      authorizationUrl: 'https://app.clickup.com/api',
+      tokenUrl: 'https://api.clickup.com/api/v2/oauth/token',
+      pkce: 'required',
+      tokenClientAuthMethod: 'client_secret_post',
+      requestedScopes: [],
+    })
+
+    for (const kind of ['slack', 'hubspot', 'salesforce']) {
+      expect(resolveConnectorAuthSpec(kind)?.pkce, kind).toBe('required')
+    }
+    expect(resolveConnectorAuthSpec('tiktok')?.pkce).toBe('unsupported')
+
+    const calCom = resolveConnectorAuthSpec('cal-com')
+    expect(calCom).toMatchObject({
+      authKind: 'oauth2',
+      clientIdEnv: 'CALCOM_OAUTH_CLIENT_ID',
+      pkce: 'required',
+      tokenClientAuthMethod: 'none',
+    })
+    expect(calCom?.clientSecretEnv).toBeUndefined()
+    expect(getIntegrationSpec('cal-com')?.setup.credentialFields).toEqual([
+      expect.objectContaining({ label: 'Client ID', secret: false }),
+    ])
 
     const github = resolveConnectorAuthSpec('github')
     expect(github).toEqual({ kind: 'github', authKind: 'api_key', requestedScopes: [] })
@@ -139,14 +169,104 @@ describe('integration specs', () => {
     const oauth = listIntegrationSpecs().filter((spec) => spec.auth.mode === 'oauth2')
     expect(oauth.length).toBeGreaterThan(50)
     for (const spec of oauth) {
-      const auth = spec.auth as { authorizationUrl?: string; tokenUrl?: string }
-      for (const url of [auth.authorizationUrl, auth.tokenUrl]) {
+      if (spec.auth.mode !== 'oauth2') continue
+      for (const url of [spec.auth.authorizationUrl, spec.auth.tokenUrl]) {
         if (url === undefined) continue
         expect(url, `${spec.kind} advertises a placeholder endpoint`).not.toContain('example.invalid')
-        expect(() => new URL(url), `${spec.kind} endpoint must parse`).not.toThrow()
-        expect(new URL(url).protocol, `${spec.kind} endpoint must be https`).toBe('https:')
+        let resolved = url
+        for (const match of url.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)) {
+          const key = match[1]!
+          const policy = spec.auth.urlTemplateMetadata?.[key]
+          const value = policy?.kind === 'base-url'
+            ? policy.allowedBaseUrls?.[0]
+              ?? (policy.allowedBaseUrlSuffixes?.[0]
+                ? `https://tenant${policy.allowedBaseUrlSuffixes[0]}`
+                : 'https://provider.example')
+            : policy?.kind === 'path-segment'
+              ? 'tenant_1'
+              : 'tenant'
+          resolved = resolved.replaceAll(match[0], value)
+        }
+        expect(() => new URL(resolved), `${spec.kind} endpoint must parse after safe metadata`).not.toThrow()
+        expect(new URL(resolved).protocol, `${spec.kind} endpoint must be https`).toBe('https:')
       }
     }
+  })
+
+  it('exports machine grants and provider-root URL policies to connect runtimes', () => {
+    const authContract = (kind: string) => {
+      const manifest = getBundledAdapterManifest(kind)
+      expect(manifest, `missing bundled manifest for ${kind}`).toBeDefined()
+      return bundledOAuth2AuthContract(manifest!)
+    }
+
+    expect(authContract('marketo')).toMatchObject({
+      grantType: 'client_credentials',
+      authorizationUrl: undefined,
+      tokenUrl: '{restEndpoint}/identity/oauth/token',
+      urlTemplateMetadata: {
+        restEndpoint: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.mktorest.com'],
+        },
+      },
+    })
+    expect(authContract('zuora')).toMatchObject({
+      grantType: 'client_credentials',
+      authorizationUrl: undefined,
+      tokenUrl: '{apiBaseUrl}/oauth/token',
+      urlTemplateMetadata: {
+        apiBaseUrl: {
+          kind: 'base-url',
+          allowedBaseUrls: expect.arrayContaining([
+            'https://rest.zuora.com',
+            'https://rest.eu.zuora.com',
+            'https://rest.ap.zuora.com',
+          ]),
+        },
+      },
+    })
+    expect(authContract('gitea')).toMatchObject({
+      grantType: 'authorization_code',
+      authorizationUrl: '{instanceUrl}/login/oauth/authorize',
+      urlTemplateMetadata: {
+        instanceUrl: { kind: 'base-url', requirePublicHttps: true },
+      },
+    })
+    expect(authContract('snowflake')).toMatchObject({
+      grantType: 'authorization_code',
+      authorizationUrl: '{accountUrl}/oauth/authorize',
+      urlTemplateMetadata: {
+        accountUrl: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.snowflakecomputing.com'],
+        },
+      },
+    })
+    expect(authContract('rippling')).toMatchObject({
+      authorizationUrl: 'https://app.rippling.com/apps/PLATFORM/{appName}/authorize',
+      tokenUrl: 'https://api.rippling.com/api/o/token/',
+      tokenClientAuthMethod: 'client_secret_basic',
+      pkce: 'unsupported',
+      urlTemplateMetadata: {
+        appName: { kind: 'path-segment' },
+      },
+    })
+    expect(authContract('workday')).toMatchObject({
+      authorizationUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/authorize',
+      tokenUrl: '{workdayBaseUrl}/ccx/oauth2/{tenant}/token',
+      tokenClientAuthMethod: 'client_secret_basic',
+      sendScopeParam: false,
+      pkce: 'unsupported',
+      urlTemplateMetadata: {
+        workdayBaseUrl: {
+          kind: 'base-url',
+          allowedBaseUrlSuffixes: ['.workday.com', '.myworkday.com'],
+        },
+        tenant: { kind: 'path-segment' },
+      },
+    })
+    expect(resolveConnectorAuthSpec('workday')).toMatchObject({ sendScopeParam: false })
   })
 
   it('an executable oauth2 spec can actually start a connect flow', () => {
@@ -231,6 +351,18 @@ describe('integration specs', () => {
     // Xero cannot address a single call without a tenant, so the grant must
     // request offline access and the tenant-bearing scopes.
     expect(resolveConnectorAuthSpec('xero')?.requestedScopes).toContain('offline_access')
+  })
+
+  it('does not misclassify Zoom admin-qualified read scopes as write access', () => {
+    const zoom = getIntegrationSpec('zoom')
+    expect(zoom?.auth.mode).toBe('oauth2')
+    if (zoom?.auth.mode !== 'oauth2') throw new Error('expected Zoom OAuth2')
+    const byProviderScope = new Map(zoom.auth.scopes.map((scope) => [scope.providerScope, scope.risk]))
+    expect(byProviderScope.get('user:read:user:admin')).toBe('read')
+    expect(byProviderScope.get('meeting:read:meeting:admin')).toBe('read')
+    expect(byProviderScope.get('cloud_recording:read:recording:admin')).toBe('read')
+    expect(byProviderScope.get('meeting:update:meeting:admin')).toBe('write')
+    expect(byProviderScope.get('cloud_recording:delete:recording_file:admin')).toBe('write')
   })
 })
 

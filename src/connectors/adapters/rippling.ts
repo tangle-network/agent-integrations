@@ -10,12 +10,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * resulting OAuth flow yields a workspace-scoped bearer token.
  *
  * OAuth (authorization-code, install-app shape):
- *   - Authorize:  https://app.rippling.com/apps/{client_id}/install
- *                 (the standard authorize/redirect endpoint Rippling publishes
- *                  for marketplace apps; the client_id appears in the path
- *                  rather than the query string, which is consistent with
- *                  Rippling's documented install flow.)
- *   - Token:      https://app.rippling.com/api/o/token/
+ *   - Authorize:  https://app.rippling.com/apps/PLATFORM/{appName}/authorize
+ *                 where appName is the sandbox or production app name shown
+ *                 by Rippling after deployment.
+ *   - Token:      https://api.rippling.com/api/o/token/
  *   - Refresh:    same token endpoint with grant_type=refresh_token
  *
  * Scopes:
@@ -38,8 +36,8 @@ export const ripplingConnector = declarativeRestConnector({
     'Read Rippling HRIS data (employees, groups, departments, work locations) and update employee records via the Rippling Platform API.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://app.rippling.com/apps/{client_id}/install',
-    tokenUrl: 'https://app.rippling.com/api/o/token/',
+    authorizationUrl: 'https://app.rippling.com/apps/PLATFORM/{appName}/authorize',
+    tokenUrl: 'https://api.rippling.com/api/o/token/',
     scopes: [
       'company:read',
       'employees:read',
@@ -52,6 +50,11 @@ export const ripplingConnector = declarativeRestConnector({
     ],
     clientIdEnv: 'RIPPLING_OAUTH_CLIENT_ID',
     clientSecretEnv: 'RIPPLING_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_basic',
+    pkce: 'unsupported',
+    urlTemplateMetadata: {
+      appName: { kind: 'path-segment' },
+    },
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',

@@ -8,7 +8,8 @@ export const ninjapipeConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'base_url', fallback: 'https://www.ninjapipe.app/api' },
-  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Bearer' },
+  allowedBaseUrlSuffixes: ['.ninjapipe.app'],
+  credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Bearer ' },
   test: { method: 'GET', path: '/contacts' },
   capabilities: [
     {

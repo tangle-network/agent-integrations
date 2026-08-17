@@ -1,0 +1,38 @@
+{
+  "scope": [
+    "docs/integration-execution-matrix.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "src/__tests__/adapter-provider-oauth.test.ts",
+    "src/adapter-provider.ts",
+    "src/connectors/adapters/notion.ts",
+    "src/connectors/adapters/tiktok.ts",
+    "src/connectors/adapters/twitter.ts",
+    "src/connectors/bundled-manifests.ts",
+    "src/connectors/oauth.ts",
+    "src/connectors/types.ts",
+    "src/core-types.ts",
+    "src/credentials.ts",
+    "src/index.ts",
+    "src/specs/registry.ts",
+    "tests/connector-adapter-factories.test.ts",
+    "tests/connectors.test.ts",
+    "tests/launch-provider-auth.test.ts",
+    "tests/oauth.test.ts",
+    "tests/production-primitives.test.ts",
+    "tests/specs.test.ts",
+    "tests/tiktok.test.ts",
+    "tests/zoho-business-suite.test.ts"
+  ],
+  "base": "4e07f4d2b185a9048a1f62d8739152d71a5087a8",
+  "head": "working-tree",
+  "project_type": "typescript-node",
+  "flags": ["diff-only", "serial"],
+  "findings_count_by_severity": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "fixed_during_audit": 4
+  }
+}

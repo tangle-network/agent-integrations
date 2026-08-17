@@ -5,7 +5,11 @@ import type {
   IntegrationConnectorCategory,
   IntegrationConnectorTrigger,
   IntegrationDataClass,
-} from '../index.js'
+} from '../core-types.js'
+import type {
+  OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
+} from '../connectors/types.js'
 
 export type IntegrationAuthMode = 'oauth2' | 'api_key' | 'hmac' | 'none' | 'custom'
 
@@ -55,6 +59,8 @@ export type IntegrationAuthSpec =
 
 export interface OAuth2AuthSpec {
   mode: 'oauth2'
+  /** OAuth grant the connection runtime must drive. */
+  grantType?: 'authorization_code' | 'client_credentials'
   /** Authorization endpoint the connect flow sends the user to.
    *
    *  UNDEFINED when no shipped adapter and no family default supplies one —
@@ -70,8 +76,19 @@ export interface OAuth2AuthSpec {
   tokenUrl?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  scopeSeparator?: ' ' | ','
+  authorizationClientIdParam?: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
+  /** OAuth client authentication at the token endpoint. Defaults to
+   * `client_secret_post` when omitted. */
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
   scopes: ScopeDescriptor[]
+  /** Whether the authorize request includes `scope`. Defaults to true. */
+  sendScopeParam?: boolean
   extraAuthParams?: Record<string, string>
+  /** Rules for connection metadata in authorizationUrl or tokenUrl templates. */
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
   redirectUriTemplate: string
   pkce?: 'required' | 'supported' | 'unsupported'
 }

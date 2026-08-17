@@ -11,6 +11,7 @@ export const ticktickConnector = declarativeRestConnector({
     scopes: ['tasks:read', 'tasks:write'],
     clientIdEnv: 'TICKTICK_OAUTH_CLIENT_ID',
     clientSecretEnv: 'TICKTICK_OAUTH_CLIENT_SECRET',
+    tokenClientAuthMethod: 'client_secret_basic',
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',

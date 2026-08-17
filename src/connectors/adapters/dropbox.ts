@@ -23,10 +23,10 @@ import { declarativeRestConnector } from './declarative-rest.js'
  * in a content-stream-aware adapter, not here. That keeps every action
  * on this adapter pure JSON-RPC with predictable error handling.
  *
- * Scope surface picked to match a typical "agent enumerates / searches /
- * organizes / shares files" pattern. Read scopes are on the default
- * authorization list; write/share scopes are pulled in per-capability so
- * the action guard's least-privilege check stays meaningful.
+ * Scope surface matches the complete action set below. Dropbox grants scopes
+ * only during authorization, so both read and write scopes must be requested
+ * up front; per-capability requirements still let the action guard enforce the
+ * least privilege needed by each invocation.
  *
  * Action surface:
  *   - users.get_current_account   Self-test endpoint (also exposed as `test`).
@@ -64,9 +64,16 @@ export const dropboxConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
     tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-    scopes: ['account_info.read', 'files.metadata.read', 'sharing.read'],
+    scopes: [
+      'account_info.read',
+      'files.metadata.read',
+      'files.metadata.write',
+      'sharing.read',
+      'sharing.write',
+    ],
     clientIdEnv: 'DROPBOX_OAUTH_CLIENT_ID',
     clientSecretEnv: 'DROPBOX_OAUTH_CLIENT_SECRET',
+    extraAuthParams: { token_access_type: 'offline' },
   },
   category: 'storage',
   defaultConsistencyModel: 'authoritative',

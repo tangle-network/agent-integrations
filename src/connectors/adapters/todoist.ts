@@ -8,13 +8,13 @@ export const todoistConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://todoist.com/oauth/authorize',
     tokenUrl: 'https://todoist.com/oauth/access_token',
-    scopes: ['task:add', 'task:read', 'task:update', 'data:read'],
+    scopes: ['data:read_write'],
     clientIdEnv: 'TODOIST_OAUTH_CLIENT_ID',
     clientSecretEnv: 'TODOIST_OAUTH_CLIENT_SECRET',
   },
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://api.todoist.com/rest/v2',
+  baseUrl: 'https://api.todoist.com/api/v1',
   test: { method: 'GET', path: '/projects' },
   capabilities: [
     {
@@ -48,7 +48,7 @@ export const todoistConnector = declarativeRestConnector({
         },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['task:add'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'tasks.update',
@@ -80,7 +80,7 @@ export const todoistConnector = declarativeRestConnector({
         },
       },
       cas: 'optimistic-read-verify',
-      requiredScopes: ['task:update'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'tasks.get',
@@ -92,7 +92,7 @@ export const todoistConnector = declarativeRestConnector({
         required: ['task_id'],
       },
       request: { method: 'GET', path: '/tasks/{task_id}' },
-      requiredScopes: ['task:read'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'tasks.list',
@@ -116,7 +116,7 @@ export const todoistConnector = declarativeRestConnector({
           limit: '{limit}',
         },
       },
-      requiredScopes: ['task:read'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'tasks.complete',
@@ -129,7 +129,7 @@ export const todoistConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/tasks/{task_id}/close' },
       cas: 'optimistic-read-verify',
-      requiredScopes: ['task:update'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'tasks.delete',
@@ -142,7 +142,7 @@ export const todoistConnector = declarativeRestConnector({
       },
       request: { method: 'DELETE', path: '/tasks/{task_id}' },
       cas: 'optimistic-read-verify',
-      requiredScopes: ['task:update'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'projects.list',
@@ -154,7 +154,7 @@ export const todoistConnector = declarativeRestConnector({
         required: [],
       },
       request: { method: 'GET', path: '/projects' },
-      requiredScopes: ['data:read'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'projects.create',
@@ -178,7 +178,7 @@ export const todoistConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['data:read'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'projects.delete',
@@ -192,7 +192,7 @@ export const todoistConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/projects/{project_id}' },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['data:read'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'comments.create',
@@ -214,7 +214,7 @@ export const todoistConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['task:add'],
+      requiredScopes: ['data:read_write'],
     },
     {
       name: 'labels.create',
@@ -237,7 +237,7 @@ export const todoistConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['data:read'],
+      requiredScopes: ['data:read_write'],
     },
   ],
 })

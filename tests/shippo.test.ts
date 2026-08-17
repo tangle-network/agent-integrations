@@ -72,10 +72,12 @@ describe('shippo transactions.create', () => {
     let requestMethod: string | undefined
     let requestUrl: string | undefined
     let requestBody: unknown
+    let authorization: string | null = null
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       requestUrl = String(input)
       requestMethod = init?.method
       requestBody = init?.body ? JSON.parse(init.body as string) : null
+      authorization = new Headers(init?.headers).get('authorization')
       return jsonResponse({
         object_id: 'txn-1',
         status: 'SUCCESS',
@@ -100,6 +102,7 @@ describe('shippo transactions.create', () => {
       label_file_type: 'PDF',
       async: false,
     })
+    expect(authorization).toBe('ShippoToken shippo-secret')
     expect(result.status).toBe('committed')
     if (result.status !== 'committed') return
     expect(result.idempotentReplay).toBe(false)

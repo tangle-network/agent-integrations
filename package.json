@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.53.1",
+  "version": "0.53.54",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -23,6 +23,11 @@
       "types": "./dist/catalog.d.ts",
       "import": "./dist/catalog.js",
       "default": "./dist/catalog.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js",
+      "default": "./dist/worker.js"
     },
     "./connectors": {
       "types": "./dist/connectors/index.d.ts",
@@ -112,7 +117,12 @@
   },
   "scripts": {
     "build": "tsup",
+    "generate:bundled-manifests": "pnpm build && node scripts/generate-bundled-manifest-data.mjs && pnpm build",
+    "check:bundled-manifest-freshness": "node scripts/check-bundled-manifest-freshness.mjs",
     "dev": "tsup --watch",
+    "prepack": "pnpm run build && pnpm run check:bundled-manifest-freshness",
+    "prepublishOnly": "pnpm run check:bundled-manifest-freshness",
+    "release": "node scripts/release.mjs",
     "audit:execution": "pnpm build >/dev/null && node scripts/audit-integration-execution.mjs",
     "prepare": "tsup",
     "test": "vitest run",
@@ -121,6 +131,9 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "@types/pg": "8.20.0",
+    "@types/ssh2-sftp-client": "9.0.6",
+    "esbuild": "0.28.1",
     "tsup": "^8.0.0",
     "typescript": "^5.9.3",
     "vite": "^8.1.5",
@@ -132,6 +145,21 @@
   "license": "MIT",
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
-    "jose": "6.2.4"
+    "@duckdb/node-api": "1.5.5-r.2",
+    "amqplib": "2.0.1",
+    "csv-parse": "7.0.1",
+    "csv-stringify": "6.8.1",
+    "hyparquet": "1.27.1",
+    "hyparquet-writer": "0.16.1",
+    "ipaddr.js": "2.4.0",
+    "jose": "6.2.4",
+    "kafkajs": "2.2.4",
+    "mongodb": "6.21.0",
+    "mysql2": "3.23.2",
+    "pg": "8.22.0",
+    "read-excel-file": "9.3.5",
+    "redis": "6.1.0",
+    "ssh2-sftp-client": "12.1.1",
+    "write-excel-file": "4.1.1"
   }
 }

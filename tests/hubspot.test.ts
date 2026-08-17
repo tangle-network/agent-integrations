@@ -51,6 +51,19 @@ describe('hubspot adapter', () => {
     ])
   })
 
+  it('requests every required HubSpot app scope during OAuth authorization', () => {
+    expect(adapter.manifest.auth).toMatchObject({
+      kind: 'oauth2',
+      scopes: [
+        'oauth',
+        'crm.objects.contacts.read',
+        'crm.objects.contacts.write',
+        'crm.objects.deals.write',
+        'tickets',
+      ],
+    })
+  })
+
   // create_deal --------------------------------------------------------------
 
   it('create_deal POSTs /crm/v3/objects/deals with properties and threads idempotency-key', async () => {

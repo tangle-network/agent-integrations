@@ -5,8 +5,59 @@ import type { ConnectorAdapter, TokenMetadataSource } from '../connectors/types.
 
 const OWNER = { type: 'user' as const, id: 'user_42' }
 const REDIRECT = 'https://app.example/oauth/callback'
+const PKCE_CHALLENGE = 'c'.repeat(43)
+const PKCE_VERIFIER = 'v'.repeat(64)
+const REDACTION_CLIENT_ID = 'client id:✓'
+const REDACTION_CLIENT_SECRET = 's e+c%r:et'
+const REDACTION_JSON_SECRET = 's"e\\c\nret'
+const REDACTION_CODE = 'code +%:✓'
+const REDACTION_VERIFIER = `${'v'.repeat(43)}.-_~`
+const REDACTION_BASIC_VALUE = 'client+id%3A%E2%9C%93:s+e%2Bc%25r%3Aet'
+const REDACTION_BASIC_PAYLOAD = Buffer.from(REDACTION_BASIC_VALUE).toString('base64')
+const REDACTION_AUTHORIZATION = `Basic ${REDACTION_BASIC_PAYLOAD}`
 
-function oauthAdapter(tokenMetadata?: Record<string, TokenMetadataSource>): ConnectorAdapter {
+function formEncode(value: string): string {
+  return new URLSearchParams({ value }).toString().slice('value='.length)
+}
+
+function lowercasePercentEscapes(value: string): string {
+  return value.replace(/%[0-9A-F]{2}/g, (escape) => escape.toLowerCase())
+}
+
+const ADAPTER_REDACTION_REFLECTIONS = [
+  ['raw client secret', REDACTION_CLIENT_SECRET],
+  [
+    'lowercase form-encoded authorization code',
+    lowercasePercentEscapes(formEncode(REDACTION_CODE)),
+  ],
+  [
+    'lowercase form-encoded PKCE verifier',
+    lowercasePercentEscapes(formEncode(REDACTION_VERIFIER)),
+  ],
+  [
+    'lowercase percent-20 form-encoded client id',
+    lowercasePercentEscapes(
+      formEncode(REDACTION_CLIENT_ID).replaceAll('+', '%20'),
+    ),
+  ],
+  [
+    'lowercase form-encoded client secret',
+    lowercasePercentEscapes(formEncode(REDACTION_CLIENT_SECRET)),
+  ],
+  ['Basic authorization', REDACTION_AUTHORIZATION],
+  ['bare Basic payload', REDACTION_BASIC_PAYLOAD],
+] as const
+
+const ADAPTER_REDACTION_CASES = (['response', 'transport'] as const).flatMap(
+  (failureSource) =>
+    ADAPTER_REDACTION_REFLECTIONS.map(([label, reflected]) =>
+      [failureSource, label, reflected] as const),
+)
+
+function oauthAdapter(
+  tokenMetadata?: Record<string, TokenMetadataSource>,
+  pkce?: 'required' | 'supported' | 'unsupported',
+): ConnectorAdapter {
   return {
     manifest: {
       kind: 'demo-oauth',
@@ -20,6 +71,7 @@ function oauthAdapter(tokenMetadata?: Record<string, TokenMetadataSource>): Conn
         clientIdEnv: 'DEMO_CLIENT_ID',
         clientSecretEnv: 'DEMO_CLIENT_SECRET',
         extraAuthParams: { access_type: 'offline' },
+        ...(pkce ? { pkce } : {}),
         ...(tokenMetadata ? { tokenMetadata } : {}),
       },
       capabilities: [],
@@ -49,6 +101,23 @@ function apiKeyAdapter(): ConnectorAdapter {
   }
 }
 
+function tenantOAuthAdapter(): ConnectorAdapter {
+  const adapter = oauthAdapter()
+  if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2 adapter')
+  return {
+    ...adapter,
+    manifest: {
+      ...adapter.manifest,
+      kind: 'tenant-oauth',
+      auth: {
+        ...adapter.manifest.auth,
+        authorizationUrl: 'https://{shop}.provider.example/oauth/authorize',
+        tokenUrl: 'https://{shop}.provider.example/oauth/token',
+      },
+    },
+  }
+}
+
 function tokenResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -70,6 +139,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       requestedScopes: [],
       redirectUri: REDIRECT,
       state: 'state_fixed_for_test',
+      codeChallenge: PKCE_CHALLENGE,
     })
 
     const url = new URL(result.authUrl)
@@ -80,9 +150,159 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     expect(url.searchParams.get('scope')).toBe('read:demo write:demo')
     expect(url.searchParams.get('state')).toBe('state_fixed_for_test')
     expect(url.searchParams.get('access_type')).toBe('offline')
+    expect(url.searchParams.get('code_challenge')).toBe(PKCE_CHALLENGE)
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(result.providerId).toBe('first-party')
     expect(result.connectorId).toBe('demo-oauth')
     expect(result.state).toBe('state_fixed_for_test')
+    expect((await provider.listConnectors())[0]?.metadata?.oauthPkce).toBe('required')
+  })
+
+  it('fails closed before provider traffic when the default PKCE fields are missing', async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter()],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    await expect(provider.startAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+    })).rejects.toMatchObject({ code: 'config_missing' })
+    await expect(provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })).rejects.toMatchObject({ code: 'config_missing' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('uses PKCE when the provider declares it supported', async () => {
+    let tokenBody: URLSearchParams | undefined
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter(undefined, 'supported')],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl: vi.fn(async (_url, init) => {
+        tokenBody = init?.body as URLSearchParams
+        return tokenResponse({ access_token: 'acc_xyz' })
+      }) as unknown as typeof fetch,
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      codeChallenge: PKCE_CHALLENGE,
+    })
+    expect(new URL(started.authUrl).searchParams.get('code_challenge')).toBe(PKCE_CHALLENGE)
+    await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: started.state,
+      redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
+    })
+    expect(tokenBody?.get('code_verifier')).toBe(PKCE_VERIFIER)
+    expect((await provider.listConnectors())[0]?.metadata?.oauthPkce).toBe('supported')
+  })
+
+  it('omits caller-supplied PKCE fields when the provider declares them unsupported', async () => {
+    let tokenBody: URLSearchParams | undefined
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter(undefined, 'unsupported')],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl: vi.fn(async (_url, init) => {
+        tokenBody = init?.body as URLSearchParams
+        return tokenResponse({ access_token: 'acc_xyz' })
+      }) as unknown as typeof fetch,
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      codeChallenge: 'caller-must-not-force-pkce',
+    })
+    const authUrl = new URL(started.authUrl)
+    expect(authUrl.searchParams.has('code_challenge')).toBe(false)
+    expect(authUrl.searchParams.has('code_challenge_method')).toBe(false)
+    await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: started.state,
+      redirectUri: REDIRECT,
+      codeVerifier: 'caller-must-not-force-pkce',
+    })
+    expect(tokenBody?.has('code_verifier')).toBe(false)
+    expect((await provider.listConnectors())[0]?.metadata?.oauthPkce).toBe('unsupported')
+  })
+
+  it('resolves a tenant OAuth hostname from a validated metadata label', async () => {
+    const fetchImpl = vi.fn(async () => tokenResponse({ access_token: 'acc_xyz' })) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [tenantOAuthAdapter()],
+      resolveDataSource: () => ({ kind: 'tenant-oauth', id: 'ds_tenant' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      state: 'state_tenant',
+      codeChallenge: PKCE_CHALLENGE,
+      metadata: { shop: 'Acme-Store' },
+    })
+    expect(new URL(started.authUrl).hostname).toBe('acme-store.provider.example')
+
+    await provider.completeAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      code: 'code_tenant',
+      state: 'state_tenant',
+      redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
+      metadata: { shop: 'Acme-Store' },
+    })
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://acme-store.provider.example/oauth/token',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it.each([
+    [{}, 'requires metadata.shop'],
+    [{ shop: 'acme.provider.example' }, 'valid tenant label'],
+    [{ shop: 'acme@attacker.test' }, 'valid tenant label'],
+    [{ shop: '-acme' }, 'valid tenant label'],
+  ])('rejects missing or unsafe tenant OAuth metadata', async (metadata, message) => {
+    const provider = createConnectorAdapterProvider({
+      adapters: [tenantOAuthAdapter()],
+      resolveDataSource: () => ({ kind: 'tenant-oauth', id: 'ds_tenant' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+    })
+
+    await expect(provider.startAuth!({
+      connectorId: 'tenant-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      metadata,
+    })).rejects.toMatchObject({ code: 'config_missing', message: expect.stringContaining(message) })
   })
 
   it('startAuth refuses non-oauth2 (api-key) adapters with auth_not_supported', async () => {
@@ -126,12 +346,14 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       expect((init?.headers as Record<string, string>)['content-type']).toBe(
         'application/x-www-form-urlencoded',
       )
+      expect((init?.headers as Record<string, string>).authorization).toBeUndefined()
       const body = init?.body as URLSearchParams
       expect(body.get('grant_type')).toBe('authorization_code')
       expect(body.get('code')).toBe('the_code')
       expect(body.get('client_id')).toBe('cid_live')
       expect(body.get('client_secret')).toBe('sec_live')
       expect(body.get('redirect_uri')).toBe(REDIRECT)
+      expect(body.get('code_verifier')).toBe(PKCE_VERIFIER)
       return tokenResponse({
         access_token: 'acc_xyz',
         refresh_token: 'ref_xyz',
@@ -156,6 +378,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       code: 'the_code',
       state: 'state_xyz',
       redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
     })
 
     expect(fetchImpl).toHaveBeenCalledOnce()
@@ -170,13 +393,296 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
     expect(conn.id).toMatch(/^conn_/)
   })
 
+  it.each([
+    ['reserved characters', 'client:id', 's+e%cret', 'client%3Aid:s%2Be%25cret'],
+    [
+      'spaces and Unicode',
+      'client id:✓',
+      's e+c%r:et',
+      'client+id%3A%E2%9C%93:s+e%2Bc%25r%3Aet',
+    ],
+  ])(
+    'completeAuth form-encodes client_secret_basic %s',
+    async (_label, clientId, clientSecret, expectedDecoded) => {
+      const basicAdapter = oauthAdapter()
+      if (basicAdapter.manifest.auth.kind !== 'oauth2') {
+        throw new Error('expected OAuth2 auth')
+      }
+      basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+      const fetchImpl = vi.fn(async (url, init) => {
+        expect(url).toBe('https://idp.example/token')
+        expect(init?.method).toBe('POST')
+        const headers = init?.headers as Record<string, string>
+        expect(headers).toEqual({
+          'content-type': 'application/x-www-form-urlencoded',
+          accept: 'application/json',
+          authorization: `Basic ${Buffer.from(expectedDecoded).toString('base64')}`,
+        })
+        const body = init?.body as URLSearchParams
+        expect(body.get('grant_type')).toBe('authorization_code')
+        expect(body.get('code')).toBe('the_code')
+        expect(body.get('redirect_uri')).toBe(REDIRECT)
+        expect(body.get('code_verifier')).toBe(PKCE_VERIFIER)
+        expect(body.has('client_id')).toBe(false)
+        expect(body.has('client_secret')).toBe(false)
+        return tokenResponse({ access_token: 'acc_xyz' })
+      }) as unknown as typeof fetch
+      const provider = createConnectorAdapterProvider({
+        adapters: [basicAdapter],
+        resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+        resolveOAuthClient: () => ({ clientId, clientSecret }),
+        fetchImpl,
+      })
+
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: 'the_code',
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+        codeVerifier: PKCE_VERIFIER,
+      })
+      expect(fetchImpl).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('supports a PKCE public client with a client id and no secret', async () => {
+    const publicAdapter = oauthAdapter()
+    if (publicAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    publicAdapter.manifest.auth.tokenClientAuthMethod = 'none'
+    delete publicAdapter.manifest.auth.clientSecretEnv
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(url).toBe('https://idp.example/token')
+      expect((init?.headers as Record<string, string>).authorization).toBeUndefined()
+      const body = init?.body as URLSearchParams
+      expect(body.get('client_id')).toBe('cid_public')
+      expect(body.has('client_secret')).toBe(false)
+      expect(body.get('code_verifier')).toBe(PKCE_VERIFIER)
+      return tokenResponse({ access_token: 'acc_public' })
+    }) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [publicAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({
+        clientId: 'cid_public',
+        clientSecret: 'must-not-send',
+      }),
+      fetchImpl,
+    })
+
+    const started = await provider.startAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      codeChallenge: PKCE_CHALLENGE,
+    })
+    expect(new URL(started.authUrl).searchParams.get('client_id')).toBe('cid_public')
+    expect(new URL(started.authUrl).searchParams.get('code_challenge')).toBe(PKCE_CHALLENGE)
+    await provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: started.state,
+      redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
+    })
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('fails closed when a confidential client resolver omits the secret', async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter()],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live' }),
+      fetchImpl,
+    })
+
+    await expect(provider.startAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      requestedScopes: [],
+      redirectUri: REDIRECT,
+      codeChallenge: PKCE_CHALLENGE,
+    })).rejects.toMatchObject({ code: 'config_missing' })
+    await expect(provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
+    })).rejects.toMatchObject({ code: 'config_missing' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it.each(ADAPTER_REDACTION_CASES)(
+    'redacts %s %s reflections for client_secret_basic',
+    async (failureSource, _label, reflected) => {
+      const basicAdapter = oauthAdapter()
+      if (basicAdapter.manifest.auth.kind !== 'oauth2') {
+        throw new Error('expected OAuth2 auth')
+      }
+      basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+      const fetchImpl = vi.fn(async () => {
+        if (failureSource === 'transport') throw new Error(reflected)
+        return new Response(
+          JSON.stringify({ error: 'invalid_client', detail: reflected }),
+          { status: 401, statusText: 'Unauthorized' },
+        )
+      }) as unknown as typeof fetch
+      const provider = createConnectorAdapterProvider({
+        adapters: [basicAdapter],
+        resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+        resolveOAuthClient: () => ({
+          clientId: REDACTION_CLIENT_ID,
+          clientSecret: REDACTION_CLIENT_SECRET,
+        }),
+        fetchImpl,
+      })
+
+      let caught: unknown
+      try {
+        await provider.completeAuth!({
+          connectorId: 'demo-oauth',
+          owner: OWNER,
+          code: REDACTION_CODE,
+          state: 'state_xyz',
+          redirectUri: REDIRECT,
+          codeVerifier: REDACTION_VERIFIER,
+        })
+      } catch (error) {
+        caught = error
+      }
+
+      expect(caught).toMatchObject({
+        code: 'provider_failure',
+        message: expect.stringContaining('[REDACTED]'),
+      })
+      expect((caught as Error).message).not.toContain(reflected)
+    },
+  )
+
+  it('redacts provider-controlled status text', async () => {
+    const reflected = lowercasePercentEscapes(
+      formEncode(REDACTION_CLIENT_SECRET),
+    )
+    const basicAdapter = oauthAdapter()
+    if (basicAdapter.manifest.auth.kind !== 'oauth2') {
+      throw new Error('expected OAuth2 auth')
+    }
+    basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+    const provider = createConnectorAdapterProvider({
+      adapters: [basicAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({
+        clientId: REDACTION_CLIENT_ID,
+        clientSecret: REDACTION_CLIENT_SECRET,
+      }),
+      fetchImpl: vi.fn(async () =>
+        new Response('', { status: 401, statusText: reflected })) as unknown as typeof fetch,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: REDACTION_CODE,
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+        codeVerifier: REDACTION_VERIFIER,
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toMatchObject({
+      code: 'provider_failure',
+      message: expect.stringContaining('[REDACTED]'),
+    })
+    expect((caught as Error).message).not.toContain(reflected)
+  })
+
+  it('redacts JSON-escaped client secrets', async () => {
+    const escaped = JSON.stringify(REDACTION_JSON_SECRET).slice(1, -1)
+    const basicAdapter = oauthAdapter()
+    if (basicAdapter.manifest.auth.kind !== 'oauth2') {
+      throw new Error('expected OAuth2 auth')
+    }
+    basicAdapter.manifest.auth.tokenClientAuthMethod = 'client_secret_basic'
+    const provider = createConnectorAdapterProvider({
+      adapters: [basicAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({
+        clientId: REDACTION_CLIENT_ID,
+        clientSecret: REDACTION_JSON_SECRET,
+      }),
+      fetchImpl: vi.fn(async () =>
+        new Response(JSON.stringify({ error: REDACTION_JSON_SECRET }), {
+          status: 401,
+          statusText: 'Unauthorized',
+        })) as unknown as typeof fetch,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: REDACTION_CODE,
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+        codeVerifier: REDACTION_VERIFIER,
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toMatchObject({
+      code: 'provider_failure',
+      message: expect.stringContaining('[REDACTED]'),
+    })
+    expect((caught as Error).message).not.toContain(escaped)
+    expect((caught as Error).message).not.toContain(REDACTION_JSON_SECRET)
+  })
+
+  it('fails closed before fetching when an adapter supplies an unknown token client authentication method', async () => {
+    const malformedAdapter = oauthAdapter()
+    if (malformedAdapter.manifest.auth.kind !== 'oauth2') throw new Error('expected OAuth2 auth')
+    malformedAdapter.manifest.auth.tokenClientAuthMethod = 'not-a-real-method' as never
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [malformedAdapter],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    await expect(provider.completeAuth!({
+      connectorId: 'demo-oauth',
+      owner: OWNER,
+      code: 'the_code',
+      state: 'state_xyz',
+      redirectUri: REDIRECT,
+    })).rejects.toMatchObject({
+      code: 'config_missing',
+      message: expect.stringContaining('unsupported OAuth token client authentication method'),
+    })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('completeAuth surfaces a provider_failure when the IdP responds non-2xx', async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response('{"error":"invalid_grant"}', {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: { 'content-type': 'application/json' },
-      }),
+      new Response(
+        '{"error":"invalid_grant","echo":"cid_live sec_live bad_code"}',
+        {
+          status: 400,
+          statusText: 'Bad Request',
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
     ) as unknown as typeof fetch
 
     const provider = createConnectorAdapterProvider({
@@ -194,14 +700,49 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
         code: 'bad_code',
         state: 'state_xyz',
         redirectUri: REDIRECT,
+        codeVerifier: PKCE_VERIFIER,
       })
     } catch (e) {
       caught = e
     }
     expect(caught).toBeInstanceOf(IntegrationError)
     expect((caught as IntegrationError).code).toBe('provider_failure')
-    // The thrown message MUST NOT leak the client secret.
+    expect((caught as Error).message).toContain('[REDACTED]')
+    expect((caught as Error).message).not.toContain('cid_live')
     expect((caught as Error).message).not.toContain('sec_live')
+    expect((caught as Error).message).not.toContain('bad_code')
+  })
+
+  it('completeAuth redacts credentials from token-exchange transport errors', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('request failed with cid_live sec_live bad_code')
+    }) as unknown as typeof fetch
+    const provider = createConnectorAdapterProvider({
+      adapters: [oauthAdapter()],
+      resolveDataSource: () => ({ kind: 'demo-oauth', id: 'ds_demo' }) as never,
+      resolveOAuthClient: () => ({ clientId: 'cid_live', clientSecret: 'sec_live' }),
+      fetchImpl,
+    })
+
+    let caught: unknown
+    try {
+      await provider.completeAuth!({
+        connectorId: 'demo-oauth',
+        owner: OWNER,
+        code: 'bad_code',
+        state: 'state_xyz',
+        redirectUri: REDIRECT,
+        codeVerifier: PKCE_VERIFIER,
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(IntegrationError)
+    expect((caught as Error).message).toContain('[REDACTED]')
+    expect((caught as Error).message).not.toContain('cid_live')
+    expect((caught as Error).message).not.toContain('sec_live')
+    expect((caught as Error).message).not.toContain('bad_code')
   })
 
   it('completeAuth rejects when the token response is missing access_token', async () => {
@@ -221,6 +762,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
         code: 'the_code',
         state: 'state_xyz',
         redirectUri: REDIRECT,
+        codeVerifier: PKCE_VERIFIER,
       }),
     ).rejects.toMatchObject({ code: 'provider_failure' })
   })
@@ -255,6 +797,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       code: 'the_code',
       state: 'state_xyz',
       redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
       // `tenant` is a non-colliding key → preserved (merge, not replace).
       // `apiBaseUrlForCustomer` collides → the token-exchange value is
       // authoritative and MUST win over the stale request.metadata value.
@@ -286,6 +829,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       code: 'the_code',
       state: 'state_xyz',
       redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
     })
 
     expect(conn.metadata).toEqual({})
@@ -312,6 +856,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
         code: 'the_code',
         state: 'state_xyz',
         redirectUri: REDIRECT,
+        codeVerifier: PKCE_VERIFIER,
       })
     } catch (e) {
       caught = e
@@ -343,6 +888,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
           code: 'the_code',
           state: 'state_xyz',
           redirectUri: REDIRECT,
+          codeVerifier: PKCE_VERIFIER,
         }),
       ).rejects.toMatchObject({ code: 'provider_failure' })
     }
@@ -366,6 +912,7 @@ describe('createConnectorAdapterProvider OAuth flow', () => {
       code: 'the_code',
       state: 'state_xyz',
       redirectUri: REDIRECT,
+      codeVerifier: PKCE_VERIFIER,
     })
 
     expect('instanceUrl' in (conn.metadata ?? {})).toBe(false)

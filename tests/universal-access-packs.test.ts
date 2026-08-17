@@ -1,35 +1,71 @@
 import { describe, expect, it } from 'vitest'
 import { getIntegrationSpec } from '../src/specs/index.js'
 import { buildDefaultIntegrationRegistry } from '../src/registry.js'
-import { rssConnector } from '../src/connectors/adapters/rss.js'
+import {
+  CONNECTOR_ADAPTER_FACTORIES,
+  resolveConnectorAdapterFactoryOptions,
+  rssConnector,
+} from '../src/connectors/adapters/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('universal access provider packs', () => {
-  it.each(['http', 'rss', 'amazon-s3', 'amazon-sns', 'amazon-sqs'])('%s is executable from a shipped adapter', (kind) => {
+  it.each([
+    'http',
+    'rss',
+    'amazon-s3',
+    'amazon-sns',
+    'amazon-sqs',
+    'amazon-eventbridge',
+    'gcloud-pubsub',
+    'azure-service-bus',
+    'azure-event-grid',
+    'kafka',
+    'sftp',
+    'csv-files',
+    'excel-files',
+    'parquet-files',
+  ])('%s is executable from a shipped adapter', (kind) => {
     const spec = getIntegrationSpec(kind)
     expect(spec?.status).toBe('executable')
     expect(spec?.actions.length).toBeGreaterThan(0)
   })
+
+  it.each([
+    'http',
+    'rss',
+    'amazon-s3',
+    'amazon-sns',
+    'amazon-sqs',
+    'amazon-eventbridge',
+    'gcloud-pubsub',
+    'azure-service-bus',
+    'azure-event-grid',
+    'kafka',
+    'sftp',
+    'csv-files',
+    'excel-files',
+    'parquet-files',
+  ])(
+    '%s is runnable by Hub without a shared deployment secret',
+    (kind) => {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(definition?.envMap, kind).toEqual({})
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
+      expect(definition?.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
+    },
+  )
 
   it('keeps aws-s3 as an alias for the canonical Amazon S3 adapter', () => {
     const registry = buildDefaultIntegrationRegistry()
     expect(registry.byId.get('aws-s3')).toBe(registry.byId.get('amazon-s3'))
   })
 
-  it.each([
-    'sftp',
-    'csv-files',
-    'excel-files',
-    'parquet-files',
-    'kafka',
-    'amazon-eventbridge',
-    'google-pubsub',
-    'azure-event-grid',
-    'azure-service-bus',
-  ])('%s is contract-only until its transport is implemented', (kind) => {
-    const spec = getIntegrationSpec(kind)
-    expect(spec?.status).toBe('catalog')
-    expect(spec?.actions).toEqual([])
+  it('keeps google-pubsub as an alias for the catalog Google Cloud Pub/Sub adapter', () => {
+    const registry = buildDefaultIntegrationRegistry()
+    expect(registry.byId.get('google-pubsub')).toBe(registry.byId.get('gcloud-pubsub'))
   })
 
   it('maps universal provider events into the shared event contract', () => {

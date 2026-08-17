@@ -8,14 +8,19 @@ import type {
   IntegrationConnectorAction,
   IntegrationConnectorTrigger,
   IntegrationDataClass,
-} from '../index.js'
+} from '../core-types.js'
 import {
   bundledApiKeyHint,
   bundledAuthMode,
-  bundledOAuth2Auth,
+  bundledOAuth2AuthContract,
   getBundledAdapterManifest,
-} from '../connectors/bundled-manifests.js'
-import type { ConnectorManifest } from '../connectors/types.js'
+} from '../connectors/bundled-manifest-data.js'
+import type {
+  ConnectorManifest,
+  OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
+} from '../connectors/types.js'
+import { canonicalIntegrationKind } from '../integration-kind-aliases.js'
 import { INTEGRATION_FAMILIES, getIntegrationFamily } from './families.js'
 import { getIntegrationOverride } from './overrides.js'
 import type {
@@ -51,15 +56,6 @@ function bundledManifestFor(kind: string, coverageId: string) {
   return getBundledAdapterManifest(kind) ?? getBundledAdapterManifest(coverageId)
 }
 
-const KIND_ALIASES: Record<string, string> = {
-  'outlook-calendar': 'microsoft-calendar',
-  'microsoft-excel': 'microsoft-excel-365',
-  'aws-s3': 'amazon-s3',
-  'notion-database': 'notion',
-  stripe: 'stripe-pack',
-  twilio: 'twilio-sms',
-}
-
 export function listIntegrationSpecs(): IntegrationSpec[] {
   const connectors = new Map(buildIntegrationCoverageConnectors({ providerId: 'spec' }).map((c) => [c.id, c]))
   return listIntegrationCoverageSpecs().map((coverage) => {
@@ -70,8 +66,8 @@ export function listIntegrationSpecs(): IntegrationSpec[] {
 }
 
 export function getIntegrationSpec(kind: string): IntegrationSpec | undefined {
-  const canonical = KIND_ALIASES[kind] ?? kind
-  return listIntegrationSpecs().find((spec) => spec.kind === canonical || KIND_ALIASES[spec.kind] === canonical)
+  const canonical = canonicalIntegrationKind(kind)
+  return listIntegrationSpecs().find((spec) => canonicalIntegrationKind(spec.kind) === canonical)
 }
 
 /** Auth-driving descriptor the hub uses to start a connect flow per provider
@@ -81,6 +77,7 @@ export function getIntegrationSpec(kind: string): IntegrationSpec | undefined {
 export interface ConnectorAuthSpec {
   kind: string
   authKind: 'oauth2' | 'api_key' | 'none' | 'custom'
+  grantType?: 'authorization_code' | 'client_credentials'
   /** Provider scopes to request in the authorization grant. Empty for
    *  api_key / none / custom. */
   requestedScopes: string[]
@@ -92,7 +89,14 @@ export interface ConnectorAuthSpec {
   redirectUriTemplate?: string
   clientIdEnv?: string
   clientSecretEnv?: string
+  scopeSeparator?: ' ' | ','
+  authorizationClientIdParam?: string
+  tokenClientIdParam?: string
+  tokenClientSecretParam?: string
+  tokenClientAuthMethod?: OAuth2TokenClientAuthMethod
+  sendScopeParam?: boolean
   extraAuthParams?: Record<string, string>
+  urlTemplateMetadata?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>
 }
 
 export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | undefined {
@@ -103,6 +107,7 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
     return {
       kind: spec.kind,
       authKind: 'oauth2',
+      grantType: auth.grantType,
       requestedScopes: auth.scopes.map((scope) => scope.providerScope).filter(Boolean),
       authorizationUrl: auth.authorizationUrl,
       tokenUrl: auth.tokenUrl,
@@ -110,7 +115,14 @@ export function resolveConnectorAuthSpec(kind: string): ConnectorAuthSpec | unde
       redirectUriTemplate: auth.redirectUriTemplate,
       clientIdEnv: auth.clientIdEnv,
       clientSecretEnv: auth.clientSecretEnv,
+      scopeSeparator: auth.scopeSeparator,
+      authorizationClientIdParam: auth.authorizationClientIdParam,
+      tokenClientIdParam: auth.tokenClientIdParam,
+      tokenClientSecretParam: auth.tokenClientSecretParam,
+      tokenClientAuthMethod: auth.tokenClientAuthMethod,
+      sendScopeParam: auth.sendScopeParam,
       extraAuthParams: auth.extraAuthParams,
+      urlTemplateMetadata: auth.urlTemplateMetadata,
     }
   }
   if (auth.mode === 'api_key') {
@@ -147,7 +159,7 @@ export function integrationSpecToConnector(spec: IntegrationSpec, providerId = '
 }
 
 function specFromCoverage(coverage: IntegrationCoverageSpec, connector: IntegrationConnector): IntegrationSpec {
-  const kind = KIND_ALIASES[coverage.id] ?? coverage.id
+  const kind = canonicalIntegrationKind(coverage.id)
   const family = familyFor(coverage)
   const familySpec = getIntegrationFamily(family)
   const manifest = bundledManifestFor(kind, coverage.id)
@@ -287,17 +299,34 @@ function authFor(
   // and never substitute a placeholder when neither knows — an absent URL is
   // a fact the caller can check, whereas `https://example.invalid/...` is a
   // dead link that reads as configuration.
-  const real = manifest ? bundledOAuth2Auth(manifest) : undefined
+  const real = manifest ? bundledOAuth2AuthContract(manifest) : undefined
+  const tokenClientAuthMethod = real?.tokenClientAuthMethod ?? 'client_secret_post'
   return {
     mode: 'oauth2',
-    authorizationUrl: real?.authorizationUrl ?? f.authorizationUrl,
+    grantType: real?.grantType === 'client_credentials' ? 'client_credentials' : undefined,
+    authorizationUrl: real?.grantType === 'client_credentials'
+      ? undefined
+      : real?.authorizationUrl ?? f.authorizationUrl,
     tokenUrl: real?.tokenUrl ?? f.tokenUrl,
     clientIdEnv: real?.clientIdEnv ?? f.credentialFields.find((field) => !field.secret)?.env,
-    clientSecretEnv: real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
+    clientSecretEnv: tokenClientAuthMethod === 'none'
+      ? undefined
+      : real?.clientSecretEnv ?? f.credentialFields.find((field) => field.secret)?.env,
+    scopeSeparator: real?.scopeSeparator ?? ' ',
+    authorizationClientIdParam: real?.authorizationClientIdParam ?? 'client_id',
+    tokenClientIdParam: real?.tokenClientIdParam ?? 'client_id',
+    tokenClientSecretParam: real?.tokenClientSecretParam ?? 'client_secret',
+    tokenClientAuthMethod,
+    sendScopeParam: real?.sendScopeParam,
     scopes: real ? scopesFromManifest(real.scopes, permissions) : scopes,
     extraAuthParams: real?.extraAuthParams ?? extraAuthParamsFor(family),
+    urlTemplateMetadata: real?.urlTemplateMetadata,
     redirectUriTemplate: (f.redirectUriTemplate ?? 'https://{host}/api/integrations/oauth/{kind}/callback').replace('{kind}', spec.id),
-    pkce: family === 'google' || family === 'microsoft-graph' ? 'supported' : 'unsupported',
+    pkce: real?.pkce ?? (
+      family === 'google' || family === 'microsoft-graph'
+        ? 'supported'
+        : 'required'
+    ),
   } satisfies OAuth2AuthSpec
 }
 
@@ -346,7 +375,7 @@ function scopesFromManifest(
   const writePermission = permissions.find((permission) => permission.risk === 'write')
   const readPermission = permissions.find((permission) => permission.risk === 'read') ?? permissions[0]
   return providerScopes.map((providerScope): ScopeDescriptor => {
-    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|full|admin|readwrite)(?:$|[.\/_:-])/i.test(
+    const mutating = /(?:^|[.\/_:-])(?:write|manage|create|modify|edit|update|delete|publish|full|readwrite)(?:$|[.\/_:-])/i.test(
       providerScope,
     )
     const base = (mutating ? writePermission : readPermission) ?? readPermission
@@ -364,10 +393,18 @@ function scopesFromManifest(
 function credentialFieldsFor(auth: IntegrationAuthSpec) {
   if (auth.mode === 'api_key' || auth.mode === 'hmac') return [auth.credential]
   if (auth.mode === 'oauth2') {
-    return [
+    const fields = [
       { label: 'Client ID', env: auth.clientIdEnv, description: 'OAuth client ID.', secret: false },
-      { label: 'Client Secret', env: auth.clientSecretEnv, description: 'OAuth client secret.', secret: true },
     ]
+    if (auth.tokenClientAuthMethod !== 'none') {
+      fields.push({
+        label: 'Client Secret',
+        env: auth.clientSecretEnv,
+        description: 'OAuth client secret.',
+        secret: true,
+      })
+    }
+    return fields
   }
   return []
 }
@@ -475,7 +512,9 @@ function apiKeyFieldFor(kind: string) {
 }
 
 function apiKeyPlacementFor(kind: string): ApiKeyAuthSpec['placement'] {
-  if (kind === 'gitlab') return 'header'
+  if (kind === 'sftp' || kind === 'kafka') return undefined
+  if (kind === 'amplitude') return 'basic'
+  if (kind === 'clickup' || kind === 'gitlab') return 'header'
   return 'bearer'
 }
 

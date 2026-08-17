@@ -10,7 +10,7 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     kind: 'zoho-bookings',
     label: 'Zoho Bookings test',
     consistencyModel: 'authoritative',
-    scopes: ['ZohoBokings.appointments.ALL'],
+    scopes: ['zohobookings.data.READ', 'zohobookings.data.CREATE'],
     metadata: {},
     credentials: { kind: 'oauth2', accessToken: 'zoho_token' },
     status: 'active',
@@ -19,204 +19,225 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
-  if (status === 204 || status === 205 || status === 304) {
-    return new Response(null, { status })
-  }
   return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
+    status: init.status ?? 200,
+    headers: { 'content-type': 'application/json', ...init.headers },
   })
 }
 
 describe('zoho-bookings adapter manifest', () => {
-  it('classifies itself as the calendar category and exposes the zoho-bookings kind', () => {
+  it('uses the shared Zoho OAuth app with the exact comma-delimited Bookings scopes', () => {
     expect(zohoBookingsConnector.manifest.kind).toBe('zoho-bookings')
     expect(zohoBookingsConnector.manifest.category).toBe('calendar')
     expect(zohoBookingsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
 
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
     const auth = zohoBookingsConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
+    expect(auth).toMatchObject({
+      kind: 'oauth2',
+      clientIdEnv: 'ZOHO_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'ZOHO_OAUTH_CLIENT_SECRET',
+      scopes: ['zohobookings.data.CREATE', 'zohobookings.data.READ'],
+      scopeSeparator: ',',
+      extraAuthParams: { access_type: 'offline', prompt: 'consent' },
+    })
   })
 
-  it('covers the appointment + services + staff capability surface', () => {
-    const names = zohoBookingsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'appointment.list',
-        'appointment.get',
-        'availability.fetch',
-        'appointment.book',
-        'appointment.reschedule',
-        'appointment.cancel',
-        'appointment.complete',
-        'appointment.no-show',
-        'services.list',
-        'staff.list',
-      ].sort(),
-    )
-    const reads = zohoBookingsConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = zohoBookingsConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'appointment.list',
-        'appointment.get',
-        'availability.fetch',
-        'services.list',
-        'staff.list',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'appointment.book',
-        'appointment.reschedule',
-        'appointment.cancel',
-        'appointment.complete',
-        'appointment.no-show',
-      ].sort(),
-    )
-  })
+  it('exposes only documented Bookings operations and requires approval for every write', () => {
+    const names = zohoBookingsConnector.manifest.capabilities.map((capability) => capability.name).sort()
+    expect(names).toEqual([
+      'appointments.book',
+      'appointments.cancel',
+      'appointments.get',
+      'appointments.list',
+      'appointments.reschedule',
+      'availability.fetch',
+      'resources.list',
+      'services.list',
+      'staff.list',
+      'workspaces.list',
+    ])
 
-  it('marks appointment.complete / appointment.no-show as native-idempotency external effect', () => {
-    const targets = ['appointment.complete', 'appointment.no-show']
-    for (const name of targets) {
-      const cap = zohoBookingsConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, name).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas, name).toBe('native-idempotency')
-      expect(cap.externalEffect, name).toBe(true)
+    const mutations = zohoBookingsConnector.manifest.capabilities.filter(
+      (capability) => capability.class === 'mutation',
+    )
+    expect(mutations.map((capability) => capability.name).sort()).toEqual([
+      'appointments.book',
+      'appointments.cancel',
+      'appointments.reschedule',
+    ])
+    for (const capability of mutations) {
+      expect(capability.externalEffect, capability.name).toBe(true)
+      expect(capability.requiredScopes, capability.name).toEqual(['zohobookings.data.CREATE'])
     }
   })
 })
 
-describe('zoho-bookings services.list', () => {
+describe('zoho-bookings direct execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('GETs /bookings/v1/services with the Zoho-oauthtoken header prefix', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    let capturedAuth = ''
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = String(input)
-      capturedMethod = init?.method ?? ''
-      const headers = init?.headers as Record<string, string> | undefined
-      capturedAuth = headers?.authorization ?? headers?.Authorization ?? ''
-      return jsonResponse([{ id: 'svc_1', name: 'Haircut' }])
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('routes regional service discovery through the documented JSON API', async () => {
+    let request: { url?: string; method?: string; authorization?: string } = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers)
+      request = {
+        url: String(input),
+        method: init?.method,
+        authorization: headers.get('authorization') ?? undefined,
+      }
+      return jsonResponse({ response: { returnvalue: { data: [{ id: 'svc_1' }] } } })
+    }))
 
-    const result = await zohoBookingsConnector.executeRead!({
-      source: source(),
+    await zohoBookingsConnector.executeRead!({
+      source: source({ metadata: { zohoLocation: 'zoho.eu' } }),
       capabilityName: 'services.list',
-      args: {},
-      idempotencyKey: 'r-1',
+      args: { workspace_id: 'workspace 1' },
+      idempotencyKey: 'read-1',
     })
 
-    expect(capturedMethod).toBe('GET')
-    expect(capturedUrl).toBe('https://www.zohoapis.com/bookings/v1/services')
-    expect(capturedAuth).toBe('Zoho-oauthtoken zoho_token')
-    expect(result.data).toEqual([{ id: 'svc_1', name: 'Haircut' }])
+    expect(request).toEqual({
+      url: 'https://www.zohoapis.eu/bookings/v1/json/services?workspace_id=workspace+1',
+      method: 'GET',
+      authorization: 'Zoho-oauthtoken zoho_token',
+    })
   })
-})
 
-describe('zoho-bookings staff.list', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  it('uses the provider staff route and snake-case service filter', async () => {
+    let url = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      url = String(input)
+      return jsonResponse({ response: { returnvalue: { data: [] } } })
+    }))
 
-  it('GETs /bookings/v1/staff', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = String(input)
-      capturedMethod = init?.method ?? ''
-      return jsonResponse([{ id: 'stf_1' }])
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await zohoBookingsConnector.executeRead!({
+    await zohoBookingsConnector.executeRead!({
       source: source(),
       capabilityName: 'staff.list',
-      args: { serviceId: 'svc_1' },
-      idempotencyKey: 'r-2',
+      args: { service_id: 'svc_1' },
+      idempotencyKey: 'read-2',
     })
 
-    expect(capturedMethod).toBe('GET')
-    expect(capturedUrl).toBe('https://www.zohoapis.com/bookings/v1/staff?serviceId=svc_1')
-    expect(result.data).toEqual([{ id: 'stf_1' }])
+    expect(url).toBe('https://www.zohoapis.com/bookings/v1/json/staffs?service_id=svc_1')
   })
-})
 
-describe('zoho-bookings appointment.complete', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  it('posts appointment filters as the provider data form field', async () => {
+    let url = ''
+    let contentType = ''
+    let body = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      url = String(input)
+      contentType = new Headers(init?.headers).get('content-type') ?? ''
+      body = String(init?.body)
+      return jsonResponse({ response: { returnvalue: { response: [] } } })
+    }))
 
-  it('PUTs /bookings/v1/appointments/{appointmentId}/complete', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = String(input)
-      capturedMethod = init?.method ?? ''
-      return jsonResponse({ id: 'apt_1', status: 'completed' })
+    await zohoBookingsConnector.executeRead!({
+      source: source(),
+      capabilityName: 'appointments.list',
+      args: { from_time: '31-Jul-2026 09:00:00', status: 'upcoming' },
+      idempotencyKey: 'read-3',
     })
-    vi.stubGlobal('fetch', fetchMock)
+
+    expect(url).toBe('https://www.zohoapis.com/bookings/v1/json/fetchappointment')
+    expect(contentType).toBe('application/x-www-form-urlencoded')
+    expect(JSON.parse(new URLSearchParams(body).get('data') ?? '{}')).toEqual({
+      from_time: '31-Jul-2026 09:00:00',
+      status: 'upcoming',
+    })
+  })
+
+  it('books through the provider form API and preserves structured customer fields', async () => {
+    let body = ''
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = String(init?.body)
+      return jsonResponse({ response: { status: 'success', returnvalue: { booking_id: 'booking_1' } } })
+    }))
 
     const result = await zohoBookingsConnector.executeMutation!({
       source: source(),
-      capabilityName: 'appointment.complete',
-      args: { appointmentId: 'apt_1' },
-      idempotencyKey: 'k-1',
+      capabilityName: 'appointments.book',
+      args: {
+        service_id: 'svc_1',
+        from_time: '31-Jul-2026 09:00:00',
+        staff_id: 'staff_1',
+        customer_details: { name: 'Ada', email: 'ada@example.com', phone_number: '+15555550100' },
+        additional_fields: { source: 'Tangle' },
+      },
+      idempotencyKey: 'write-1',
     })
 
-    expect(capturedMethod).toBe('PUT')
-    expect(capturedUrl).toBe(
-      'https://www.zohoapis.com/bookings/v1/appointments/apt_1/complete',
-    )
+    const form = new URLSearchParams(body)
+    expect(form.get('service_id')).toBe('svc_1')
+    expect(form.get('staff_id')).toBe('staff_1')
+    expect(JSON.parse(form.get('customer_details') ?? '{}')).toEqual({
+      name: 'Ada',
+      email: 'ada@example.com',
+      phone_number: '+15555550100',
+    })
+    expect(JSON.parse(form.get('additional_fields') ?? '{}')).toEqual({ source: 'Tangle' })
     expect(result.status).toBe('committed')
   })
 
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zohoBookingsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'appointment.complete',
-        args: { appointmentId: 'apt_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
-
-describe('zoho-bookings appointment.no-show', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('PUTs /bookings/v1/appointments/{appointmentId}/no-show', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = String(input)
-      capturedMethod = init?.method ?? ''
-      return jsonResponse({ id: 'apt_1', status: 'no_show' })
-    })
+  it('rejects ambiguous assignments before sending a booking', async () => {
+    const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await zohoBookingsConnector.executeMutation!({
+    await expect(zohoBookingsConnector.executeMutation!({
       source: source(),
-      capabilityName: 'appointment.no-show',
-      args: { appointmentId: 'apt_1' },
-      idempotencyKey: 'k-2',
-    })
+      capabilityName: 'appointments.book',
+      args: {
+        service_id: 'svc_1',
+        from_time: '31-Jul-2026 09:00:00',
+        staff_id: 'staff_1',
+        resource_id: 'resource_1',
+        customer_details: { name: 'Ada' },
+      },
+      idempotencyKey: 'write-2',
+    })).rejects.toThrow('exactly one booking assignment is required')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
-    expect(capturedMethod).toBe('PUT')
-    expect(capturedUrl).toBe(
-      'https://www.zohoapis.com/bookings/v1/appointments/apt_1/no-show',
-    )
-    expect(result.status).toBe('committed')
+  it('cancels through updateappointment and surfaces expired credentials', async () => {
+    let body = ''
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = String(init?.body)
+      return new Response('unauthorized', { status: 401 })
+    }))
+
+    await expect(zohoBookingsConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'appointments.cancel',
+      args: { booking_id: 'booking_1' },
+      idempotencyKey: 'write-3',
+    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    expect(Object.fromEntries(new URLSearchParams(body))).toEqual({
+      booking_id: 'booking_1',
+      action: 'cancel',
+    })
+  })
+
+  it('returns a typed throttle with a bounded retry delay', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('slow down', {
+      status: 429,
+      headers: { 'retry-after': '2' },
+    })))
+
+    await expect(zohoBookingsConnector.executeRead!({
+      source: source(),
+      capabilityName: 'workspaces.list',
+      args: {},
+      idempotencyKey: 'read-4',
+    })).rejects.toMatchObject({ name: 'ProviderRateLimited', retryAfterMs: 2_000 })
+  })
+
+  it('rejects lookalike data-center hosts before any request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(zohoBookingsConnector.executeRead!({
+      source: source({ metadata: { zohoLocation: 'zoho.eu.attacker.test' } }),
+      capabilityName: 'workspaces.list',
+      args: {},
+      idempotencyKey: 'read-5',
+    })).rejects.toThrow('zohoLocation is not an allowed Zoho data center')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

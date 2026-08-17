@@ -15,6 +15,8 @@ export const insightlyConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiUrl' },
+  allowedBaseUrlSuffixes: ['.insightly.com'],
+  credentialPlacement: { kind: 'basic-api-key' },
   test: { method: 'GET', path: '/Instance' },
   capabilities: [
     {

@@ -18,21 +18,24 @@ import { declarativeRestConnector } from './declarative-rest.js'
 // Identifier nomenclature:
 //   - file_key  : the 22-character key from https://www.figma.com/board/<file_key>/<title>
 //   - node_id   : a comma-delimited list when used on /v1/files/<file_key>/nodes
-//   - team_id   : numeric team id (https://www.figma.com/files/team/<team_id>)
-//   - project_id: numeric project id under a team
+//   - project_id: numeric project id visible to the authenticated user
 //   - comment_id: returned from /v1/files/<file_key>/comments
 export const figjamConnector = declarativeRestConnector({
   kind: 'figjam',
   displayName: 'FigJam',
   description:
-    'Read FigJam boards (stickies, connectors, shapes, sections), list team/project boards, render board images, and post or delete board comments through the Figma REST API.',
+    'Read FigJam boards (stickies, connectors, shapes, sections), project metadata, render board images, and post or delete board comments through the Figma REST API.',
   auth: {
     kind: 'oauth2',
     authorizationUrl: 'https://www.figma.com/oauth',
     tokenUrl: 'https://api.figma.com/v1/oauth/token',
     scopes: [
-      'files:read',
+      'current_user:read',
+      'file_comments:read',
       'file_comments:write',
+      'file_content:read',
+      'file_versions:read',
+      'project_metadata:read',
       'webhooks:write',
     ],
     clientIdEnv: 'FIGMA_OAUTH_CLIENT_ID',
@@ -49,7 +52,7 @@ export const figjamConnector = declarativeRestConnector({
       description: 'Return the authenticated Figma/FigJam user.',
       parameters: { type: 'object', properties: {}, required: [] },
       request: { method: 'GET', path: '/v1/me' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['current_user:read'],
     },
     {
       name: 'files.get',
@@ -78,7 +81,7 @@ export const figjamConnector = declarativeRestConnector({
           plugin_data: '{plugin_data}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.nodes',
@@ -100,7 +103,7 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/nodes',
         query: { ids: '{ids}', version: '{version}', depth: '{depth}', geometry: '{geometry}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.images',
@@ -135,7 +138,7 @@ export const figjamConnector = declarativeRestConnector({
           version: '{version}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.image_fills',
@@ -147,7 +150,7 @@ export const figjamConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/images' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.versions.list',
@@ -168,7 +171,7 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/versions',
         query: { page_size: '{page_size}', before: '{before}', after: '{after}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_versions:read'],
     },
     {
       name: 'files.comments.list',
@@ -187,36 +190,19 @@ export const figjamConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/comments',
         query: { as_md: '{as_md}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_comments:read'],
     },
     {
-      name: 'teams.projects.list',
+      name: 'projects.metadata.get',
       class: 'read',
-      description: 'List projects inside a Figma team (FigJam boards live alongside Figma design files inside projects).',
+      description: 'Get metadata for a Figma/FigJam project visible to the authenticated user.',
       parameters: {
         type: 'object',
-        properties: { team_id: { type: 'string' } },
-        required: ['team_id'],
-      },
-      request: { method: 'GET', path: '/v1/teams/{team_id}/projects' },
-      requiredScopes: ['files:read'],
-    },
-    {
-      name: 'projects.files.list',
-      class: 'read',
-      description: 'List files inside a project — response items expose a `type` field; FigJam boards are returned with type "jam" and design files with type "design".',
-      parameters: {
-        type: 'object',
-        properties: {
-          project_id: { type: 'string' },
-        },
+        properties: { project_id: { type: 'string' } },
         required: ['project_id'],
       },
-      request: {
-        method: 'GET',
-        path: '/v1/projects/{project_id}/files',
-      },
-      requiredScopes: ['files:read'],
+      request: { method: 'GET', path: '/v1/projects/{project_id}/meta' },
+      requiredScopes: ['project_metadata:read'],
     },
     {
       name: 'files.comments.create',

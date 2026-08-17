@@ -21,6 +21,7 @@ provider SDK.
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Core Primitives](#core-primitives)
+- [Worker-safe Imports](#worker-safe-imports)
 - [Catalog Registry](#catalog-registry)
 - [Product Adoption](#product-adoption)
 - [Provider Strategy](#provider-strategy)
@@ -193,6 +194,16 @@ OAuth credentials.
 | `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
 | `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |
 | `validateCredentialSet` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
+
+## Worker-safe Imports
+
+Use `@tangle-network/agent-integrations/worker` for guard, audit, policy, and
+core contracts in a Worker or other non-Node runtime.
+This entry uses Web Crypto and contains no Node builtins.
+
+Use `/specs` for setup metadata and `/catalog` for pure tool-catalog helpers.
+These subpaths bundle static data without importing executable adapters or their
+Node-only clients.
 
 ## Catalog Registry
 
@@ -427,7 +438,19 @@ pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm run check:bundled-manifest-freshness
+pnpm pack
+pnpm run release
 ```
+
+`pnpm run release` builds the package, generates and checks bundled adapter
+metadata, packs one exact archive, and tests that archive without publishing.
+Use `pnpm run release -- --publish` for the npm release path; it publishes that
+tested archive with lifecycle scripts disabled and skips an existing version only
+when its registry integrity matches the tested archive.
+Packaging rebuilds the distribution and rejects stale bundled adapter metadata.
+The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
+`/catalog` for a browser Worker runtime.
 
 ## License
 

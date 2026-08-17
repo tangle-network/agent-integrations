@@ -127,14 +127,9 @@ describe('amazon-bedrock execution (SigV4 + control-plane host)', () => {
     await amazonBedrockConnector.executeMutation!({
       source: bedrockSource(),
       capabilityName: 'model.invoke',
-      // accept/contentType are passed because model.invoke declares them as
-      // `{placeholder}` headers, which the shared renderHeaders interpolation
-      // requires (a pre-existing optional-header limitation, not AWS-specific).
       args: {
         modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
         body: { x: 1 },
-        accept: 'application/json',
-        contentType: 'application/json',
       },
       idempotencyKey: 't',
     })

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { calComConnector } from '../cal-com.js'
+import { calCom, calComConnector } from '../cal-com.js'
 import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
@@ -25,17 +25,65 @@ describe('cal-com adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
+  it('binds public-client refresh to the credential-aware factory', () => {
+    const adapter = calCom({ clientId: 'cal_public_client' })
+    expect(adapter.exchangeOAuth).toBeTypeOf('function')
+    expect(adapter.refreshToken).toBeTypeOf('function')
+    expect(calComConnector.refreshToken).toBeUndefined()
+  })
+
+  it('exchanges a code as a PKCE public client', async () => {
+    const fetchImpl = vi.fn(async (_url, init) => {
+      const headers = init?.headers as Record<string, string>
+      const body = init?.body as URLSearchParams
+      expect(headers.authorization).toBeUndefined()
+      expect(body.get('client_id')).toBe('cal_public_client')
+      expect(body.has('client_secret')).toBe(false)
+      expect(body.get('code_verifier')).toBe('v'.repeat(64))
+      return Response.json({
+        access_token: 'fresh_access',
+        refresh_token: 'fresh_refresh',
+        expires_in: 3600,
+        scope: 'PROFILE_READ BOOKING_READ',
+      })
+    }) as typeof fetch
+    const adapter = calCom({
+      clientId: 'cal_public_client',
+      fetchImpl,
+      now: () => 1_000,
+    })
+
+    await expect(adapter.exchangeOAuth!({
+      code: 'authorization_code',
+      state: 'state',
+      codeVerifier: 'v'.repeat(64),
+      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/cal-com/callback',
+    })).resolves.toEqual({
+      credentials: {
+        kind: 'oauth2',
+        accessToken: 'fresh_access',
+        refreshToken: 'fresh_refresh',
+        expiresAt: 3_601_000,
+      },
+      scopes: ['PROFILE_READ', 'BOOKING_READ'],
+      metadata: {},
+    })
+  })
+
   it('declares Cal.com Platform oauth2 against app.cal.com with the v2 token exchange', () => {
     const auth = calComConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
     expect(auth.authorizationUrl).toBe('https://app.cal.com/auth/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://api.cal.com/v2/oauth/exchange')
+    expect(auth.tokenUrl).toBe('https://api.cal.com/v2/auth/oauth2/token')
     expect(auth.clientIdEnv).toBe('CALCOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('CALCOM_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('WRITE_BOOKING')
-    expect(auth.scopes).toContain('READ_BOOKING')
-    expect(auth.scopes).toContain('READ_EVENT_TYPE')
+    expect(auth.clientSecretEnv).toBeUndefined()
+    expect(auth.pkce).toBe('required')
+    expect(auth.tokenClientAuthMethod).toBe('none')
+    expect(auth.scopes).toContain('BOOKING_WRITE')
+    expect(auth.scopes).toContain('BOOKING_READ')
+    expect(auth.scopes).toContain('EVENT_TYPE_READ')
+    expect(auth.scopes).toContain('EVENT_TYPE_WRITE')
   })
 
   it('exposes the booking + event-type + schedules surface and the right read/mutation split', () => {
@@ -49,7 +97,6 @@ describe('cal-com adapter', () => {
       'bookings.get',
       'bookings.list',
       'bookings.reschedule',
-      'bookings.update',
       'event-types.create',
       'event-types.delete',
       'event-types.get',
@@ -74,7 +121,6 @@ describe('cal-com adapter', () => {
       'bookings.cancel',
       'bookings.create',
       'bookings.reschedule',
-      'bookings.update',
       'event-types.create',
       'event-types.delete',
       'schedules.create',
@@ -91,7 +137,7 @@ describe('cal-com adapter', () => {
     const invocation: ConnectorInvocation = {
       source,
       capabilityName: 'bookings.list',
-      args: { status: 'upcoming', take: 50 },
+      args: { status: 'upcoming', limit: 50 },
       idempotencyKey: 'bookings_1',
     }
 
@@ -101,12 +147,12 @@ describe('cal-com adapter', () => {
     expect(url.origin).toBe('https://api.cal.com')
     expect(url.pathname).toBe('/v2/bookings')
     expect(url.searchParams.get('status')).toBe('upcoming')
-    expect(url.searchParams.get('take')).toBe('50')
+    expect(url.searchParams.get('limit')).toBe('50')
     expect(url.searchParams.has('attendeeEmail')).toBe(false)
     expect(url.searchParams.has('eventTypeId')).toBe(false)
     expect((init as RequestInit).headers).toMatchObject({
       authorization: 'Bearer cal_token_xyz',
-      'cal-api-version': '2024-08-13',
+      'cal-api-version': '2026-05-01',
     })
   })
 
@@ -133,7 +179,7 @@ describe('cal-com adapter', () => {
     expect(init.headers).toMatchObject({
       authorization: 'Bearer cal_token_xyz',
       'content-type': 'application/json',
-      'cal-api-version': '2024-08-13',
+      'cal-api-version': '2026-02-25',
     })
     expect(JSON.parse(String(init.body))).toEqual(body)
   })
@@ -153,6 +199,7 @@ describe('cal-com adapter', () => {
     const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
     expect(url.pathname).toBe('/v2/bookings/bk_abc/cancel')
     expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({ 'cal-api-version': '2026-02-25' })
     expect(JSON.parse(String(init.body))).toEqual({ cancellationReason: 'attendee no longer available' })
   })
 })

@@ -2,6 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { zuoraConnector } from '../src/connectors/adapters/zuora'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
+const ZUORA_API_BASE_URLS = [
+  'https://rest.test.zuora.com',
+  'https://rest.sandbox.na.zuora.com',
+  'https://rest.apisandbox.zuora.com',
+  'https://rest.na.zuora.com',
+  'https://rest.zuora.com',
+  'https://rest.test.eu.zuora.com',
+  'https://rest.sandbox.eu.zuora.com',
+  'https://rest.eu.zuora.com',
+  'https://rest.test.ap.zuora.com',
+  'https://rest.ap.zuora.com',
+] as const
+
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
     id: 'src_zuora_1',
@@ -10,8 +23,8 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     kind: 'zuora',
     label: 'Zuora test',
     consistencyModel: 'authoritative',
-    scopes: ['api'],
-    metadata: {},
+    scopes: [],
+    metadata: { apiBaseUrl: 'https://rest.zuora.com' },
     credentials: { kind: 'oauth2', accessToken: 'zuora_token' },
     status: 'active',
     ...overrides,
@@ -29,6 +42,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('zuoraConnector', () => {
   const connector = zuoraConnector
 
@@ -42,8 +57,50 @@ describe('zuoraConnector', () => {
     expect(connector.manifest.category).toBe('crm')
   })
 
-  it('manifest auth kind is oauth2', () => {
-    expect(connector.manifest.auth.kind).toBe('oauth2')
+  it('uses client credentials against the selected data center with no browser authorization flow', () => {
+    const auth = connector.manifest.auth
+    expect(auth.kind).toBe('oauth2')
+    if (auth.kind !== 'oauth2') throw new Error('zuora auth must be oauth2')
+    expect(auth.grantType).toBe('client_credentials')
+    expect(auth.authorizationUrl).toBeUndefined()
+    expect(auth.tokenUrl).toBe('{apiBaseUrl}/oauth/token')
+    expect(auth.scopes).toEqual([])
+    expect(auth.tokenClientAuthMethod).toBe('client_secret_post')
+    expect(auth.pkce).toBe('unsupported')
+    expect(auth.urlTemplateMetadata).toEqual({
+      apiBaseUrl: {
+        kind: 'base-url',
+        allowedBaseUrls: ZUORA_API_BASE_URLS,
+      },
+    })
+  })
+
+  it('accepts all ten documented data-center roots and uses each root for API execution', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => (
+      jsonResponse({ success: true })
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    for (const apiBaseUrl of ZUORA_API_BASE_URLS) {
+      await expect(connector.test(source({ metadata: { apiBaseUrl } }))).resolves.toEqual({ ok: true })
+    }
+
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual(
+      ZUORA_API_BASE_URLS.map((apiBaseUrl) => `${apiBaseUrl}/v1/accounts`),
+    )
+  })
+
+  it('rejects an unlisted data-center root before sending credentials', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      connector.test(source({ metadata: { apiBaseUrl: 'https://zuora.attacker.example' } })),
+    ).resolves.toEqual({
+      ok: false,
+      reason: 'connection base URL is not an allowed provider endpoint',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('has the expected capabilities', () => {
@@ -96,7 +153,7 @@ describe('zuora subscriptions.create', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await zuoraConnector.executeMutation!({
-      source: source(),
+      source: source({ metadata: { apiBaseUrl: 'https://rest.eu.zuora.com' } }),
       capabilityName: 'subscriptions.create',
       args: {
         accountKey: 'acct_1',
@@ -108,7 +165,7 @@ describe('zuora subscriptions.create', () => {
 
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/v1/subscriptions')
+    expect(String(requestUrl)).toBe('https://rest.eu.zuora.com/v1/subscriptions')
     expect(requestBody).toContain('acct_1')
   })
 

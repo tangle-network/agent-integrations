@@ -35,6 +35,12 @@ export const microsoftDynamicsCrmConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'instanceUrl' },
+  allowedBaseUrlSuffixes: [
+    '.dynamics.com',
+    '.dynamics.cn',
+    '.microsoftdynamics.de',
+    '.microsoftdynamics.us',
+  ],
   defaultHeaders: {
     'OData-MaxVersion': '4.0',
     'OData-Version': '4.0',

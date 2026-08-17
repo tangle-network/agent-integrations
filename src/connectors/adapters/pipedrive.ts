@@ -15,10 +15,14 @@ export const pipedriveConnector = declarativeRestConnector({
     scopes: ['deals:full', 'contacts:full', 'leads:full', 'activities:full'],
     clientIdEnv: 'PIPEDRIVE_OAUTH_CLIENT_ID',
     clientSecretEnv: 'PIPEDRIVE_OAUTH_CLIENT_SECRET',
+    tokenMetadata: {
+      apiDomain: { field: 'api_domain', required: true },
+    },
   },
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'apiDomain', fallback: 'https://api.pipedrive.com' },
+  allowedBaseUrlSuffixes: ['.pipedrive.com'],
   test: { method: 'GET', path: '/v1/users/me' },
   capabilities: [
     {

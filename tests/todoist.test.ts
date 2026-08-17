@@ -36,9 +36,12 @@ describe('todoist adapter manifest', () => {
     expect(todoistConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('uses oauth2 auth', () => {
+  it('uses the official API v1 OAuth scope', () => {
     const auth = todoistConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
+    if (auth.kind !== 'oauth2') throw new Error('expected OAuth2')
+    expect(auth.scopes).toEqual(['data:read_write'])
+    expect(auth.scopes).not.toEqual(expect.arrayContaining(['task:read', 'task:update']))
   })
 
   it('covers tasks, projects, comments, and labels capabilities', () => {
@@ -65,12 +68,18 @@ describe('todoist adapter manifest', () => {
       expect(cap.externalEffect).toBe(true)
     }
   })
+
+  it('binds every capability to data:read_write', () => {
+    for (const capability of todoistConnector.manifest.capabilities) {
+      expect(capability.requiredScopes, capability.name).toEqual(['data:read_write'])
+    }
+  })
 })
 
 describe('todoist projects.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('POSTs to /rest/v2/projects with the project name', async () => {
+  it('POSTs to /api/v1/projects with the project name', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let requestBody: string | undefined
@@ -91,7 +100,7 @@ describe('todoist projects.create', () => {
 
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/rest/v2/projects')
+    expect(String(requestUrl)).toContain('/api/v1/projects')
     expect(requestBody).toContain('Launch plan')
   })
 
@@ -111,7 +120,7 @@ describe('todoist projects.create', () => {
 describe('todoist projects.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('DELETEs /rest/v2/projects/{project_id}', async () => {
+  it('DELETEs /api/v1/projects/{project_id}', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -130,14 +139,14 @@ describe('todoist projects.delete', () => {
 
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
-    expect(String(requestUrl)).toContain('/rest/v2/projects/project_xyz')
+    expect(String(requestUrl)).toContain('/api/v1/projects/project_xyz')
   })
 })
 
 describe('todoist comments.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('POSTs to /rest/v2/comments with the comment content', async () => {
+  it('POSTs to /api/v1/comments with the comment content', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let requestBody: string | undefined
@@ -158,7 +167,7 @@ describe('todoist comments.create', () => {
 
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/rest/v2/comments')
+    expect(String(requestUrl)).toContain('/api/v1/comments')
     expect(requestBody).toContain('looks good')
   })
 })
@@ -166,7 +175,7 @@ describe('todoist comments.create', () => {
 describe('todoist labels.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('POSTs to /rest/v2/labels with the label name', async () => {
+  it('POSTs to /api/v1/labels with the label name', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let requestBody: string | undefined
@@ -187,7 +196,7 @@ describe('todoist labels.create', () => {
 
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/rest/v2/labels')
+    expect(String(requestUrl)).toContain('/api/v1/labels')
     expect(requestBody).toContain('urgent')
   })
 })

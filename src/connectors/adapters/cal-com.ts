@@ -1,23 +1,29 @@
-import { declarativeRestConnector } from './declarative-rest.js'
+import {
+  CredentialsExpired,
+  type ConnectorAdapter,
+  type ConnectorCredentials,
+  type ConnectorInvocation,
+} from '../types.js'
+import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
+import {
+  declarativeRestConnector,
+  type RestConnectorSpec,
+} from './declarative-rest.js'
 
 /**
  * Cal.com Platform API v2 — managed scheduling. Auth is OAuth2 via the
  * Cal.com Platform program (developer.cal.com / Cal Atoms). The token
- * endpoint is exposed under `/v2/oauth/{clientId}/exchange`; the OAuth
- * runtime substitutes the client id from `CALCOM_OAUTH_CLIENT_ID` before
- * issuing the exchange call, so the manifest carries the canonical
- * `/v2/oauth/exchange` form here.
+ * endpoint is the RFC 6749-compatible `/v2/auth/oauth2/token` route.
  *
  * The access token is a Bearer credential and every API call MUST also
- * carry a `cal-api-version` header (Cal pins capability shape per version
- * — without it the v2 surface 400s). Per-call versions can override the
- * default by templating into the request headers; the default below
- * matches the GA bookings/event-types surface as of 2024-08-13.
+ * carry the endpoint's `cal-api-version` header. Cal.com versions individual
+ * endpoint families independently, so each request pins the version its
+ * request and response shape implements.
  */
 const authorizeUrl = 'https://app.cal.com/auth/oauth2/authorize'
-const tokenUrl = 'https://api.cal.com/v2/oauth/exchange'
+const tokenUrl = 'https://api.cal.com/v2/auth/oauth2/token'
 
-export const calComConnector = declarativeRestConnector({
+const calComSpec = {
   kind: 'cal-com',
   displayName: 'Cal.com',
   description: 'Schedule, query, and cancel Cal.com bookings and read event types through the Platform v2 API.',
@@ -26,21 +32,21 @@ export const calComConnector = declarativeRestConnector({
     authorizationUrl: authorizeUrl,
     tokenUrl: tokenUrl,
     scopes: [
-      'READ_PROFILE',
-      'READ_BOOKING',
-      'WRITE_BOOKING',
-      'READ_EVENT_TYPE',
-      'READ_SCHEDULE',
+      'PROFILE_READ',
+      'BOOKING_READ',
+      'BOOKING_WRITE',
+      'EVENT_TYPE_READ',
+      'EVENT_TYPE_WRITE',
+      'SCHEDULE_READ',
+      'SCHEDULE_WRITE',
     ],
+    pkce: 'required',
+    tokenClientAuthMethod: 'none',
     clientIdEnv: 'CALCOM_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'CALCOM_OAUTH_CLIENT_SECRET',
   },
   category: 'calendar',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.cal.com',
-  defaultHeaders: {
-    'cal-api-version': '2024-08-13',
-  },
   test: { method: 'GET', path: '/v2/me' },
   capabilities: [
     {
@@ -52,7 +58,7 @@ export const calComConnector = declarativeRestConnector({
         properties: {},
       },
       request: { method: 'GET', path: '/v2/me' },
-      requiredScopes: ['READ_PROFILE'],
+      requiredScopes: ['PROFILE_READ'],
     },
     {
       name: 'event-types.list',
@@ -68,9 +74,10 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'GET',
         path: '/v2/event-types',
+        headers: { 'cal-api-version': '2024-06-14' },
         query: { username: '{username}', eventSlug: '{eventSlug}' },
       },
-      requiredScopes: ['READ_EVENT_TYPE'],
+      requiredScopes: ['EVENT_TYPE_READ'],
     },
     {
       name: 'event-types.get',
@@ -81,8 +88,12 @@ export const calComConnector = declarativeRestConnector({
         properties: { eventTypeId: { type: 'string' } },
         required: ['eventTypeId'],
       },
-      request: { method: 'GET', path: '/v2/event-types/{eventTypeId}' },
-      requiredScopes: ['READ_EVENT_TYPE'],
+      request: {
+        method: 'GET',
+        path: '/v2/event-types/{eventTypeId}',
+        headers: { 'cal-api-version': '2024-06-14' },
+      },
+      requiredScopes: ['EVENT_TYPE_READ'],
     },
     {
       name: 'bookings.list',
@@ -97,22 +108,23 @@ export const calComConnector = declarativeRestConnector({
           },
           attendeeEmail: { type: 'string' },
           eventTypeId: { type: 'string' },
-          take: { type: 'integer', minimum: 1, maximum: 250, description: 'Page size; default 100.' },
-          skip: { type: 'integer', minimum: 0, description: 'Records to skip for pagination.' },
+          limit: { type: 'integer', minimum: 1, description: 'Page size.' },
+          cursor: { type: 'string', description: 'The previous page response pagination.nextCursor.' },
         },
       },
       request: {
         method: 'GET',
         path: '/v2/bookings',
+        headers: { 'cal-api-version': '2026-05-01' },
         query: {
           status: '{status}',
           attendeeEmail: '{attendeeEmail}',
           eventTypeId: '{eventTypeId}',
-          take: '{take}',
-          skip: '{skip}',
+          limit: '{limit}',
+          cursor: '{cursor}',
         },
       },
-      requiredScopes: ['READ_BOOKING'],
+      requiredScopes: ['BOOKING_READ'],
     },
     {
       name: 'bookings.get',
@@ -123,8 +135,12 @@ export const calComConnector = declarativeRestConnector({
         properties: { bookingUid: { type: 'string' } },
         required: ['bookingUid'],
       },
-      request: { method: 'GET', path: '/v2/bookings/{bookingUid}' },
-      requiredScopes: ['READ_BOOKING'],
+      request: {
+        method: 'GET',
+        path: '/v2/bookings/{bookingUid}',
+        headers: { 'cal-api-version': '2026-02-25' },
+      },
+      requiredScopes: ['BOOKING_READ'],
     },
     {
       name: 'bookings.create',
@@ -155,30 +171,14 @@ export const calComConnector = declarativeRestConnector({
         },
         required: ['eventTypeId', 'start', 'attendee'],
       },
-      request: { method: 'POST', path: '/v2/bookings', body: 'args' },
-      cas: 'native-idempotency',
-      requiredScopes: ['WRITE_BOOKING'],
-    },
-    {
-      name: 'bookings.update',
-      class: 'mutation',
-      description: 'Update metadata on an existing Cal.com booking by uid.',
-      parameters: {
-        type: 'object',
-        properties: {
-          bookingUid: { type: 'string' },
-          metadata: { type: 'object', description: 'Replacement metadata map for the booking.' },
-        },
-        required: ['bookingUid', 'metadata'],
-      },
       request: {
-        method: 'PATCH',
-        path: '/v2/bookings/{bookingUid}',
-        body: { metadata: '{metadata}' },
+        method: 'POST',
+        path: '/v2/bookings',
+        headers: { 'cal-api-version': '2026-02-25' },
+        body: 'args',
       },
       cas: 'native-idempotency',
-      externalEffect: true,
-      requiredScopes: ['WRITE_BOOKING'],
+      requiredScopes: ['BOOKING_WRITE'],
     },
     {
       name: 'event-types.create',
@@ -200,6 +200,7 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'POST',
         path: '/v2/event-types',
+        headers: { 'cal-api-version': '2024-06-14' },
         body: {
           title: '{title}',
           slug: '{slug}',
@@ -212,7 +213,7 @@ export const calComConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['READ_EVENT_TYPE'],
+      requiredScopes: ['EVENT_TYPE_WRITE'],
     },
     {
       name: 'event-types.delete',
@@ -223,10 +224,14 @@ export const calComConnector = declarativeRestConnector({
         properties: { eventTypeId: { type: 'string' } },
         required: ['eventTypeId'],
       },
-      request: { method: 'DELETE', path: '/v2/event-types/{eventTypeId}' },
+      request: {
+        method: 'DELETE',
+        path: '/v2/event-types/{eventTypeId}',
+        headers: { 'cal-api-version': '2024-06-14' },
+      },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['READ_EVENT_TYPE'],
+      requiredScopes: ['EVENT_TYPE_WRITE'],
     },
     {
       name: 'schedules.create',
@@ -246,6 +251,7 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'POST',
         path: '/v2/schedules',
+        headers: { 'cal-api-version': '2024-06-11' },
         body: {
           name: '{name}',
           timeZone: '{timeZone}',
@@ -256,7 +262,7 @@ export const calComConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['READ_SCHEDULE'],
+      requiredScopes: ['SCHEDULE_WRITE'],
     },
     {
       name: 'bookings.cancel',
@@ -273,11 +279,12 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'POST',
         path: '/v2/bookings/{bookingUid}/cancel',
+        headers: { 'cal-api-version': '2026-02-25' },
         body: { cancellationReason: '{cancellationReason}' },
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['WRITE_BOOKING'],
+      requiredScopes: ['BOOKING_WRITE'],
     },
     {
       name: 'bookings.reschedule',
@@ -296,6 +303,7 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'POST',
         path: '/v2/bookings/{bookingUid}/reschedule',
+        headers: { 'cal-api-version': '2026-02-25' },
         body: {
           start: '{start}',
           reschedulingReason: '{reschedulingReason}',
@@ -304,7 +312,7 @@ export const calComConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['WRITE_BOOKING'],
+      requiredScopes: ['BOOKING_WRITE'],
     },
     {
       name: 'schedules.list',
@@ -314,8 +322,12 @@ export const calComConnector = declarativeRestConnector({
         type: 'object',
         properties: {},
       },
-      request: { method: 'GET', path: '/v2/schedules' },
-      requiredScopes: ['READ_SCHEDULE'],
+      request: {
+        method: 'GET',
+        path: '/v2/schedules',
+        headers: { 'cal-api-version': '2024-06-11' },
+      },
+      requiredScopes: ['SCHEDULE_READ'],
     },
     {
       name: 'slots.list',
@@ -337,6 +349,7 @@ export const calComConnector = declarativeRestConnector({
       request: {
         method: 'GET',
         path: '/v2/slots',
+        headers: { 'cal-api-version': '2024-09-04' },
         query: {
           eventTypeId: '{eventTypeId}',
           eventTypeSlug: '{eventTypeSlug}',
@@ -347,7 +360,122 @@ export const calComConnector = declarativeRestConnector({
           duration: '{duration}',
         },
       },
-      requiredScopes: ['READ_EVENT_TYPE'],
+      requiredScopes: ['EVENT_TYPE_READ'],
     },
   ],
-})
+} satisfies RestConnectorSpec
+
+/** Runtime OAuth settings for the approved Cal.com public client. */
+export interface CalComOptions {
+  clientId: string
+  fetchImpl?: typeof fetch
+  now?: () => number
+}
+
+/** Static connector used for manifest discovery and direct token execution. */
+export const calComConnector = declarativeRestConnector(calComSpec)
+
+/** Credential-bound connector used by the production factory. */
+export function calCom(options: CalComOptions): ConnectorAdapter {
+  const adapter = declarativeRestConnector(calComSpec)
+  const now = options.now ?? Date.now
+  const refreshes = new Map<string, Promise<ConnectorCredentials>>()
+  adapter.exchangeOAuth = async (input) => {
+    const tokens = await exchangeAuthorizationCode({
+      tokenUrl,
+      clientId: options.clientId,
+      tokenClientAuthMethod: 'none',
+      code: input.code,
+      codeVerifier: input.codeVerifier,
+      redirectUri: input.redirectUri,
+      fetchImpl: options.fetchImpl,
+    })
+    return {
+      credentials: {
+        kind: 'oauth2',
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresIn
+          ? now() + tokens.expiresIn * 1000
+          : undefined,
+      },
+      scopes: tokens.scope?.split(/[\s,]+/).filter(Boolean) ?? calComSpec.auth.scopes,
+      metadata: {},
+    }
+  }
+  adapter.refreshToken = async (credentials) => {
+    if (credentials.kind !== 'oauth2' || !credentials.refreshToken) {
+      throw new Error('cal-com.refreshToken: missing refresh token')
+    }
+    const refreshed = await refreshAccessToken({
+      tokenUrl,
+      clientId: options.clientId,
+      tokenClientAuthMethod: 'none',
+      refreshToken: credentials.refreshToken,
+      fetchImpl: options.fetchImpl,
+    })
+    return {
+      kind: 'oauth2',
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken ?? credentials.refreshToken,
+      expiresAt: refreshed.expiresIn
+        ? now() + refreshed.expiresIn * 1000
+        : undefined,
+    }
+  }
+  const executeRead = adapter.executeRead?.bind(adapter)
+  const executeMutation = adapter.executeMutation?.bind(adapter)
+  if (executeRead) {
+    adapter.executeRead = async (invocation) => executeRead(
+      await withFreshCalComCredentials(invocation, adapter, refreshes, now),
+    )
+  }
+  if (executeMutation) {
+    adapter.executeMutation = async (invocation) => executeMutation(
+      await withFreshCalComCredentials(invocation, adapter, refreshes, now),
+    )
+  }
+  return adapter
+}
+
+async function withFreshCalComCredentials(
+  invocation: ConnectorInvocation,
+  adapter: ConnectorAdapter,
+  refreshes: Map<string, Promise<ConnectorCredentials>>,
+  now: () => number,
+): Promise<ConnectorInvocation> {
+  const credentials = invocation.source.credentials
+  if (credentials.kind !== 'oauth2') {
+    throw new CredentialsExpired('Cal.com requires OAuth2 credentials.', invocation.source.id)
+  }
+  if (!credentials.expiresAt || credentials.expiresAt > now() + 60_000) {
+    return invocation
+  }
+  if (!credentials.refreshToken || !adapter.refreshToken) {
+    throw new CredentialsExpired(
+      'Cal.com access token expired and no refresh token is available.',
+      invocation.source.id,
+    )
+  }
+
+  let refresh = refreshes.get(invocation.source.id)
+  if (!refresh) {
+    refresh = adapter.refreshToken(credentials)
+    refreshes.set(invocation.source.id, refresh)
+    const clear = () => {
+      if (refreshes.get(invocation.source.id) === refresh) {
+        refreshes.delete(invocation.source.id)
+      }
+    }
+    void refresh.then(clear, clear)
+  }
+  const rotated = await refresh
+  await invocation.onCredentialsRotated?.(rotated)
+  return {
+    ...invocation,
+    source: {
+      ...invocation.source,
+      credentials: rotated,
+    },
+  }
+}

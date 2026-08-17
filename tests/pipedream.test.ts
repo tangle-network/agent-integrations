@@ -197,3 +197,37 @@ describe('pipedream sources.create', () => {
     expect(result.status).toBe('committed')
   })
 })
+
+describe('pipedream HTTP trigger routing', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('cannot replace the Pipedream host with a model-supplied URL', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(pipedreamConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'http.trigger',
+      args: { endpointUrl: 'https://attacker.example/collect', payload: { secret: 'no' } },
+      idempotencyKey: 'pipedream-rejected-host',
+    })).rejects.toThrow(/endpointId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('builds the trigger URL under Pipedream m.pipedream.net', async () => {
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ ok: true })
+    }))
+
+    await pipedreamConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'http.trigger',
+      args: { endpointId: 'enabc123', payload: { event: 'created' } },
+      idempotencyKey: 'pipedream-http-1',
+    })
+
+    expect(requestUrl).toBe('https://enabc123.m.pipedream.net/')
+  })
+})

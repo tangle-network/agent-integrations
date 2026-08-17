@@ -16,9 +16,7 @@ describe('miro adapter', () => {
     expect(auth.tokenUrl).toBe('https://api.miro.com/v1/oauth/token')
     expect(auth.clientIdEnv).toBe('MIRO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('MIRO_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['boards:read', 'boards:write', 'identity:read']),
-    )
+    expect(auth.scopes).toEqual(['boards:read', 'boards:write', 'identity:read'])
   })
 
   it('exposes a non-trivial set of capabilities including reads and at least one mutation', () => {
@@ -28,6 +26,8 @@ describe('miro adapter', () => {
     expect(caps.some((c) => c.class === 'read' && c.name === 'items.list')).toBe(true)
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'sticky_notes.create')).toBe(true)
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'boards.create')).toBe(true)
+    expect(caps.some((c) => c.name.startsWith('organizations.'))).toBe(false)
+    expect(caps.some((c) => c.name === 'teams.get')).toBe(false)
   })
 
   it('passes the shared manifest validator', () => {

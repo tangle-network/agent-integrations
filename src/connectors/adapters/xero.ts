@@ -23,14 +23,24 @@ export const xeroConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://login.xero.com/identity/connect/authorize',
     tokenUrl: 'https://identity.xero.com/connect/token',
-    // `accounting.reports.read` is a distinct Xero scope — the reports
-    // namespace is not covered by settings/transactions and 403s without it.
+    // Xero apps created with granular scopes reject both the legacy umbrella
+    // scopes and `app.connections` in an end-user authorization request. The
+    // Connections endpoint remains available to the resulting accounting
+    // token, so keep the requested scopes limited to the data this adapter
+    // actually reads or writes.
     scopes: [
       'offline_access',
       'accounting.contacts',
-      'accounting.transactions',
+      'accounting.contacts.read',
+      'accounting.invoices',
+      'accounting.invoices.read',
+      'accounting.payments',
       'accounting.settings.read',
-      'accounting.reports.read',
+      'accounting.reports.aged.read',
+      'accounting.reports.balancesheet.read',
+      'accounting.reports.banksummary.read',
+      'accounting.reports.profitandloss.read',
+      'accounting.reports.trialbalance.read',
     ],
     clientIdEnv: 'XERO_OAUTH_CLIENT_ID',
     clientSecretEnv: 'XERO_OAUTH_CLIENT_SECRET',
@@ -89,7 +99,13 @@ export const xeroConnector = declarativeRestConnector({
         query: { fromDate: '{fromDate}', toDate: '{toDate}', date: '{date}', contactID: '{contactId}' },
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
-      requiredScopes: ['accounting.reports.read'],
+      requiredScopes: [
+        'accounting.reports.aged.read',
+        'accounting.reports.balancesheet.read',
+        'accounting.reports.banksummary.read',
+        'accounting.reports.profitandloss.read',
+        'accounting.reports.trialbalance.read',
+      ],
     },
     {
       name: 'contacts.search',
@@ -111,7 +127,7 @@ export const xeroConnector = declarativeRestConnector({
         query: { where: '{where}', order: '{order}', page: '{page}' },
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
-      requiredScopes: ['accounting.contacts'],
+      requiredScopes: ['accounting.contacts.read'],
     },
     {
       name: 'contacts.get',
@@ -130,7 +146,7 @@ export const xeroConnector = declarativeRestConnector({
         path: '/api.xro/2.0/Contacts/{contactId}',
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
-      requiredScopes: ['accounting.contacts'],
+      requiredScopes: ['accounting.contacts.read'],
     },
     {
       name: 'contacts.create',
@@ -207,7 +223,7 @@ export const xeroConnector = declarativeRestConnector({
         query: { where: '{where}', order: '{order}', page: '{page}' },
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices.read'],
     },
     {
       name: 'invoices.get',
@@ -226,7 +242,7 @@ export const xeroConnector = declarativeRestConnector({
         path: '/api.xro/2.0/Invoices/{invoiceId}',
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices.read'],
     },
     {
       name: 'invoices.create',
@@ -262,7 +278,7 @@ export const xeroConnector = declarativeRestConnector({
         headers: { 'xero-tenant-id': '{tenantId}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices'],
     },
     {
       name: 'accounts.search',
@@ -332,7 +348,7 @@ export const xeroConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices'],
     },
     {
       name: 'invoices.email',
@@ -354,7 +370,7 @@ export const xeroConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices'],
     },
     {
       name: 'payments.create',
@@ -390,7 +406,7 @@ export const xeroConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.payments'],
     },
     {
       name: 'credit-notes.create',
@@ -426,7 +442,7 @@ export const xeroConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['accounting.transactions'],
+      requiredScopes: ['accounting.invoices'],
     },
   ],
 })

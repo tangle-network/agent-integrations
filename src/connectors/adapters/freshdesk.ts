@@ -28,6 +28,7 @@ export const freshdeskConnector = declarativeRestConnector({
   category: 'crm',
   defaultConsistencyModel: 'authoritative',
   baseUrl: { metadataKey: 'subdomainUrl' },
+  allowedBaseUrlSuffixes: ['.freshdesk.com'],
   test: { method: 'GET', path: '/api/v2/agents/me' },
   capabilities: [
     {

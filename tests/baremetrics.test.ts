@@ -12,7 +12,7 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     consistencyModel: 'authoritative',
     scopes: ['write'],
     metadata: {},
-    credentials: { kind: 'oauth2', accessToken: 'bm-token' },
+    credentials: { kind: 'api-key', apiKey: 'bm-token' },
     status: 'active',
     ...overrides,
   }
@@ -32,9 +32,9 @@ describe('baremetrics adapter manifest', () => {
     expect(baremetricsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('declares oauth2 auth as documented in the catalog', () => {
+  it('declares customer API-key auth using Baremetrics bearer tokens', () => {
     const auth = baremetricsConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
+    expect(auth.kind).toBe('api-key')
   })
 
   it('covers create + update + delete/cancel/annotation surfaces', () => {
@@ -79,9 +79,11 @@ describe('baremetrics delete.customer', () => {
   it('issues DELETE /v1/{sourceId}/customers/{customerOid}', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
+    let authorization: string | undefined
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       requestUrl = String(input)
       requestMethod = init?.method
+      authorization = new Headers(init?.headers).get('authorization') ?? undefined
       return jsonResponse({ deleted: true })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -95,6 +97,7 @@ describe('baremetrics delete.customer', () => {
 
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/src_abc/customers/cust_42')
+    expect(authorization).toBe('Bearer bm-token')
     expect(result.status).toBe('committed')
   })
 

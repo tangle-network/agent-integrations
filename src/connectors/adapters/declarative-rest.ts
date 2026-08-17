@@ -1,3 +1,4 @@
+import { isIP } from 'node:net'
 import {
   type Capability,
   type CapabilityMutationResult,
@@ -19,8 +20,27 @@ import {
 
 export type RestCredentialPlacement =
   | { kind: 'bearer' }
-  | { kind: 'header'; header: string; prefix?: string }
+  /** Authorization header whose scheme depends on the selected auth mode.
+   *  Some providers use Bearer for OAuth but require a raw personal token in
+   *  the same header for API-key connections (for example ClickUp). */
+  | { kind: 'authorization-by-auth'; oauth2Prefix?: string; apiKeyPrefix?: string }
+  /** HTTP Basic with the API key as the username and an empty password.
+   *  Insightly uses this convention for its otherwise single-secret auth. */
+  | { kind: 'basic-api-key' }
+  | { kind: 'header'; header: string; prefix?: string; suffix?: string }
+  /** HTTP Basic from a JSON credential bundle. The two named fields are
+   *  encoded as `username:password` without exposing either in metadata. */
+  | { kind: 'basic-structured'; usernameField: string; passwordField: string }
   | { kind: 'query'; parameter: string }
+  /** Multi-part credentials stored as either `custom.values` or a JSON object
+   *  in the api-key field. Keys are copied into provider headers. This keeps
+   *  Bill.com's developer key + session id inside the encrypted credential
+   *  envelope instead of leaking either through connection metadata. */
+  | { kind: 'structured-headers'; fields: Readonly<Record<string, string>> }
+  /** Multi-part credentials copied into a JSON request body. Plaid requires
+   *  client_id, secret, and access_token on every request rather than using an
+   *  Authorization header. Credential values override model-authored args. */
+  | { kind: 'structured-json-body'; fields: Readonly<Record<string, string>> }
   /** AWS Signature Version 4. The api-key credential field carries a JSON
    *  bundle (accessKeyId + secretAccessKey + region [+ sessionToken, endpoint]);
    *  the runtime signs each request at fetch time. `service` is the SigV4
@@ -37,6 +57,22 @@ export interface RestConnectorSpec {
   category: ConnectorAdapter['manifest']['category']
   defaultConsistencyModel: ConnectorAdapter['manifest']['defaultConsistencyModel']
   baseUrl: string | { metadataKey: string; fallback?: string }
+  /** Exact upstream base URLs accepted after connection-metadata resolution.
+   *  Use this for regional SaaS hosts so a user-controlled metadata value
+   *  cannot redirect provider credentials to an arbitrary server. */
+  allowedBaseUrls?: readonly string[]
+  /** HTTPS hostname suffixes accepted for tenant-specific provider hosts.
+   *  A suffix `.example.com` accepts `tenant.example.com`, never
+   *  `example.com.attacker.test`. */
+  allowedBaseUrlSuffixes?: readonly string[]
+  /** Require a user-supplied host to use HTTPS and reject literal/private
+   *  network targets. Use this for federated providers that cannot be pinned
+   *  to one vendor suffix, such as Mastodon. */
+  requirePublicHttpsBaseUrl?: boolean
+  /** HTTP statuses that mean the stored credential is unusable. Defaults to
+   *  401 and 403. Some providers use 403 for content-policy failures, so they
+   *  can narrow this list to 401 and preserve the provider error body. */
+  credentialsExpiredStatuses?: readonly number[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
   capabilities: RestOperationSpec[]
@@ -60,6 +96,9 @@ export interface RestRequestSpec {
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
   body?: 'args' | string | Record<string, unknown>
+  /** Request-body serialization. JSON remains the default. Form encoding
+   *  accepts only a flat object of scalar values and omits nullish fields. */
+  bodyEncoding?: 'json' | 'form'
   /** Existence-probe operations (e.g. GitHub star/follow/membership checks)
    *  encode the answer in the HTTP status: 204 = present, 404 = absent. Set
    *  this so the adapter maps both to an explicit `{ exists: boolean }` instead
@@ -282,7 +321,13 @@ export async function executeRestRequest(
   const aws = placement.kind === 'aws-sigv4' ? parseAwsCredentialBundle(inv.source.credentials) : undefined
   const awsRegion = aws ? resolveAwsRegion(aws, inv.source.metadata, placement as { defaultRegion?: string }) : undefined
 
-  let baseUrl = resolveBaseUrl(spec.baseUrl, inv.source.metadata)
+  let baseUrl = resolveBaseUrl(
+    spec.baseUrl,
+    inv.source.metadata,
+    spec.allowedBaseUrls,
+    spec.allowedBaseUrlSuffixes,
+    spec.requirePublicHttpsBaseUrl,
+  )
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Placeholder scope = the capability's arguments PLUS a reserved
   // `connection.*` namespace reading the connection's own metadata. Some
@@ -292,7 +337,7 @@ export async function executeRestRequest(
   // the request through `baseUrl.metadataKey` — which cannot serve a header, a
   // query param, or `test`, whose invocation has no arguments at all. Args win
   // on a name clash, so no existing adapter changes behavior.
-  const scope = renderScope(inv)
+  const scope = renderScope(inv, aws?.bucket ? { bucket: aws.bucket } : undefined)
   // Make the operation path RELATIVE to the base URL so a base like
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
@@ -319,8 +364,22 @@ export async function executeRestRequest(
     : requestHeaders
   const headers: Record<string, string> = {
     accept: 'application/json',
-    ...spec.defaultHeaders,
-    ...renderHeaders(renderableHeaders, scope),
+    ...renderHeaders(spec.defaultHeaders ?? {}, scope, true),
+    ...renderHeaders(renderableHeaders, scope, false, requiredArgs),
+  }
+  const structuredCredentials =
+    placement.kind === 'structured-headers' || placement.kind === 'structured-json-body'
+      ? readStructuredCredentials(inv.source.credentials, placement.fields)
+      : placement.kind === 'basic-structured'
+        ? readStructuredCredentials(inv.source.credentials, {
+            [placement.usernameField]: placement.usernameField,
+            [placement.passwordField]: placement.passwordField,
+          })
+      : undefined
+  if (placement.kind === 'structured-headers') {
+    for (const [credentialName, headerName] of Object.entries(placement.fields)) {
+      headers[headerName] = structuredCredentials![credentialName]!
+    }
   }
   if (hostOverride) url.host = hostOverride.replace(/\{region\}/g, awsRegion!)
   if (inv.expectedEtag) headers['if-match'] = inv.expectedEtag
@@ -328,16 +387,36 @@ export async function executeRestRequest(
   // operation explicitly declares `request.body` — some APIs (e.g. UserGems)
   // take the record identifier in a DELETE body. GET never carries a body.
   const sendsBody = request.method !== 'GET' && (request.method !== 'DELETE' || request.body !== undefined)
+  const bodyEncoding = request.bodyEncoding ?? 'json'
   // Default content-type case-insensitively: AWS adapters declare a capitalized
   // `Content-Type` in defaultHeaders, and a blind `headers['content-type']`
   // default would add a SECOND, conflicting content-type entry (and corrupt the
   // SigV4 signed-header set).
   if (sendsBody && getHeaderCI(headers, 'content-type') === undefined) {
-    headers['content-type'] = 'application/json'
+    headers['content-type'] = bodyEncoding === 'form'
+      ? 'application/x-www-form-urlencoded'
+      : 'application/json'
   }
   // Serialize the body before signing — SigV4 hashes the payload into the
   // canonical request.
-  const bodyString = sendsBody ? JSON.stringify(resolveBody(request.body, inv.args, scope, requiredArgs)) : undefined
+  let resolvedBody = sendsBody ? resolveBody(request.body, inv.args, scope, requiredArgs) : undefined
+  if (placement.kind === 'structured-json-body') {
+    if (!resolvedBody || typeof resolvedBody !== 'object' || Array.isArray(resolvedBody)) {
+      throw new Error(`${spec.kind}: structured JSON credentials require an object request body`)
+    }
+    resolvedBody = {
+      ...resolvedBody,
+      ...Object.fromEntries(
+        Object.entries(placement.fields).map(([credentialName, bodyName]) => [
+          bodyName,
+          structuredCredentials![credentialName],
+        ]),
+      ),
+    }
+  }
+  const bodyString = sendsBody
+    ? serializeRequestBody(spec.kind, bodyEncoding, resolvedBody)
+    : undefined
 
   if (placement.kind === 'aws-sigv4') {
     signAwsRequest(headers, url, {
@@ -347,7 +426,11 @@ export async function executeRestRequest(
       region: awsRegion!,
       bundle: aws!,
     })
-  } else {
+  } else if (placement.kind === 'basic-structured') {
+    const username = structuredCredentials![placement.usernameField]!
+    const password = structuredCredentials![placement.passwordField]!
+    headers.authorization = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
+  } else if (placement.kind !== 'structured-headers' && placement.kind !== 'structured-json-body') {
     applyCredentials(headers, url, placement, inv.source.credentials)
   }
 
@@ -357,7 +440,8 @@ export async function executeRestRequest(
     body: bodyString,
     signal: AbortSignal.timeout(20_000),
   })
-  if (res.status === 401 || res.status === 403) {
+  const credentialsExpiredStatuses = spec.credentialsExpiredStatuses ?? [401, 403]
+  if (credentialsExpiredStatuses.includes(res.status)) {
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
   }
   // A non-commit is reported on the ENVELOPE, never as a `status` field inside
@@ -368,7 +452,11 @@ export async function executeRestRequest(
   // would have had a landed write reclassified as a failure. ~200 connectors
   // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
-    const text = await safeErrorText(res)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
     return {
       data: parseBodyText(text),
       outcome: 'conflict',
@@ -378,7 +466,11 @@ export async function executeRestRequest(
     }
   }
   if (res.status === 429) {
-    const text = await safeErrorText(res)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
     return {
       data: parseBodyText(text),
       outcome: 'rate-limited',
@@ -397,7 +489,12 @@ export async function executeRestRequest(
     return { data: { exists: res.status === 204 } }
   }
   if (!res.ok) {
-    throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${(await safeErrorText(res)).slice(0, 300)}`)
+    const text = redactCredentialText(
+      await safeErrorText(res),
+      inv.source.credentials,
+      [getHeaderCI(headers, 'authorization')],
+    )
+    throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
   const text = await res.text()
   // Most upstreams return JSON, but some return raw payloads — scrapers
@@ -415,12 +512,128 @@ export async function executeRestRequest(
   return { data, etag: res.headers.get('etag') ?? undefined }
 }
 
-function resolveBaseUrl(baseUrl: RestConnectorSpec['baseUrl'], metadata: Record<string, unknown>): string {
-  if (typeof baseUrl === 'string') return baseUrl
-  const value = metadata[baseUrl.metadataKey]
-  if (typeof value === 'string' && value.trim()) return value
-  if (baseUrl.fallback) return baseUrl.fallback
-  throw new Error(`missing metadata.${baseUrl.metadataKey} base URL`)
+function serializeRequestBody(
+  connectorKind: string,
+  encoding: NonNullable<RestRequestSpec['bodyEncoding']>,
+  body: unknown,
+): string {
+  if (encoding === 'json') return JSON.stringify(body)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error(`${connectorKind}: form request bodies require a flat object`)
+  }
+  const form = new URLSearchParams()
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      throw new Error(`${connectorKind}: form field ${key} must be a scalar value`)
+    }
+    form.set(key, String(value))
+  }
+  return form.toString()
+}
+
+function resolveBaseUrl(
+  baseUrl: RestConnectorSpec['baseUrl'],
+  metadata: Record<string, unknown>,
+  allowedBaseUrls?: readonly string[],
+  allowedBaseUrlSuffixes?: readonly string[],
+  requirePublicHttpsBaseUrl?: boolean,
+): string {
+  let resolved: string
+  if (typeof baseUrl === 'string') {
+    resolved = baseUrl
+  } else {
+    const value = metadata[baseUrl.metadataKey]
+    if (typeof value === 'string' && value.trim()) {
+      resolved = value
+    } else if (baseUrl.fallback) {
+      resolved = baseUrl.fallback
+    } else {
+      throw new Error(`missing metadata.${baseUrl.metadataKey} base URL`)
+    }
+  }
+  const exactAllowed = allowedBaseUrls?.some((candidate) => sameUrl(candidate, resolved)) ?? false
+  const suffixAllowed = allowedBaseUrlSuffixes?.some((suffix) => hasHttpsHostnameSuffix(resolved, suffix)) ?? false
+  if ((allowedBaseUrls || allowedBaseUrlSuffixes) && !exactAllowed && !suffixAllowed) {
+    throw new Error('connection base URL is not an allowed provider endpoint')
+  }
+  if (requirePublicHttpsBaseUrl && !isPublicHttpsUrl(resolved)) {
+    throw new Error('connection base URL must be a public HTTPS endpoint')
+  }
+  return resolved
+}
+
+function isPublicHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) return false
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+    if (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.home.arpa')
+    ) {
+      return false
+    }
+    if (isIP(hostname) === 4) return isPublicIpv4(hostname)
+    if (isIP(hostname) === 6) return isPublicIpv6(hostname)
+    return hostname.includes('.')
+  } catch {
+    return false
+  }
+}
+
+function isPublicIpv4(hostname: string): boolean {
+  const [first, second] = hostname.split('.').map(Number)
+  if (first === 0 || first === 10 || first === 127 || first >= 224) return false
+  if (first === 100 && second >= 64 && second <= 127) return false
+  if (first === 169 && second === 254) return false
+  if (first === 172 && second >= 16 && second <= 31) return false
+  if (first === 192 && (second === 0 || second === 168)) return false
+  if (first === 198 && (second === 18 || second === 19)) return false
+  return true
+}
+
+function isPublicIpv6(hostname: string): boolean {
+  const normalized = hostname.toLowerCase()
+  return !(
+    normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    /^fe[89ab]/.test(normalized) ||
+    normalized.startsWith('ff') ||
+    normalized.startsWith('::ffff:')
+  )
+}
+
+function hasHttpsHostnameSuffix(value: string, suffix: string): boolean {
+  try {
+    const url = new URL(value)
+    const normalized = suffix.toLowerCase()
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.search &&
+      !url.hash &&
+      normalized.startsWith('.') &&
+      url.hostname.toLowerCase().endsWith(normalized)
+    )
+  } catch {
+    return false
+  }
+}
+
+function sameUrl(left: string, right: string): boolean {
+  try {
+    return new URL(left).href === new URL(right).href
+  } catch {
+    return false
+  }
 }
 
 function applyCredentials(
@@ -431,14 +644,102 @@ function applyCredentials(
 ): void {
   const token = credentialToken(credentials)
   if (placement.kind === 'bearer') headers.authorization = `Bearer ${token}`
-  if (placement.kind === 'header') headers[placement.header] = `${placement.prefix ?? ''}${token}`
+  if (placement.kind === 'authorization-by-auth') {
+    const prefix = credentials.kind === 'oauth2'
+      ? placement.oauth2Prefix ?? 'Bearer '
+      : placement.apiKeyPrefix ?? ''
+    headers.authorization = `${prefix}${token}`
+  }
+  if (placement.kind === 'basic-api-key') {
+    headers.authorization = `Basic ${Buffer.from(`${token}:`).toString('base64')}`
+  }
+  if (placement.kind === 'header') {
+    headers[placement.header] = `${placement.prefix ?? ''}${token}${placement.suffix ?? ''}`
+  }
   if (placement.kind === 'query') url.searchParams.set(placement.parameter, token)
 }
 
+function readStructuredCredentials(
+  credentials: ConnectorCredentials,
+  fields: Readonly<Record<string, string>>,
+): Record<string, string> {
+  let values: Record<string, unknown>
+  if (credentials.kind === 'custom') {
+    values = credentials.values
+  } else if (credentials.kind === 'api-key') {
+    try {
+      const parsed = JSON.parse(credentials.apiKey) as unknown
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object')
+      values = parsed as Record<string, unknown>
+    } catch {
+      throw new Error('structured credentials require a JSON object in the api-key field')
+    }
+  } else {
+    throw new Error(`structured credentials require custom or api-key credentials, got ${credentials.kind}`)
+  }
+  return Object.fromEntries(Object.keys(fields).map((name) => {
+    const value = values[name]
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`structured credentials are missing ${name}`)
+    }
+    return [name, value]
+  }))
+}
+
 function credentialToken(credentials: ConnectorCredentials): string {
-  if (credentials.kind === 'oauth2') return credentials.accessToken
-  if (credentials.kind === 'api-key') return credentials.apiKey
+  if (credentials.kind === 'oauth2') {
+    if (!credentials.accessToken.trim()) {
+      throw new Error('declarative REST connectors require a non-empty OAuth access token')
+    }
+    return credentials.accessToken
+  }
+  if (credentials.kind === 'api-key') {
+    if (!credentials.apiKey.trim()) {
+      throw new Error('declarative REST connectors require a non-empty API key')
+    }
+    return credentials.apiKey
+  }
   throw new Error(`declarative REST connectors require oauth2 or api-key credentials, got ${credentials.kind}`)
+}
+
+function redactCredentialText(
+  text: string,
+  credentials: ConnectorCredentials,
+  additionalSecrets: Array<string | undefined> = [],
+): string {
+  const candidates = credentials.kind === 'oauth2'
+    ? [credentials.accessToken, credentials.refreshToken]
+    : credentials.kind === 'api-key'
+      ? [credentials.apiKey, ...jsonStringValues(credentials.apiKey)]
+      : credentials.kind === 'custom'
+        ? Object.values(credentials.values)
+      : []
+  // Providers and reverse proxies sometimes echo only the credential portion
+  // of an Authorization header. Redacting `Basic <base64>` as one string does
+  // not hide a bare `<base64>` echo, so include both forms. The raw structured
+  // fields above remain candidates because an upstream can echo those too.
+  const authorizationSecrets = additionalSecrets.flatMap((secret) => {
+    if (typeof secret !== 'string') return []
+    const credential = secret.match(/^(?:Basic|Bearer)\s+(.+)$/i)?.[1]
+    return credential ? [secret, credential] : [secret]
+  })
+  const secrets = [...candidates, ...authorizationSecrets].filter(
+    (secret): secret is string => typeof secret === 'string' && secret.length > 0,
+  )
+  return secrets.reduce<string>(
+    (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
+    text,
+  )
+}
+
+function jsonStringValues(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return []
+    return Object.values(parsed).filter((entry): entry is string => typeof entry === 'string')
+  } catch {
+    return []
+  }
 }
 
 /** Region precedence for an AWS connection: the credential bundle wins, then
@@ -556,7 +857,7 @@ function retryAfterMsFromHeader(raw: string | null): number {
   return DEFAULT_RETRY_AFTER_MS
 }
 
-function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
+function renderScope(inv: ConnectorInvocation, credentialDefaults?: Record<string, unknown>): Record<string, unknown> {
   // The connection namespace is applied LAST so it cannot be shadowed by a
   // caller-supplied argument.
   //
@@ -574,11 +875,39 @@ function renderScope(inv: ConnectorInvocation): Record<string, unknown> {
   // `{connection}`, and Auth0's `connection` parameter — the only one so
   // named — travels through the `body: 'args'` splat, which resolves against
   // the raw arguments rather than this scope.
-  return { ...inv.args, connection: inv.source.metadata }
+  // Credential-derived request defaults are explicitly allowlisted by the
+  // caller (currently only the non-secret S3-compatible bucket). Arguments
+  // override defaults, while connection metadata remains an unshadowable
+  // namespace. Never spread a parsed credential object here: it contains the
+  // signing secret and would make it reachable from declarative templates.
+  return { ...credentialDefaults, ...inv.args, connection: inv.source.metadata }
 }
 
-function renderHeaders(headers: Record<string, string>, args: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, interpolate(value, args)]))
+function renderHeaders(
+  headers: Record<string, string>,
+  args: Record<string, unknown>,
+  rawExact = false,
+  requiredArgs?: readonly string[],
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    const exact = value.match(/^\{([a-zA-Z0-9_.-]+)\}$/)
+    if (exact) {
+      const resolved = readPath(args, exact[1])
+      if (resolved === undefined || resolved === null) {
+        if (rawExact || requiredArgs?.includes(exact[1])) {
+          throw new Error(`missing required argument: ${exact[1]}`)
+        }
+        continue
+      }
+      out[key] = rawExact
+        ? String(resolved)
+        : encodeURIComponent(String(resolved))
+      continue
+    }
+    out[key] = interpolate(value, args)
+  }
+  return out
 }
 
 function renderObject(

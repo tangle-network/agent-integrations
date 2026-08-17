@@ -8,6 +8,11 @@ export const shippoConnector = declarativeRestConnector({
   category: 'commerce',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.goshippo.com',
+  credentialPlacement: {
+    kind: 'header',
+    header: 'Authorization',
+    prefix: 'ShippoToken ',
+  },
   test: { method: 'GET', path: '/v1/serviceleveltoken' },
   capabilities: [
     {

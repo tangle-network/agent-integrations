@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { avomaConnector } from '../src/connectors/adapters/avoma.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
-function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
+function source(): ResolvedDataSource {
   return {
     id: 'src_avoma_1',
     projectId: 'proj_1',
@@ -14,184 +14,112 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     metadata: {},
     credentials: { kind: 'api-key', apiKey: 'avoma_secret' },
     status: 'active',
-    ...overrides,
   }
 }
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: init.status ?? 200,
+    status,
     headers: { 'content-type': 'application/json' },
   })
 }
 
 describe('avoma adapter manifest', () => {
-  it('classifies itself as the calendar category and exposes the avoma kind', () => {
-    expect(avomaConnector.manifest.kind).toBe('avoma')
-    expect(avomaConnector.manifest.category).toBe('calendar')
-    expect(avomaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = avomaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: calls + meeting reads + write-side update/cancel/notes', () => {
-    const names = avomaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'calls.create',
-        'calls.update',
-        'calls.cancel',
-        'notes.create',
-        'meetings.transcription.get',
-        'meetings.recording.get',
-      ].sort(),
+  it('exposes exactly the three published Avoma actions', () => {
+    expect(avomaConnector.manifest).toMatchObject({
+      kind: 'avoma',
+      category: 'calendar',
+      defaultConsistencyModel: 'authoritative',
+      auth: { kind: 'api-key' },
+    })
+    expect(avomaConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual(
+      ['calls.create', 'meetings.recording.get', 'meetings.transcription.get'],
     )
-    const reads = avomaConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = avomaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['meetings.recording.get', 'meetings.transcription.get'])
-    expect(mutations).toEqual(['calls.cancel', 'calls.create', 'calls.update', 'notes.create'])
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = ['calls.update', 'calls.cancel', 'notes.create']
-    for (const name of writeSide) {
-      const cap = avomaConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
+    const create = avomaConnector.manifest.capabilities.find((capability) => capability.name === 'calls.create')
+    expect(create).toMatchObject({ class: 'mutation', cas: 'native-idempotency', externalEffect: true })
   })
 })
 
-describe('avoma calls.update', () => {
+describe('avoma execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('PATCHes /v1/calls/{external_id} with only the patched fields', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    let capturedBody: Record<string, unknown> | null = null
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input)
-        capturedMethod = init?.method ?? ''
-        capturedBody = init?.body ? JSON.parse(init.body as string) : null
-        return jsonResponse({ external_id: 'call_42', recording_url: 'https://r/r.mp3' })
-      }),
-    )
-    const result = await avomaConnector.executeMutation!({
+  it('posts a completed call to the documented /v1/calls/ route with bearer auth', async () => {
+    let requestUrl = ''
+    let requestMethod = ''
+    let requestHeaders: Record<string, string> = {}
+    let requestBody: Record<string, unknown> = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input)
+      requestMethod = init?.method ?? ''
+      requestHeaders = init?.headers as Record<string, string>
+      requestBody = JSON.parse(init?.body as string) as Record<string, unknown>
+      return jsonResponse({ external_id: 'call_42' }, 201)
+    }))
+
+    await avomaConnector.executeMutation!({
       source: source(),
-      capabilityName: 'calls.update',
+      capabilityName: 'calls.create',
       args: {
         external_id: 'call_42',
-        patch: { recording_url: 'https://r/r.mp3' },
+        user_email: 'rep@example.com',
+        source: 'twilio',
+        direction: 'outbound',
+        start_at: '2026-07-30T12:00:00Z',
+        frm: '+12025550123',
+        to: '+12025550124',
+        recording_url: 'https://media.example.com/call.mp3',
       },
-      idempotencyKey: 'idemp-1',
+      idempotencyKey: 'avoma-create-42',
     })
-    expect(capturedMethod).toBe('PATCH')
-    expect(capturedUrl).toBe('https://api.avoma.com/v1/calls/call_42')
-    expect(capturedBody).toEqual({ recording_url: 'https://r/r.mp3' })
-    expect(result.status).toBe('committed')
+
+    expect(requestUrl).toBe('https://api.avoma.com/v1/calls/')
+    expect(requestMethod).toBe('POST')
+    expect(requestHeaders.authorization).toBe('Bearer avoma_secret')
+    expect(requestBody).toMatchObject({ external_id: 'call_42', source: 'twilio' })
+    expect(requestBody).not.toHaveProperty('participants')
   })
 
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      avomaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.update',
-        args: { external_id: 'call_42', patch: { recording_url: 'https://r/r.mp3' } },
-        idempotencyKey: 'idemp-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
+  it('gets a transcription by transcription UUID', async () => {
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ uuid: 'tr_7', transcript: [] })
+    }))
 
-describe('avoma calls.cancel', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('DELETEs /v1/calls/{external_id}', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input)
-        capturedMethod = init?.method ?? ''
-        return jsonResponse({ ok: true })
-      }),
-    )
-    const result = await avomaConnector.executeMutation!({
+    await avomaConnector.executeRead!({
       source: source(),
-      capabilityName: 'calls.cancel',
-      args: { external_id: 'call_42' },
-      idempotencyKey: 'idemp-cancel',
+      capabilityName: 'meetings.transcription.get',
+      args: { transcription_uuid: 'tr_7' },
+      idempotencyKey: 'avoma-read-transcription-7',
     })
-    expect(capturedMethod).toBe('DELETE')
-    expect(capturedUrl).toBe('https://api.avoma.com/v1/calls/call_42')
-    expect(result.status).toBe('committed')
+
+    expect(requestUrl).toBe('https://api.avoma.com/v1/transcriptions/tr_7')
   })
-})
 
-describe('avoma notes.create', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  it('gets recording URLs through the meeting_uuid query route', async () => {
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ meeting_uuid: 'mtg_9', audio_url: 'https://media.example.com/audio' })
+    }))
 
-  it('POSTs the note body to /v1/meetings/{uuid}/notes', async () => {
-    let capturedUrl = ''
-    let capturedMethod = ''
-    let capturedBody: Record<string, unknown> | null = null
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input)
-        capturedMethod = init?.method ?? ''
-        capturedBody = init?.body ? JSON.parse(init.body as string) : null
-        return jsonResponse({ id: 'note_1' })
-      }),
-    )
-    const result = await avomaConnector.executeMutation!({
+    await avomaConnector.executeRead!({
       source: source(),
-      capabilityName: 'notes.create',
-      args: { meeting_uuid: 'mtg-uuid-7', note: 'follow-up next quarter' },
-      idempotencyKey: 'idemp-note',
+      capabilityName: 'meetings.recording.get',
+      args: { meeting_uuid: 'mtg_9' },
+      idempotencyKey: 'avoma-read-recording-9',
     })
-    expect(capturedMethod).toBe('POST')
-    expect(capturedUrl).toBe('https://api.avoma.com/v1/meetings/mtg-uuid-7/notes')
-    expect(capturedBody).toEqual({ note: 'follow-up next quarter' })
-    expect(result.status).toBe('committed')
+
+    expect(requestUrl).toBe('https://api.avoma.com/v1/recordings/?meeting_uuid=mtg_9')
   })
 
-  it('rejects when meeting_uuid is missing', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})))
-    await expect(
-      avomaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'notes.create',
-        args: { note: 'orphan' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toThrow(/meeting_uuid/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
+  it('surfaces rejected Avoma credentials', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      avomaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'notes.create',
-        args: { meeting_uuid: 'mtg', note: 'x' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    await expect(avomaConnector.executeRead!({
+      source: source(),
+      capabilityName: 'meetings.recording.get',
+      args: { meeting_uuid: 'mtg_9' },
+      idempotencyKey: 'avoma-rejected-recording-9',
+    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -4,10 +4,18 @@ export const aircallConnector = declarativeRestConnector({
   kind: 'aircall',
   displayName: 'Aircall',
   description: 'Read Aircall calls and contacts and apply lightweight write operations (comments, tags, contact CRUD).',
-  auth: { kind: 'api-key', hint: 'Aircall API ID and API token, sent as HTTP Basic credentials.' },
+  auth: {
+    kind: 'api-key',
+    hint: 'Base64-encoded Aircall API ID and API token (`base64(apiId:apiToken)`).',
+  },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.aircall.io/v1',
+  credentialPlacement: {
+    kind: 'header',
+    header: 'Authorization',
+    prefix: 'Basic ',
+  },
   test: { method: 'GET', path: '/company' },
   capabilities: [
     {

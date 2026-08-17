@@ -4,6 +4,8 @@ import type {
   ConnectorAdapter,
   ConnectorCredentials,
   ConnectorInvocation,
+  OAuth2TokenClientAuthMethod,
+  OAuth2UrlTemplateMetadataSpec,
   ResolvedDataSource,
   TokenMetadataSource,
 } from './connectors/types.js'
@@ -20,12 +22,19 @@ import type {
   StartAuthResult,
 } from './core-types.js'
 import { IntegrationError } from './core-error.js'
+import {
+  createOAuthBasicAuthorizationHeader,
+  createOAuthTokenRequestHeaders,
+  oauthClientCredentialRedactionValues,
+  redactOAuthSensitiveText,
+} from './connectors/oauth.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
 export interface OAuthClientCredentials {
   clientId: string
-  clientSecret: string
+  /** Omit for public clients whose manifest uses tokenClientAuthMethod=none. */
+  clientSecret?: string
 }
 
 export interface ConnectorAdapterProviderOptions {
@@ -42,7 +51,7 @@ export interface ConnectorAdapterProviderOptions {
     connection: IntegrationConnection
     credentials: ConnectorCredentials
   }) => Promise<void> | void
-  /** Resolve OAuth client_id / client_secret for an oauth2 adapter at
+  /** Resolve OAuth client_id and, for confidential clients, client_secret at
    *  start- and exchange-time. Host owns env, vault, and per-tenant
    *  overrides. Return null to refuse the flow (lib will throw
    *  `config_missing`). The lib never logs the secret nor includes it
@@ -84,6 +93,17 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
+      if ((auth.grantType ?? 'authorization_code') !== 'authorization_code') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} uses client_credentials and requires a machine connection path.`,
+          'auth_not_supported',
+        )
+      }
+      const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
+      const tokenClientAuthMethod = resolveTokenClientAuthMethod(
+        auth.tokenClientAuthMethod,
+        request.connectorId,
+      )
       if (!options.resolveOAuthClient) {
         throw new IntegrationError(
           `OAuth client resolver missing on adapter provider; cannot start auth for ${request.connectorId}.`,
@@ -91,7 +111,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         )
       }
       const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
-      if (!client || !client.clientId || !client.clientSecret) {
+      if (
+        !client ||
+        !client.clientId ||
+        (tokenClientAuthMethod !== 'none' && !client.clientSecret)
+      ) {
         throw new IntegrationError(
           `OAuth client credentials unavailable for ${request.connectorId}.`,
           'config_missing',
@@ -107,12 +131,24 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         request.requestedScopes && request.requestedScopes.length > 0
           ? request.requestedScopes
           : auth.scopes
-      const url = new URL(auth.authorizationUrl)
+      const url = new URL(resolveOAuthUrlTemplate(
+        auth.authorizationUrl,
+        request.metadata,
+        request.connectorId,
+        auth.urlTemplateMetadata,
+      ))
       url.searchParams.set('response_type', 'code')
-      url.searchParams.set('client_id', client.clientId)
+      url.searchParams.set(
+        resolveOAuthParameterName(
+          auth.authorizationClientIdParam,
+          'client_id',
+          request.connectorId,
+        ),
+        client.clientId,
+      )
       url.searchParams.set('redirect_uri', request.redirectUri)
-      if (scopes.length > 0) {
-        url.searchParams.set('scope', scopes.join(' '))
+      if (auth.sendScopeParam !== false && scopes.length > 0) {
+        url.searchParams.set('scope', scopes.join(auth.scopeSeparator ?? ' '))
       }
       const state = request.state ?? randomState()
       url.searchParams.set('state', state)
@@ -120,6 +156,16 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         for (const [key, value] of Object.entries(auth.extraAuthParams)) {
           url.searchParams.set(key, value)
         }
+      }
+      if (pkce === 'unsupported') {
+        url.searchParams.delete('code_challenge')
+        url.searchParams.delete('code_challenge_method')
+      } else {
+        url.searchParams.set(
+          'code_challenge',
+          requirePkceChallenge(request.codeChallenge, request.connectorId),
+        )
+        url.searchParams.set('code_challenge_method', 'S256')
       }
       return {
         providerId,
@@ -144,6 +190,17 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
           'auth_not_supported',
         )
       }
+      if ((auth.grantType ?? 'authorization_code') !== 'authorization_code') {
+        throw new IntegrationError(
+          `Connector ${request.connectorId} uses client_credentials and requires a machine connection path.`,
+          'auth_not_supported',
+        )
+      }
+      const tokenClientAuthMethod = resolveTokenClientAuthMethod(
+        auth.tokenClientAuthMethod,
+        request.connectorId,
+      )
+      const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       if (!request.code) {
         throw new IntegrationError(
           `Authorization code missing on completeAuth for ${request.connectorId}.`,
@@ -157,7 +214,11 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         )
       }
       const client = await options.resolveOAuthClient({ connectorId: request.connectorId })
-      if (!client || !client.clientId || !client.clientSecret) {
+      if (
+        !client ||
+        !client.clientId ||
+        (tokenClientAuthMethod !== 'none' && !client.clientSecret)
+      ) {
         throw new IntegrationError(
           `OAuth client credentials unavailable for ${request.connectorId}.`,
           'config_missing',
@@ -172,30 +233,86 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code: request.code,
-        client_id: client.clientId,
-        client_secret: client.clientSecret,
         redirect_uri: request.redirectUri,
       })
+      const codeVerifier = pkce === 'unsupported'
+        ? undefined
+        : requirePkceVerifier(request.codeVerifier, request.connectorId)
+      if (codeVerifier) body.set('code_verifier', codeVerifier)
+      const headers = createOAuthTokenRequestHeaders(auth.tokenRequestHeaders)
+      if (tokenClientAuthMethod === 'none') {
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientIdParam,
+            'client_id',
+            request.connectorId,
+          ),
+          client.clientId,
+        )
+      } else if (tokenClientAuthMethod === 'client_secret_post') {
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientIdParam,
+            'client_id',
+            request.connectorId,
+          ),
+          client.clientId,
+        )
+        body.set(
+          resolveOAuthParameterName(
+            auth.tokenClientSecretParam,
+            'client_secret',
+            request.connectorId,
+          ),
+          client.clientSecret!,
+        )
+      } else {
+        const authorization = createOAuthBasicAuthorizationHeader(
+          client.clientId,
+          client.clientSecret!,
+          base64Encode,
+        )
+        headers.authorization = authorization
+      }
+      const redactionValues = [
+        request.code,
+        ...(codeVerifier ? [codeVerifier] : []),
+        ...oauthClientCredentialRedactionValues(
+          client.clientId,
+          client.clientSecret,
+          headers.authorization,
+        ),
+      ]
+      const tokenUrl = resolveOAuthUrlTemplate(
+        auth.tokenUrl,
+        request.metadata,
+        request.connectorId,
+        auth.urlTemplateMetadata,
+      )
       let res: Response
       try {
-        res = await fetchImpl(auth.tokenUrl, {
+        res = await fetchImpl(tokenUrl, {
           method: 'POST',
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-            accept: 'application/json',
-          },
+          headers,
           body,
         })
       } catch (cause) {
+        const detail = redactOAuthSensitiveText(
+          (cause as Error)?.message ?? 'unknown',
+          redactionValues,
+        )
         throw new IntegrationError(
-          `OAuth token exchange transport error for ${request.connectorId}: ${(cause as Error)?.message ?? 'unknown'}`,
+          `OAuth token exchange transport error for ${request.connectorId}: ${detail}`,
           'provider_failure',
         )
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
+        const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
+        const redactedText = redactOAuthSensitiveText(text, redactionValues)
+        const detail = `${res.status} ${statusText} — ${redactedText.slice(0, 200)}`
         throw new IntegrationError(
-          `OAuth token exchange failed for ${request.connectorId}: ${res.status} ${res.statusText} — ${text.slice(0, 200)}`,
+          `OAuth token exchange failed for ${request.connectorId}: ${detail}`,
           'provider_failure',
         )
       }
@@ -256,7 +373,18 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         throw new IntegrationError(`Capability ${request.action} is not defined by ${connection.connectorId}.`, 'action_not_found')
       }
       const source = await options.resolveDataSource(connection)
-      let rotated: ConnectorCredentials | undefined
+      let rotationPersistence = Promise.resolve()
+      const persistRotation = (credentials: ConnectorCredentials): Promise<void> => {
+        if (!options.onCredentialsRotated) return Promise.resolve()
+        rotationPersistence = rotationPersistence.then(() =>
+          options.onCredentialsRotated!({ connection, credentials }),
+        )
+        // Some third-party adapters do not await this callback. Attach a
+        // rejection observer immediately, then let the original promise keep
+        // its rejection for the adapter or the provider's finally block.
+        void rotationPersistence.catch(() => {})
+        return rotationPersistence
+      }
       const invocation: ConnectorInvocation = {
         source,
         capabilityName: request.action,
@@ -265,31 +393,30 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         expectedEtag: typeof request.metadata?.expectedEtag === 'string' ? request.metadata.expectedEtag : undefined,
         callSessionId: typeof request.metadata?.callSessionId === 'string' ? request.metadata.callSessionId : undefined,
         onCredentialsRotated: options.onCredentialsRotated
-          ? (credentials) => { rotated = credentials }
+          ? persistRotation
           : undefined,
       }
-      const persistRotation = async () => {
-        if (rotated && options.onCredentialsRotated) {
-          await options.onCredentialsRotated({ connection, credentials: rotated })
+      try {
+        if (capability.class === 'read') {
+          if (!adapter.executeRead) {
+            throw new IntegrationError(`Connector ${connection.connectorId} does not implement reads.`, 'action_not_found')
+          }
+          const result = await adapter.executeRead(invocation)
+          return readResultToAction(request, result)
         }
-      }
-      if (capability.class === 'read') {
-        if (!adapter.executeRead) {
-          throw new IntegrationError(`Connector ${connection.connectorId} does not implement reads.`, 'action_not_found')
+        if (capability.class === 'mutation') {
+          if (!adapter.executeMutation) {
+            throw new IntegrationError(`Connector ${connection.connectorId} does not implement mutations.`, 'action_not_found')
+          }
+          const result = await adapter.executeMutation(invocation)
+          return mutationResultToAction(request, result)
         }
-        const result = await adapter.executeRead(invocation)
-        await persistRotation()
-        return readResultToAction(request, result)
+        throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')
+      } finally {
+        // A provider can rotate a refresh token before the requested action
+        // fails. Persist that full envelope regardless of the action outcome.
+        await rotationPersistence
       }
-      if (capability.class === 'mutation') {
-        if (!adapter.executeMutation) {
-          throw new IntegrationError(`Connector ${connection.connectorId} does not implement mutations.`, 'action_not_found')
-        }
-        const result = await adapter.executeMutation(invocation)
-        await persistRotation()
-        return mutationResultToAction(request, result)
-      }
-      throw new IntegrationError(`Capability ${request.action} is not invokable as an action.`, 'action_not_found')
     },
   }
 }
@@ -318,6 +445,7 @@ export function createConnectorAdapterCatalogSource(options: {
 export function manifestToConnector(providerId: string, adapter: ConnectorAdapter): IntegrationConnector {
   const manifest = adapter.manifest
   const primaryAuth = primaryManifestAuth(manifest.auth)
+  const oauthAuth = oauthManifestAuth(manifest.auth)
   return {
     id: manifest.kind,
     providerId,
@@ -341,6 +469,9 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
       source: 'first-party-adapter',
       supportTier: 'firstPartyExecutable',
       executable: true,
+      oauthPkce: oauthAuth
+        ? resolveOAuthPkceMode(oauthAuth.pkce, manifest.kind)
+        : undefined,
       authOptions: manifest.auth.kind === 'one_of' ? manifest.auth.options.map((auth) => auth.kind) : [manifest.auth.kind],
       preferredAuth: manifest.auth.kind === 'one_of' ? manifest.auth.preferred : manifest.auth.kind,
     },
@@ -412,6 +543,277 @@ function oauthManifestAuth(auth: ConnectorAdapter['manifest']['auth']): Extract<
   if (auth.kind === 'oauth2') return auth
   if (auth.kind !== 'one_of') return undefined
   return auth.options.find((option): option is Extract<typeof option, { kind: 'oauth2' }> => option.kind === 'oauth2')
+}
+
+/** Resolve the manifest value at the last possible point before an OAuth
+ * request. The runtime check matters because adapters can enter through JS or
+ * an `any` cast without first passing the static manifest validator. */
+function resolveTokenClientAuthMethod(
+  value: unknown,
+  connectorId: string,
+): OAuth2TokenClientAuthMethod {
+  if (value === undefined || value === 'client_secret_post') {
+    return 'client_secret_post'
+  }
+  if (value === 'none' || value === 'client_secret_basic') return value
+  throw new IntegrationError(
+    `Connector ${connectorId} has an unsupported OAuth token client authentication method.`,
+    'config_missing',
+  )
+}
+
+function resolveOAuthPkceMode(
+  value: unknown,
+  connectorId: string,
+): 'required' | 'supported' | 'unsupported' {
+  if (value === undefined || value === 'required') return 'required'
+  if (value === 'supported' || value === 'unsupported') return value
+  throw new IntegrationError(
+    `Connector ${connectorId} has an invalid OAuth PKCE posture.`,
+    'config_missing',
+  )
+}
+
+function requirePkceChallenge(value: string | undefined, connectorId: string): string {
+  if (!value || !/^[A-Za-z0-9_-]{43}$/.test(value)) {
+    throw new IntegrationError(
+      `OAuth PKCE S256 challenge missing or invalid for ${connectorId}.`,
+      'config_missing',
+    )
+  }
+  return value
+}
+
+function requirePkceVerifier(value: string | undefined, connectorId: string): string {
+  if (!value || !/^[A-Za-z0-9._~-]{43,128}$/.test(value)) {
+    throw new IntegrationError(
+      `OAuth PKCE verifier missing or invalid for ${connectorId}.`,
+      'config_missing',
+    )
+  }
+  return value
+}
+
+function resolveOAuthParameterName(
+  value: string | undefined,
+  fallback: string,
+  connectorId: string,
+): string {
+  const name = value ?? fallback
+  if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)) {
+    throw new IntegrationError(
+      `Connector ${connectorId} declares an invalid OAuth parameter name.`,
+      'config_missing',
+    )
+  }
+  return name
+}
+
+/** Encodes UTF-8 credentials without importing Node's Buffer, so the adapter
+ * provider remains usable in browser and edge runtimes. */
+function base64Encode(value: string): string {
+  const btoa = globalThis.btoa
+  if (typeof btoa !== 'function') {
+    throw new IntegrationError(
+      'OAuth client_secret_basic requires a base64 encoder in this runtime.',
+      'config_missing',
+    )
+  }
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+/** Resolve provider-owned tenant labels embedded in OAuth URLs.
+ *
+ * Shopify and Gorgias put the merchant name in the hostname. Only one DNS
+ * label is accepted for each placeholder, so connection metadata cannot turn
+ * a provider URL into an arbitrary credential destination.
+ */
+function resolveOAuthUrlTemplate(
+  template: string,
+  metadata: Record<string, unknown> | undefined,
+  connectorId: string,
+  metadataSpecs?: Readonly<Record<string, OAuth2UrlTemplateMetadataSpec>>,
+): string {
+  const placeholders = [...template.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)]
+  let resolved = template
+  for (const match of placeholders) {
+    const key = match[1]
+    const raw = metadata?.[key]
+    const metadataSpec = metadataSpecs?.[key]
+    if (metadataSpec?.kind === 'base-url') {
+      if (typeof raw !== 'string') {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} requires metadata.${key} as a provider base URL.`,
+          'config_missing',
+        )
+      }
+      resolved = resolved.replaceAll(
+        match[0],
+        resolveOAuthMetadataBaseUrl(raw, metadataSpec, connectorId, key),
+      )
+      continue
+    }
+    if (metadataSpec?.kind === 'path-segment') {
+      if (!isOAuthPathSegmentPlaceholder(template, match.index ?? -1, match[0])) {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} declares metadata.${key} outside a complete path segment.`,
+          'config_missing',
+        )
+      }
+      if (typeof raw !== 'string' || !isOAuthPathSegment(raw.trim())) {
+        throw new IntegrationError(
+          `OAuth URL for ${connectorId} requires metadata.${key} as a valid path segment.`,
+          'config_missing',
+        )
+      }
+      resolved = resolved.replaceAll(match[0], encodeURIComponent(raw.trim()))
+      continue
+    }
+    if (typeof raw !== 'string' || !isDnsLabel(raw.trim())) {
+      throw new IntegrationError(
+        `OAuth URL for ${connectorId} requires metadata.${key} as a valid tenant label.`,
+        'config_missing',
+      )
+    }
+    resolved = resolved.replaceAll(match[0], raw.trim().toLowerCase())
+  }
+
+  let url: URL
+  try {
+    url = new URL(resolved)
+  } catch {
+    throw new IntegrationError(
+      `OAuth URL for ${connectorId} is invalid.`,
+      'config_missing',
+    )
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new IntegrationError(
+      `OAuth URL for ${connectorId} must be HTTPS without embedded credentials.`,
+      'config_missing',
+    )
+  }
+  return url.toString()
+}
+
+function isOAuthPathSegment(value: string): boolean {
+  return (
+    value !== '.' &&
+    value !== '..' &&
+    /^[A-Za-z0-9._~-]{1,128}$/.test(value)
+  )
+}
+
+function isOAuthPathSegmentPlaceholder(
+  template: string,
+  index: number,
+  placeholder: string,
+): boolean {
+  if (index < 0) return false
+  const schemeIndex = template.indexOf('://')
+  const rootEnd = schemeIndex >= 0
+    ? schemeIndex + 3
+    : template.startsWith('{')
+      ? template.indexOf('}') + 1
+      : 0
+  const pathStart = template.indexOf('/', rootEnd)
+  const end = index + placeholder.length
+  const queryStart = template.search(/[?#]/)
+  return (
+    pathStart >= 0 &&
+    index >= pathStart &&
+    (queryStart < 0 || index < queryStart) &&
+    template[index - 1] === '/' &&
+    (end === template.length || template[end] === '/' || template[end] === '?' || template[end] === '#')
+  )
+}
+
+function resolveOAuthMetadataBaseUrl(
+  value: string,
+  spec: Extract<OAuth2UrlTemplateMetadataSpec, { kind: 'base-url' }>,
+  connectorId: string,
+  metadataKey: string,
+): string {
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  ) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  const exactAllowed = spec.allowedBaseUrls?.some((candidate) => sameOrigin(candidate, url)) ?? false
+  const suffixAllowed = spec.allowedBaseUrlSuffixes?.some((suffix) =>
+    !url.port &&
+    suffix.startsWith('.') &&
+    url.hostname.toLowerCase().endsWith(suffix.toLowerCase())
+  ) ?? false
+  const hasExplicitAllowlist = Boolean(
+    spec.allowedBaseUrls?.length || spec.allowedBaseUrlSuffixes?.length,
+  )
+  if (hasExplicitAllowlist && !exactAllowed && !suffixAllowed) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  if (spec.requirePublicHttps && !isPublicDnsHostname(url.hostname)) {
+    throw invalidOAuthMetadataBaseUrl(connectorId, metadataKey)
+  }
+  return url.origin
+}
+
+function invalidOAuthMetadataBaseUrl(connectorId: string, metadataKey: string): IntegrationError {
+  return new IntegrationError(
+    `OAuth URL for ${connectorId} requires metadata.${metadataKey} as an allowed HTTPS provider root.`,
+    'config_missing',
+  )
+}
+
+function sameOrigin(candidate: string, actual: URL): boolean {
+  try {
+    const allowed = new URL(candidate)
+    return (
+      allowed.protocol === 'https:' &&
+      !allowed.username &&
+      !allowed.password &&
+      allowed.pathname === '/' &&
+      !allowed.search &&
+      !allowed.hash &&
+      allowed.origin === actual.origin
+    )
+  } catch {
+    return false
+  }
+}
+
+function isPublicDnsHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (
+    normalized === 'localhost' ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized.endsWith('.home.arpa')
+  ) {
+    return false
+  }
+  // OAuth redirects to self-hosted instances require a DNS name. Reject
+  // literal IP addresses because fetch cannot pin DNS against rebinding.
+  if (/^[0-9.]+$/.test(normalized) || normalized.includes(':')) return false
+  return normalized.includes('.') && normalized.split('.').every(isDnsLabel)
+}
+
+function isDnsLabel(value: string): boolean {
+  return value.length > 0 && value.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(value)
 }
 
 /** Project the declared `auth.tokenMetadata` mappings out of an OAuth

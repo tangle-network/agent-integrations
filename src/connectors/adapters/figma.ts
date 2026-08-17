@@ -6,31 +6,34 @@ import { declarativeRestConnector } from './declarative-rest.js'
 //   - Refresh:    https://api.figma.com/v1/oauth/refresh (handled by host OAuth runtime)
 //
 // API reference: https://www.figma.com/developers/api
-// Scopes are space-delimited in the authorization URL. We request the minimum
-// set required to cover the action surface below: read files + components,
-// post/read file comments, and read dev-resources/library-analytics for
-// design-system tooling.
+// Scopes are space-delimited in the authorization URL. Figma's granular scopes
+// replace the deprecated `files:read` scope. Enterprise-only variables and
+// library analytics are intentionally excluded from this no-cost provider pack.
 //
 // Identifier nomenclature:
 //   - file_key  : the 22-character key from https://www.figma.com/file/<file_key>/<title>
 //   - node_id   : a comma-delimited list when used on /v1/files/<file_key>/nodes
 //   - team_id   : numeric team id (https://www.figma.com/files/team/<team_id>)
-//   - project_id: numeric project id under a team
+//   - project_id: numeric project id visible to the authenticated user
 //   - comment_id: returned from /v1/files/<file_key>/comments
 export const figmaConnector = declarativeRestConnector({
   kind: 'figma',
   displayName: 'Figma',
-  description: 'Read Figma files, components, comments, and team projects; post comments back into the design source of truth.',
+  description: 'Read Figma files, components, comments, and project metadata; post comments back into the design source of truth.',
   auth: {
     kind: 'oauth2',
     authorizationUrl: 'https://www.figma.com/oauth',
     tokenUrl: 'https://api.figma.com/v1/oauth/token',
     scopes: [
-      'files:read',
-      'file_variables:read',
+      'current_user:read',
+      'file_comments:read',
       'file_comments:write',
+      'file_content:read',
       'file_dev_resources:read',
-      'library_analytics:read',
+      'file_versions:read',
+      'library_content:read',
+      'project_metadata:read',
+      'team_library_content:read',
       'webhooks:write',
     ],
     clientIdEnv: 'FIGMA_OAUTH_CLIENT_ID',
@@ -47,7 +50,7 @@ export const figmaConnector = declarativeRestConnector({
       description: 'Return the authenticated Figma user.',
       parameters: { type: 'object', properties: {}, required: [] },
       request: { method: 'GET', path: '/v1/me' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['current_user:read'],
     },
     {
       name: 'files.get',
@@ -78,7 +81,7 @@ export const figmaConnector = declarativeRestConnector({
           branch_data: '{branch_data}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.nodes',
@@ -100,7 +103,7 @@ export const figmaConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/nodes',
         query: { ids: '{ids}', version: '{version}', depth: '{depth}', geometry: '{geometry}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.images',
@@ -135,7 +138,7 @@ export const figmaConnector = declarativeRestConnector({
           version: '{version}',
         },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.image_fills',
@@ -147,7 +150,7 @@ export const figmaConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/images' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_content:read'],
     },
     {
       name: 'files.versions.list',
@@ -168,7 +171,7 @@ export const figmaConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/versions',
         query: { page_size: '{page_size}', before: '{before}', after: '{after}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_versions:read'],
     },
     {
       name: 'files.components.list',
@@ -180,7 +183,7 @@ export const figmaConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/components' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['library_content:read'],
     },
     {
       name: 'files.component_sets.list',
@@ -192,7 +195,7 @@ export const figmaConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/component_sets' },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['library_content:read'],
     },
     {
       name: 'files.styles.list',
@@ -204,31 +207,7 @@ export const figmaConnector = declarativeRestConnector({
         required: ['file_key'],
       },
       request: { method: 'GET', path: '/v1/files/{file_key}/styles' },
-      requiredScopes: ['files:read'],
-    },
-    {
-      name: 'files.variables.local',
-      class: 'read',
-      description: 'List locally defined variables and variable collections in a file (Enterprise-only).',
-      parameters: {
-        type: 'object',
-        properties: { file_key: { type: 'string' } },
-        required: ['file_key'],
-      },
-      request: { method: 'GET', path: '/v1/files/{file_key}/variables/local' },
-      requiredScopes: ['file_variables:read'],
-    },
-    {
-      name: 'files.variables.published',
-      class: 'read',
-      description: 'List variables published from a Figma library file (Enterprise-only).',
-      parameters: {
-        type: 'object',
-        properties: { file_key: { type: 'string' } },
-        required: ['file_key'],
-      },
-      request: { method: 'GET', path: '/v1/files/{file_key}/variables/published' },
-      requiredScopes: ['file_variables:read'],
+      requiredScopes: ['library_content:read'],
     },
     {
       name: 'files.dev_resources.list',
@@ -266,38 +245,19 @@ export const figmaConnector = declarativeRestConnector({
         path: '/v1/files/{file_key}/comments',
         query: { as_md: '{as_md}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['file_comments:read'],
     },
     {
-      name: 'teams.projects.list',
+      name: 'projects.metadata.get',
       class: 'read',
-      description: 'List projects inside a Figma team.',
+      description: 'Get metadata for a Figma project visible to the authenticated user.',
       parameters: {
         type: 'object',
-        properties: { team_id: { type: 'string' } },
-        required: ['team_id'],
-      },
-      request: { method: 'GET', path: '/v1/teams/{team_id}/projects' },
-      requiredScopes: ['files:read'],
-    },
-    {
-      name: 'projects.files.list',
-      class: 'read',
-      description: 'List Figma files inside a project.',
-      parameters: {
-        type: 'object',
-        properties: {
-          project_id: { type: 'string' },
-          branch_data: { type: 'boolean' },
-        },
+        properties: { project_id: { type: 'string' } },
         required: ['project_id'],
       },
-      request: {
-        method: 'GET',
-        path: '/v1/projects/{project_id}/files',
-        query: { branch_data: '{branch_data}' },
-      },
-      requiredScopes: ['files:read'],
+      request: { method: 'GET', path: '/v1/projects/{project_id}/meta' },
+      requiredScopes: ['project_metadata:read'],
     },
     {
       name: 'teams.components.list',
@@ -318,7 +278,7 @@ export const figmaConnector = declarativeRestConnector({
         path: '/v1/teams/{team_id}/components',
         query: { page_size: '{page_size}', after: '{after}', before: '{before}' },
       },
-      requiredScopes: ['files:read'],
+      requiredScopes: ['team_library_content:read'],
     },
     {
       name: 'teams.styles.list',
@@ -339,27 +299,7 @@ export const figmaConnector = declarativeRestConnector({
         path: '/v1/teams/{team_id}/styles',
         query: { page_size: '{page_size}', after: '{after}', before: '{before}' },
       },
-      requiredScopes: ['files:read'],
-    },
-    {
-      name: 'analytics.library.component_usages',
-      class: 'read',
-      description: 'Read library analytics: component usage rollup for a library file.',
-      parameters: {
-        type: 'object',
-        properties: {
-          file_key: { type: 'string' },
-          group_by: { type: 'string', enum: ['component', 'file'] },
-          cursor: { type: 'string' },
-        },
-        required: ['file_key', 'group_by'],
-      },
-      request: {
-        method: 'GET',
-        path: '/v1/analytics/libraries/{file_key}/component/usages',
-        query: { group_by: '{group_by}', cursor: '{cursor}' },
-      },
-      requiredScopes: ['library_analytics:read'],
+      requiredScopes: ['team_library_content:read'],
     },
     {
       name: 'files.comments.create',

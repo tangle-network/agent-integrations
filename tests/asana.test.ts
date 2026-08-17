@@ -37,6 +37,45 @@ describe('asana adapter', () => {
     vi.unstubAllGlobals()
   })
 
+  it('prefers OAuth while preserving personal access token setup', () => {
+    const auth = adapter.manifest.auth
+    expect(auth.kind).toBe('one_of')
+    if (auth.kind !== 'one_of') return
+    expect(auth.preferred).toBe('oauth2')
+    expect(auth.options).toContainEqual({
+      kind: 'oauth2',
+      authorizationUrl: 'https://app.asana.com/-/oauth_authorize',
+      tokenUrl: 'https://app.asana.com/-/oauth_token',
+      scopes: ['default'],
+      clientIdEnv: 'ASANA_OAUTH_CLIENT_ID',
+      clientSecretEnv: 'ASANA_OAUTH_CLIENT_SECRET',
+    })
+    expect(auth.options).toContainEqual({
+      kind: 'api-key',
+      hint: 'Asana personal access token.',
+    })
+  })
+
+  it('executes through OAuth bearer credentials', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({ data: { gid: 'me' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await adapter.test(source({
+      credentials: {
+        kind: 'oauth2',
+        accessToken: 'asana-oauth-access',
+        refreshToken: 'asana-oauth-refresh',
+      },
+    }))
+
+    const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit]
+    expect(init.headers).toMatchObject({
+      authorization: 'Bearer asana-oauth-access',
+    })
+  })
+
   it('manifest exposes tasks.addComment and tasks.complete as mutations', () => {
     const names = adapter.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toContain('tasks.addComment')

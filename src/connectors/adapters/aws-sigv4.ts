@@ -45,6 +45,10 @@ export interface AwsCredentialBundle {
   /** Explicit endpoint override (S3-compatible stores, LocalStack, custom
    *  partitions). Wins over the adapter's region-templated host. */
   endpoint?: string
+  /** Optional bucket pinned when connecting to an S3-compatible provider.
+   *  This is an allowlisted request default, not a secret: declarative request
+   *  interpolation may use it when an action omits its `bucket` argument. */
+  bucket?: string
 }
 
 export interface SigV4Input {
@@ -86,7 +90,7 @@ export interface SigV4Signature {
 /**
  * Parse the AWS credential bundle carried in the connector's api-key field.
  * Accepts a JSON object with `accessKeyId` / `secretAccessKey` (+ optional
- * `region`, `sessionToken`, `endpoint`); tolerates a few common key aliases.
+ * `region`, `sessionToken`, `endpoint`, `bucket`); tolerates a few common key aliases.
  * Throws a clear error if the field is not a JSON object or is missing the
  * access-key pair — failing loud at first call rather than producing an
  * unsigned/garbage request.
@@ -118,10 +122,11 @@ export function parseAwsCredentialBundle(credentials: ConnectorCredentials): Aws
   const region = pickString(o, ['region', 'awsRegion', 'Region']) ?? ''
   const sessionToken = pickString(o, ['sessionToken', 'session_token', 'awsSessionToken', 'SessionToken'])
   const endpoint = pickString(o, ['endpoint', 'Endpoint'])
+  const bucket = pickString(o, ['bucket', 'bucketName', 'bucket_name', 'Bucket'])
   if (!accessKeyId || !secretAccessKey) {
     throw new Error('AWS credential bundle is missing accessKeyId and/or secretAccessKey')
   }
-  return { accessKeyId, secretAccessKey, region, sessionToken, endpoint }
+  return { accessKeyId, secretAccessKey, region, sessionToken, endpoint, bucket }
 }
 
 /**

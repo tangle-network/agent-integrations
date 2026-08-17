@@ -1,55 +1,37 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-// Supabase Management API OAuth2 endpoints.
-// authorizeUrl: https://api.supabase.com/v1/oauth/authorize
-// tokenUrl:     https://api.supabase.com/v1/oauth/token
+// The Supabase project OAuth server is not an OAuth client for the Management
+// API. Management API calls instead use a customer-owned Personal Access Token
+// generated in the Supabase Dashboard under Account > Access Tokens.
 // Docs: https://supabase.com/docs/reference/api/introduction
-//
-// Token is a short-lived (1h) access token tied to the authorizing user's
-// org memberships. Scopes are coarse pairs of {resource}:{read|write}
-// declared in the Supabase OAuth App settings; the customer must enable
-// every scope listed below in the App console before issuing the grant.
 export const supabaseConnector = declarativeRestConnector({
   kind: 'supabase',
   displayName: 'Supabase',
   description:
     'Inspect Supabase projects, run SQL against the Postgres database, and manage secrets via the Management API.',
   auth: {
-    kind: 'oauth2',
-    authorizationUrl: 'https://api.supabase.com/v1/oauth/authorize',
-    tokenUrl: 'https://api.supabase.com/v1/oauth/token',
-    scopes: [
-      'organizations:read',
-      'projects:read',
-      'projects:write',
-      'database:read',
-      'database:write',
-      'secrets:read',
-      'secrets:write',
-    ],
-    clientIdEnv: 'SUPABASE_OAUTH_CLIENT_ID',
-    clientSecretEnv: 'SUPABASE_OAUTH_CLIENT_SECRET',
+    kind: 'api-key',
+    hint: 'Supabase Management API personal access token (Dashboard > Account > Access Tokens). Sent as an Authorization: Bearer token.',
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.supabase.com',
+  credentialPlacement: { kind: 'bearer' },
   test: { method: 'GET', path: '/v1/organizations' },
   capabilities: [
     {
       name: 'organizations.list',
       class: 'read',
-      description: 'List Supabase organizations the authorizing user belongs to.',
+      description: 'List Supabase organizations available to the personal access token.',
       parameters: { type: 'object', properties: {} },
       request: { method: 'GET', path: '/v1/organizations' },
-      requiredScopes: ['organizations:read'],
     },
     {
       name: 'projects.list',
       class: 'read',
-      description: 'List Supabase projects across the authorized organizations.',
+      description: 'List Supabase projects available to the personal access token.',
       parameters: { type: 'object', properties: {} },
       request: { method: 'GET', path: '/v1/projects' },
-      requiredScopes: ['projects:read'],
     },
     {
       name: 'projects.get',
@@ -61,17 +43,17 @@ export const supabaseConnector = declarativeRestConnector({
         required: ['ref'],
       },
       request: { method: 'GET', path: '/v1/projects/{ref}' },
-      requiredScopes: ['projects:read'],
     },
     {
       name: 'database.query',
-      class: 'read',
-      description: 'Run a read-only SQL query against the project Postgres database.',
+      class: 'mutation',
+      description:
+        'Run SQL against the project Postgres database. This requires normal write approval because a Management API personal access token does not distinguish read-only SQL from writes.',
       parameters: {
         type: 'object',
         properties: {
           ref: { type: 'string' },
-          query: { type: 'string', description: 'SQL statement. Mutations are rejected unless database:write is granted.' },
+          query: { type: 'string', description: 'SQL statement.' },
         },
         required: ['ref', 'query'],
       },
@@ -80,7 +62,8 @@ export const supabaseConnector = declarativeRestConnector({
         path: '/v1/projects/{ref}/database/query',
         body: { query: '{query}' },
       },
-      requiredScopes: ['database:read'],
+      cas: 'native-idempotency',
+      externalEffect: true,
     },
     {
       name: 'database.execute',
@@ -100,7 +83,6 @@ export const supabaseConnector = declarativeRestConnector({
         body: { query: '{query}' },
       },
       cas: 'native-idempotency',
-      requiredScopes: ['database:write'],
     },
     {
       name: 'projects.create',
@@ -119,7 +101,6 @@ export const supabaseConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/v1/projects', body: 'args' },
       cas: 'native-idempotency',
-      requiredScopes: ['projects:write'],
     },
     {
       name: 'secrets.list',
@@ -131,7 +112,6 @@ export const supabaseConnector = declarativeRestConnector({
         required: ['ref'],
       },
       request: { method: 'GET', path: '/v1/projects/{ref}/secrets' },
-      requiredScopes: ['secrets:read'],
     },
     {
       name: 'secrets.upsert',
@@ -158,7 +138,6 @@ export const supabaseConnector = declarativeRestConnector({
         body: '{secrets}',
       },
       cas: 'native-idempotency',
-      requiredScopes: ['secrets:write'],
     },
     {
       name: 'projects.delete',
@@ -172,7 +151,6 @@ export const supabaseConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/v1/projects/{ref}' },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['projects:write'],
     },
     {
       name: 'branches.create',
@@ -195,7 +173,6 @@ export const supabaseConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['projects:write'],
     },
     {
       name: 'branches.delete',
@@ -209,7 +186,6 @@ export const supabaseConnector = declarativeRestConnector({
       request: { method: 'DELETE', path: '/v1/branches/{branch_id}' },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['projects:write'],
     },
     {
       name: 'secrets.delete',
@@ -231,7 +207,6 @@ export const supabaseConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['secrets:write'],
     },
     {
       name: 'storage.upload',
@@ -255,7 +230,6 @@ export const supabaseConnector = declarativeRestConnector({
       },
       cas: 'native-idempotency',
       externalEffect: true,
-      requiredScopes: ['projects:write'],
     },
   ],
 })

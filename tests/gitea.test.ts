@@ -10,8 +10,15 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     kind: 'gitea',
     label: 'Gitea test',
     consistencyModel: 'authoritative',
-    scopes: ['repo', 'admin'],
-    metadata: {},
+    scopes: [
+      'read:user',
+      'write:user',
+      'read:issue',
+      'write:issue',
+      'read:repository',
+      'write:repository',
+    ],
+    metadata: { instanceUrl: 'https://git.tangle.tools' },
     credentials: { kind: 'oauth2', accessToken: 'gitea_access_token' },
     status: 'active',
     ...overrides,
@@ -25,6 +32,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('gitea adapter manifest', () => {
   it('classifies itself as the other category and exposes the gitea kind', () => {
     expect(giteaConnector.manifest.kind).toBe('gitea')
@@ -32,9 +41,47 @@ describe('gitea adapter manifest', () => {
     expect(giteaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
   })
 
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
+  it('uses instance-relative OAuth endpoints and current granular scopes', () => {
     const auth = giteaConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
+    if (auth.kind !== 'oauth2') throw new Error('gitea auth must be oauth2')
+    expect(auth.authorizationUrl).toBe('{instanceUrl}/login/oauth/authorize')
+    expect(auth.tokenUrl).toBe('{instanceUrl}/login/oauth/access_token')
+    expect(auth.scopes).toEqual([
+      'read:user',
+      'write:user',
+      'read:issue',
+      'write:issue',
+      'read:repository',
+      'write:repository',
+    ])
+    expect(auth.scopes).not.toEqual(expect.arrayContaining(['repo', 'admin']))
+    expect(auth.pkce).toBe('supported')
+    expect(auth.urlTemplateMetadata).toEqual({
+      instanceUrl: {
+        kind: 'base-url',
+        requirePublicHttps: true,
+      },
+    })
+  })
+
+  it.each([
+    'http://gitea.example.com',
+    'https://localhost',
+    'https://10.0.0.1',
+    'https://gitea.internal',
+    'https://user:secret@gitea.example.com',
+  ])('rejects hostile instance root %s before sending credentials', async (instanceUrl) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(giteaConnector.executeRead!({
+      source: source({ metadata: { instanceUrl } }),
+      capabilityName: 'repos.list',
+      args: { owner: 'drew' },
+      idempotencyKey: 'host-policy',
+    })).rejects.toThrow('connection base URL must be a public HTTPS endpoint')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('covers the activepieces action set plus repo + pull-request lifecycle writes', () => {
@@ -113,7 +160,7 @@ describe('gitea repos.create', () => {
     })
 
     expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toBe('https://api.gitea.io/api/v1/user/repos')
+    expect(String(requestUrl)).toBe('https://git.tangle.tools/api/v1/user/repos')
     expect(authHeader).toBe('Bearer gitea_access_token')
     expect(requestBody).toMatchObject({ name: 'autonomy', private: true, auto_init: true })
     expect(result.status).toBe('committed')
@@ -156,7 +203,7 @@ describe('gitea repos.delete', () => {
     })
 
     expect(requestMethod).toBe('DELETE')
-    expect(String(requestUrl)).toBe('https://api.gitea.io/api/v1/repos/drew/autonomy')
+    expect(String(requestUrl)).toBe('https://git.tangle.tools/api/v1/repos/drew/autonomy')
   })
 })
 
@@ -184,7 +231,7 @@ describe('gitea pull-requests.merge', () => {
 
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe(
-      'https://api.gitea.io/api/v1/repos/drew/autonomy/pulls/7/merge',
+      'https://git.tangle.tools/api/v1/repos/drew/autonomy/pulls/7/merge',
     )
     expect(requestBody).toMatchObject({ Do: 'squash' })
   })

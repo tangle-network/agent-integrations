@@ -6,7 +6,7 @@ export const pushbulletConnector = declarativeRestConnector({
   description: 'Send cross-device notifications via Pushbullet.',
   auth: {
     kind: 'oauth2',
-    authorizationUrl: 'https://www.pushbullet.com/oauth2/authorize',
+    authorizationUrl: 'https://www.pushbullet.com/authorize',
     tokenUrl: 'https://api.pushbullet.com/oauth2/token',
     scopes: [],
     clientIdEnv: 'PUSHBULLET_OAUTH_CLIENT_ID',
