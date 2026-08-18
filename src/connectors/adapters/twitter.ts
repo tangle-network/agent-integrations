@@ -33,7 +33,16 @@ const TOKEN_URL = 'https://api.twitter.com/2/oauth2/token'
 // GET /users/{id}/following and `like.read` gates GET /tweets/{id}/liking_users.
 // X's OAuth2 scope is the singular `like.read` (matching the existing
 // `like.write`) — NOT the plural `likes.read` the issue text used.
-const SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'follows.read', 'like.write', 'like.read', 'offline.access']
+const SCOPES = [
+  'tweet.read',
+  'tweet.write',
+  'media.write',
+  'users.read',
+  'follows.read',
+  'like.write',
+  'like.read',
+  'offline.access',
+]
 
 const TWITTER_SPEC: RestConnectorSpec = {
   kind: 'twitter',

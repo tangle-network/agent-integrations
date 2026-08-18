@@ -99,7 +99,7 @@ describe('twitter adapter manifest', () => {
     ])
   })
 
-  it('requests the official like.read + follows.read scopes the reads need while keeping the existing scopes', () => {
+  it('requests the OAuth scopes required for reads, writes, and future media uploads', () => {
     const auth = twitterConnector.manifest.auth
     if (auth.kind !== 'one_of') throw new Error('unreachable')
     const oauth = auth.options.find((option) => option.kind === 'oauth2')
@@ -111,7 +111,7 @@ describe('twitter adapter manifest', () => {
     expect(oauth.scopes).toContain('follows.read')
     expect(oauth.tokenClientAuthMethod).toBe('client_secret_basic')
     expect(oauth.scopes).toEqual(
-      expect.arrayContaining(['tweet.read', 'tweet.write', 'users.read', 'like.write', 'offline.access']),
+      expect.arrayContaining(['tweet.read', 'tweet.write', 'media.write', 'users.read', 'like.write', 'offline.access']),
     )
   })
 })
