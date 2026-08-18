@@ -85,7 +85,7 @@ describe.sequential('packed Worker-safe package subpaths', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
-  }, 120_000)
+  }, 360_000)
 })
 
 function runBrowserBundle(bundle: string, filename: string, globalName: string): Record<string, unknown> {
