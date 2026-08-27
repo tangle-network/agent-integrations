@@ -1,0 +1,1704 @@
+diff --git a/docs/integration-execution-audit.md b/docs/integration-execution-audit.md
+index a297498..c432a1f 100644
+--- a/docs/integration-execution-audit.md
++++ b/docs/integration-execution-audit.md
+@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
+ | Catalog connectors with auth field metadata | 648 |
+ | Custom-auth connectors with auth field metadata | 11 |
+ | Runtime package dependencies declared by this package | 0 |
+-| Setup specs | 142 |
+-| Executable setup specs | 14 |
++| Setup specs | 143 |
++| Executable setup specs | 15 |
+ | Catalog/setup-only specs | 128 |
+ | Tangle first-class contracts | 669 |
+ | Contracts with runtime packages | 669 |
+@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
+ | Contracts with mapped triggers | 669 |
+ | Contracts with mapped auth | 669 |
+ | Native adapter backends | 10 |
+-| Native adapter surfaces shipped | 16 |
++| Native adapter surfaces shipped | 17 |
+ | Package-runtime backends | 659 |
+ | Runtime manifest dependencies | 670 |
+ | Tangle catalog connectors exposable behind runtime | 669 |
+@@ -74,6 +74,7 @@ These are direct in-repo implementations. They are not the only first-class cont
+ - `slack`
+ - `notion-database`
+ - `twilio-sms`
++- `phony`
+ - `stripe-pack`
+ - `webhook`
+ - `stripe`
+@@ -95,6 +96,7 @@ Executable setup specs:
+ - `hubspot`
+ - `microsoft-calendar`
+ - `notion-database`
++- `phony`
+ - `salesforce`
+ - `slack`
+ - `stripe-pack`
+@@ -107,7 +109,7 @@ Executable setup specs:
+ | --- | --- | --- |
+ | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
+ | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
+-| Native adapter execution | Done for listed native backends | 16 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
++| Native adapter execution | Done for listed native backends | 17 reviewed native adapter surfaces ship from this package; 10 overlap the 669 catalog contracts. |
+ | OAuth/API-key setup metadata | Partial | 142 setup specs exist; 14 are executable setup specs and 128 are catalog/setup-only. |
+ | Package-runtime action execution | Wiring done; runtime deployment/smoke pending | 659 contracts use package-runtime backends with package names and 3790 catalog upstream action names. |
+ | Runtime dependency manifest | Done | `buildTangleCatalogRuntimePackageManifest()` emits 670 dependencies for a complete package-runtime worker install. |
+@@ -186,7 +188,7 @@ Manual custom auth mapping gap: none.
+    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
+ 
+ 5. **Native adapter coverage is intentionally smaller than contract breadth.**
+-   This repo ships 16 native adapter surfaces. 10 overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
++   This repo ships 17 native adapter surfaces. 10 overlap the 669 catalog contracts; the other first-class contracts use package-runtime backends.
+ 
+ ## Concrete Launch Interpretation
+ 
+diff --git a/docs/integration-execution-matrix.json b/docs/integration-execution-matrix.json
+index 41ca8f7..dad53c4 100644
+--- a/docs/integration-execution-matrix.json
++++ b/docs/integration-execution-matrix.json
+@@ -69773,6 +69773,38 @@
+       "executable_setup_spec"
+     ]
+   },
++  {
++    "id": "phony",
++    "title": "phony",
++    "category": "internal",
++    "catalogAuth": null,
++    "setupAuth": {
++      "mode": "api_key",
++      "credential": {
++        "label": "phony API key",
++        "description": "API key or token for phony.",
++        "secret": true
++      },
++      "placement": "bearer"
++    },
++    "runtimePackage": null,
++    "actionCount": null,
++    "triggerCount": null,
++    "setupStatus": "executable",
++    "tangleContractStatus": "native_backed",
++    "implementationKind": "native_adapter",
++    "nativeAdapter": true,
++    "catalogActionMappings": null,
++    "quality": {
++      "tangleContract": true,
++      "authFieldsMapped": true,
++      "actionNamesMapped": true,
++      "triggerNamesMapped": true,
++      "runtimePackageMapped": false,
++      "nativeAdapter": true
++    },
++    "missing": []
++  },
+   {
+     "id": "photoroom",
+     "title": "API key",
+diff --git a/scripts/audit-integration-execution.mjs b/scripts/audit-integration-execution.mjs
+index 2a44c06..d37d617 100644
+--- a/scripts/audit-integration-execution.mjs
++++ b/scripts/audit-integration-execution.mjs
+@@ -26,6 +26,7 @@ const firstParty = [
+   'slack',
+   'notion-database',
+   'twilio-sms',
++  'phony',
+   'stripe-pack',
+   'webhook',
+   'stripe',
+diff --git a/src/connectors/adapters/index.ts b/src/connectors/adapters/index.ts
+index 140c166..f508f7a 100644
+--- a/src/connectors/adapters/index.ts
++++ b/src/connectors/adapters/index.ts
+@@ -36,6 +36,7 @@ export {
+ } from './declarative-rest.js'
+ 
+ export { twilioSmsConnector } from './twilio-sms.js'
++export { phonyConnector } from './phony.js'
+ export { whatsappBusiness, type WhatsappBusinessOptions } from './whatsapp-business.js'
+ export { stripePackConnector } from './stripe-pack.js'
+ export { webhookConnector } from './webhook.js'
+diff --git a/src/connectors/adapters/phony.ts b/src/connectors/adapters/phony.ts
+new file mode 100644
+index 0000000..afcfe50
+--- /dev/null
++++ b/src/connectors/adapters/phony.ts
+@@ -0,0 +1,837 @@
++/**
++ * ph0ny connector — voice agents that place real phone calls. The agent's
++ * "call this number on the user's behalf and report back" surface.
++ *
++ * Auth: Bearer API key. ph0ny issues a single `plabs_`-prefixed key per
++ * developer (created in the developer portal via POST /v1/keys); the
++ * connector sends it as `Authorization: Bearer <key>` on every request.
++ *
++ *   list_agents(limit?, cursor?)
++ *     Read. GET /v1/outbound's sibling — GET /v1/agents. Lists the
++ *     developer's agents (cursor-paginated, newest first).
++ *
++ *   get_call(id)
++ *     Read. GET /v1/outbound/:id. Fetches one outbound call row including
++ *     status, transcript, and extracted fields.
++ *
++ *   list_calls(agentId?, limit?)
++ *     Read. GET /v1/outbound. Lists recent outbound calls for the
++ *     developer, optionally filtered by agentId.
++ *
++ *   start_outbound_call(agentId, toNumber, fromNumber, mission, …)
++ *     Mutation, external effect. POST /v1/outbound/start. Places a real
++ *     phone call. `userConsentRecorded` is a REQUIRED gate — ph0ny rejects
++ *     the request (400 CONSENT_REQUIRED) when it is false, even with valid
++ *     auth. `dryRun: true` walks every gate but stops short of the carrier
++ *     fetch and the row insert, returning a `dryRunReport`.
++ *
++ *   create_agent(name, …)
++ *     Mutation, external effect. POST /v1/agents. Creates a voice agent on
++ *     the developer account. Only `name` is required; every other column is
++ *     optional and passed through verbatim from the route's CreateAgentSchema.
++ *
++ *   provision_agent(name, collection?, initialContent?, …)
++ *     Mutation, external effect. POST /v1/agents/provision. One call that
++ *     creates the agent, optionally a fresh KB collection, and optionally
++ *     seeds that collection with initial content — atomic on the server.
++ *     Returns { agent, collection?, ingested? }.
++ *
++ *   kb_create_collection(name, description?, metadata?)
++ *     Mutation, external effect. POST /v1/collections. Creates a knowledge-
++ *     base collection the agent can search at call time.
++ *
++ *   kb_ingest(collectionId, content|sourceUrl, contentType, …)
++ *     Mutation, external effect. POST /v1/collections/:id/ingest. Chunks and
++ *     embeds content into a collection (≤1MB text). contentType 'url' returns
++ *     501 server-side; 'audio' requires a sourceUrl that ph0ny transcribes.
++ *
++ *   kb_search(collectionId, query, …)
++ *     Read. POST /v1/collections/:id/search. Hybrid vector+keyword search
++ *     over a collection. Returns { results, queryTokens, graphContext? }.
++ *
++ *   run_synthetic_test(agentId, persona, goal, …)
++ *     Mutation, external effect. POST /v1/agents/:id/tests/run-synthetic.
++ *     Drives a synthetic LLM caller against the agent — NO billing, NO real
++ *     dial. Creates a test-run row and returns its results + summary.
++ *
++ *   run_selfplay_test(agentId, …)
++ *     Mutation, external effect. POST /v1/agents/:id/tests/run-selfplay.
++ *     Runs two agents against each other in text or simulated audio — NO
++ *     billing, NO real dial. Returns { testRun }.
++ */
++
++import {
++  type ConnectorAdapter,
++  type ConnectorInvocation,
++  type CapabilityReadResult,
++  type CapabilityMutationResult,
++  CredentialsExpired,
++} from '../types.js'
++
++const API = 'https://api.ph0ny.com'
++
++export const phonyConnector: ConnectorAdapter = {
++  manifest: {
++    kind: 'phony',
++    displayName: 'ph0ny',
++    description:
++      'Place real outbound phone calls with a voice agent, then read back call status, transcript, and extracted fields. Outbound calls require recorded user consent and support a dry-run that validates the full configuration without dialing.',
++    auth: {
++      kind: 'api-key',
++      hint: 'Paste your ph0ny API key (plabs_…). Create one in the developer portal via POST /v1/keys — it is shown once.',
++    },
++    category: 'comms',
++    // A call's status/transcript evolve while it is live, so a fetched row
++    // can be stale moments later — reads are point-in-time, not authoritative
++    // truth. start_outbound_call creates a fresh, uncontended call each time
++    // (cas='none', fire-and-forget external effect; no upstream CAS exists).
++    defaultConsistencyModel: 'cache',
++    capabilities: [
++      {
++        name: 'list_agents',
++        class: 'read',
++        description: 'List the voice agents on your ph0ny developer account (newest first).',
++        parameters: {
++          type: 'object',
++          properties: {
++            limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
++            cursor: { type: 'string', description: 'Pagination cursor from a prior response.' },
++          },
++        },
++      },
++      {
++        name: 'get_call',
++        class: 'read',
++        description: 'Fetch a single outbound call by id, including status, transcript, and extracted fields.',
++        parameters: {
++          type: 'object',
++          properties: {
++            id: { type: 'string', description: 'Outbound call id returned by start_outbound_call.' },
++          },
++          required: ['id'],
++        },
++      },
++      {
++        name: 'list_calls',
++        class: 'read',
++        description: 'List recent outbound calls for the account, optionally filtered by agent.',
++        parameters: {
++          type: 'object',
++          properties: {
++            agentId: { type: 'string', description: 'Optional filter — only calls placed by this agent.' },
++            limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
++          },
++        },
++      },
++      {
++        name: 'start_outbound_call',
++        class: 'mutation',
++        description:
++          'Place an outbound phone call. Requires userConsentRecorded=true (the user must have explicitly authorized the call). Set dryRun=true to validate the full configuration without dialing.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            agentId: { type: 'string', description: 'Agent that will place the call (agentKind must be personal_assistant).' },
++            toNumber: { type: 'string', description: 'E.164 destination, e.g. +14155551212.' },
++            fromNumber: { type: 'string', description: 'E.164 caller number provisioned to your developer account.' },
++            mission: {
++              type: 'object',
++              description: 'What the agent should accomplish on the call.',
++              properties: {
++                goal: { type: 'string', description: 'Plain-language objective (8–2000 chars).' },
++                successSchema: { type: 'object', description: 'Optional JSON schema describing fields to extract on success.' },
++                ivrHints: {
++                  type: 'array',
++                  items: { type: 'string' },
++                  description: 'Optional hints for navigating phone-tree / IVR menus (≤8 entries).',
++                },
++                maxTurns: { type: 'integer', minimum: 1, maximum: 60 },
++                maxDurationMs: { type: 'integer', minimum: 30000, maximum: 1200000 },
++              },
++              required: ['goal'],
++            },
++            missionId: { type: 'string', description: 'Optional caller-supplied mission id.' },
++            callerProfile: {
++              type: 'object',
++              properties: {
++                userName: { type: 'string' },
++                companyName: { type: 'string' },
++              },
++            },
++            voiceCloneId: { type: 'string', description: 'Optional cloned-voice id to speak with.' },
++            userConsentRecorded: {
++              type: 'boolean',
++              description: 'REQUIRED. Must be true — the user explicitly authorized this call. ph0ny rejects false.',
++            },
++            dryRun: {
++              type: 'boolean',
++              description: 'When true, validate every gate and return a dryRunReport without placing the call.',
++            },
++          },
++          required: ['agentId', 'toNumber', 'fromNumber', 'mission', 'userConsentRecorded'],
++        },
++      },
++      {
++        name: 'create_agent',
++        class: 'mutation',
++        description:
++          'Create a voice agent on your ph0ny developer account. Only name is required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
++            name: { type: 'string', description: 'Display name (1–100 chars).' },
++            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
++            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
++            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
++            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
++            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
++            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
++            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
++            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
++            llmModel: { type: 'string', description: 'Optional LLM model id.' },
++            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
++            collectionId: { type: 'string', description: 'Deprecated — KB collection id to attach. Prefer libraryId.' },
++            styleProfile: { type: 'object', description: 'Optional style profile object.' },
++            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
++            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
++            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
++            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
++            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
++            contactCaptureFields: {
++              type: 'array',
++              items: { type: 'string', enum: ['name', 'email', 'phone'] },
++              description: 'Which contact fields to capture when capture is enabled.',
++            },
++            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
++          },
++          required: ['name'],
++        },
++      },
++      {
++        name: 'provision_agent',
++        class: 'mutation',
++        description:
++          'Create an agent and, in the same atomic call, optionally a fresh knowledge-base collection and seed it with initial content. Returns the agent plus the created collection and ingestion results.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
++            name: { type: 'string', description: 'Display name (1–100 chars).' },
++            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
++            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
++            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
++            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
++            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
++            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
++            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
++            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
++            llmModel: { type: 'string', description: 'Optional LLM model id.' },
++            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
++            collectionId: { type: 'string', description: 'Existing KB collection id to attach instead of creating one.' },
++            styleProfile: { type: 'object', description: 'Optional style profile object.' },
++            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
++            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
++            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
++            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
++            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
++            contactCaptureFields: {
++              type: 'array',
++              items: { type: 'string', enum: ['name', 'email', 'phone'] },
++              description: 'Which contact fields to capture when capture is enabled.',
++            },
++            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
++            collection: {
++              type: 'object',
++              description: 'When present, create a fresh KB collection and attach it to the agent.',
++              properties: {
++                name: { type: 'string', description: 'Collection name (1–100 chars).' },
++                description: { type: 'string', description: 'Optional collection description (≤500 chars).' },
++              },
++              required: ['name'],
++            },
++            initialContent: {
++              type: 'array',
++              maxItems: 10,
++              description: 'Documents to ingest into the new/attached collection (≤10).',
++              items: {
++                type: 'object',
++                properties: {
++                  content: { type: 'string', description: 'Raw text or transcript content.' },
++                  contentType: { type: 'string', enum: ['text', 'transcript'], description: 'Defaults to "text".' },
++                  metadata: { type: 'object', description: 'Arbitrary metadata stored with the document.' },
++                },
++                required: ['content'],
++              },
++            },
++          },
++          required: ['name'],
++        },
++      },
++      {
++        name: 'kb_create_collection',
++        class: 'mutation',
++        description: 'Create a knowledge-base collection the agent can search at call time.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            name: { type: 'string', description: 'Collection name (1–100 chars).' },
++            description: { type: 'string', description: 'Optional description (≤500 chars).' },
++            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the collection.' },
++          },
++          required: ['name'],
++        },
++      },
++      {
++        name: 'kb_ingest',
++        class: 'mutation',
++        description:
++          'Chunk, embed, and store content into a KB collection. Provide content directly (≤1MB), or a sourceUrl for audio transcription. contentType "url" is not yet implemented server-side (501).',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            collectionId: { type: 'string', description: 'Target collection id.' },
++            content: { type: 'string', description: 'Raw text/transcript content (≤1,000,000 chars).' },
++            sourceUrl: { type: 'string', description: 'Public URL — required when contentType is "audio" (transcribed) or "url".' },
++            contentType: {
++              type: 'string',
++              enum: ['text', 'transcript', 'audio', 'url'],
++              description: 'Defaults to "text". "audio" transcribes sourceUrl; "url" returns 501.',
++            },
++            metadata: { type: 'object', description: 'Arbitrary metadata stored with the document.' },
++            chunkSize: { type: 'integer', minimum: 100, maximum: 4000, description: 'Chunk size in chars; defaults to 1000.' },
++            chunkOverlap: { type: 'integer', minimum: 0, maximum: 500, description: 'Chunk overlap in chars; defaults to 200. Must be < chunkSize.' },
++          },
++          required: ['collectionId'],
++        },
++      },
++      {
++        name: 'kb_search',
++        class: 'read',
++        description: 'Hybrid vector + keyword search over a KB collection. Returns ranked results with scores.',
++        parameters: {
++          type: 'object',
++          properties: {
++            collectionId: { type: 'string', description: 'Collection id to search.' },
++            query: { type: 'string', description: 'Search query (1–2000 chars).' },
++            limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Max results; defaults to 10.' },
++            threshold: { type: 'number', minimum: 0, maximum: 1, description: 'Minimum similarity score; defaults to 0.7.' },
++            includeMetadata: { type: 'boolean', description: 'Include per-result metadata; defaults to true.' },
++          },
++          required: ['collectionId', 'query'],
++        },
++      },
++      {
++        name: 'run_synthetic_test',
++        class: 'mutation',
++        description:
++          'Run a synthetic LLM caller against the agent to validate behavior. No billing, no real phone call — creates a test-run row and returns its results and summary.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            agentId: { type: 'string', description: 'Agent under test.' },
++            persona: {
++              type: 'string',
++              enum: ['friendly', 'confused', 'impatient', 'adversarial', 'tangential', 'detailed', 'multiTopic'],
++              description: 'Synthetic caller persona.',
++            },
++            goal: { type: 'string', description: "The synthetic caller's objective (1–1000 chars)." },
++            maxTurns: { type: 'integer', minimum: 1, maximum: 20, description: 'Max conversation turns; defaults to 10.' },
++            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
++            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve an agent instance.' },
++            instanceId: { type: 'string', description: 'Optional explicit agent-instance id.' },
++            assertions: { type: 'array', items: { type: 'object' }, description: 'Per-turn assertions to evaluate.' },
++            sessionAssertions: { type: 'array', maxItems: 10, items: { type: 'object' }, description: 'Session-level assertions (≤10).' },
++            enableJudge: { type: 'boolean', description: 'Run the LLM judge over the transcript; defaults to false.' },
++            systemPromptOverride: { type: 'string', description: 'Override the agent system prompt for this run (≤8000 chars).' },
++            firstMessageOverride: { type: 'string', description: 'Override the agent first message for this run (≤1000 chars).' },
++            disableRag: { type: 'boolean', description: 'Disable KB retrieval for this run.' },
++            questions: { type: 'array', maxItems: 20, items: { type: 'object' }, description: 'Campaign questions to extract from the transcript (≤20).' },
++            expectedAnswers: { type: 'object', description: 'Expected answers keyed by question id for ground-truth comparison.' },
++            realism: {
++              type: 'string',
++              enum: ['clean', 'light', 'moderate', 'chaos'],
++              description: 'Inject STT artifacts/interrupts/silences to simulate real-call conditions.',
++            },
++          },
++          required: ['agentId', 'persona', 'goal'],
++        },
++      },
++      {
++        name: 'run_selfplay_test',
++        class: 'mutation',
++        description:
++          'Run two agents against each other in text or simulated audio to validate end-to-end behavior. No billing, no real phone call. Returns { testRun }.',
++        cas: 'none',
++        externalEffect: true,
++        parameters: {
++          type: 'object',
++          properties: {
++            agentId: { type: 'string', description: 'Agent A (the agent under test).' },
++            agentBId: { type: 'string', description: 'Optional agent B; defaults to agent A (self-play against itself).' },
++            taskA: { type: 'string', description: "Optional task/goal for agent A (≤1000 chars)." },
++            taskB: { type: 'string', description: "Optional task/goal for agent B (≤1000 chars)." },
++            participants: {
++              type: 'array',
++              minItems: 2,
++              maxItems: 8,
++              description: 'Optional multi-party participant list (overrides A/B pairing).',
++              items: {
++                type: 'object',
++                properties: {
++                  agentId: { type: 'string' },
++                  speaker: { type: 'string', description: 'Speaker label (≤20 chars).' },
++                  task: { type: 'string', description: 'Per-participant task (≤1000 chars).' },
++                  instanceId: { type: 'string' },
++                },
++                required: ['agentId'],
++              },
++            },
++            maxExchanges: { type: 'integer', minimum: 1, maximum: 20, description: 'Max back-and-forth exchanges; defaults to 6.' },
++            maxSteps: { type: 'integer', minimum: 1, maximum: 8, description: 'Max tool steps per turn; defaults to 5.' },
++            initialSpeaker: { type: 'string', description: 'Speaker who opens; defaults to "A".' },
++            callerPhone: { type: 'string', description: 'Optional E.164 caller phone used to resolve agent instances.' },
++            instanceIdA: { type: 'string', description: 'Optional explicit instance id for agent A.' },
++            instanceIdB: { type: 'string', description: 'Optional explicit instance id for agent B.' },
++            transportMode: { type: 'string', enum: ['text', 'audio'], description: 'Text or audio transport; defaults to text. Audio requires enableTts=true.' },
++            enableTts: { type: 'boolean', description: 'Synthesize speech each turn; required when transportMode is "audio".' },
++            overlapMode: { type: 'string', enum: ['none', 'simulated', 'duplex'], description: 'Turn-overlap model; "duplex" requires audio transport.' },
++            bargeInEnabled: { type: 'boolean', description: 'Allow barge-in interruptions; defaults to false.' },
++            bargeInSensitivity: { type: 'number', minimum: 0, maximum: 1, description: 'Barge-in sensitivity (0–1); defaults to 0.65.' },
++            ttsProviderOverride: { type: 'string', description: 'Override the TTS provider for all speakers.' },
++            speakerTtsOverrides: { type: 'object', description: 'Per-speaker TTS provider overrides (speaker → provider).' },
++            voiceIdOverride: { type: 'string', description: 'Override the voice id for all speakers.' },
++            speakerVoiceOverrides: { type: 'object', description: 'Per-speaker voice id overrides (speaker → voiceId).' },
++            ttsModelOverride: { type: 'string', description: 'Override the TTS model for all speakers.' },
++            speakerTtsModelOverrides: { type: 'object', description: 'Per-speaker TTS model overrides (speaker → model).' },
++            enableSttLoop: { type: 'boolean', description: 'Feed TTS output through STT to close the audio loop; defaults to false.' },
++            sttProvider: { type: 'string', enum: ['whisper', 'deepgram', 'groq'], description: 'STT provider for the audio loop; defaults to whisper.' },
++          },
++          required: ['agentId'],
++        },
++      },
++    ],
++  },
++
++  async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
++    const token = bearerToken(inv.source.credentials)
++    if (inv.capabilityName === 'list_agents') {
++      const { limit, cursor } = inv.args as { limit?: number; cursor?: string }
++      const params = new URLSearchParams()
++      params.set('limit', String(Math.min(Math.max(1, limit ?? 20), 100)))
++      if (cursor) params.set('cursor', cursor)
++      const json = await getJson<{ data?: unknown[]; nextCursor?: string; hasMore?: boolean }>(
++        inv,
++        token,
++        `${API}/v1/agents?${params.toString()}`,
++        'list_agents',
++      )
++      return {
++        data: { agents: json.data ?? [], nextCursor: json.nextCursor ?? null, hasMore: json.hasMore ?? false },
++        fetchedAt: Date.now(),
++      }
++    }
++    if (inv.capabilityName === 'get_call') {
++      const { id } = inv.args as { id: string }
++      const json = await getJson<{ call?: unknown }>(
++        inv,
++        token,
++        `${API}/v1/outbound/${encodeURIComponent(id)}`,
++        'get_call',
++      )
++      return { data: { call: json.call ?? null }, fetchedAt: Date.now() }
++    }
++    if (inv.capabilityName === 'list_calls') {
++      const { agentId, limit } = inv.args as { agentId?: string; limit?: number }
++      const params = new URLSearchParams()
++      params.set('limit', String(Math.min(Math.max(1, limit ?? 20), 50)))
++      if (agentId) params.set('agentId', agentId)
++      const json = await getJson<{ calls?: unknown[] }>(
++        inv,
++        token,
++        `${API}/v1/outbound?${params.toString()}`,
++        'list_calls',
++      )
++      return { data: { calls: json.calls ?? [] }, fetchedAt: Date.now() }
++    }
++    if (inv.capabilityName === 'kb_search') {
++      const { collectionId, query, limit, threshold, includeMetadata } = inv.args as {
++        collectionId: string
++        query: string
++        limit?: number
++        threshold?: number
++        includeMetadata?: boolean
++      }
++      const payload: Record<string, unknown> = { query }
++      if (limit !== undefined) payload.limit = limit
++      if (threshold !== undefined) payload.threshold = threshold
++      if (includeMetadata !== undefined) payload.includeMetadata = includeMetadata
++      const res = await fetch(`${API}/v1/collections/${encodeURIComponent(collectionId)}/search`, {
++        method: 'POST',
++        headers: {
++          authorization: `Bearer ${token}`,
++          'content-type': 'application/json',
++        },
++        body: JSON.stringify(payload),
++        signal: AbortSignal.timeout(15_000),
++      })
++      if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
++      if (!res.ok) {
++        const text = await res.text().catch(() => '')
++        throw new Error(`phony kb_search ${res.status}: ${text.slice(0, 200)}`)
++      }
++      const json = (await res.json()) as { results?: unknown[]; queryTokens?: number; graphContext?: unknown }
++      return {
++        data: {
++          results: json.results ?? [],
++          queryTokens: json.queryTokens ?? 0,
++          ...(json.graphContext !== undefined ? { graphContext: json.graphContext } : {}),
++        },
++        fetchedAt: Date.now(),
++      }
++    }
++    throw new Error(`phony: unknown read capability ${inv.capabilityName}`)
++  },
++
++  async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
++    const token = bearerToken(inv.source.credentials)
++    if (inv.capabilityName === 'start_outbound_call') {
++      const args = inv.args as {
++        agentId: string
++        toNumber: string
++        fromNumber: string
++        mission: {
++          goal: string
++          successSchema?: Record<string, unknown>
++          ivrHints?: string[]
++          maxTurns?: number
++          maxDurationMs?: number
++        }
++        missionId?: string
++        callerProfile?: { userName?: string; companyName?: string }
++        voiceCloneId?: string
++        userConsentRecorded: boolean
++        dryRun?: boolean
++      }
++      const payload: Record<string, unknown> = {
++        agentId: args.agentId,
++        toNumber: args.toNumber,
++        fromNumber: args.fromNumber,
++        mission: args.mission,
++        userConsentRecorded: args.userConsentRecorded,
++      }
++      if (args.missionId !== undefined) payload.missionId = args.missionId
++      if (args.callerProfile !== undefined) payload.callerProfile = args.callerProfile
++      if (args.voiceCloneId !== undefined) payload.voiceCloneId = args.voiceCloneId
++      if (args.dryRun !== undefined) payload.dryRun = args.dryRun
++
++      const res = await fetch(`${API}/v1/outbound/start`, {
++        method: 'POST',
++        headers: {
++          authorization: `Bearer ${token}`,
++          'content-type': 'application/json',
++        },
++        body: JSON.stringify(payload),
++        signal: AbortSignal.timeout(20_000),
++      })
++      if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
++      if (!res.ok) {
++        const text = await res.text().catch(() => '')
++        throw new Error(`phony start_outbound_call ${res.status}: ${text.slice(0, 200)}`)
++      }
++      const json = (await res.json()) as {
++        callSid: string | null
++        callId: string | null
++        status: string
++        dryRun?: boolean
++        dryRunReport?: unknown
++      }
++      return {
++        status: 'committed',
++        data: {
++          callId: json.callId,
++          callSid: json.callSid,
++          callStatus: json.status,
++          dryRun: json.dryRun ?? false,
++          ...(json.dryRunReport !== undefined ? { dryRunReport: json.dryRunReport } : {}),
++        },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'create_agent') {
++      const payload = pick(inv.args as Record<string, unknown>, AGENT_FIELDS)
++      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/agents`, payload, 'create_agent')
++      return {
++        status: 'committed',
++        data: { agent: json },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'provision_agent') {
++      const args = inv.args as Record<string, unknown>
++      const payload = pick(args, AGENT_FIELDS)
++      if (args.collection !== undefined) payload.collection = args.collection
++      if (args.initialContent !== undefined) payload.initialContent = args.initialContent
++      const json = await postJson<{ agent?: unknown; collection?: unknown; ingested?: unknown }>(
++        inv,
++        token,
++        `${API}/v1/agents/provision`,
++        payload,
++        'provision_agent',
++      )
++      return {
++        status: 'committed',
++        data: {
++          agent: json.agent ?? null,
++          ...(json.collection !== undefined ? { collection: json.collection } : {}),
++          ...(json.ingested !== undefined ? { ingested: json.ingested } : {}),
++        },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'kb_create_collection') {
++      const { name, description, metadata } = inv.args as {
++        name: string
++        description?: string
++        metadata?: Record<string, unknown>
++      }
++      const payload: Record<string, unknown> = { name }
++      if (description !== undefined) payload.description = description
++      if (metadata !== undefined) payload.metadata = metadata
++      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/collections`, payload, 'kb_create_collection')
++      return {
++        status: 'committed',
++        data: { collection: json },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'kb_ingest') {
++      const { collectionId, ...rest } = inv.args as { collectionId: string } & Record<string, unknown>
++      const payload = pick(rest, INGEST_FIELDS)
++      const json = await postJson<{ documentId?: string; chunksCreated?: number; tokensUsed?: number }>(
++        inv,
++        token,
++        `${API}/v1/collections/${encodeURIComponent(collectionId)}/ingest`,
++        payload,
++        'kb_ingest',
++      )
++      return {
++        status: 'committed',
++        data: {
++          documentId: json.documentId ?? null,
++          chunksCreated: json.chunksCreated ?? 0,
++          tokensUsed: json.tokensUsed ?? 0,
++        },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'run_synthetic_test') {
++      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
++      const payload = pick(rest, SYNTHETIC_FIELDS)
++      const json = await postJson<Record<string, unknown>>(
++        inv,
++        token,
++        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-synthetic`,
++        payload,
++        'run_synthetic_test',
++      )
++      return {
++        status: 'committed',
++        data: { run: json },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    if (inv.capabilityName === 'run_selfplay_test') {
++      const { agentId, ...rest } = inv.args as { agentId: string } & Record<string, unknown>
++      const payload = pick(rest, SELFPLAY_FIELDS)
++      const json = await postJson<{ testRun?: unknown }>(
++        inv,
++        token,
++        `${API}/v1/agents/${encodeURIComponent(agentId)}/tests/run-selfplay`,
++        payload,
++        'run_selfplay_test',
++      )
++      return {
++        status: 'committed',
++        data: { testRun: json.testRun ?? json },
++        committedAt: Date.now(),
++        idempotentReplay: false,
++      }
++    }
++    throw new Error(`phony: unknown mutation capability ${inv.capabilityName}`)
++  },
++
++  async test(source) {
++    try {
++      const token = bearerToken(source.credentials)
++      // GET /v1/outbound?limit=1 is the cheapest authed read that proves the
++      // key is valid.
++      const res = await fetch(`${API}/v1/outbound?limit=1`, {
++        headers: { authorization: `Bearer ${token}` },
++        signal: AbortSignal.timeout(8_000),
++      })
++      if (res.status === 401) return { ok: false, reason: 'ph0ny rejected credentials (401) — reconnect required' }
++      if (!res.ok) return { ok: false, reason: `ph0ny returned ${res.status}` }
++      return { ok: true }
++    } catch (err) {
++      return { ok: false, reason: err instanceof Error ? err.message : String(err) }
++    }
++  },
++}
++
++function bearerToken(creds: { kind: string; apiKey?: string }): string {
++  if (creds.kind !== 'api-key' || typeof creds.apiKey !== 'string' || creds.apiKey.length === 0) {
++    throw new Error('phony: expected api-key credentials')
++  }
++  return creds.apiKey
++}
++
++async function getJson<T>(
++  inv: ConnectorInvocation,
++  token: string,
++  url: string,
++  label: string,
++): Promise<T> {
++  const res = await fetch(url, {
++    headers: { authorization: `Bearer ${token}` },
++    signal: AbortSignal.timeout(10_000),
++  })
++  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
++  if (!res.ok) {
++    const text = await res.text().catch(() => '')
++    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
++  }
++  return (await res.json()) as T
++}
++
++async function postJson<T>(
++  inv: ConnectorInvocation,
++  token: string,
++  url: string,
++  payload: Record<string, unknown>,
++  label: string,
++): Promise<T> {
++  const res = await fetch(url, {
++    method: 'POST',
++    headers: {
++      authorization: `Bearer ${token}`,
++      'content-type': 'application/json',
++    },
++    body: JSON.stringify(payload),
++    signal: AbortSignal.timeout(20_000),
++  })
++  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
++  if (!res.ok) {
++    const text = await res.text().catch(() => '')
++    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
++  }
++  return (await res.json()) as T
++}
++
++/** Copy only the declared keys that are present (not undefined) into a fresh
++ *  payload. Keeps the connector from forwarding fields the route's zod schema
++ *  doesn't declare. */
++function pick(args: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
++  const out: Record<string, unknown> = {}
++  for (const key of fields) {
++    if (args[key] !== undefined) out[key] = args[key]
++  }
++  return out
++}
++
++// Field allowlists — exactly the keys each route's zod schema declares. The
++// :id path params (agentId, collectionId) are routed via the URL and excluded.
++const AGENT_FIELDS = [
++  'id',
++  'name',
++  'description',
++  'systemPrompt',
++  'firstMessage',
++  'voiceId',
++  'ttsProvider',
++  'ttsModel',
++  'sttProvider',
++  'llmProvider',
++  'llmModel',
++  'libraryId',
++  'collectionId',
++  'styleProfile',
++  'promptByModel',
++  'language',
++  'temperature',
++  'maxTokens',
++  'contactCaptureEnabled',
++  'contactCaptureFields',
++  'metadata',
++] as const
++
++const INGEST_FIELDS = [
++  'content',
++  'sourceUrl',
++  'contentType',
++  'metadata',
++  'chunkSize',
++  'chunkOverlap',
++] as const
++
++const SYNTHETIC_FIELDS = [
++  'persona',
++  'goal',
++  'maxTurns',
++  'maxSteps',
++  'callerPhone',
++  'instanceId',
++  'assertions',
++  'sessionAssertions',
++  'enableJudge',
++  'systemPromptOverride',
++  'firstMessageOverride',
++  'disableRag',
++  'questions',
++  'expectedAnswers',
++  'realism',
++] as const
++
++const SELFPLAY_FIELDS = [
++  'agentBId',
++  'taskA',
++  'taskB',
++  'participants',
++  'maxExchanges',
++  'maxSteps',
++  'initialSpeaker',
++  'callerPhone',
++  'instanceIdA',
++  'instanceIdB',
++  'transportMode',
++  'enableTts',
++  'overlapMode',
++  'bargeInEnabled',
++  'bargeInSensitivity',
++  'ttsProviderOverride',
++  'speakerTtsOverrides',
++  'voiceIdOverride',
++  'speakerVoiceOverrides',
++  'ttsModelOverride',
++  'speakerTtsModelOverrides',
++  'enableSttLoop',
++  'sttProvider',
++] as const
+diff --git a/src/coverage-catalog.ts b/src/coverage-catalog.ts
+index 3e02a8a..111f9a9 100644
+--- a/src/coverage-catalog.ts
++++ b/src/coverage-catalog.ts
+@@ -114,6 +114,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
+   ['sendgrid', 'SendGrid', 'email', 'email', 'tier_1', 'email,transactional'],
+   ['postmark', 'Postmark', 'email', 'email', 'tier_1', 'email,transactional'],
+   ['twilio', 'Twilio', 'chat', 'chat', 'tier_0', 'sms,voice,communications'],
++  ['phony', 'ph0ny', 'chat', 'chat', 'tier_1', 'voice,telephony,communications', 'api_key'],
+   ['discord', 'Discord', 'chat', 'chat', 'tier_1', 'chat,community'],
+   ['telegram', 'Telegram', 'chat', 'chat', 'tier_1', 'chat,community'],
+   ['whatsapp-business', 'WhatsApp Business', 'chat', 'chat', 'tier_1', 'chat,meta,customer-comms'],
+diff --git a/src/specs/overrides.ts b/src/specs/overrides.ts
+index f2c426a..989fad1 100644
+--- a/src/specs/overrides.ts
++++ b/src/specs/overrides.ts
+@@ -154,6 +154,67 @@ export const INTEGRATION_OVERRIDES: Record<string, IntegrationOverride> = {
+       },
+     ],
+   },
++
++  // ── ph0ny ──────────────────────────────────────────────────────────
++  // ph0ny issues a single Bearer API key per developer. The key is a
++  // `plabs_` prefix followed by 32 url-safe nanoid chars. It is shown once
++  // at creation (POST /v1/keys in the developer portal); only its hash is
++  // stored server-side, so it cannot be retrieved later — rotate to replace.
++  phony: {
++    consoleUrl: 'https://api.ph0ny.com',
++    credentialFields: [
++      {
++        label: 'ph0ny API key',
++        description:
++          'Bearer key issued by ph0ny. Create one in the developer portal ' +
++          '(POST /v1/keys). Sent as `Authorization: Bearer <key>`.',
++        example: 'plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm',
++        regex: '^plabs_[A-Za-z0-9_-]{32}$',
++        secret: true,
++      },
++    ],
++    consoleSteps: [
++      {
++        id: 'open-portal',
++        title: 'Open the ph0ny developer portal',
++        detail: 'Visit https://api.ph0ny.com and sign in to the developer portal.',
++        copyValue: 'https://api.ph0ny.com',
++      },
++      {
++        id: 'create-key',
++        title: 'Create an API key',
++        detail:
++          'In the portal, create a new API key (POST /v1/keys). Give it a ' +
++          'descriptive name (e.g. "tangle agent — prod"). ph0ny returns the ' +
++          'full key exactly once.',
++      },
++      {
++        id: 'paste',
++        title: 'Paste the key',
++        detail:
++          'Copy the plabs_… key ph0ny shows and paste it here. The key is ' +
++          'sealed before persistence.',
++      },
++    ],
++    knownQuirks: [
++      {
++        id: 'key-shown-once',
++        severity: 'warning',
++        message:
++          'ph0ny stores only a hash of the key — the full plabs_… value is ' +
++          'shown exactly once at creation and cannot be retrieved later. Save ' +
++          'it immediately; if lost, rotate to issue a replacement.',
++      },
++      {
++        id: 'rotate-endpoint',
++        severity: 'info',
++        message:
++          'Rotate a key with POST /v1/keys/:id/rotate. The old key is revoked ' +
++          'and a new plabs_… key is returned once — update this connection ' +
++          'with the new value.',
++      },
++    ],
++  },
+ }
+ 
+ /** Public read — undefined when no override exists for the kind. */
+diff --git a/src/specs/registry.ts b/src/specs/registry.ts
+index ecff4b5..8e13abb 100644
+--- a/src/specs/registry.ts
++++ b/src/specs/registry.ts
+@@ -45,6 +45,7 @@ const EXECUTABLE_KINDS = new Set([
+   'stripe-pack',
+   'twilio',
+   'twilio-sms',
++  'phony',
+   'webhook',
+ ])
+ 
+@@ -198,7 +199,7 @@ function familyFor(spec: IntegrationCoverageSpec): IntegrationFamilyId {
+   return 'standard-oauth2'
+ }
+ 
+-const apiKeyKinds = new Set(['github', 'gitlab', 'airtable', 'asana', 'stripe', 'twilio', 'sendgrid', 'postmark'])
++const apiKeyKinds = new Set(['github', 'gitlab', 'airtable', 'asana', 'stripe', 'twilio', 'sendgrid', 'postmark', 'phony'])
+ const hmacKinds = new Set(['webhook'])
+ 
+ function authFor(
+diff --git a/tests/adapters.test.ts b/tests/adapters.test.ts
+index 921ab1a..b8c8ceb 100644
+--- a/tests/adapters.test.ts
++++ b/tests/adapters.test.ts
+@@ -8,6 +8,7 @@ import {
+   hubspot,
+   microsoftCalendar,
+   notionDatabase,
++  phonyConnector,
+   slack,
+   slackEventsConnector,
+   stripePackConnector,
+@@ -31,6 +32,7 @@ function adapters(): ConnectorAdapter[] {
+     slack(oauth),
+     docuseal(),
+     twilioSmsConnector,
++    phonyConnector,
+     stripePackConnector,
+     webhookConnector,
+     stripeWebhookReceiverConnector,
+diff --git a/tests/phony.test.ts b/tests/phony.test.ts
+new file mode 100644
+index 0000000..fb3171c
+--- /dev/null
++++ b/tests/phony.test.ts
+@@ -0,0 +1,571 @@
++import { afterEach, describe, expect, it, vi } from 'vitest'
++import { phonyConnector } from '../src/connectors/adapters/phony.js'
++import type { ResolvedDataSource } from '../src/connectors/types.js'
++
++function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
++  return {
++    id: 'src_phony_1',
++    projectId: 'proj_1',
++    publishedAgentId: null,
++    kind: 'phony',
++    label: 'phony test',
++    consistencyModel: 'cache',
++    scopes: [],
++    metadata: {},
++    credentials: { kind: 'api-key', apiKey: 'plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm' },
++    status: 'active',
++    ...overrides,
++  }
++}
++
++function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
++  const status = init.status ?? 200
++  if (status === 204 || status === 205 || status === 304) {
++    return new Response(null, { status })
++  }
++  return new Response(JSON.stringify(body), {
++    status,
++    headers: { 'content-type': 'application/json' },
++  })
++}
++
++describe('phony adapter manifest', () => {
++  it('marks every mutation as external effect with a declared CAS', () => {
++    const mutations = phonyConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
++    expect(mutations.length).toBeGreaterThan(0)
++    for (const c of mutations) {
++      if (c.class !== 'mutation') continue
++      expect(c.externalEffect).toBe(true)
++      expect(c.cas).toBeTruthy()
++    }
++  })
++
++  it('exposes the read + write capabilities', () => {
++    const names = phonyConnector.manifest.capabilities.map((c) => c.name).sort()
++    expect(names).toEqual(
++      [
++        'list_agents',
++        'get_call',
++        'list_calls',
++        'start_outbound_call',
++        'create_agent',
++        'provision_agent',
++        'kb_create_collection',
++        'kb_ingest',
++        'kb_search',
++        'run_synthetic_test',
++        'run_selfplay_test',
++      ].sort(),
++    )
++  })
++
++  it('classifies kb_search as a read and the agent/KB/test writes as mutations', () => {
++    const byName = new Map(phonyConnector.manifest.capabilities.map((c) => [c.name, c]))
++    expect(byName.get('kb_search')?.class).toBe('read')
++    for (const name of [
++      'create_agent',
++      'provision_agent',
++      'kb_create_collection',
++      'kb_ingest',
++      'run_synthetic_test',
++      'run_selfplay_test',
++    ]) {
++      const cap = byName.get(name)
++      expect(cap?.class).toBe('mutation')
++      if (cap?.class !== 'mutation') continue
++      expect(cap.externalEffect).toBe(true)
++      expect(cap.cas).toBe('none')
++    }
++  })
++
++  it('requires the consent gate on start_outbound_call', () => {
++    const start = phonyConnector.manifest.capabilities.find((c) => c.name === 'start_outbound_call')
++    const required = (start?.parameters.required ?? []) as string[]
++    expect(required).toContain('userConsentRecorded')
++  })
++})
++
++describe('phony list_agents', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('GETs /v1/agents with a Bearer key and limit', async () => {
++    let requestUrl: string | undefined
++    let requestHeaders: Record<string, string> | undefined
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
++        requestUrl = String(input)
++        requestHeaders = init?.headers as Record<string, string>
++        return jsonResponse({ data: [{ id: 'agent_1', name: 'PA' }], nextCursor: 'agent_1', hasMore: true })
++      }),
++    )
++    const result = await phonyConnector.executeRead!({
++      source: source(),
++      capabilityName: 'list_agents',
++      args: { limit: 5 },
++      idempotencyKey: 'agents-1',
++    })
++    expect(String(requestUrl)).toContain('https://api.ph0ny.com/v1/agents')
++    expect(String(requestUrl)).toContain('limit=5')
++    expect(requestHeaders?.authorization).toBe('Bearer plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm')
++    const data = result.data as { agents: Array<{ id: string }>; nextCursor: string; hasMore: boolean }
++    expect(data.agents[0].id).toBe('agent_1')
++    expect(data.nextCursor).toBe('agent_1')
++    expect(data.hasMore).toBe(true)
++  })
++
++  it('surfaces CredentialsExpired on 401', async () => {
++    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
++    await expect(
++      phonyConnector.executeRead!({
++        source: source(),
++        capabilityName: 'list_agents',
++        args: {},
++        idempotencyKey: 'agents-2',
++      }),
++    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
++  })
++})
++
++describe('phony get_call + list_calls', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('GETs /v1/outbound/:id', async () => {
++    let requestUrl: string | undefined
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (input: RequestInfo | URL) => {
++        requestUrl = String(input)
++        return jsonResponse({ call: { id: 'oc_1', status: 'completed' } })
++      }),
++    )
++    const result = await phonyConnector.executeRead!({
++      source: source(),
++      capabilityName: 'get_call',
++      args: { id: 'oc_1' },
++      idempotencyKey: 'call-1',
++    })
++    expect(String(requestUrl)).toBe('https://api.ph0ny.com/v1/outbound/oc_1')
++    const data = result.data as { call: { id: string } }
++    expect(data.call.id).toBe('oc_1')
++  })
++
++  it('GETs /v1/outbound with agentId + limit filters', async () => {
++    let requestUrl: string | undefined
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (input: RequestInfo | URL) => {
++        requestUrl = String(input)
++        return jsonResponse({ calls: [{ id: 'oc_1' }, { id: 'oc_2' }] })
++      }),
++    )
++    const result = await phonyConnector.executeRead!({
++      source: source(),
++      capabilityName: 'list_calls',
++      args: { agentId: 'agent_1', limit: 10 },
++      idempotencyKey: 'calls-1',
++    })
++    expect(String(requestUrl)).toContain('https://api.ph0ny.com/v1/outbound?')
++    expect(String(requestUrl)).toContain('agentId=agent_1')
++    expect(String(requestUrl)).toContain('limit=10')
++    const data = result.data as { calls: unknown[] }
++    expect(data.calls).toHaveLength(2)
++  })
++})
++
++describe('phony start_outbound_call', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/outbound/start with the consent gate and mission', async () => {
++    let requestUrl: string | undefined
++    let requestMethod: string | undefined
++    let requestHeaders: Record<string, string> | undefined
++    let requestBody: unknown
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
++        requestUrl = String(input)
++        requestMethod = init?.method
++        requestHeaders = init?.headers as Record<string, string>
++        requestBody = JSON.parse(String(init?.body))
++        return jsonResponse({ callSid: 'CA_1', callId: 'oc_1', status: 'initiated' }, { status: 201 })
++      }),
++    )
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'start_outbound_call',
++      args: {
++        agentId: 'agent_1',
++        toNumber: '+14155551234',
++        fromNumber: '+14155550001',
++        mission: { goal: 'Book a table for two at 7pm.' },
++        userConsentRecorded: true,
++      },
++      idempotencyKey: 'start-1',
++    })
++    expect(requestMethod).toBe('POST')
++    expect(String(requestUrl)).toBe('https://api.ph0ny.com/v1/outbound/start')
++    expect(requestHeaders?.authorization).toBe('Bearer plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm')
++    expect(requestHeaders?.['content-type']).toBe('application/json')
++    expect(requestBody).toMatchObject({
++      agentId: 'agent_1',
++      toNumber: '+14155551234',
++      fromNumber: '+14155550001',
++      mission: { goal: 'Book a table for two at 7pm.' },
++      userConsentRecorded: true,
++    })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ callId: 'oc_1', callSid: 'CA_1', callStatus: 'initiated', dryRun: false })
++  })
++
++  it('passes dryRun through and returns the dryRunReport', async () => {
++    let requestBody: { dryRun?: boolean } | undefined
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
++        requestBody = JSON.parse(String(init?.body))
++        return jsonResponse({
++          dryRun: true,
++          callSid: null,
++          callId: null,
++          status: 'dry_run',
++          dryRunReport: { verdict: 'would_call' },
++        })
++      }),
++    )
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'start_outbound_call',
++      args: {
++        agentId: 'agent_1',
++        toNumber: '+14155551234',
++        fromNumber: '+14155550001',
++        mission: { goal: 'Confirm the appointment time.' },
++        userConsentRecorded: true,
++        dryRun: true,
++      },
++      idempotencyKey: 'start-dry-1',
++    })
++    expect(requestBody?.dryRun).toBe(true)
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ dryRun: true, callId: null, dryRunReport: { verdict: 'would_call' } })
++  })
++
++  it('surfaces CredentialsExpired on 401', async () => {
++    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
++    await expect(
++      phonyConnector.executeMutation!({
++        source: source(),
++        capabilityName: 'start_outbound_call',
++        args: {
++          agentId: 'agent_1',
++          toNumber: '+14155551234',
++          fromNumber: '+14155550001',
++          mission: { goal: 'Reschedule the delivery.' },
++          userConsentRecorded: true,
++        },
++        idempotencyKey: 'start-2',
++      }),
++    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
++  })
++})
++
++describe('phony test()', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('uses GET /v1/outbound?limit=1 as the cheapest authed probe', async () => {
++    let requestUrl: string | undefined
++    let requestHeaders: Record<string, string> | undefined
++    vi.stubGlobal(
++      'fetch',
++      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
++        requestUrl = String(input)
++        requestHeaders = init?.headers as Record<string, string>
++        return jsonResponse({ calls: [] })
++      }),
++    )
++    const result = await phonyConnector.test(source())
++    expect(result).toEqual({ ok: true })
++    expect(String(requestUrl)).toBe('https://api.ph0ny.com/v1/outbound?limit=1')
++    expect(requestHeaders?.authorization).toBe('Bearer plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm')
++  })
++
++  it('reports a reconnect-required reason on 401', async () => {
++    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
++    const result = await phonyConnector.test(source())
++    expect(result.ok).toBe(false)
++    if (!result.ok) expect(result.reason).toContain('401')
++  })
++})
++
++interface Captured {
++  url?: string
++  method?: string
++  headers?: Record<string, string>
++  body?: unknown
++}
++
++function captureFetch(response: Response): Captured {
++  const captured: Captured = {}
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
++      captured.url = String(input)
++      captured.method = init?.method
++      captured.headers = init?.headers as Record<string, string>
++      captured.body = init?.body ? JSON.parse(String(init.body)) : undefined
++      return response
++    }),
++  )
++  return captured
++}
++
++const BEARER = 'Bearer plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm'
++
++describe('phony create_agent', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/agents with a Bearer key and only the declared fields', async () => {
++    const cap = captureFetch(jsonResponse({ id: 'agent_9', name: 'Booker', status: 'active' }, { status: 201 }))
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'create_agent',
++      args: {
++        name: 'Booker',
++        systemPrompt: 'Book reservations politely.',
++        llmProvider: 'openai',
++        temperature: 0.4,
++        contactCaptureFields: ['name', 'phone'],
++        // Not in CreateAgentSchema — must be dropped.
++        bogusField: 'nope',
++      },
++      idempotencyKey: 'create-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    expect(cap.headers?.['content-type']).toBe('application/json')
++    expect(cap.body).toEqual({
++      name: 'Booker',
++      systemPrompt: 'Book reservations politely.',
++      llmProvider: 'openai',
++      temperature: 0.4,
++      contactCaptureFields: ['name', 'phone'],
++    })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ agent: { id: 'agent_9', name: 'Booker' } })
++  })
++
++  it('surfaces CredentialsExpired on 401', async () => {
++    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
++    await expect(
++      phonyConnector.executeMutation!({
++        source: source(),
++        capabilityName: 'create_agent',
++        args: { name: 'X' },
++        idempotencyKey: 'create-401',
++      }),
++    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
++  })
++})
++
++describe('phony provision_agent', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/agents/provision with agent fields + collection + initialContent', async () => {
++    const cap = captureFetch(
++      jsonResponse(
++        {
++          agent: { id: 'agent_10', name: 'Concierge' },
++          collection: { id: 'col_1', name: 'FAQ' },
++          ingested: [{ documentId: 'doc_1', chunksCreated: 3, tokensUsed: 120 }],
++        },
++        { status: 201 },
++      ),
++    )
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'provision_agent',
++      args: {
++        name: 'Concierge',
++        collection: { name: 'FAQ', description: 'House rules' },
++        initialContent: [{ content: 'Check-in is 3pm.', contentType: 'text' }],
++      },
++      idempotencyKey: 'provision-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents/provision')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    expect(cap.body).toEqual({
++      name: 'Concierge',
++      collection: { name: 'FAQ', description: 'House rules' },
++      initialContent: [{ content: 'Check-in is 3pm.', contentType: 'text' }],
++    })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({
++      agent: { id: 'agent_10' },
++      collection: { id: 'col_1' },
++      ingested: [{ documentId: 'doc_1' }],
++    })
++  })
++})
++
++describe('phony kb_create_collection', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/collections with name + description', async () => {
++    const cap = captureFetch(jsonResponse({ id: 'col_2', name: 'Pricing', documentCount: 0 }, { status: 201 }))
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'kb_create_collection',
++      args: { name: 'Pricing', description: 'Plan tiers' },
++      idempotencyKey: 'col-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/collections')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    expect(cap.body).toEqual({ name: 'Pricing', description: 'Plan tiers' })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ collection: { id: 'col_2', name: 'Pricing' } })
++  })
++})
++
++describe('phony kb_ingest', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/collections/:id/ingest with the collectionId routed in the path', async () => {
++    const cap = captureFetch(jsonResponse({ documentId: 'doc_2', chunksCreated: 5, tokensUsed: 400 }, { status: 201 }))
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'kb_ingest',
++      args: {
++        collectionId: 'col_2',
++        content: 'Our refund policy is 30 days.',
++        contentType: 'text',
++        chunkSize: 800,
++      },
++      idempotencyKey: 'ingest-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/collections/col_2/ingest')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    // collectionId is a path param — must NOT appear in the body.
++    expect(cap.body).toEqual({
++      content: 'Our refund policy is 30 days.',
++      contentType: 'text',
++      chunkSize: 800,
++    })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ documentId: 'doc_2', chunksCreated: 5, tokensUsed: 400 })
++  })
++})
++
++describe('phony kb_search', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/collections/:id/search as a read and returns ranked results', async () => {
++    const cap = captureFetch(
++      jsonResponse({
++        results: [{ chunkId: 'c1', content: '30-day refunds.', score: 0.92 }],
++        queryTokens: 4,
++        graphContext: 'policy graph',
++      }),
++    )
++    const result = await phonyConnector.executeRead!({
++      source: source(),
++      capabilityName: 'kb_search',
++      args: { collectionId: 'col_2', query: 'refund window', limit: 3 },
++      idempotencyKey: 'search-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/collections/col_2/search')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    expect(cap.headers?.['content-type']).toBe('application/json')
++    // collectionId is a path param — body carries only the search args.
++    expect(cap.body).toEqual({ query: 'refund window', limit: 3 })
++    const data = result.data as { results: Array<{ score: number }>; queryTokens: number; graphContext: string }
++    expect(data.results[0].score).toBe(0.92)
++    expect(data.queryTokens).toBe(4)
++    expect(data.graphContext).toBe('policy graph')
++    expect(typeof result.fetchedAt).toBe('number')
++  })
++
++  it('surfaces CredentialsExpired on 401', async () => {
++    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
++    await expect(
++      phonyConnector.executeRead!({
++        source: source(),
++        capabilityName: 'kb_search',
++        args: { collectionId: 'col_2', query: 'x' },
++        idempotencyKey: 'search-401',
++      }),
++    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
++  })
++})
++
++describe('phony run_synthetic_test', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/agents/:id/tests/run-synthetic (no dial / no billing) with persona + goal', async () => {
++    const cap = captureFetch(
++      jsonResponse({
++        id: 'run_1',
++        agentId: 'agent_9',
++        status: 'completed',
++        summary: { total: 1, passed: 1, failed: 0 },
++      }),
++    )
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'run_synthetic_test',
++      args: {
++        agentId: 'agent_9',
++        persona: 'friendly',
++        goal: 'Confirm the booking time.',
++        maxTurns: 6,
++      },
++      idempotencyKey: 'synth-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents/agent_9/tests/run-synthetic')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    // agentId is a path param — body carries only the test config.
++    expect(cap.body).toEqual({ persona: 'friendly', goal: 'Confirm the booking time.', maxTurns: 6 })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ run: { id: 'run_1', status: 'completed' } })
++  })
++})
++
++describe('phony run_selfplay_test', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  it('POSTs /v1/agents/:id/tests/run-selfplay (no dial / no billing) and unwraps testRun', async () => {
++    const cap = captureFetch(jsonResponse({ testRun: { id: 'run_2', status: 'completed' } }))
++    const result = await phonyConnector.executeMutation!({
++      source: source(),
++      capabilityName: 'run_selfplay_test',
++      args: {
++        agentId: 'agent_9',
++        agentBId: 'agent_10',
++        maxExchanges: 4,
++        transportMode: 'text',
++      },
++      idempotencyKey: 'self-1',
++    })
++    expect(cap.method).toBe('POST')
++    expect(cap.url).toBe('https://api.ph0ny.com/v1/agents/agent_9/tests/run-selfplay')
++    expect(cap.headers?.authorization).toBe(BEARER)
++    // agentId is a path param — body carries only the test config.
++    expect(cap.body).toEqual({ agentBId: 'agent_10', maxExchanges: 4, transportMode: 'text' })
++    expect(result.status).toBe('committed')
++    if (result.status !== 'committed') throw new Error('expected committed')
++    expect(result.data).toMatchObject({ testRun: { id: 'run_2', status: 'completed' } })
++  })
++})
+diff --git a/tests/specs.test.ts b/tests/specs.test.ts
+index b8052e3..a90f9f8 100644
+--- a/tests/specs.test.ts
++++ b/tests/specs.test.ts
+@@ -154,6 +154,29 @@ describe('integration overrides — per-kind setup richness', () => {
+     expect(quirks.some((q) => q.id === 'subaccount-tokens')).toBe(true)
+   })
+ 
++  it('phony is an executable api-key connector with a plabs_ key field', () => {
++    const spec = getIntegrationSpec('phony')
++    expect(spec).toBeDefined()
++    expect(spec!.status).toBe('executable')
++    expect(spec!.auth.mode).toBe('api_key')
++    expect(spec!.setup.credentialFields).toHaveLength(1)
++    const key = spec!.setup.credentialFields[0]
++    expect(key.secret).toBe(true)
++    expect(key.regex).toBe('^plabs_[A-Za-z0-9_-]{32}$')
++    // Real key shape: plabs_ + 32 url-safe nanoid chars.
++    expect(validateCredentialFormat(key, 'plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm').ok).toBe(true)
++    // The earlier-sketched phony_live_ prefix is wrong and must be rejected.
++    expect(validateCredentialFormat(key, 'phony_live_' + 'a'.repeat(32)).ok).toBe(false)
++    expect(validateCredentialFormat(key, 'plabs_short').ok).toBe(false)
++  })
++
++  it('phony surfaces the key-shown-once + rotate quirks via the override layer', () => {
++    const spec = getIntegrationSpec('phony')
++    const quirks = spec!.setup.knownQuirks ?? []
++    expect(quirks.some((q) => q.id === 'key-shown-once')).toBe(true)
++    expect(quirks.some((q) => q.id === 'rotate-endpoint')).toBe(true)
++  })
++
+   it('kinds without overrides fall through to family defaults', () => {
+     // gmail has no override; should use the google family's default fields
+     // (Client ID + Client Secret) and the Google Cloud Console URL.
