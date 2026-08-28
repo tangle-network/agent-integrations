@@ -217,6 +217,40 @@ describe('linkedin shares.create', () => {
     })
   })
 
+  it('preserves braces in user-authored share fields', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, {
+      status: 201,
+      headers: { 'X-RestLi-Id': 'urn:li:share:braces' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await linkedinConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'shares.create',
+      args: {
+        author: 'urn:li:person:abc',
+        text: 'Hello {world} from {author}',
+        url: 'https://example.com/{article}',
+        title: 'Launch {title}',
+        description: 'About {author}',
+      },
+      idempotencyKey: 'share-braces-1',
+    })
+
+    const [, init] = fetchMock.mock.calls[0]!
+    const body = JSON.parse(String(init?.body))
+    expect(body.specificContent['com.linkedin.ugc.ShareContent']).toEqual({
+      shareCommentary: { text: 'Hello {world} from {author}' },
+      shareMediaCategory: 'ARTICLE',
+      media: [{
+        status: 'READY',
+        originalUrl: 'https://example.com/{article}',
+        title: { text: 'Launch {title}' },
+        description: { text: 'About {author}' },
+      }],
+    })
+  })
+
   it.each(['author', 'text'])('rejects a missing %s before fetch', async (missing) => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

@@ -467,6 +467,14 @@ async function executeLinkedinShare(
     }]
   }
 
+  const body = {
+    author,
+    lifecycleState: 'PUBLISHED',
+    specificContent: { 'com.linkedin.ugc.ShareContent': shareContent },
+    visibility: {
+      'com.linkedin.ugc.MemberNetworkVisibility': visibility,
+    },
+  }
   const response = await executeRestRequest(
     {
       ...spec,
@@ -477,18 +485,12 @@ async function executeLinkedinShare(
     {
       method: 'POST',
       path: '/v2/ugcPosts',
-      body: {
-        author,
-        lifecycleState: 'PUBLISHED',
-        specificContent: { 'com.linkedin.ugc.ShareContent': shareContent },
-        visibility: {
-          'com.linkedin.ugc.MemberNetworkVisibility': visibility,
-        },
-      },
+      // The UGC envelope is already fully resolved. Passing it as invocation
+      // args keeps user-authored braces from being treated as placeholders.
+      body: 'args',
       resultFromHeader: { header: 'X-RestLi-Id', field: 'id' },
     },
-    inv,
-    ['author', 'text'],
+    { ...inv, args: body },
   )
   return mutationResultFromTransport(spec.displayName, response)
 }
