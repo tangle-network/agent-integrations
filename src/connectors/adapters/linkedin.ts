@@ -1,6 +1,9 @@
-import type { ConnectorAdapter } from '../types.js'
+import type { ConnectorAdapter, ConnectorInvocation } from '../types.js'
 import {
   declarativeRestConnector,
+  executeRestRequest,
+  mutationResultFromTransport,
+  type RestConnectorSpec,
   type RestOperationSpec,
 } from './declarative-rest.js'
 
@@ -38,7 +41,8 @@ export interface LinkedInOptions {
 //   - cas:'optimistic-read-verify' for comment edit-by-urn.
 //
 // The `LinkedIn-Version` pin below targets a stable, generally-available
-// monthly revision; bump in tandem with the Marketing API release notes.
+// monthly revision. LinkedIn versions live for roughly one year, so bump this
+// value at least yearly in tandem with the Marketing API release notes.
 export function createLinkedinConnector(
   options: LinkedInOptions = {},
 ): ConnectorAdapter {
@@ -47,7 +51,7 @@ export function createLinkedinConnector(
     ? 'w_organization_social'
     : 'w_member_social'
 
-  return declarativeRestConnector({
+  const spec: RestConnectorSpec = {
     kind: 'linkedin',
     displayName: 'LinkedIn',
     description:
@@ -68,7 +72,7 @@ export function createLinkedinConnector(
     defaultConsistencyModel: 'advisory',
     baseUrl: 'https://api.linkedin.com',
     defaultHeaders: {
-      'LinkedIn-Version': '202405',
+      'LinkedIn-Version': '202601',
       'X-Restli-Protocol-Version': '2.0.0',
     },
     test: { method: 'GET', path: '/v2/userinfo' },
@@ -129,6 +133,40 @@ export function createLinkedinConnector(
           },
         },
         requiredScopes: ['r_organization_social', 'rw_organization_admin'],
+      },
+      {
+        name: 'shares.create',
+        class: 'mutation',
+        description:
+          'Create a published text or article share on the connected member feed through LinkedIn\'s self-serve UGC Posts API. `author` is the connected member URN, `text` is the share commentary, and an optional `url` creates an article card.',
+        parameters: {
+          type: 'object',
+          properties: {
+            author: {
+              type: 'string',
+              description: 'URN of the connected member (urn:li:person:{sub}).',
+            },
+            text: { type: 'string', description: 'Share text.' },
+            url: { type: 'string', description: 'Optional URL for an article card.' },
+            title: { type: 'string', description: 'Optional article-card title.' },
+            description: {
+              type: 'string',
+              description: 'Optional article-card description.',
+            },
+            visibility: {
+              type: 'string',
+              enum: ['PUBLIC', 'CONNECTIONS'],
+              default: 'PUBLIC',
+            },
+          },
+          required: ['author', 'text'],
+        },
+        // executeLinkedinShare builds the conditional text/article body and
+        // deliberately calls the unversioned /v2 endpoint.
+        request: { method: 'POST', path: '/v2/ugcPosts', body: 'args' },
+        cas: 'none',
+        externalEffect: true,
+        requiredScopes: ['w_member_social'],
       },
       {
         name: 'posts.create',
@@ -391,7 +429,83 @@ export function createLinkedinConnector(
         organizationAccess ||
         !(requiredScopes ?? []).some((scope) => ORGANIZATION_SCOPE_SET.has(scope)),
     ),
-  })
+  }
+
+  const connector = declarativeRestConnector(spec)
+  const executeMutation = connector.executeMutation!
+  return {
+    ...connector,
+    executeMutation(inv) {
+      return inv.capabilityName === 'shares.create'
+        ? executeLinkedinShare(spec, inv)
+        : executeMutation(inv)
+    },
+  }
+}
+
+async function executeLinkedinShare(
+  spec: RestConnectorSpec,
+  inv: ConnectorInvocation,
+) {
+  const author = requiredString(inv.args, 'author')
+  const text = requiredString(inv.args, 'text')
+  const url = optionalString(inv.args, 'url')
+  const title = optionalString(inv.args, 'title')
+  const description = optionalString(inv.args, 'description')
+  const visibility = optionalString(inv.args, 'visibility') ?? 'PUBLIC'
+
+  const shareContent: Record<string, unknown> = {
+    shareCommentary: { text },
+    shareMediaCategory: url ? 'ARTICLE' : 'NONE',
+  }
+  if (url) {
+    shareContent.media = [{
+      status: 'READY',
+      originalUrl: url,
+      ...(title ? { title: { text: title } } : {}),
+      ...(description ? { description: { text: description } } : {}),
+    }]
+  }
+
+  const body = {
+    author,
+    lifecycleState: 'PUBLISHED',
+    specificContent: { 'com.linkedin.ugc.ShareContent': shareContent },
+    visibility: {
+      'com.linkedin.ugc.MemberNetworkVisibility': visibility,
+    },
+  }
+  const response = await executeRestRequest(
+    {
+      ...spec,
+      // The self-serve /v2 UGC Posts endpoint is not versioned. Preserve only
+      // the Rest.li protocol header from the connector defaults.
+      defaultHeaders: { 'X-Restli-Protocol-Version': '2.0.0' },
+    },
+    {
+      method: 'POST',
+      path: '/v2/ugcPosts',
+      // The UGC envelope is already fully resolved. Passing it as invocation
+      // args keeps user-authored braces from being treated as placeholders.
+      body: 'args',
+      resultFromHeader: { header: 'X-RestLi-Id', field: 'id' },
+    },
+    { ...inv, args: body },
+  )
+  return mutationResultFromTransport(spec.displayName, response)
+}
+
+function requiredString(args: Record<string, unknown>, name: string): string {
+  const value = args[name]
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`missing required argument: ${name}`)
+  }
+  return value
+}
+
+function optionalString(args: Record<string, unknown>, name: string): string | undefined {
+  const value = args[name]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 export const linkedinConnector = createLinkedinConnector()

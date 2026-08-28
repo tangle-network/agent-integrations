@@ -1,8 +1,24 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createLinkedinConnector,
   linkedinConnector,
 } from '../src/connectors/adapters/linkedin.js'
+import type { ResolvedDataSource } from '../src/connectors/types.js'
+
+function source(): ResolvedDataSource {
+  return {
+    id: 'src_linkedin_1',
+    projectId: 'proj_1',
+    publishedAgentId: null,
+    kind: 'linkedin',
+    label: 'LinkedIn test',
+    consistencyModel: 'advisory',
+    scopes: ['w_member_social'],
+    metadata: {},
+    credentials: { kind: 'oauth2', accessToken: 'linkedin-access-token' },
+    status: 'active',
+  }
+}
 
 describe('linkedin adapter manifest', () => {
   it('classifies itself as the comms category and exposes the linkedin kind', () => {
@@ -27,6 +43,7 @@ describe('linkedin adapter manifest', () => {
     expect(names).toEqual(
       [
         'userinfo',
+        'shares.create',
         'posts.create',
         'posts.delete',
         'comments.create',
@@ -65,6 +82,7 @@ describe('linkedin adapter manifest', () => {
     expect(names).toEqual(
       [
         'userinfo',
+        'shares.create',
         'organizations.get',
         'organizations.acls.list',
         'posts.create',
@@ -106,5 +124,148 @@ describe('linkedin adapter manifest', () => {
     const del = linkedinConnector.manifest.capabilities.find((c) => c.name === 'posts.delete')
     if (del?.class !== 'mutation') throw new Error('unreachable')
     expect(del.cas).toBe('native-idempotency')
+  })
+})
+
+describe('linkedin shares.create', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('creates a published text share on the unversioned UGC Posts endpoint', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, {
+      status: 201,
+      headers: { 'X-RestLi-Id': 'urn:li:ugcPost:123' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await linkedinConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'shares.create',
+      args: { author: 'urn:li:person:abc', text: 'Hello LinkedIn' },
+      idempotencyKey: 'share-text-1',
+    })
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const [input, init] = fetchMock.mock.calls[0]!
+    const headers = new Headers(init?.headers)
+    expect(String(input)).toBe('https://api.linkedin.com/v2/ugcPosts')
+    expect(init?.method).toBe('POST')
+    expect(headers.get('authorization')).toBe('Bearer linkedin-access-token')
+    expect(headers.get('content-type')).toBe('application/json')
+    expect(headers.get('x-restli-protocol-version')).toBe('2.0.0')
+    expect(headers.has('linkedin-version')).toBe(false)
+    expect(JSON.parse(String(init?.body))).toEqual({
+      author: 'urn:li:person:abc',
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text: 'Hello LinkedIn' },
+          shareMediaCategory: 'NONE',
+        },
+      },
+      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+    })
+    expect(result).toMatchObject({
+      status: 'committed',
+      data: { id: 'urn:li:ugcPost:123' },
+    })
+  })
+
+  it('creates an article share with optional card metadata and visibility', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, {
+      status: 201,
+      headers: { 'X-RestLi-Id': 'urn:li:share:456' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await linkedinConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'shares.create',
+      args: {
+        author: 'urn:li:person:abc',
+        text: 'Read this',
+        url: 'https://example.com/article',
+        title: 'Example article',
+        description: 'An example link card',
+        visibility: 'CONNECTIONS',
+      },
+      idempotencyKey: 'share-article-1',
+    })
+
+    const [input, init] = fetchMock.mock.calls[0]!
+    const headers = new Headers(init?.headers)
+    expect(String(input)).toBe('https://api.linkedin.com/v2/ugcPosts')
+    expect(init?.method).toBe('POST')
+    expect(headers.get('content-type')).toBe('application/json')
+    expect(headers.get('x-restli-protocol-version')).toBe('2.0.0')
+    expect(headers.has('linkedin-version')).toBe(false)
+    expect(JSON.parse(String(init?.body))).toEqual({
+      author: 'urn:li:person:abc',
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text: 'Read this' },
+          shareMediaCategory: 'ARTICLE',
+          media: [{
+            status: 'READY',
+            originalUrl: 'https://example.com/article',
+            title: { text: 'Example article' },
+            description: { text: 'An example link card' },
+          }],
+        },
+      },
+      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'CONNECTIONS' },
+    })
+  })
+
+  it('preserves braces in user-authored share fields', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, {
+      status: 201,
+      headers: { 'X-RestLi-Id': 'urn:li:share:braces' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await linkedinConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'shares.create',
+      args: {
+        author: 'urn:li:person:abc',
+        text: 'Hello {world} from {author}',
+        url: 'https://example.com/{article}',
+        title: 'Launch {title}',
+        description: 'About {author}',
+      },
+      idempotencyKey: 'share-braces-1',
+    })
+
+    const [, init] = fetchMock.mock.calls[0]!
+    const body = JSON.parse(String(init?.body))
+    expect(body.specificContent['com.linkedin.ugc.ShareContent']).toEqual({
+      shareCommentary: { text: 'Hello {world} from {author}' },
+      shareMediaCategory: 'ARTICLE',
+      media: [{
+        status: 'READY',
+        originalUrl: 'https://example.com/{article}',
+        title: { text: 'Launch {title}' },
+        description: { text: 'About {author}' },
+      }],
+    })
+  })
+
+  it.each(['author', 'text'])('rejects a missing %s before fetch', async (missing) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const args: Record<string, unknown> = {
+      author: 'urn:li:person:abc',
+      text: 'Hello LinkedIn',
+    }
+    delete args[missing]
+
+    await expect(linkedinConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'shares.create',
+      args,
+      idempotencyKey: `share-missing-${missing}`,
+    })).rejects.toThrow(`missing required argument: ${missing}`)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

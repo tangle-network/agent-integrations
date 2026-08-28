@@ -105,6 +105,9 @@ export interface RestRequestSpec {
    *  of returning a null body on 204 and THROWING on 404. Any other non-2xx
    *  status still fails loud through the normal error path. */
   existenceCheck?: boolean
+  /** Build the successful result from one response header. Some create APIs
+   *  return an empty body and put the new resource id in a header instead. */
+  resultFromHeader?: { header: string; field: string }
 }
 
 export interface RestTestSpec extends RestRequestSpec {
@@ -508,6 +511,15 @@ export async function executeRestRequest(
     } catch {
       data = { raw: text }
     }
+  }
+  if (request.resultFromHeader) {
+    const value = res.headers.get(request.resultFromHeader.header)
+    if (!value) {
+      throw new Error(
+        `${spec.kind} ${request.method} ${url.pathname} response missing ${request.resultFromHeader.header} header`,
+      )
+    }
+    data = { [request.resultFromHeader.field]: value }
   }
   return { data, etag: res.headers.get('etag') ?? undefined }
 }
