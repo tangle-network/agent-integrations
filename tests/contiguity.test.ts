@@ -2,162 +2,61 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { contiguityConnector } from '../src/connectors/adapters/contiguity.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
-function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
-  return {
-    id: 'src_contiguity_1',
-    projectId: 'proj_1',
-    publishedAgentId: null,
-    kind: 'contiguity',
-    label: 'contiguity test',
-    consistencyModel: 'authoritative',
-    scopes: [],
-    metadata: {},
-    credentials: { kind: 'api-key', apiKey: 'contiguity_secret' },
-    status: 'active',
-    ...overrides,
-  }
+const source: ResolvedDataSource = {
+  id: 'src_contiguity_1', projectId: 'proj_1', publishedAgentId: null,
+  kind: 'contiguity', label: 'test', consistencyModel: 'advisory', scopes: [], metadata: {},
+  credentials: { kind: 'api-key', apiKey: 'contiguity_secret' }, status: 'active',
 }
+const email = { to: 'recipient@example.com', from: 'sender@example.com', subject: 'hello', body: 'world', replyTo: 'reply@example.com' }
+afterEach(() => vi.unstubAllGlobals())
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status: init.status ?? 200,
-    headers: { 'content-type': 'application/json' },
+describe('contiguity manifest', () => {
+  it('retains public kind/category and API-key auth', () => {
+    expect(contiguityConnector.manifest).toMatchObject({ kind: 'contiguity', category: 'crm', auth: { kind: 'api-key' }, defaultConsistencyModel: 'advisory' })
   })
-}
-
-describe('contiguity adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the contiguity kind', () => {
-    expect(contiguityConnector.manifest.kind).toBe('contiguity')
-    expect(contiguityConnector.manifest.category).toBe('crm')
-    expect(contiguityConnector.manifest.defaultConsistencyModel).toBe('authoritative')
+  it('preserves send action names and adds owned-number discovery', () => {
+    expect(contiguityConnector.manifest.capabilities.map((c) => c.name).sort()).toEqual(['email.send', 'messages.send_imessage', 'messages.send_text', 'numbers.list', 'sms.send'])
   })
-
-  it('uses api-key auth', () => {
-    expect(contiguityConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes send-message capabilities including the canonical sms.send and email.send', () => {
-    const names = contiguityConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['email.send', 'messages.send_imessage', 'messages.send_text', 'sms.send'].sort(),
-    )
-    const mutations = contiguityConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['email.send', 'messages.send_imessage', 'messages.send_text', 'sms.send'].sort(),
-    )
-  })
-
-  it('marks newly added mutations as native-idempotency external effects', () => {
-    const added = contiguityConnector.manifest.capabilities.filter(
-      (c) => c.name === 'email.send' || c.name === 'sms.send',
-    )
-    expect(added).toHaveLength(2)
-    for (const cap of added) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
+  it('does not claim undocumented provider-native idempotency', () => {
+    const mutations = contiguityConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
+    expect(mutations).toHaveLength(4)
+    for (const cap of mutations) expect(cap).toMatchObject({ cas: 'none', externalEffect: true })
   })
 })
 
-describe('contiguity email.send', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs /v1/send/email with bearer auth and the assembled JSON body', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestHeaders: Record<string, string> = {}
-    let requestBody: unknown
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestHeaders = Object.fromEntries(
-        Object.entries((init?.headers ?? {}) as Record<string, string>),
-      )
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'msg_email_1', status: 'queued' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await contiguityConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'email.send',
-      args: {
-        to: 'recipient@example.com',
-        from: 'sender@example.com',
-        subject: 'hello',
-        body: 'world',
-        contentType: 'text/plain',
-        replyTo: 'reply@example.com',
-      },
-      idempotencyKey: 'k-email-1',
-    })
-
+describe('contiguity wire contracts', () => {
+  it.each(['text/plain', 'text/html'] as const)('maps %s body and reply_to to POST /send/email', async (contentType) => {
+    const send = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'request', data: { message_id: 'message' } }))
+    vi.stubGlobal('fetch', send)
+    const result = await contiguityConnector.executeMutation!({ source, capabilityName: 'email.send', args: { ...email, contentType, text: 'unapproved', html: 'unapproved' }, idempotencyKey: 'key' })
     expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/v1/send/email')
-    expect(requestHeaders.authorization).toBe('Bearer contiguity_secret')
-    expect(requestBody).toEqual({
-      to: 'recipient@example.com',
-      from: 'sender@example.com',
-      subject: 'hello',
-      body: 'world',
-      contentType: 'text/plain',
-      replyTo: 'reply@example.com',
-    })
+    expect(send).toHaveBeenCalledTimes(1)
+    const [url, init] = send.mock.calls[0]!
+    expect(String(url)).toBe('https://api.contiguity.com/send/email')
+    expect(init?.method).toBe('POST')
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer contiguity_secret')
+    expect(JSON.parse(String(init?.body))).toEqual({ to: email.to, from: email.from, subject: email.subject, [contentType === 'text/html' ? 'html' : 'text']: 'world', reply_to: email.replyTo })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      contiguityConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'email.send',
-        args: {
-          to: 'recipient@example.com',
-          from: 'sender@example.com',
-          subject: 'hello',
-          body: 'world',
-          contentType: 'text/plain',
-          replyTo: 'reply@example.com',
-        },
-        idempotencyKey: 'k-email-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  it('rejects unsupported content types before a request', async () => {
+    const send = vi.fn(); vi.stubGlobal('fetch', send)
+    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'email.send', args: { ...email, contentType: 'application/javascript' } })).rejects.toThrow('contentType')
+    expect(send).not.toHaveBeenCalled()
   })
-})
-
-describe('contiguity sms.send', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('POSTs to /v1/messages/send/text with the SMS payload', async () => {
-    let requestUrl: string | undefined
-    let requestMethod: string | undefined
-    let requestBody: unknown
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input)
-      requestMethod = init?.method
-      requestBody = init?.body ? JSON.parse(init.body as string) : null
-      return jsonResponse({ id: 'msg_sms_1' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await contiguityConnector.executeMutation!({
-      source: source(),
-      capabilityName: 'sms.send',
-      args: { to: '+15551234567', from: '+15557654321', message: 'hey there' },
-      idempotencyKey: 'k-sms-1',
-    })
-
-    expect(result.status).toBe('committed')
-    expect(requestMethod).toBe('POST')
-    expect(String(requestUrl)).toContain('/v1/messages/send/text')
-    expect(requestBody).toMatchObject({ to: '+15551234567', from: '+15557654321', message: 'hey there' })
+  it('surfaces credential expiration without retrying', async () => {
+    const send = vi.fn(async () => new Response('unauthorized', { status: 401 })); vi.stubGlobal('fetch', send)
+    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'email.send', args: email, idempotencyKey: 'key' })).rejects.toMatchObject({ name: 'CredentialsExpired' })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+  it('sends SMS to /send/text with the explicit sender', async () => {
+    const send = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'request' })); vi.stubGlobal('fetch', send)
+    const args = { to: '+15550000001', from: '+15550000002', message: 'Hello' }
+    await contiguityConnector.executeMutation!({ source, capabilityName: 'sms.send', args, idempotencyKey: 'key' })
+    expect(String(send.mock.calls[0]![0])).toBe('https://api.contiguity.com/send/text')
+    expect(JSON.parse(String(send.mock.calls[0]![1]?.body))).toEqual(args)
+  })
+  it('does not silently pick a sender when none was authorized', async () => {
+    const send = vi.fn(); vi.stubGlobal('fetch', send)
+    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'sms.send', args: { to: '+15550000001', message: 'Hello' } })).rejects.toThrow()
+    expect(send).not.toHaveBeenCalled()
   })
 })
