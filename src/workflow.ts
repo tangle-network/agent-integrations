@@ -131,12 +131,34 @@ export class IntegrationWorkflowRuntime {
     event: IntegrationTriggerEvent<T>,
     handler: (input: { event: IntegrationTriggerEvent<T>; workflows: InstalledIntegrationWorkflow[] }) => Promise<void> | void,
   ): Promise<{ matched: InstalledIntegrationWorkflow[] }> {
-    const workflows = (await this.store.list())
-      .filter((workflow) =>
-        workflow.status === 'active'
-        && workflow.subscription.connectionId === event.connectionId
-        && workflow.subscription.trigger === event.trigger
-      )
+    // A workflow outlives its installation-time grant. Recheck the current
+    // grant before routing a new event; an active subscription is not authority.
+    // This assumes verified ingress. Deferred effects must recheck authority
+    // again at execution time rather than treating this snapshot as a lease.
+    const workflows: InstalledIntegrationWorkflow[] = []
+    for (const workflow of await this.store.list()) {
+      if (
+        workflow.status !== 'active'
+        || workflow.subscription.status !== 'active'
+        || workflow.subscription.connectionId !== event.connectionId
+        || workflow.subscription.trigger !== event.trigger
+      ) continue
+
+      const grant = await this.grants.get(workflow.triggerGrantId)
+      if (
+        !grant
+        || grant.id !== workflow.triggerGrantId
+        || grant.status !== 'active'
+        || grant.manifestId !== workflow.manifestId
+        || !sameActor(grant.owner, workflow.owner)
+        || !sameActor(grant.grantee, workflow.grantee)
+        || grant.connectionId !== event.connectionId
+        || grant.connectorId !== event.connectorId
+        || !grant.allowedTriggers.includes(event.trigger)
+      ) continue
+
+      workflows.push(workflow)
+    }
     await handler({ event, workflows })
     return { matched: workflows }
   }
