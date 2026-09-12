@@ -39,7 +39,7 @@ describe('contiguity wire contracts', () => {
   })
   it('rejects unsupported content types before a request', async () => {
     const send = vi.fn(); vi.stubGlobal('fetch', send)
-    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'email.send', args: { ...email, contentType: 'application/javascript' } })).rejects.toThrow('contentType')
+    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'email.send', args: { ...email, contentType: 'application/javascript' }, idempotencyKey: 'invalid-content' })).rejects.toThrow('contentType')
     expect(send).not.toHaveBeenCalled()
   })
   it('surfaces credential expiration without retrying', async () => {
@@ -56,7 +56,7 @@ describe('contiguity wire contracts', () => {
   })
   it('does not silently pick a sender when none was authorized', async () => {
     const send = vi.fn(); vi.stubGlobal('fetch', send)
-    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'sms.send', args: { to: '+15550000001', message: 'Hello' } })).rejects.toThrow()
+    await expect(contiguityConnector.executeMutation!({ source, capabilityName: 'sms.send', args: { to: '+15550000001', message: 'Hello' }, idempotencyKey: 'missing-sender' })).rejects.toThrow()
     expect(send).not.toHaveBeenCalled()
   })
 })
