@@ -1,0 +1,40 @@
+name: Verify pull request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: verify-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify actual package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verification
+          git rev-parse HEAD > verification/commit.txt
+          pnpm install --frozen-lockfile 2>&1 | tee verification/install.log
+          pnpm run typecheck 2>&1 | tee verification/typecheck.log
+          pnpm run test -- --reporter=default --reporter=json --outputFile=verification/tests.json 2>&1 | tee verification/tests.log
+          pnpm run release 2>&1 | tee verification/release.log
+          git archive HEAD > verification/source.tar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-primitives-${{ github.event.pull_request.number }}
+          path: verification/
+          retention-days: 7
