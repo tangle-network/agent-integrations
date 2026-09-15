@@ -1,0 +1,60 @@
+name: Verify WhatsApp cohort
+on:
+  push:
+    branches: [verify/whatsapp-cohort-20260915]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Add the reviewed adapter export
+        run: |
+          mkdir -p proof
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path='src/connectors/adapters/index.ts';
+          const line="export { linqWhatsappConnector } from './linq-whatsapp.js'";
+          const old=readFileSync(path,'utf8');
+          if (!old.includes(line)) writeFileSync(path,old+'\n'+line+'\n');
+          JS
+      - run: pnpm install --frozen-lockfile > proof/install.log 2>&1 || { tail -60 proof/install.log; exit 1; }
+      - run: pnpm generate:bundled-manifests > proof/generate.log 2>&1 || { tail -70 proof/generate.log; exit 1; }
+      - name: Retain generated Git objects without changing any branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('node:fs');
+            const {owner,repo}=context.repo;
+            const blobs=[];
+            for(const path of ['src/connectors/adapters/index.ts','data/bundled-adapter-manifests.json']) {
+              const {data}=await github.rest.git.createBlob({owner,repo,content:fs.readFileSync(path,'utf8'),encoding:'utf-8'});
+              blobs.push({path,sha:data.sha});
+            }
+            fs.writeFileSync('proof/generated-blobs.json',JSON.stringify(blobs,null,2));
+      - run: pnpm typecheck > proof/typecheck.log 2>&1 || { cat proof/typecheck.log; exit 1; }
+      - run: pnpm exec vitest run --reporter=json --outputFile=proof/tests.json > proof/tests.log 2>&1 || { tail -90 proof/tests.log; exit 1; }
+      - run: pnpm release > proof/release.log 2>&1 || { tail -90 proof/release.log; exit 1; }
+      - name: Pack exact candidate
+        run: |
+          npm pack --ignore-scripts --pack-destination proof > proof/pack.log
+          tar --exclude=node_modules --exclude=.git --exclude=proof --exclude=dist -czf proof/source.tar.gz .
+          sha256sum proof/*.tgz proof/source.tar.gz > proof/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: whatsapp-cohort
+          path: proof/
+          retention-days: 7
+          if-no-files-found: error
