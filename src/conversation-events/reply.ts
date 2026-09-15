@@ -28,7 +28,6 @@ export function buildMessagingReply(
   const event = normalized.event
   if (typeof text !== 'string' || !text.trim() || text.length > 10000 || text.includes('\0')) return fail('Reply text is empty or exceeds its limit')
   if (typeof operationId !== 'string' || !operationId || operationId.length > 256 || /[\u0000-\u001f]/.test(operationId)) return fail('A stable operation id is required')
-  // Never turn historical input or best-known group members into an audience grant.
   if (event.historyOnly || event.isGroup) return fail('This event requires review or complete input before a reply')
   const data = object(object(input.payload).data)
   if (event.provider === 'inkbox') {
@@ -50,6 +49,10 @@ export function buildMessagingReply(
         in_reply_to_message_id: event.eventId,
       } } }
     }
+  }
+  if (event.provider === 'linq-whatsapp') {
+    if (text.length > 4096) return fail('WhatsApp text is limited to 4096 characters')
+    return { ok: true, reply: { action: 'linq-whatsapp.messages.reply', input: { chat_id: event.conversationId, text } } }
   }
   if (event.provider === 'linq') {
     return { ok: true, reply: { action: 'linq.messages.reply', input: { chat_id: event.conversationId, text, message_key: operationId } } }

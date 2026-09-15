@@ -25,7 +25,7 @@ export function verifyInkboxWebhook(rawBody: string, headers: WebhookHeaders, se
     && verifyHmacSignature(`${id}.${timestamp}.${rawBody}`, signature, secret, { signaturePrefix: 'sha256=' }))
 }
 
-/** Linq's Standard Webhooks scheme uses a base64-decoded signing key. */
+/** Both Linq services use Standard Webhooks with a base64-decoded signing key. */
 export function verifyLinqWebhook(rawBody: string, headers: WebhookHeaders, secret: string, now = Date.now() / 1000): boolean {
   const id = header(headers, 'webhook-id')
   const timestamp = header(headers, 'webhook-timestamp')
@@ -53,7 +53,6 @@ function parse(provider: string, typeField: string, idField: string, input: Para
     || !(value[idField] as string).length || (value[idField] as string).length > 256) {
     throw new Error('Provider event requires a bounded event type and stable id')
   }
-  // Credentials and signing headers do not belong in downstream transcripts.
   return [{ provider, eventType: `${provider}.${value[typeField]}`, providerEventId: value[idField] as string,
     receivedAt: input.now ?? Date.now(), payload: value, headers: {} }]
 }
@@ -93,4 +92,16 @@ export const contiguityWebhookProvider: WebhookProvider = {
     { id: 'contiguity.imessage.incoming' }, { id: 'contiguity.text.incoming.sms' },
     { id: 'contiguity.text.incoming.mms' },
   ] },
+}
+
+export const linqWhatsappWebhookProvider: WebhookProvider = {
+  id: 'linq-whatsapp',
+  verifySignature: ({ rawBody, headers, secret }) => verifyLinqWebhook(rawBody, headers, secret)
+    ? { valid: true } : { valid: false, reason: 'invalid_signature' },
+  parse: (input) => {
+    const events = parse('linq-whatsapp', 'type', 'id', input)
+    if (events[0]?.providerEventId !== header(input.headers, 'webhook-id')) throw new Error('Signed event identity mismatch')
+    return events
+  },
+  eventCatalog: { namespace: 'linq-whatsapp.', closed: false, events: [{ id: 'linq-whatsapp.message.received' }] },
 }
