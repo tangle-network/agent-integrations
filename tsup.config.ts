@@ -21,6 +21,8 @@ export default defineConfig({
     'stripe/index': 'src/stripe/index.ts',
     'coverage-catalog': 'src/coverage-catalog.ts',
     mcp: 'src/mcp.ts',
+    'tangle-search/index': 'src/tangle-search/index.ts',
+    'twilio/index': 'src/twilio/index.ts',
   },
   format: ['esm'],
   dts: true,
