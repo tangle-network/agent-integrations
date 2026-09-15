@@ -1,0 +1,23 @@
+name: Read public WhatsApp contract
+on:
+  push:
+    branches: [verify/whatsapp-cohort-20260915]
+    paths: [.github/workflows/read-whatsapp-contract.yml]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read provider-owned public contract without credentials
+        run: |
+          mkdir -p proof
+          curl --fail --silent --show-error --max-time 30 --proto '=https' https://whatsapp.messages.api.linqapp.com/v1/openapi.yaml -o proof/whatsapp-openapi.yaml
+          sha256sum proof/whatsapp-openapi.yaml > proof/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-whatsapp-contract
+          path: proof/
+          retention-days: 7
+          if-no-files-found: error
