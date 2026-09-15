@@ -86,7 +86,7 @@ describe('WhatsApp events and replies', () => {
   it('verifies raw bytes and deduplicates using the existing router', async () => {
     vi.useFakeTimers(); vi.setSystemTime(now)
     const deliver = vi.fn()
-    const router = new WebhookRouter({ providers: [linqWhatsappWebhookProvider], runtime: 'fixture', resolveSecret: () => secret, deliver })
+    const router = new WebhookRouter({ providers: [linqWhatsappWebhookProvider], runtime: 'test', resolveSecret: () => secret, deliver })
     const rawBody = JSON.stringify(payload()), request = { providerId: 'linq-whatsapp', rawBody, headers: headers(rawBody) }
     expect((await router.handle(request)).status).toBe(200)
     expect((await router.handle(request)).status).toBe(200)

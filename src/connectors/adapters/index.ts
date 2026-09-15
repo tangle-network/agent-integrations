@@ -751,3 +751,5 @@ export { demandbaseConnector } from './demandbase.js'
 export { inkboxConnector } from './inkbox.js'
 
 export { linqConnector } from './linq.js'
+
+export { linqWhatsappConnector } from './linq-whatsapp.js'
