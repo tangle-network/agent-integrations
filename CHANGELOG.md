@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Durable broker consent receipts expose the grant, app, connection and owner identity. `requireBrokerGrantReceipt` verifies exact identity and scope before unattended use; older host responses remain usable for immediate calls but cannot invent a durable grant.
+- Shared Linq owned-line inventory projection for hosted assistants, preserving unknown/critical line health and distinguishing provider-assigned numbers from an unsupported purchase API.
 - `@tangle-network/agent-integrations/tangle-search`: typed Router search client and
   request/response helpers. Provider-neutral, explicit host credentials, request
   correlation, unknown-cost preservation, cancellation and bounded JSON reads.

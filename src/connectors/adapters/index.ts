@@ -747,3 +747,9 @@ export { ringcentralConnector } from './ringcentral.js'
 export { dialpadConnector } from './dialpad.js'
 export { demandbaseConnector } from './demandbase.js'
 // --- end Toolverse OAuth2 GTM connectors ---
+
+export { inkboxConnector } from './inkbox.js'
+
+export { linqConnector } from './linq.js'
+
+export { linqWhatsappConnector } from './linq-whatsapp.js'
