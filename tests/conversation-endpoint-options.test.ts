@@ -3,7 +3,7 @@ import { conversationEndpointOptions, listConversationChannels } from '../src/co
 const row = { id: '550e8400-e29b-41d4-a716-446655440000', phone_number: '+15551234567', reputation: { status: 'HEALTHY' } }
 describe('owned conversation endpoints', () => {
   it('exposes inventory without claiming a purchase API', () => {
-    expect(listConversationChannels().find(c => c.providerId === 'linq')).toMatchObject({ inventoryAction: 'linq.phone_numbers.list', numberProvisioning: 'provider-assigned' })
+    expect(listConversationChannels().find(c => c.providerId === 'linq')).toMatchObject({ inventoryAction: 'linq.numbers.list', numberProvisioning: 'provider-assigned' })
     expect(conversationEndpointOptions('linq', { phone_numbers: [row] })).toEqual([{ id: row.id, address: row.phone_number, providerId: 'linq', channel: 'imessage', health: 'healthy' }])
   })
   it.each([{}, { phone_numbers: {} }, { phone_numbers: [{...row, id: ''}] }, { phone_numbers: [{...row, phone_number: '15551234567'}] }, { phone_numbers: [row, row] }])('rejects unproven endpoint inventory %j', payload => {

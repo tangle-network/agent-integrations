@@ -7,6 +7,7 @@ export interface ConversationChannel {
   sourceKind: 'channel' | 'connection'
   replies: boolean
   inventoryAction?: string
+  replyAction?: string
   numberProvisioning?: 'provider-assigned'
 }
 
@@ -15,7 +16,7 @@ const channels: readonly ConversationChannel[] = [
   { providerId: 'inkbox', eventType: 'inkbox.imessage.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true },
   { providerId: 'inkbox', eventType: 'inkbox.text.received', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true },
   { providerId: 'inkbox', eventType: 'inkbox.message.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true },
-  { providerId: 'linq', eventType: 'linq.message.received', label: 'iMessage / SMS', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'linq.phone_numbers.list', numberProvisioning: 'provider-assigned' },
+  { providerId: 'linq', eventType: 'linq.message.received', label: 'iMessage / SMS', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
   { providerId: 'contiguity', eventType: 'contiguity.imessage.incoming', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true },
   { providerId: 'contiguity', eventType: 'contiguity.text.incoming.sms', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true },
   { providerId: 'linq-whatsapp', eventType: 'linq-whatsapp.message.received', label: 'WhatsApp', transport: 'whatsapp', sourceKind: 'connection', replies: true },
