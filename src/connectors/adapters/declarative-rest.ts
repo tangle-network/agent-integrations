@@ -346,6 +346,11 @@ export async function executeRestRequest(
   // (leading `/`) would otherwise be resolved against the origin and drop
   // every path segment the base URL carries.
   const renderedPath = interpolate(request.path, scope).replace(/^\/+/, '')
+  // encodeURIComponent leaves `.` intact, so an argument of `.` or `..` would
+  // become a dot segment that URL resolution collapses onto another endpoint.
+  if (renderedPath.split(/[/?#]/).some((segment) => segment === '.' || segment === '..')) {
+    throw new Error('invalid path argument: dot segment')
+  }
   const baseWithSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const url = new URL(renderedPath, baseWithSlash)
   for (const [key, value] of Object.entries(request.query ?? {})) {
