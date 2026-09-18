@@ -8,6 +8,7 @@ import {
   createIntegrationWorkflowRuntime,
   createMockIntegrationProvider,
   type IntegrationGrant,
+  type IntegrationGrantStore,
   type IntegrationManifest,
   type IntegrationTriggerEvent,
 } from '../src/index'
@@ -23,8 +24,20 @@ const manifest: IntegrationManifest = {
   }],
 }
 
-async function setup() {
+// A store without the optional batch read, as a minimal persistent adapter may be.
+function pointReadStore(inner: InMemoryIntegrationGrantStore): IntegrationGrantStore {
+  return {
+    get: (grantId) => inner.get(grantId),
+    put: (grant) => inner.put(grant),
+    listByManifest: (manifestId, grantee) => inner.listByManifest(manifestId, grantee),
+    listByGrantee: (grantee) => inner.listByGrantee(grantee),
+    delete: (grantId) => inner.delete(grantId),
+  }
+}
+
+async function setup(options: { pointReads?: boolean } = {}) {
   const grants = new InMemoryIntegrationGrantStore()
+  const runtimeGrants = options.pointReads ? pointReadStore(grants) : grants
   const store = new InMemoryIntegrationWorkflowStore()
   const hub = new IntegrationHub({
     providers: [createMockIntegrationProvider()],
@@ -37,7 +50,7 @@ async function setup() {
     createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
   })
   const runtime = createIntegrationWorkflowRuntime({
-    runtime: createIntegrationRuntime({ hub, grants }), hub, grants, store,
+    runtime: createIntegrationRuntime({ hub, grants: runtimeGrants }), hub, grants: runtimeGrants, store,
   })
   const installed = await runtime.install({
     workflow: {
@@ -52,7 +65,15 @@ async function setup() {
     connectionId: 'connection', trigger: 'message.received',
     occurredAt: new Date(0).toISOString(), payload: { subject: 'hello' },
   }
-  return { runtime, grants, store, installed, grant, event }
+  // A distinct manifest yields a distinct trigger grant for the same connection.
+  const install = (id: string) => runtime.install({
+    workflow: {
+      id, manifest: { ...manifest, id: `${manifest.id}-${id}` },
+      trigger: { requirementId: 'gmail-trigger', triggerId: 'message.received' },
+    },
+    owner, grantee,
+  })
+  return { runtime, grants, store, installed, grant, event, install }
 }
 
 const changedGrants: Array<[string, (grant: IntegrationGrant) => IntegrationGrant]> = [
@@ -104,6 +125,12 @@ describe('workflow dispatch authorization', () => {
 
   it('rejects a store result for a different grant id', async () => {
     const f = await setup()
+    vi.spyOn(f.grants, 'listByIds').mockReturnValue([{ ...f.grant, id: 'other' }])
+    expect((await f.runtime.dispatchEvent(f.event, () => {})).matched).toEqual([])
+  })
+
+  it('rejects a point-read result for a different grant id', async () => {
+    const f = await setup({ pointReads: true })
     vi.spyOn(f.grants, 'get').mockReturnValue({ ...f.grant, id: 'other' })
     expect((await f.runtime.dispatchEvent(f.event, () => {})).matched).toEqual([])
   })
@@ -123,8 +150,34 @@ describe('workflow dispatch authorization', () => {
   it.each(['connectionId', 'trigger'] as const)('does not read grants for an unrelated %s', async (field) => {
     const f = await setup()
     const get = vi.spyOn(f.grants, 'get')
+    const listByIds = vi.spyOn(f.grants, 'listByIds')
     expect((await f.runtime.dispatchEvent({ ...f.event, [field]: 'other' }, () => {})).matched).toEqual([])
     expect(get).not.toHaveBeenCalled()
+    expect(listByIds).not.toHaveBeenCalled()
+  })
+
+  it('reads every candidate grant in one batched call', async () => {
+    const f = await setup()
+    const second = await f.install('second-mail')
+    const third = await f.install('third-mail')
+    const get = vi.spyOn(f.grants, 'get')
+    const listByIds = vi.spyOn(f.grants, 'listByIds')
+    const { matched } = await f.runtime.dispatchEvent(f.event, () => {})
+    expect(matched.map((w) => w.id).sort()).toEqual([f.installed.id, second.id, third.id].sort())
+    expect(listByIds).toHaveBeenCalledOnce()
+    expect(listByIds.mock.calls[0]![0].sort()).toEqual(
+      [f.installed.triggerGrantId, second.triggerGrantId, third.triggerGrantId].sort(),
+    )
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('falls back to concurrent point reads without a batch read', async () => {
+    const f = await setup({ pointReads: true })
+    const second = await f.install('second-mail')
+    f.grants.put({ ...f.grants.get(second.triggerGrantId)!, status: 'revoked' })
+    const get = vi.spyOn(f.grants, 'get')
+    expect((await f.runtime.dispatchEvent(f.event, () => {})).matched).toEqual([f.installed])
+    expect(get).toHaveBeenCalledTimes(2)
   })
 
   it('does not route a different connector sharing a connection id', async () => {
@@ -132,9 +185,12 @@ describe('workflow dispatch authorization', () => {
     expect((await f.runtime.dispatchEvent({ ...f.event, connectorId: 'other' }, () => {})).matched).toEqual([])
   })
 
-  it('propagates grant-store failures without delivering partial matches', async () => {
-    const f = await setup()
-    vi.spyOn(f.grants, 'get').mockImplementation(() => { throw new Error('store unavailable') })
+  it.each([
+    ['batch', false, 'listByIds'],
+    ['point', true, 'get'],
+  ] as const)('propagates %s grant-store failures without delivering partial matches', async (_name, pointReads, method) => {
+    const f = await setup({ pointReads })
+    vi.spyOn(f.grants, method).mockImplementation(() => { throw new Error('store unavailable') })
     const handler = vi.fn()
     await expect(f.runtime.dispatchEvent(f.event, handler)).rejects.toThrow('store unavailable')
     expect(handler).not.toHaveBeenCalled()
@@ -147,9 +203,9 @@ describe('workflow dispatch authorization', () => {
 
   it('does not cache grant state across dispatches', async () => {
     const f = await setup()
-    const get = vi.spyOn(f.grants, 'get')
+    const listByIds = vi.spyOn(f.grants, 'listByIds')
     await f.runtime.dispatchEvent(f.event, () => {})
     await f.runtime.dispatchEvent(f.event, () => {})
-    expect(get).toHaveBeenCalledTimes(2)
+    expect(listByIds).toHaveBeenCalledTimes(2)
   })
 })
