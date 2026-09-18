@@ -1,5 +1,5 @@
 export type ManagedMessageTransport = 'sms' | 'imessage'
-export interface InkboxNumber { id: string; number: string; smsStatus: string | null }
+export interface InkboxNumber { id: string; number: string; smsStatus: string | null; status: string | null }
 export interface InkboxIdentity {
   id: string
   handle: string
@@ -20,7 +20,7 @@ export class MessagingProvisionError extends Error {
   }
 }
 const BASE = 'https://inkbox.ai/api/v1'
-const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
+const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
 const PHONE = /^\+[1-9]\d{6,14}$/
 const HANDLE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 function record(value: unknown): Record<string, unknown> {
@@ -31,7 +31,7 @@ function readNumber(value: unknown): InkboxNumber | null {
   if (value == null) return null
   const row = record(value)
   if (typeof row.id !== 'string' || !UUID.test(row.id) || typeof row.number !== 'string' || !PHONE.test(row.number)) throw new MessagingProvisionError('invalid_receipt')
-  return { id: row.id, number: row.number, smsStatus: typeof row.sms_status === 'string' ? row.sms_status : null }
+  return { id: row.id, number: row.number, smsStatus: typeof row.sms_status === 'string' ? row.sms_status : null, status: typeof row.status === 'string' ? row.status : null }
 }
 /** Project only channel identity. Mailbox, tunnel, credentials and contacts never leave this boundary. */
 export function parseInkboxIdentity(value: unknown): InkboxIdentity {
@@ -72,13 +72,15 @@ async function readJson(response: Response): Promise<unknown> {
 export class InkboxProvisioner {
   private readonly fetchImpl: typeof fetch
   private readonly timeoutMs: number
-  constructor(private readonly options: { adminKey: string; fetchImpl?: typeof fetch; timeoutMs?: number }) {
+  readonly #adminKey: string
+  constructor(options: { adminKey: string; fetchImpl?: typeof fetch; timeoutMs?: number }) {
     if (!options.adminKey || options.adminKey.length > 4096 || /[^\x21-\x7e]/.test(options.adminKey)) throw new MessagingProvisionError('unavailable')
+    this.#adminKey = options.adminKey
     this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis)
     this.timeoutMs = options.timeoutMs ?? 15_000
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 120_000) throw new MessagingProvisionError('invalid_input')
   }
-  private async request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown, operationId?: string, key = this.options.adminKey): Promise<unknown> {
+  private async request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown, operationId?: string, key = this.#adminKey): Promise<unknown> {
     let response: Response
     try {
       response = await this.fetchImpl(`${BASE}${path}`, { method, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs),
