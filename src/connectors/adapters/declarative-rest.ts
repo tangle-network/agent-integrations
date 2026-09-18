@@ -345,10 +345,15 @@ export async function executeRestRequest(
   // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
   // (leading `/`) would otherwise be resolved against the origin and drop
   // every path segment the base URL carries.
-  const renderedPath = interpolate(request.path, scope).replace(/^\/+/, '')
+  const templatePath = request.path.replace(/^\/+/, '')
+  const renderedPath = interpolate(templatePath, scope)
   // encodeURIComponent leaves `.` intact, so an argument of `.` or `..` would
   // become a dot segment that URL resolution collapses onto another endpoint.
-  if (renderedPath.split(/[/?#]/).some((segment) => segment === '.' || segment === '..')) {
+  // A template may still use `..` deliberately to leave its base prefix.
+  // Encoding keeps `/` out of values, so segments align with the template.
+  const templateSegments = templatePath.split('/')
+  if (renderedPath.split('/').some((segment, index) =>
+    (segment === '.' || segment === '..') && templateSegments[index] !== segment)) {
     throw new Error('invalid path argument: dot segment')
   }
   const baseWithSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`

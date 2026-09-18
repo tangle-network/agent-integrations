@@ -146,6 +146,17 @@ describe('declarative REST adapters', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('keeps a dot segment the template itself declares', async () => {
+    const fetchMock = mockFetch({ ok: true })
+    await pathConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'path-test' }),
+      capabilityName: 'records.purge',
+      args: { id: 'r1' },
+      idempotencyKey: 'path-3',
+    })
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('https://path.example.test/purge/r1')
+  })
+
   it('keeps a dotted path argument inside its own segment', async () => {
     const fetchMock = mockFetch({ ok: true })
     await pathConnector.executeMutation!({
@@ -213,6 +224,14 @@ const pathConnector = declarativeRestConnector({
     description: 'Delete a record.',
     parameters: { type: 'object', properties: { id: { type: 'string' } } },
     request: { method: 'DELETE', path: '/records/{id}' },
+    cas: 'none',
+    externalEffect: true,
+  }, {
+    name: 'records.purge',
+    class: 'mutation',
+    description: 'Purge a record outside the versioned prefix.',
+    parameters: { type: 'object', properties: { id: { type: 'string' } } },
+    request: { method: 'DELETE', path: '/../purge/{id}' },
     cas: 'none',
     externalEffect: true,
   }],
