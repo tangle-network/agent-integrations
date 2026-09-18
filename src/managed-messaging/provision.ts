@@ -112,14 +112,25 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
         if (order.attempted) return save({ status: 'needs_review', errorCode: 'number_outcome_unknown' })
         if (!await claim() || !await authorize()) return (await ports.orders.get(orderId))!
         mutationInThisTick = true
-        if (order.transport === 'sms') number = await ports.provider.provisionSms(order.handle, order.state)
+        if (order.transport === 'sms') {
+          const purchased = await ports.provider.provisionSms(order.handle, order.state)
+          // A purchase response alone is not an ownership receipt. Read the
+          // exact identity before the host can treat this number as billable.
+          const receipt = await ports.provider.getIdentity(order.handle)
+          if (!receipt) throw new MessagingProvisionError('invalid_receipt')
+          identityMatches(order, receipt)
+          number = selectedNumber(order, receipt)
+          if (!number || purchased.id !== number.id || purchased.number !== number.number) {
+            throw new MessagingProvisionError('invalid_receipt')
+          }
+        }
         else {
           const receipt = await ports.provider.claimIMessage(order.handle, `${order.id}:imessage`)
           identityMatches(order, receipt); number = selectedNumber(order, receipt)
         }
       }
       if (!number) return save({ status: 'provider_pending', errorCode: 'number_pending' })
-      if (order.number && order.number.id !== number.id) throw new MessagingProvisionError('invalid_receipt')
+      if (order.number && (order.number.id !== number.id || order.number.number !== number.number)) throw new MessagingProvisionError('invalid_receipt')
       if (order.transport === 'sms' && (number.smsStatus !== 'ready' || number.status !== 'active')) {
         return save({ number, status: 'provider_pending', nextAttemptAt: now + 30_000, errorCode: 'sms_not_ready' })
       }
