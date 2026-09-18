@@ -23,6 +23,7 @@ export default defineConfig({
     mcp: 'src/mcp.ts',
     'tangle-search/index': 'src/tangle-search/index.ts',
     'twilio/index': 'src/twilio/index.ts',
+    'managed-messaging/index': 'src/managed-messaging/index.ts',
   },
   format: ['esm'],
   dts: true,
