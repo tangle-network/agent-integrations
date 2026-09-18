@@ -53,10 +53,16 @@ describe('host-only Inkbox provisioner', () => {
   })
   it('provisions SMS with voice explicitly rejected and preserves pending readiness', async () => {
     const f = fixture(number)
-    assert.equal((await f.client.provisionSms('tng-fixture', 'CA')).smsStatus, 'pending')
+    assert.equal((await f.client.provisionSms('tng-fixture', 'order1:sms', 'CA')).smsStatus, 'pending')
     assert.deepEqual(JSON.parse(String(f.calls[0].init.body)), {
       agent_handle: 'tng-fixture', type: 'local', incoming_call_action: 'auto_reject', state: 'CA',
     })
+    assert.equal(new Headers(f.calls[0].init.headers).get('Idempotency-Key'), 'order1:sms')
+  })
+  it('refuses an SMS purchase without a stable operation key', async () => {
+    const f = fixture(number)
+    await assert.rejects(f.client.provisionSms('tng-fixture', ''), { code: 'invalid_input' })
+    assert.equal(f.calls.length, 0)
   })
   for (const value of ['../foreign', 'ab', 'UPPERCASE', 'bad--handle', 'x'.repeat(64)]) {
     it(`rejects an invalid handle before HTTP: ${value}`, async () => {
@@ -68,6 +74,11 @@ describe('host-only Inkbox provisioner', () => {
   it('rejects a receipt for another handle', async () => {
     await assert.rejects(fixture({ ...identity, agent_handle: 'foreign' }).client.getIdentity('tng-fixture'), /invalid_receipt/)
   })
+  for (const status of [408, 429, 500, 503]) {
+    it(`reports a read failing with HTTP ${status} as unavailable, never as a refusal`, async () => {
+      await assert.rejects(fixture(new Response('busy', { status })).client.getIdentity('tng-fixture'), { code: 'unavailable', status })
+    })
+  }
   it('keeps a missing identity distinct from an authentication failure', async () => {
     assert.equal(await fixture(new Response(null, { status: 404 })).client.getIdentity('tng-fixture'), null)
     await assert.rejects(fixture(new Response('no', { status: 401 })).client.getIdentity('tng-fixture'), { code: 'provider_rejected', status: 401 })
@@ -94,13 +105,13 @@ describe('host-only Inkbox provisioner', () => {
   for (const status of [408, 500, 502, 503]) {
     it(`retains an uncertain mutation at HTTP ${status} without retrying`, async () => {
       const f = fixture(new Response('sensitive-provider-detail', { status, headers: { 'Retry-After': '3600' } }))
-      await assert.rejects(f.client.provisionSms('tng-fixture'), { code: 'outcome_unknown', status, retryAfterSeconds: 3600 })
+      await assert.rejects(f.client.provisionSms('tng-fixture', 'order1:sms'), { code: 'outcome_unknown', status, retryAfterSeconds: 3600 })
       assert.equal(f.calls.length, 1)
     })
   }
   it('never retries transport loss or returns a secret-bearing error', async () => {
     const f = fixture(new Error('admin-fixture secret-provider-diagnostic'))
-    await assert.rejects(f.client.provisionSms('tng-fixture'), error => {
+    await assert.rejects(f.client.provisionSms('tng-fixture', 'order1:sms'), error => {
       assert(error instanceof MessagingProvisionError)
       assert.equal(error.code, 'outcome_unknown')
       assert(!String(error).includes('admin-fixture'))

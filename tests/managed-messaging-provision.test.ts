@@ -77,7 +77,7 @@ describe('recoverable managed number provisioning',()=>{
   })
   it('recovers an SMS purchase whose HTTP response was lost',async()=>{
     const f=fixture();await f.tick();const buy=f.ports.provider.provisionSms
-    f.ports.provider.provisionSms=async handle=>{await buy(handle);throw new MessagingProvisionError('outcome_unknown')}
+    f.ports.provider.provisionSms=async(...args)=>{await buy(...args);throw new MessagingProvisionError('outcome_unknown')}
     await f.tick();f.advance();await f.tick();assert.equal(f.row.phase,'credential');assert.equal(f.counts.number,1)
   })
   it('does not clear a prior unknown purchase after an unrelated read receives 401',async()=>{
@@ -120,6 +120,76 @@ describe('recoverable managed number provisioning',()=>{
   it('rechecks cancellation after a slow funding check, before the provider call',async()=>{
     const f=fixture();f.ports.authorizeFunding=async()=>{f.setRow({status:'cancelled',version:f.row.version+1});return true}
     await f.tick();assert.equal(f.row.status,'cancelled');assert.equal(f.counts.identity,0)
+  })
+  it('does not buy a second number when the ownership read after a purchase fails',async()=>{
+    const f=fixture();await f.tick()
+    const read=f.ports.provider.getIdentity;let purchased=false
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async(...args)=>{const line=await buy(...args);purchased=true;return line}
+    // The purchase lands, but the identity read that follows it fails.
+    f.ports.provider.getIdentity=async handle=>{if(purchased)throw new MessagingProvisionError('provider_rejected',503);return read(handle)}
+    await f.tick();assert.equal(f.row.attempted,true);assert.equal(f.counts.number,1)
+    // The provider has not yet attached the line to the identity: review, never repurchase.
+    f.ports.provider.getIdentity=async()=>({...f.identity!,sms:null})
+    f.advance();await f.tick();assert.equal(f.counts.number,1);assert.equal(f.row.errorCode,'number_outcome_unknown')
+  })
+  it('permits another attempt only when the purchase itself is refused',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{f.counts.number++;throw new MessagingProvisionError('provider_rejected',402)}
+    await f.tick();assert.equal(f.row.attempted,false);assert.equal(f.row.errorCode,'provider_rejected')
+  })
+  it('sends each SMS purchase with the order operation key',async()=>{
+    const f=fixture();await f.tick();const keys:string[]=[]
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async(handle,operationId,state)=>{keys.push(operationId);return buy(handle,operationId,state)}
+    await f.tick();assert.deepEqual(keys,['order1:sms'])
+  })
+  it('releases the attempt journal when authorization fails before any provider call',async()=>{
+    const f=fixture();let checks=0
+    f.ports.authorizeFunding=async()=>{f.counts.funding++;if(++checks===2)throw new Error('ledger timeout');return true}
+    await f.tick();assert.equal(f.row.attempted,false);assert.equal(f.counts.identity,0)
+    f.advance();await f.tick();assert.equal(f.row.phase,'number');assert.equal(f.counts.identity,1)
+  })
+  it('releases the attempt journal when funding is refused on the recheck',async()=>{
+    const f=fixture();let checks=0
+    f.ports.authorizeFunding=async()=>{f.counts.funding++;return ++checks!==2}
+    await f.tick();assert.equal(f.row.attempted,false);assert.equal(f.row.errorCode,'funding_required');assert.equal(f.counts.identity,0)
+  })
+  it('waits for an accepted iMessage claim to receive its line without review',async()=>{
+    const f=fixture('imessage');await f.tick()
+    f.ports.provider.claimIMessage=async()=>{f.counts.number++;f.setIdentity({...f.identity!,imessageEnabled:true,imessage:null});return structuredClone(f.identity!)}
+    await f.tick();assert.equal(f.row.errorCode,'number_pending');assert.equal(f.row.status,'provider_pending')
+    f.advance();await f.tick();assert.equal(f.row.errorCode,'number_pending');assert.equal(f.counts.number,1)
+    f.setIdentity({...f.identity!,imessage:{id:'line1',number:'+15551112222',smsStatus:null,status:'active'}})
+    f.advance();await f.tick();assert.equal(f.row.phase,'credential');assert.equal(f.counts.number,1)
+  })
+  it('records a number bought while the order was cancelled',async()=>{
+    const f=fixture();await f.tick()
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async(...args)=>{const line=await buy(...args);f.setRow({status:'cancelled',version:f.row.version+1});return line}
+    await f.tick()
+    assert.equal(f.row.status,'cancelled');assert.equal(f.row.number?.id,'line1');assert.equal(f.counts.number,1)
+  })
+  it('backs off an order that cannot be funded',async()=>{
+    const f=fixture();f.setFunded(false);await f.tick()
+    assert.equal(f.row.errorCode,'funding_required');assert.ok((f.row.nextAttemptAt??0)>1_000_000)
+    await f.tick();assert.equal(f.counts.funding,1)
+    f.setFunded(true);f.advance();await f.tick();assert.equal(f.row.phase,'number')
+  })
+  it('clears the purchase journal once a number is recorded while SMS readiness settles',async()=>{
+    const f=fixture();await f.tick();f.ports.provider.provisionSms=async()=>{
+      f.counts.number++;const pending={id:'line1',number:'+15551112222',smsStatus:'pending',status:'active'}
+      f.setIdentity({...f.identity!,sms:pending});return pending
+    }
+    await f.tick();assert.equal(f.row.errorCode,'sms_not_ready');assert.equal(f.row.attempted,false);assert.equal(f.row.number?.id,'line1')
+  })
+  it('reviews rather than repurchases when a recorded number disappears',async()=>{
+    const f=fixture();await f.tick();f.ports.provider.provisionSms=async()=>{
+      f.counts.number++;const pending={id:'line1',number:'+15551112222',smsStatus:'pending',status:'active'}
+      f.setIdentity({...f.identity!,sms:pending});return pending
+    }
+    await f.tick();f.setIdentity({...f.identity!,sms:null})
+    f.advance();await f.tick();assert.equal(f.row.errorCode,'number_missing');assert.equal(f.counts.number,1)
   })
   it('does not mutate a stopped order',async()=>{
     const f=fixture();f.setRow({status:'cancelled'});await f.tick();assert.equal(f.counts.funding,0);assert.equal(f.counts.identity,0)

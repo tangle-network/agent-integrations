@@ -68,6 +68,17 @@ async function readJson(response: Response): Promise<unknown> {
   finally { reader.releaseLock() }
 }
 
+/**
+ * A read that fails transiently is `unavailable`: it says nothing about a
+ * mutation that already succeeded. Only a mutation's own definitive 4xx is
+ * `provider_rejected`, which is what permits another purchase attempt.
+ */
+function failureCode(method: string, status: number): MessagingProvisionError['code'] {
+  const transient = status >= 500 || status === 408
+  if (method === 'GET') return transient || status === 429 ? 'unavailable' : 'provider_rejected'
+  return transient ? 'outcome_unknown' : 'provider_rejected'
+}
+
 /** Host-only administrative client; NOT a ConnectorAdapter and never an agent tool. */
 export class InkboxProvisioner {
   private readonly fetchImpl: typeof fetch
@@ -91,7 +102,7 @@ export class InkboxProvisioner {
     if (!response.ok) {
       const retry = response.headers.get('retry-after')
       const seconds = retry && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry)) ? Number(retry) : undefined
-      throw new MessagingProvisionError(method !== 'GET' && (response.status >= 500 || response.status === 408) ? 'outcome_unknown' : 'provider_rejected', response.status, seconds)
+      throw new MessagingProvisionError(failureCode(method, response.status), response.status, seconds)
     }
     if (method === 'DELETE' && response.status === 204) return null
     return readJson(response)
@@ -118,12 +129,12 @@ export class InkboxProvisioner {
     return this.identityReceipt(await this.request('PATCH', `/identities/${encodeURIComponent(agentHandle)}`,
       { imessage_enabled: true, claim_imessage_number: true }, operationId), agentHandle)
   }
-  async provisionSms(agentHandle: string, state?: string): Promise<InkboxNumber> {
-    assertHandle(agentHandle)
+  async provisionSms(agentHandle: string, operationId: string, state?: string): Promise<InkboxNumber> {
+    assertHandle(agentHandle); assertOperation(operationId)
     if (state !== undefined && !/^[A-Z]{2}$/.test(state)) throw new MessagingProvisionError('invalid_input')
     const result = readNumber(await this.request('POST', '/phone/numbers', {
       agent_handle: agentHandle, type: 'local', incoming_call_action: 'auto_reject', ...(state ? { state } : {}),
-    }))
+    }, operationId))
     if (!result) throw new MessagingProvisionError('invalid_receipt')
     return result
   }

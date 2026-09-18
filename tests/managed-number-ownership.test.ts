@@ -32,13 +32,13 @@ function fixture() {
 describe('billable SMS ownership receipts', () => {
   it.each(['id', 'number'] as const)('does not persist a mismatched purchased %s as billable', async field => {
     const f = fixture(), buy = f.ports.provider.provisionSms
-    f.ports.provider.provisionSms = async handle => ({ ...await buy(handle), [field]: field === 'id' ? 'foreign-line' : '+15559998888' })
+    f.ports.provider.provisionSms = async (...args) => ({ ...await buy(...args), [field]: field === 'id' ? 'foreign-line' : '+15559998888' })
     await f.tick()
     expect(f.row.status).toBe('needs_review'); expect(f.row.number).toBeUndefined(); expect(f.purchases).toBe(1)
   })
   it('requires the identity owner to remain unchanged during purchase', async () => {
     const f = fixture(), buy = f.ports.provider.provisionSms
-    f.ports.provider.provisionSms = async handle => { const number = await buy(handle); f.foreignOwner(); return number }
+    f.ports.provider.provisionSms = async (...args) => { const number = await buy(...args); f.foreignOwner(); return number }
     await f.tick(); expect(f.row.status).toBe('needs_review'); expect(f.row.number).toBeUndefined()
   })
   it('reconciles a lost ownership read without purchasing again', async () => {
