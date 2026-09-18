@@ -20,7 +20,7 @@ export class MessagingProvisionError extends Error {
   }
 }
 const BASE = 'https://inkbox.ai/api/v1'
-const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
+const UUID = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i
 const PHONE = /^\+[1-9]\d{6,14}$/
 const HANDLE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 function record(value: unknown): Record<string, unknown> {
