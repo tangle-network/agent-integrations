@@ -131,12 +131,40 @@ export class IntegrationWorkflowRuntime {
     event: IntegrationTriggerEvent<T>,
     handler: (input: { event: IntegrationTriggerEvent<T>; workflows: InstalledIntegrationWorkflow[] }) => Promise<void> | void,
   ): Promise<{ matched: InstalledIntegrationWorkflow[] }> {
-    const workflows = (await this.store.list())
-      .filter((workflow) =>
-        workflow.status === 'active'
-        && workflow.subscription.connectionId === event.connectionId
-        && workflow.subscription.trigger === event.trigger
-      )
+    // A workflow outlives its installation-time grant. Recheck the current
+    // grant before routing a new event; an active subscription is not authority.
+    // This assumes verified ingress. Deferred effects must recheck authority
+    // again at execution time rather than treating this snapshot as a lease.
+    const candidates = (await this.store.list()).filter((workflow) =>
+      workflow.status === 'active'
+      && workflow.subscription.status === 'active'
+      && workflow.subscription.connectionId === event.connectionId
+      && workflow.subscription.trigger === event.trigger
+    )
+    // One batched read keeps webhook latency flat as a trigger fans out to
+    // many workflows backed by a remote grant store.
+    const grantIds = [...new Set(candidates.map((workflow) => workflow.triggerGrantId))]
+    const grants = grantIds.length === 0
+      ? []
+      : this.grants.listByIds
+        ? await this.grants.listByIds(grantIds)
+        : await Promise.all(grantIds.map((grantId) => this.grants.get(grantId)))
+    const grantsById = new Map(
+      grants
+        .filter((grant): grant is IntegrationGrant => Boolean(grant))
+        .map((grant) => [grant.id, grant]),
+    )
+    const workflows = candidates.filter((workflow) => {
+      const grant = grantsById.get(workflow.triggerGrantId)
+      if (!grant) return false
+      return grant.status === 'active'
+        && grant.manifestId === workflow.manifestId
+        && sameActor(grant.owner, workflow.owner)
+        && sameActor(grant.grantee, workflow.grantee)
+        && grant.connectionId === event.connectionId
+        && grant.connectorId === event.connectorId
+        && grant.allowedTriggers.includes(event.trigger)
+    })
     await handler({ event, workflows })
     return { matched: workflows }
   }
