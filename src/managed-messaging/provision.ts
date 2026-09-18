@@ -14,6 +14,8 @@ export interface ManagedNumberOrder {
   version: number
   phase: NumberPhase
   attempted: boolean
+  /** When the attempt journal was written. Within the in-flight window another worker may still be mid-call. */
+  attemptedAt?: number
   identityId?: string
   number?: InkboxNumber
   connectionId?: string
@@ -51,6 +53,9 @@ function selectedNumber(order: ManagedNumberOrder, identity: InkboxIdentity): In
   return order.transport === 'sms' ? identity.sms : identity.imessageEnabled ? identity.imessage : null
 }
 
+/** Longer than one provider mutation plus its ownership read at the maximum client timeout. */
+const IN_FLIGHT_MS = 5 * 60_000
+
 /** One recoverable provisioning step, called by the host's EXISTING queue.
  * No agent loop, background worker, payment ledger or credential store lives here.
  * A journaled non-idempotent call is reconciled by reading provider state, never blindly repeated. */
@@ -64,6 +69,8 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
   // Set only when a provider mutation itself is definitively refused. A read
   // failing after a successful mutation must never re-open the purchase.
   let mutationRefused = false
+  // Set once this tick's provider mutation has returned or thrown: it is no longer in flight.
+  let mutationSettled = false
   if (order.phase === 'complete' || order.status === 'cancelled') return order
   const now = (ports.now ?? Date.now)()
   if (order.nextAttemptAt && order.nextAttemptAt > now) return order
@@ -104,11 +111,12 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
       if (error instanceof MessagingProvisionError && error.code === 'provider_rejected') mutationRefused = true
       throw error
     }
+    finally { mutationSettled = true }
   }
   /** Journal the attempt, then recheck authority. Release the journal if no provider call follows. */
   async function claim(): Promise<boolean> {
     const before = order!
-    const claimed = await save({ attempted: true, status: 'pending', errorCode: undefined, nextAttemptAt: undefined })
+    const claimed = await save({ attempted: true, attemptedAt: now, status: 'pending', errorCode: undefined, nextAttemptAt: undefined })
     if (claimed.version !== before.version + 1 || order !== claimed) return false
     let authorized = false
     try { authorized = await authorize() }
@@ -124,6 +132,10 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
       order = { ...current, attempted: false, version: current.version + 1 }
     }
   }
+  /** A concurrent tick (a user's progress check during a sweep) must not judge another worker's live call. */
+  function inFlight(current: ManagedNumberOrder): boolean {
+    return current.attempted && current.attemptedAt !== undefined && now - current.attemptedAt < IN_FLIGHT_MS
+  }
   async function authorize(): Promise<boolean> {
     const current = await ports.orders.get(orderId)
     if (!current || current.version !== order!.version || current.status === 'cancelled') return false
@@ -136,10 +148,13 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     return rechecked?.version === order!.version && rechecked.status !== 'cancelled'
   }
   try {
-    if (!await authorize()) return (await ports.orders.get(orderId))!
+    // Reads need no funding or activation permission; every provider mutation
+    // authorizes through claim(). Reconciling a completed purchase therefore
+    // still works after its funding hold expired.
     if (order.phase === 'identity') {
       let identity = await ports.provider.getIdentity(order.handle)
       if (!identity) {
+        if (inFlight(order)) return order
         if (order.attempted) return save({ status: 'needs_review', errorCode: 'identity_outcome_unknown' })
         if (!await claim()) return (await ports.orders.get(orderId))!
         const handle = order.handle
@@ -165,6 +180,7 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
         if (order.attempted && order.transport === 'imessage' && identity.imessageEnabled) {
           return save({ status: 'provider_pending', errorCode: 'number_pending', nextAttemptAt: now + 30_000 })
         }
+        if (inFlight(order)) return order
         if (order.attempted) return save({ status: 'needs_review', errorCode: 'number_outcome_unknown' })
         if (!await claim()) return (await ports.orders.get(orderId))!
         const { handle, state, id } = order
@@ -199,6 +215,7 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     if (order.phase === 'credential') {
       let credential = await ports.vault.read(order.id)
       if (!credential) {
+        if (inFlight(order)) return order
         if (order.attempted) return save({ status: 'needs_review', errorCode: 'credential_receipt_lost' })
         if (!await claim()) return (await ports.orders.get(orderId))!
         const { identityId, id } = order
@@ -224,6 +241,7 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     const refused = mutationRefused && order.phase !== 'credential'
     return save({ status: code === 'invalid_receipt' ? 'needs_review' : 'provider_pending', errorCode: code,
       ...(refused ? { attempted: false } : {}),
+      ...(mutationSettled ? { attemptedAt: undefined } : {}),
       nextAttemptAt: now + Math.max(30, Math.min(retryAfter ?? 30, 86_400)) * 1000 })
   }
 }
