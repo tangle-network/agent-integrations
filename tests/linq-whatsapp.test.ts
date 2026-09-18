@@ -57,7 +57,7 @@ describe('WhatsApp events and replies', () => {
     const result = normalizeConversationEvent(input())
     expect(result).toMatchObject({ ok: true, event: { provider: 'linq-whatsapp', eventId: 'message-1', conversationId: 'chat-1',
       sender: { id: 'customer:chat-1', address: null }, destinations: [{ address: '+15550000002' }], text: 'Find a desk' } })
-    expect(buildMessagingReply(input(), 'Found two', 'op')).toEqual({ ok: true, reply: { action: 'linq-whatsapp.messages.reply', input: { chat_id: 'chat-1', text: 'Found two' } } })
+    expect(buildMessagingReply(input(), 'Found two', 'op')).toEqual({ ok: true, reply: { idempotencyKey: 'op', action: 'linq-whatsapp.messages.reply', input: { chat_id: 'chat-1', text: 'Found two' } } })
   })
   it.each(['outbound', 'unknown'])('ignores %s direction', direction => {
     const value = payload(); value.data.message.direction = direction

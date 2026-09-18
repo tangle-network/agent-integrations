@@ -74,6 +74,8 @@ describe.each(Object.keys(providers) as Provider[])('%s verified ingress', (prov
     const result = buildMessagingReply(input(provider), 'Found two options', 'stable-operation')
     expect(result.ok).toBe(true)
     if (result.ok) expect(JSON.stringify(result.reply.input)).not.toContain('credential')
+    // Every retry of this reply must reuse the caller's key, whatever the provider.
+    if (result.ok) expect(result.reply.idempotencyKey).toBe('stable-operation')
   })
   it('does not interpret delivery status as a new user instruction', () => {
     const changed = { ...fixtures[provider], event_type: 'message.delivered', type: 'message.delivered' }
