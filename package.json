@@ -103,6 +103,21 @@
       "types": "./dist/mcp.d.ts",
       "import": "./dist/mcp.js",
       "default": "./dist/mcp.js"
+    },
+    "./tangle-search": {
+      "types": "./dist/tangle-search/index.d.ts",
+      "import": "./dist/tangle-search/index.js",
+      "default": "./dist/tangle-search/index.js"
+    },
+    "./twilio": {
+      "types": "./dist/twilio/index.d.ts",
+      "import": "./dist/twilio/index.js",
+      "default": "./dist/twilio/index.js"
+    },
+    "./managed-messaging": {
+      "types": "./dist/managed-messaging/index.d.ts",
+      "import": "./dist/managed-messaging/index.js",
+      "default": "./dist/managed-messaging/index.js"
     }
   },
   "files": [

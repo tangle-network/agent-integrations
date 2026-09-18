@@ -135,6 +135,39 @@ describe('declarative REST adapters', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it.each(['.', '..'])('refuses a %s path argument before provider traffic', async (id) => {
+    const fetchMock = mockFetch({ ok: true })
+    await expect(pathConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'path-test' }),
+      capabilityName: 'records.delete',
+      args: { id },
+      idempotencyKey: 'path-1',
+    })).rejects.toThrow('invalid path argument: dot segment')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps a dot segment the template itself declares', async () => {
+    const fetchMock = mockFetch({ ok: true })
+    await pathConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'path-test' }),
+      capabilityName: 'records.purge',
+      args: { id: 'r1' },
+      idempotencyKey: 'path-3',
+    })
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('https://path.example.test/purge/r1')
+  })
+
+  it('keeps a dotted path argument inside its own segment', async () => {
+    const fetchMock = mockFetch({ ok: true })
+    await pathConnector.executeMutation!({
+      source: sourceFor({ ...connection, connectorId: 'path-test' }),
+      capabilityName: 'records.delete',
+      args: { id: '../admin' },
+      idempotencyKey: 'path-2',
+    })
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('https://path.example.test/v1/records/..%2Fadmin')
+  })
+
   it('uses provider-specific credential placement for GitLab', async () => {
     const fetchMock = mockFetch([{ id: 1 }])
     const provider = createConnectorAdapterProvider({
@@ -172,6 +205,33 @@ const formConnector = declarativeRestConnector({
       body: 'args',
       bodyEncoding: 'form',
     },
+    cas: 'none',
+    externalEffect: true,
+  }],
+})
+
+const pathConnector = declarativeRestConnector({
+  kind: 'path-test',
+  displayName: 'Path Test',
+  description: 'Exercises path argument interpolation.',
+  auth: { kind: 'api-key', hint: 'Test token.' },
+  category: 'other',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://path.example.test/v1',
+  capabilities: [{
+    name: 'records.delete',
+    class: 'mutation',
+    description: 'Delete a record.',
+    parameters: { type: 'object', properties: { id: { type: 'string' } } },
+    request: { method: 'DELETE', path: '/records/{id}' },
+    cas: 'none',
+    externalEffect: true,
+  }, {
+    name: 'records.purge',
+    class: 'mutation',
+    description: 'Purge a record outside the versioned prefix.',
+    parameters: { type: 'object', properties: { id: { type: 'string' } } },
+    request: { method: 'DELETE', path: '/../purge/{id}' },
     cas: 'none',
     externalEffect: true,
   }],

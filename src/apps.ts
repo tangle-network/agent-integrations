@@ -68,6 +68,10 @@ export interface BrokerToken {
   expiresIn: number
   scope: string
   connectionId?: string
+  /** Durable, consented grant identity. Older hosts omit these receipt fields. */
+  grantId?: string
+  ownerUserId?: string
+  clientId?: string
   /** Absolute expiry derived from the broker response. */
   expiresAt: number
 }
@@ -83,6 +87,9 @@ interface TokenResponse {
   expires_in?: unknown
   scope?: unknown
   connection_id?: string
+  grant_id?: unknown
+  user_id?: unknown
+  client_id?: unknown
 }
 
 const MAX_BROKER_TOKEN_TTL_SECONDS = 3_600
@@ -283,7 +290,8 @@ function toBrokerToken(data: TokenResponse): BrokerToken {
     data.expires_in > MAX_BROKER_TOKEN_TTL_SECONDS ||
     typeof data.scope !== 'string' ||
     data.scope.trim().length === 0 ||
-    (data.connection_id !== undefined && (typeof data.connection_id !== 'string' || data.connection_id.trim().length === 0))
+    (data.connection_id !== undefined && (typeof data.connection_id !== 'string' || data.connection_id.trim().length === 0)) ||
+    [data.grant_id, data.user_id, data.client_id].some(value => value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 256))
   ) {
     throw new IntegrationRuntimeError({
       code: 'input_invalid',
@@ -308,6 +316,9 @@ function toBrokerToken(data: TokenResponse): BrokerToken {
     scope,
     expiresAt,
     connectionId: data.connection_id,
+    ...(typeof data.grant_id === 'string' ? { grantId: data.grant_id } : {}),
+    ...(typeof data.user_id === 'string' ? { ownerUserId: data.user_id } : {}),
+    ...(typeof data.client_id === 'string' ? { clientId: data.client_id } : {}),
   }
 }
 
@@ -335,4 +346,20 @@ function assertOwnerBearer(value: unknown): asserts value is string {
       message: 'Tangle apps owner bearer must be a Platform key or session bearer',
     })
   }
+}
+
+/** Require the authenticated host receipt before retaining a grant for unattended
+ * use. The browser's state and connection id are expectations, not evidence. */
+export function requireBrokerGrantReceipt(token: BrokerToken, expected: {
+  ownerUserId: string; clientId: string; connectionId: string; scopes: readonly string[]; grantId?: string
+}): { grantId: string; connectionId: string; ownerUserId: string; clientId: string; scopes: string[] } {
+  const scopes = [...new Set(token.scope.split(/\s+/).filter(Boolean))].sort()
+  const expectedScopes = [...new Set(expected.scopes)].sort()
+  if (!token.grantId || token.ownerUserId !== expected.ownerUserId || token.clientId !== expected.clientId ||
+      token.connectionId !== expected.connectionId || (expected.grantId && token.grantId !== expected.grantId) ||
+      JSON.stringify(scopes) !== JSON.stringify(expectedScopes)) {
+    throw new IntegrationRuntimeError({ code: 'provider_auth_failed', status: 403,
+      message: 'The broker grant receipt does not match the authenticated owner, app, connection and requested scopes' })
+  }
+  return { grantId: token.grantId, connectionId: expected.connectionId, ownerUserId: expected.ownerUserId, clientId: expected.clientId, scopes }
 }
