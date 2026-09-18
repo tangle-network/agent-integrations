@@ -1,12 +1,5 @@
-/**
- * Inbound webhook router + pre-built providers.
- *
- * See `router.ts` for the request lifecycle (verify → parse →
- * idempotency → deliver) and `providers.ts` for ready-made provider
- * implementations (Stripe, Slack, DocuSeal, Gmail push, GDrive push,
- * generic HMAC).
- */
-
+/** Inbound webhook router and provider implementations. */
 export * from './router.js'
 export * from './providers.js'
 export * from './twilio.js'
+export * from './messaging.js'

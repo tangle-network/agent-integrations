@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { TangleAppsClient, createTangleAppsClient } from '../src/apps'
+import { TangleAppsClient, requireBrokerGrantReceipt, createTangleAppsClient } from '../src/apps'
 import { IntegrationRuntimeError } from '../src/errors'
 
 const ENDPOINT = 'https://id.tangle.tools'
@@ -172,5 +172,36 @@ describe('TangleAppsClient', () => {
       ownerUserId: '   ',
     })).rejects.toMatchObject({ code: 'input_invalid', status: 400 })
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('durable grant receipts', () => {
+  const receipt = { access_token: 'sk-tan-broker-fixture', expires_in: 60, scope: 'gmail.messages_read',
+    connection_id: 'customer-gmail', grant_id: 'grant-owned', user_id: 'platform-alice', client_id: 'assistant-app' }
+  const expected = { ownerUserId: 'platform-alice', clientId: 'assistant-app', connectionId: 'customer-gmail', scopes: ['gmail.messages_read'] }
+  async function token(value = receipt) {
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl: mockFetch(() => jsonResponse(value)) })
+    return client.exchangeAuthCode({ clientId: 'assistant-app', clientSecret: 'test-secret', code: 'agc_test', redirectUri: 'https://app.test/callback' })
+  }
+  it('preserves the host-issued grant and principal for later per-call minting', async () => {
+    const result = await token()
+    expect(requireBrokerGrantReceipt(result, expected)).toEqual({ grantId: 'grant-owned', connectionId: 'customer-gmail', ownerUserId: 'platform-alice', clientId: 'assistant-app', scopes: ['gmail.messages_read'] })
+  })
+  it.each(['user_id', 'client_id', 'connection_id', 'grant_id'] as const)('rejects mismatched %s for an existing grant', async field => {
+    const result = await token({ ...receipt, [field]: 'another-identity' })
+    expect(() => requireBrokerGrantReceipt(result, { ...expected, grantId: 'grant-owned' })).toThrow(/does not match/)
+  })
+  it('keeps old hosts compatible for immediate calls, but cannot invent a durable grant', async () => {
+    const result = await token({ ...receipt, grant_id: undefined, user_id: undefined, client_id: undefined } as unknown as typeof receipt)
+    expect(result.accessToken).toBe(receipt.access_token)
+    expect(() => requireBrokerGrantReceipt(result, expected)).toThrow(/does not match/)
+  })
+  it('refuses broader or narrower scope receipts', async () => {
+    const result = await token({ ...receipt, scope: 'gmail.messages_read gmail.messages_send' })
+    expect(() => requireBrokerGrantReceipt(result, expected)).toThrow(/does not match/)
+  })
+  it.each(['', 123, null, 'x'.repeat(257)])('rejects malformed grant identity: %j', async grant_id => {
+    await expect(token({ ...receipt, grant_id } as unknown as typeof receipt)).rejects.toMatchObject({ code: 'input_invalid', status: 502 })
   })
 })
