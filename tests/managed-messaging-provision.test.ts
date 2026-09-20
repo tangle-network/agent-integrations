@@ -304,4 +304,17 @@ describe('recoverable managed number provisioning',()=>{
     assert.equal(f.row.attempted,false,'an unsent call must not read as a purchase of unknown outcome')
     f.advance();await f.tick();assert.equal(f.row.phase,'credential');assert.equal(f.counts.number,1)
   })
+  it('releases the attempt journal when a credential mint is refused before it is sent',async()=>{
+    const f=fixture();await f.tick();await f.tick();assert.equal(f.row.phase,'credential')
+    const mint=f.ports.provider.mintIdentityKey
+    f.ports.provider.mintIdentityKey=async()=>{f.ports.provider.mintIdentityKey=mint;throw new MessagingProvisionError('invalid_input')}
+    await f.tick();assert.equal(f.row.errorCode,'invalid_input')
+    // Nothing reached the provider, so no once-shown key can exist to protect.
+    const vaulted=f.credential
+    assert.equal(f.counts.key,0);assert.equal(vaulted,null)
+    assert.equal(f.row.attempted,false,'an unsent mint must not park the order as a possibly issued key')
+    assert.notEqual(f.row.status,'needs_review')
+    f.advance();await f.tick()
+    assert.equal(f.row.phase,'connection');assert.equal(f.counts.key,1);assert.equal(f.credential?.key,'secret-fixture')
+  })
 })
