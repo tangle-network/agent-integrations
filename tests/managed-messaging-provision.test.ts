@@ -227,7 +227,8 @@ describe('recoverable managed number provisioning',()=>{
     let reads=0;const read=f.ports.provider.getIdentity
     f.ports.provider.getIdentity=async handle=>{reads++;return read(handle)}
     await f.tick();assert.equal(f.row.errorCode,'identity_outcome_unknown')
-    assert.ok((f.row.nextAttemptAt??0)>f.ports.now!(),'a review with no backoff occupies the host\'s bounded sweep forever')
+    // A long backoff, not just any: a short one re-opens the starvation this prevents.
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+6*60*60_000)
     const {version}=f.row,seen=reads
     f.advance();await f.tick()
     assert.equal(reads,seen);assert.equal(f.row.version,version);assert.equal(f.counts.identity,0)
@@ -254,6 +255,12 @@ describe('recoverable managed number provisioning',()=>{
     f.ports.provider.provisionSms=async()=>{for(let n=0;n<4;n++)f.advance();throw new MessagingProvisionError('provider_rejected',402)}
     await f.tick();assert.equal(f.row.errorCode,'provider_rejected')
     assert.ok((f.row.nextAttemptAt??0)>f.ports.now!(),'a backoff dated at the tick start is already spent when a timed-out call returns')
+  })
+  it('dates a provider Retry-After from the failure, not from the tick start',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{for(let n=0;n<4;n++)f.advance();throw new MessagingProvisionError('provider_rejected',429,120)}
+    await f.tick();assert.equal(f.row.errorStatus,429)
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+120_000)
   })
   it('records the HTTP status behind a refusal and clears it once the phase succeeds',async()=>{
     const f=fixture();await f.tick()
