@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.54.2
+
+### Fixed
+- Owned-number discovery now works for Linq WhatsApp, not only Linq. The WhatsApp channel declares its inventory and reply actions, both providers' differing response shapes are read, and rows are de-duplicated by id and address so a provider repeating an entry cannot inflate an inventory. Unknown provider health stays unknown: configuration, customer eligibility and delivery readiness remain separate facts.
+- A credential mint refused before any request is sent no longer parks the order for operator review. The order already owns a billable number, and the key it was waiting on provably does not exist, so it stays retryable. An uncertain outcome after a request still parks exactly as before.
+
+### Changed
+- The decision to spend money is now taken in one place. Each provisioning phase asks the same lease for permission instead of repeating the in-flight, already-attempted and claim checks, so the ordering of those checks cannot drift between phases. Behaviour is unchanged and the existing tests were not modified.
+
 ## 0.54.1
 
 ### Fixed
