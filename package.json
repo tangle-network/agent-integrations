@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.54.2",
+  "version": "0.54.3",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -162,7 +162,7 @@
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.2",
     "amqplib": "2.0.1",
-    "csv-parse": "7.0.1",
+    "csv-parse": "7.0.2",
     "csv-stringify": "6.8.1",
     "hyparquet": "1.27.1",
     "hyparquet-writer": "0.16.1",

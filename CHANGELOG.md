@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.54.3
+
+### Fixed
+
+Update `csv-parse` to 7.0.2 for GHSA-8cw4-87c7-c6xx.
+Grouped duplicate `__proto__` headers now remain own data properties instead of replacing the parsed record's prototype.
+The CSV connector's exposed options are unchanged.
+
 ## 0.54.2
 
 ### Fixed
