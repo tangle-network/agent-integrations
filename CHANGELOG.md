@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.54.2
+
+### Fixed
+- A credential mint refused before any request is sent no longer parks the order for operator review. The order already owns a billable number, and the key it was waiting on provably does not exist, so it stays retryable. An uncertain outcome after a request still parks exactly as before.
+
+### Changed
+- The decision to spend money is now taken in one place. Each provisioning phase asks the same lease for permission instead of repeating the in-flight, already-attempted and claim checks, so the ordering of those checks cannot drift between phases. Behaviour is unchanged and the existing tests were not modified.
+
 ## 0.54.1
 
 ### Fixed
