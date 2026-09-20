@@ -222,4 +222,86 @@ describe('recoverable managed number provisioning',()=>{
   it('does not mutate a stopped order',async()=>{
     const f=fixture();f.setRow({status:'cancelled'});await f.tick();assert.equal(f.counts.funding,0);assert.equal(f.counts.identity,0)
   })
+  it('parks a reviewed order instead of leaving it due on every sweep',async()=>{
+    const f=fixture();f.setRow({attempted:true})
+    let reads=0;const read=f.ports.provider.getIdentity
+    f.ports.provider.getIdentity=async handle=>{reads++;return read(handle)}
+    await f.tick();assert.equal(f.row.errorCode,'identity_outcome_unknown')
+    // A long backoff, not just any: a short one re-opens the starvation this prevents.
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+6*60*60_000)
+    const {version}=f.row,seen=reads
+    f.advance();await f.tick()
+    assert.equal(reads,seen);assert.equal(f.row.version,version);assert.equal(f.counts.identity,0)
+  })
+  it('dates the in-flight lease from the call it protects, not from the tick that began minutes earlier',async()=>{
+    const f=fixture();await f.tick()
+    const read=f.ports.provider.getIdentity,buy=f.ports.provider.provisionSms
+    let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve})
+    // One tick, two provider calls at the client's 120s ceiling: the read before the claim,
+    // then a purchase that is still running when a concurrent tick inspects the order.
+    let slow=true
+    f.ports.provider.getIdentity=async handle=>{const value=await read(handle);if(slow){slow=false;f.advance();f.advance()}return value}
+    f.ports.provider.provisionSms=async(...args)=>{for(let n=0;n<4;n++)f.advance();await gate;return buy(...args)}
+    const worker=f.tick()
+    await new Promise(resolve=>setTimeout(resolve,0))
+    assert.equal(f.row.attempted,true)
+    await f.tick()
+    assert.equal(f.row.status,'pending');assert.equal(f.row.errorCode,undefined)
+    release();await worker
+    assert.equal(f.row.phase,'credential');assert.equal(f.row.number?.id,'line1');assert.equal(f.counts.number,1)
+  })
+  it('backs a slow failure off from the moment it failed',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{for(let n=0;n<4;n++)f.advance();throw new MessagingProvisionError('provider_rejected',402)}
+    await f.tick();assert.equal(f.row.errorCode,'provider_rejected')
+    assert.ok((f.row.nextAttemptAt??0)>f.ports.now!(),'a backoff dated at the tick start is already spent when a timed-out call returns')
+  })
+  it('dates an authorization backoff from the check that refused it',async()=>{
+    const f=fixture()
+    f.ports.authorizeFunding=async()=>{f.counts.funding++;for(let n=0;n<4;n++)f.advance();return false}
+    await f.tick();assert.equal(f.row.errorCode,'funding_required')
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+60_000)
+  })
+  it('dates a provider Retry-After from the failure, not from the tick start',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{for(let n=0;n<4;n++)f.advance();throw new MessagingProvisionError('provider_rejected',429,120)}
+    await f.tick();assert.equal(f.row.errorStatus,429)
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+120_000)
+  })
+  it('records the HTTP status behind a refusal and clears it once the phase succeeds',async()=>{
+    const f=fixture();await f.tick()
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async()=>{f.ports.provider.provisionSms=buy;throw new MessagingProvisionError('provider_rejected',402)}
+    await f.tick();assert.equal(f.row.errorStatus,402);assert.equal(f.row.errorCode,'provider_rejected')
+    f.advance();await f.tick()
+    assert.equal(f.row.phase,'credential');assert.equal(f.row.errorStatus,undefined);assert.equal(f.row.errorCode,undefined)
+  })
+  it('never leaves a refusal status beside a different error code',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{throw new MessagingProvisionError('provider_rejected',402)}
+    await f.tick();assert.equal(f.row.errorStatus,402)
+    f.ports.provider.getIdentity=async()=>null
+    f.advance();await f.tick()
+    assert.equal(f.row.errorCode,'identity_missing');assert.equal(f.row.errorStatus,undefined,'a stale 402 beside a fresh code misdirects operator triage')
+  })
+  it('refuses a malformed state before any mutation rather than at the purchase',async()=>{
+    const f=fixture();await f.tick();f.setRow({state:'California'})
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async(handle,operationId,state)=>{
+      if(state!==undefined&&!/^[A-Z]{2}$/.test(state))throw new MessagingProvisionError('invalid_input')
+      return buy(handle,operationId,state)
+    }
+    const {version}=f.row
+    await assert.rejects(f.tick(),/invalid_input/)
+    // No save at all: the gate refuses before claim() can journal an attempt.
+    assert.equal(f.row.version,version);assert.equal(f.row.attempted,false);assert.equal(f.counts.number,0)
+  })
+  it('releases the attempt journal when a purchase is refused before it is sent',async()=>{
+    const f=fixture();await f.tick()
+    const buy=f.ports.provider.provisionSms
+    f.ports.provider.provisionSms=async()=>{f.ports.provider.provisionSms=buy;throw new MessagingProvisionError('invalid_input')}
+    await f.tick();assert.equal(f.row.errorCode,'invalid_input')
+    assert.equal(f.row.attempted,false,'an unsent call must not read as a purchase of unknown outcome')
+    f.advance();await f.tick();assert.equal(f.row.phase,'credential');assert.equal(f.counts.number,1)
+  })
 })
