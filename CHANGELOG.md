@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.54.1
+
+### Fixed
+- A reviewed order no longer returns on every sweep. Each `needs_review` save carries a long retry time, so a stuck order cannot occupy the host's bounded reconcile batch and starve new orders.
+- The attempt lease and the retry backoff are dated when the call is made, not when the tick began. A provider that is slow rather than broken can no longer have a live purchase declared lost, and a failure after a long timeout still backs off.
+- A provider call refused before any request, such as an invalid handle or region, releases the attempt journal instead of reporting an unknown purchase outcome.
+- The provider's HTTP status is preserved alongside the error code, so an operator can tell a payment refusal from an authentication failure.
+
 ## 0.54.0
 
 ### Added
