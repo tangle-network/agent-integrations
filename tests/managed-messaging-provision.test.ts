@@ -263,6 +263,14 @@ describe('recoverable managed number provisioning',()=>{
     f.advance();await f.tick()
     assert.equal(f.row.phase,'credential');assert.equal(f.row.errorStatus,undefined);assert.equal(f.row.errorCode,undefined)
   })
+  it('never leaves a refusal status beside a different error code',async()=>{
+    const f=fixture();await f.tick()
+    f.ports.provider.provisionSms=async()=>{throw new MessagingProvisionError('provider_rejected',402)}
+    await f.tick();assert.equal(f.row.errorStatus,402)
+    f.ports.provider.getIdentity=async()=>null
+    f.advance();await f.tick()
+    assert.equal(f.row.errorCode,'identity_missing');assert.equal(f.row.errorStatus,undefined,'a stale 402 beside a fresh code misdirects operator triage')
+  })
   it('refuses a malformed state before any mutation rather than at the purchase',async()=>{
     const f=fixture();await f.tick();f.setRow({state:'California'})
     const buy=f.ports.provider.provisionSms
