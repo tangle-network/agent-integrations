@@ -77,6 +77,9 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
   // Set only when a provider mutation itself is definitively refused. A read
   // failing after a successful mutation must never re-open the purchase.
   let mutationRefused = false
+  // Narrower than `mutationRefused`: the client refused the arguments before any HTTP request
+  // left it, so the provider never saw the call and cannot have issued a once-shown credential.
+  let mutationUnsent = false
   // Set once this tick's provider mutation has returned or thrown: it is no longer in flight.
   let mutationSettled = false
   if (order.phase === 'complete' || order.status === 'cancelled') return order
@@ -124,7 +127,10 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     catch (error) {
       // `invalid_input` is raised by argument validation before any HTTP leaves the client:
       // like a definitive refusal, it proves no purchase exists to reconcile.
-      if (error instanceof MessagingProvisionError && (error.code === 'provider_rejected' || error.code === 'invalid_input')) mutationRefused = true
+      if (error instanceof MessagingProvisionError) {
+        if (error.code === 'invalid_input') mutationUnsent = true
+        if (error.code === 'provider_rejected' || error.code === 'invalid_input') mutationRefused = true
+      }
       throw error
     }
     finally { mutationSettled = true }
@@ -165,6 +171,19 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     const rechecked = await ports.orders.get(orderId)
     return rechecked?.version === order!.version && rechecked.status !== 'cancelled'
   }
+  /**
+   * The money gate every non-idempotent provider call passes through, once per phase.
+   * Three questions in one fixed order: is another worker's call still in flight, has this
+   * order already burned its attempt with no receipt to show for it, and can this tick claim
+   * the journal and re-authorize the spend. `burnedCode` is the review code for the second.
+   * Returns null when the call is granted, otherwise the order the caller must return.
+   */
+  async function leaseAttempt(burnedCode: string): Promise<ManagedNumberOrder | null> {
+    if (inFlight(order!)) return order!
+    if (order!.attempted) return save({ status: 'needs_review', errorCode: burnedCode, nextAttemptAt: clock() + REVIEW_BACKOFF_MS })
+    if (!await claim()) return (await ports.orders.get(orderId))!
+    return null
+  }
   try {
     // Reads need no funding or activation permission; every provider mutation
     // authorizes through claim(). Reconciling a completed purchase therefore
@@ -172,9 +191,8 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     if (order.phase === 'identity') {
       let identity = await ports.provider.getIdentity(order.handle)
       if (!identity) {
-        if (inFlight(order)) return order
-        if (order.attempted) return save({ status: 'needs_review', errorCode: 'identity_outcome_unknown', nextAttemptAt: clock() + REVIEW_BACKOFF_MS })
-        if (!await claim()) return (await ports.orders.get(orderId))!
+        const lease = await leaseAttempt('identity_outcome_unknown')
+        if (lease) return lease
         const handle = order.handle
         identity = await mutate(() => ports.provider.createIdentity(handle))
       } else if (!order.attempted && !order.identityId) {
@@ -198,9 +216,8 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
         if (order.attempted && order.transport === 'imessage' && identity.imessageEnabled) {
           return save({ status: 'provider_pending', errorCode: 'number_pending', nextAttemptAt: clock() + 30_000 })
         }
-        if (inFlight(order)) return order
-        if (order.attempted) return save({ status: 'needs_review', errorCode: 'number_outcome_unknown', nextAttemptAt: clock() + REVIEW_BACKOFF_MS })
-        if (!await claim()) return (await ports.orders.get(orderId))!
+        const lease = await leaseAttempt('number_outcome_unknown')
+        if (lease) return lease
         const { handle, state, id } = order
         if (order.transport === 'sms') {
           const purchased = await mutate(() => ports.provider.provisionSms(handle, `${id}:sms`, state))
@@ -233,9 +250,8 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     if (order.phase === 'credential') {
       let credential = await ports.vault.read(order.id)
       if (!credential) {
-        if (inFlight(order)) return order
-        if (order.attempted) return save({ status: 'needs_review', errorCode: 'credential_receipt_lost', nextAttemptAt: clock() + REVIEW_BACKOFF_MS })
-        if (!await claim()) return (await ports.orders.get(orderId))!
+        const lease = await leaseAttempt('credential_receipt_lost')
+        if (lease) return lease
         const { identityId, id } = order
         const minted = await mutate(() => ports.provider.mintIdentityKey(identityId!, `Tangle number ${id}`))
         credential = { ...minted, identityId: order.identityId }
@@ -256,7 +272,9 @@ export async function advanceManagedNumber(orderId: string, ports: ManagedNumber
     const code = error instanceof MessagingProvisionError ? error.code : 'outcome_unknown'
     const retryAfter = error instanceof MessagingProvisionError ? error.retryAfterSeconds : undefined
     // A definitive 4xx refusal permits another attempt after account setup. An unknown outcome does not.
-    const refused = mutationRefused && order.phase !== 'credential'
+    // The credential phase asks for more: a mint request that reached the provider may have issued a
+    // once-shown key whatever it answered, so only a call the client never sent releases the journal there.
+    const refused = mutationRefused && (order.phase !== 'credential' || mutationUnsent)
     const review = code === 'invalid_receipt'
     // The failing call spent its own clock, up to the client timeout. A backoff measured
     // from the tick's start clock can land in the past, leaving the order due immediately.
