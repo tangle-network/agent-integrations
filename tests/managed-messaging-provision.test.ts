@@ -256,6 +256,12 @@ describe('recoverable managed number provisioning',()=>{
     await f.tick();assert.equal(f.row.errorCode,'provider_rejected')
     assert.ok((f.row.nextAttemptAt??0)>f.ports.now!(),'a backoff dated at the tick start is already spent when a timed-out call returns')
   })
+  it('dates an authorization backoff from the check that refused it',async()=>{
+    const f=fixture()
+    f.ports.authorizeFunding=async()=>{f.counts.funding++;for(let n=0;n<4;n++)f.advance();return false}
+    await f.tick();assert.equal(f.row.errorCode,'funding_required')
+    assert.equal(f.row.nextAttemptAt,f.ports.now!()+60_000)
+  })
   it('dates a provider Retry-After from the failure, not from the tick start',async()=>{
     const f=fixture();await f.tick()
     f.ports.provider.provisionSms=async()=>{for(let n=0;n<4;n++)f.advance();throw new MessagingProvisionError('provider_rejected',429,120)}
@@ -285,8 +291,10 @@ describe('recoverable managed number provisioning',()=>{
       if(state!==undefined&&!/^[A-Z]{2}$/.test(state))throw new MessagingProvisionError('invalid_input')
       return buy(handle,operationId,state)
     }
+    const {version}=f.row
     await assert.rejects(f.tick(),/invalid_input/)
-    assert.equal(f.row.attempted,false);assert.equal(f.counts.number,0)
+    // No save at all: the gate refuses before claim() can journal an attempt.
+    assert.equal(f.row.version,version);assert.equal(f.row.attempted,false);assert.equal(f.counts.number,0)
   })
   it('releases the attempt journal when a purchase is refused before it is sent',async()=>{
     const f=fixture();await f.tick()
