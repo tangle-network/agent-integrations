@@ -221,7 +221,7 @@ export const deepgramConnector: ConnectorAdapter = {
     }
     let response: unknown
     try {
-      response = await requestJson('https://api.deepgram.com/v1/listen?model=nova-3&language=multi&punctuate=true', {
+      response = await requestJson('https://api.deepgram.com/v1/listen?model=nova-3&language=multi&punctuate=true&mip_opt_out=true', {
         method: 'POST',
         headers: { Authorization: `Token ${inv.source.credentials.apiKey}`, 'Content-Type': contentType },
         body: Uint8Array.from(bytes),

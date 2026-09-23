@@ -70,7 +70,7 @@ describe('Deepgram private audio transcription', () => {
     expect(result.data).toEqual({ text: 'Hola, can you help?', requestId: 'request-1', model: 'nova-3', language: 'multi' })
     expect(send).toHaveBeenCalledTimes(1)
     const [url, init] = send.mock.calls[0]!
-    expect(String(url)).toBe('https://api.deepgram.com/v1/listen?model=nova-3&language=multi&punctuate=true')
+    expect(String(url)).toBe('https://api.deepgram.com/v1/listen?model=nova-3&language=multi&punctuate=true&mip_opt_out=true')
     expect(new Headers(init?.headers).get('authorization')).toBe('Token private-key')
     expect(new Headers(init?.headers).get('content-type')).toBe('audio/ogg')
     expect(Buffer.from(init?.body as Uint8Array)).toEqual(bytes)

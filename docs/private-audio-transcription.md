@@ -15,6 +15,7 @@ An owner-session client can set `{ connectionId, actionPath: 'deepgram.transcrip
 `contentBase64` must be canonical base64 and decode to 1 through 16,000,000 bytes.
 `contentType` must be a supported audio MIME type, including `audio/ogg; codecs=opus` for WhatsApp voice notes.
 The action uses Nova-3 multilingual recognition for English and Spanish in one clip.
+It opts this request out of Deepgram's Model Improvement Program, so Deepgram retains content only while processing it.
 It returns an empty transcript when Deepgram recognizes no speech.
 
 The host should store incoming media privately before invoking this action.
@@ -25,4 +26,4 @@ For stricter privacy, omit the key and persist uncertain outcomes without automa
 Deepgram does not provide a documented idempotency key for this request, so an uncertain provider failure can still have incurred a charge.
 The action rejects redirects, unsupported audio types, oversized input, and malformed or oversized provider responses.
 
-Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), and [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching).
+Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching), and [data retention](https://developers.deepgram.com/trust-security/your-data).
