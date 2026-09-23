@@ -13,6 +13,9 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
+function rfcMessageId(value: unknown): string | null {
+  return typeof value === 'string' && value.length <= 998 && /^<[^<>\s@]+@[^<>\s@]+>$/.test(value) ? value : null
+}
 
 /**
  * Derive a plain-text reply from a previously authenticated, stored event.
@@ -45,10 +48,11 @@ export function buildMessagingReply(
       const message = object(data.message)
       if (!event.sender.address || typeof message.email_address !== 'string') return fail('Mail reply requires an explicit sender and mailbox')
       const subject = event.subject ?? ''
+      const messageId = rfcMessageId(message.message_id)
       return { ok: true, reply: { idempotencyKey: operationId, action: 'inkbox.email.send', input: {
         email_address: message.email_address, to: [event.sender.address],
         subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`.slice(0, 998), text,
-        in_reply_to_message_id: event.eventId,
+        ...(messageId ? { in_reply_to_message_id: messageId } : {}),
       } } }
     }
   }

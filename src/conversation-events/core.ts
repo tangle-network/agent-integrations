@@ -41,6 +41,8 @@ export interface ConversationParticipant {
   id: string | null
   address: string | null
   displayName: string | null
+  /** A signed webhook does not prove the sender owns its email From address. Missing also means unverified. */
+  verificationStatus?: 'unverified'
 }
 
 export interface ConversationDestination {

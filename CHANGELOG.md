@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+Inkbox email conversation events now label the From address as unverified.
+The signed webhook proves delivery from Inkbox, but the provider does not expose sender authentication.
+Mail replies use the RFC Message-ID when Inkbox supplies it and omit threading when it is absent.
+They no longer send the stored message UUID as `in_reply_to_message_id`.
+
 ## 0.54.3
 
 ### Fixed
