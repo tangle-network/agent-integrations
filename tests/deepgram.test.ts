@@ -9,6 +9,7 @@ import {
   createDefaultIntegrationPolicyEngine,
 } from '../src/index.js'
 import { StaticIntegrationPolicyEngine } from '../src/policy.js'
+import { normalizeIntegrationError } from '../src/errors.js'
 import type { IntegrationConnection } from '../src/core-types.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -196,7 +197,19 @@ describe('Deepgram private audio transcription', () => {
   ])('rejects unsupported or unbounded audio before calling Deepgram', async invalid => {
     const send = vi.fn()
     vi.stubGlobal('fetch', send)
-    await expect(deepgramConnector.executeMutation!({ source, capabilityName: 'transcription.bytes', args: invalid, idempotencyKey: 'voice-1' })).rejects.toThrow()
+    await expect(deepgramConnector.executeMutation!({ source, capabilityName: 'transcription.bytes', args: invalid, idempotencyKey: 'voice-1' }))
+      .rejects.toMatchObject({ code: 'input_invalid', status: 400 })
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('normalizes malformed audio as a caller error without sending bytes', async () => {
+    const send = vi.fn()
+    vi.stubGlobal('fetch', send)
+    const error = await deepgramConnector.executeMutation!({
+      source, capabilityName: 'transcription.bytes',
+      args: { contentBase64: 'not-base64', contentType: 'audio/ogg' }, idempotencyKey: 'voice-invalid',
+    }).catch(error => error)
+    expect(normalizeIntegrationError(error)).toMatchObject({ code: 'input_invalid', status: 400 })
     expect(send).not.toHaveBeenCalled()
   })
 

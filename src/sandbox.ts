@@ -90,7 +90,13 @@ export function validateIntegrationInvocationEnvelope(
     throw new Error(`Integration invocation action ${envelope.action} does not match tool ${parsed.actionId}.`)
   }
   const inputBytes = Buffer.byteLength(JSON.stringify(envelope.input ?? null), 'utf8')
-  const maxInputBytes = options.maxInputBytes ?? 256 * 1024
+  // This action carries up to 16 MB of audio as base64. Keep the larger
+  // envelope allowance scoped to it; other tools retain the 256 KiB limit.
+  const maxInputBytes = options.maxInputBytes ?? (
+    parsed.connectorId === 'deepgram' && parsed.actionId === 'transcription.bytes'
+      ? 4 * Math.ceil(16_000_000 / 3) + 4096
+      : 256 * 1024
+  )
   if (inputBytes > maxInputBytes) {
     throw new Error(`Integration invocation input exceeds ${maxInputBytes} bytes.`)
   }
@@ -177,7 +183,6 @@ export class IntegrationSandboxHost {
     return dispatchIntegrationInvocation(envelope, this.options)
   }
 }
-
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0

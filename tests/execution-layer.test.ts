@@ -278,6 +278,30 @@ describe('execution layer', () => {
     })).toThrow(/Unknown integration tool/)
   })
 
+  it('allows bounded private audio envelopes without lifting the default limit for other tools', () => {
+    const audio = { contentBase64: 'A'.repeat(512 * 1024), contentType: 'audio/ogg' }
+    const envelope = buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'deepgram', 'transcription.bytes'),
+      args: audio,
+      idempotencyKey: 'audio-1',
+    })
+    expect(() => validateIntegrationInvocationEnvelope(envelope)).not.toThrow()
+    expect(() => validateIntegrationInvocationEnvelope(envelope, { maxInputBytes: 256 * 1024 })).toThrow(/exceeds/)
+    expect(() => buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'notes', 'notes.search'),
+      args: audio,
+      idempotencyKey: 'search-1',
+    })).toThrow(/exceeds/)
+    expect(() => buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'deepgram', 'transcription.bytes'),
+      args: { contentBase64: Buffer.alloc(16_000_000).toString('base64'), contentType: 'audio/ogg' },
+      idempotencyKey: 'audio-max',
+    })).not.toThrow()
+  })
+
   it('denies destructive actions by default policy', async () => {
     const destructiveAdapter: ConnectorAdapter = {
       ...notesAdapter,

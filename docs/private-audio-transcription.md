@@ -17,6 +17,9 @@ A direct `IntegrationHub` host instead supplies its own policy engine with an ex
 | Output | `{ "text": string, "requestId": string \| null, "model": "nova-3", "language": "multi" }` |
 
 `contentBase64` must be canonical base64 and decode to 1 through 16,000,000 bytes.
+The sandbox envelope accepts this action's 16 MB audio limit plus base64 overhead.
+Other sandbox actions keep the default 256 KiB input limit.
+An explicit `maxInputBytes` override still applies if a host sets a lower limit.
 `contentType` must be a supported audio MIME type, including `audio/ogg; codecs=opus` for WhatsApp voice notes.
 The action uses Nova-3 multilingual recognition for English and Spanish in one clip.
 It opts this request out of Deepgram's Model Improvement Program, so Deepgram retains content only while processing it.

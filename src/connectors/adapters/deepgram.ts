@@ -1,6 +1,7 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 import { type ConnectorAdapter, CredentialsExpired, ProviderRateLimited } from '../types.js'
 import { ProviderProtocolError, record, requestJson } from '../../http/response-json.js'
+import { IntegrationRuntimeError } from '../../errors.js'
 
 const MAX_AUDIO_BYTES = 16_000_000
 const MAX_BASE64_LENGTH = 4 * Math.ceil(MAX_AUDIO_BYTES / 3)
@@ -13,18 +14,19 @@ const AUDIO_TYPES = new Set([
 function privateAudio(args: Record<string, unknown>): { bytes: Buffer; contentType: string } {
   const rawType = args.contentType
   if (typeof rawType !== 'string' || rawType.length > 200 || /[\u0000-\u001f\u007f]/.test(rawType)) {
-    throw new Error('Deepgram requires a supported audio contentType')
+    throw new IntegrationRuntimeError({ code: 'input_invalid', message: 'Deepgram requires a supported audio contentType' })
   }
   const contentType = rawType.split(';', 1)[0]!.trim().toLowerCase()
-  if (!AUDIO_TYPES.has(contentType)) throw new Error('Deepgram requires a supported audio contentType')
+  if (!AUDIO_TYPES.has(contentType)) {
+    throw new IntegrationRuntimeError({ code: 'input_invalid', message: 'Deepgram requires a supported audio contentType' })
+  }
   const raw = args.contentBase64
-  if (typeof raw !== 'string' || raw.length < 4 || raw.length > MAX_BASE64_LENGTH ||
-      raw.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(raw)) {
-    throw new Error('Deepgram requires canonical contentBase64 within the 16 MB limit')
+  if (typeof raw !== 'string' || raw.length < 4 || raw.length > MAX_BASE64_LENGTH || raw.length % 4 !== 0) {
+    throw new IntegrationRuntimeError({ code: 'input_invalid', message: 'Deepgram requires canonical contentBase64 within the 16 MB limit' })
   }
   const bytes = Buffer.from(raw, 'base64')
   if (bytes.length === 0 || bytes.length > MAX_AUDIO_BYTES || bytes.toString('base64') !== raw) {
-    throw new Error('Deepgram requires canonical contentBase64 within the 16 MB limit')
+    throw new IntegrationRuntimeError({ code: 'input_invalid', message: 'Deepgram requires canonical contentBase64 within the 16 MB limit' })
   }
   return { bytes, contentType }
 }
