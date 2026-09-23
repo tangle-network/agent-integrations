@@ -26,6 +26,7 @@ The action uses Nova-3 multilingual recognition for English and Spanish in one c
 It opts this request out of Deepgram's Model Improvement Program, so Deepgram retains content only while processing it.
 A valid Deepgram alternative may contain an empty transcript when it recognizes no speech.
 The connector rejects a response with no alternative as malformed.
+It returns a valid transcript even if the optional provider request ID is malformed; `requestId` is then `null`.
 
 The host should store incoming media privately before invoking this action.
 The host should deduplicate and store transcripts at its own private boundary because each provider call is billable.
@@ -36,6 +37,10 @@ For less transcript retention, omit the key and persist uncertain outcomes witho
 Deepgram does not provide a documented idempotency key for this request, so an uncertain provider failure can still have incurred a charge.
 The action rejects redirects, unsupported audio types, oversized input, and malformed or oversized provider responses.
 It caps the provider JSON response at 8,000,000 bytes; a limit error after upload has an uncertain billed outcome.
-Approval, audit, sandbox, and error previews redact the audio bytes and base64 input before storing or displaying them.
+Approval, audit, sandbox, and error previews redact audio bytes, data URLs, and wrapped or spaced base64 before storing or displaying them.
+Preview redaction also catches standard, unpadded, and URL-safe encoded values of at least 16 characters under unexpected field names.
+Callers must use a sensitive field name for shorter encoded values, which cannot be distinguished reliably from ordinary text.
+Encoded-value detection under neutral keys is a fallback, not a guarantee for arbitrary formats.
+Private audio bytes belong in `contentBase64`, whose field name always causes redaction.
 
 Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching), and [data retention](https://developers.deepgram.com/trust-security/your-data).
