@@ -76,6 +76,8 @@ export interface CapabilityRead {
   description: string
   /** JSON-schema for the tool args the agent passes when invoking. */
   parameters: CapabilityParameterSchema
+  /** Override the connector default when this action has a different consistency guarantee. */
+  consistencyModel?: ConsistencyModel
   /** Optional: declare which scopes (per the connector manifest) this
    *  capability requires. The capability is hidden from the agent's
    *  tool registry if the user's grant didn't include them. */
@@ -87,6 +89,8 @@ export interface CapabilityMutation {
   class: 'mutation'
   description: string
   parameters: CapabilityParameterSchema
+  /** Override the connector default when this action has a different consistency guarantee. */
+  consistencyModel?: ConsistencyModel
   /** Mandatory: how does the connector guarantee at-most-once + conflict-detect? */
   cas: CASStrategy
   /** True for capabilities that affect resources outside the calling user
@@ -316,9 +320,8 @@ export interface ConnectorManifest {
   /** Capability catalog — the agent's tool registry derives ToolDefinition
    *  entries from this list at request time. */
   capabilities: Capability[]
-  /** ConsistencyModel default for this kind — overridable per DataSource
-   *  if a particular instance is special (e.g., a user marks a sheet as
-   *  `cache` because they refresh it nightly). */
+  /** ConsistencyModel default for this kind — overridable per capability and
+   *  per DataSource when an action or instance has a different guarantee. */
   defaultConsistencyModel: ConsistencyModel
   /** Connector category for UI grouping. */
   category:
@@ -600,6 +603,10 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
   const issues: ConnectorManifestValidationIssue[] = []
   if (!manifest.kind.trim()) issues.push({ path: 'kind', message: 'kind is required' })
   if (!manifest.displayName.trim()) issues.push({ path: 'displayName', message: 'displayName is required' })
+  const consistencyModels = new Set<ConsistencyModel>(['authoritative', 'cache', 'advisory'])
+  if (!consistencyModels.has(manifest.defaultConsistencyModel)) {
+    issues.push({ path: 'defaultConsistencyModel', message: 'unsupported consistency model' })
+  }
   validateAuthSpec(manifest.auth, issues)
   const seen = new Set<string>()
   for (const [index, capability] of manifest.capabilities.entries()) {
@@ -607,9 +614,12 @@ export function validateConnectorManifest(manifest: ConnectorManifest): Connecto
     if (!capability.name.trim()) issues.push({ path: `${path}.name`, message: 'capability name is required' })
     if (seen.has(capability.name)) issues.push({ path: `${path}.name`, message: `duplicate capability name: ${capability.name}` })
     seen.add(capability.name)
+    if (capability.consistencyModel !== undefined && !consistencyModels.has(capability.consistencyModel)) {
+      issues.push({ path: `${path}.consistencyModel`, message: 'unsupported consistency model' })
+    }
     if (capability.class === 'mutation') {
       if (!capability.cas) issues.push({ path: `${path}.cas`, message: 'mutation capability must declare a CAS strategy' })
-      if (manifest.defaultConsistencyModel === 'authoritative' && capability.cas === 'none') {
+      if ((capability.consistencyModel ?? manifest.defaultConsistencyModel) === 'authoritative' && capability.cas === 'none') {
         issues.push({ path: `${path}.cas`, message: 'authoritative mutations cannot use cas="none"' })
       }
     }

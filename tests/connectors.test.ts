@@ -310,6 +310,30 @@ describe('validateConnectorManifest', () => {
     ]))
   })
 
+  it('allows an advisory mutation on an otherwise authoritative connector', () => {
+    const result = validateConnectorManifest({
+      kind: 'transcriber', displayName: 'Transcriber', description: 'Private audio',
+      auth: { kind: 'none' }, defaultConsistencyModel: 'authoritative', category: 'comms',
+      capabilities: [{
+        name: 'transcription.bytes', class: 'mutation', description: 'Transcribe bytes', parameters: {},
+        cas: 'none', externalEffect: true, consistencyModel: 'advisory',
+      }],
+    })
+    expect(result).toEqual({ ok: true, issues: [] })
+  })
+
+  it('rejects an unknown consistency override instead of bypassing the authoritative CAS rule', () => {
+    const result = validateConnectorManifest({
+      kind: 'transcriber', displayName: 'Transcriber', description: 'Private audio',
+      auth: { kind: 'none' }, defaultConsistencyModel: 'authoritative', category: 'comms',
+      capabilities: [{
+        name: 'transcription.bytes', class: 'mutation', description: 'Transcribe bytes', parameters: {},
+        cas: 'none', externalEffect: true, consistencyModel: 'unknown' as never,
+      }],
+    })
+    expect(result.issues.map(issue => issue.path)).toContain('capabilities[0].consistencyModel')
+  })
+
   it('rejects an unknown OAuth token client authentication method', () => {
     const result = validateConnectorManifest({
       kind: 'calendar',

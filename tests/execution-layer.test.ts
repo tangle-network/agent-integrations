@@ -7,6 +7,7 @@ import {
   buildIntegrationToolCatalog,
   createConnectorAdapterProvider,
   createDefaultIntegrationPolicyEngine,
+  dispatchIntegrationInvocation,
   invocationRequestFromEnvelope,
   integrationToolName,
   normalizeIntegrationResult,
@@ -276,6 +277,44 @@ describe('execution layer', () => {
       connectors: [{ ...connectors[0], actions: [] }],
       requireKnownTool: true,
     })).toThrow(/Unknown integration tool/)
+  })
+
+  it('requires an explicit sandbox input bound for private audio', async () => {
+    const maxInputBytes = 4 * Math.ceil(16_000_000 / 3) + 4096
+    const audio = { contentBase64: 'A'.repeat(512 * 1024), contentType: 'audio/ogg' }
+    const input = {
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'deepgram', 'transcription.bytes'),
+      args: audio,
+      idempotencyKey: 'audio-1',
+    }
+    expect(() => buildIntegrationInvocationEnvelope(input)).toThrow(/exceeds/)
+    const envelope = buildIntegrationInvocationEnvelope({ ...input, maxInputBytes })
+    expect(() => validateIntegrationInvocationEnvelope(envelope)).toThrow(/exceeds/)
+    expect(() => invocationRequestFromEnvelope(envelope, { maxInputBytes })).not.toThrow()
+    const result = await dispatchIntegrationInvocation(envelope, {
+      hub: { invokeWithCapability: async (_token, request) => ({
+        ok: true, action: request.action, output: { text: 'hola' },
+      }) },
+      maxInputBytes,
+    })
+    expect(result).toMatchObject({ status: 'ok', action: 'transcription.bytes', output: { text: 'hola' } })
+    expect((await dispatchIntegrationInvocation(envelope, {
+      hub: { invokeWithCapability: async () => { throw new Error('not reached') } },
+    })).status).toBe('failed')
+    expect(() => buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'notes', 'notes.search'),
+      args: audio,
+      idempotencyKey: 'search-1',
+    })).toThrow(/exceeds/)
+    expect(() => buildIntegrationInvocationEnvelope({
+      capabilityToken: 'capability.token',
+      toolName: integrationToolName('first-party', 'deepgram', 'transcription.bytes'),
+      args: { contentBase64: Buffer.alloc(16_000_000).toString('base64'), contentType: 'audio/ogg' },
+      idempotencyKey: 'audio-max',
+      maxInputBytes,
+    })).not.toThrow()
   })
 
   it('denies destructive actions by default policy', async () => {

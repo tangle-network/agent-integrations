@@ -354,6 +354,7 @@ function actionsFromManifest(
       risk: mutation ? 'write' : 'read',
       requiredScopes: capability.requiredScopes ? [...capability.requiredScopes] : [],
       dataClass: fallbackDataClass,
+      ...(capability.consistencyModel ? { consistencyModel: capability.consistencyModel } : {}),
       description: capability.description,
       // A mutation reaching resources outside the caller needs confirmation
       // before it runs; the adapter is what knows which those are.

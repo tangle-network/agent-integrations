@@ -6,6 +6,7 @@ import type {
   InvokeWithCapabilityRequest,
 } from './index.js'
 import { parseIntegrationToolName } from './catalog.js'
+import { redactUnknown } from './redaction.js'
 
 export interface IntegrationInvocationEnvelope {
   kind: 'integration.invocation'
@@ -44,6 +45,7 @@ export function buildIntegrationInvocationEnvelope(input: {
   idempotencyKey: string
   dryRun?: boolean
   metadata?: Record<string, unknown>
+  maxInputBytes?: number
 }): IntegrationInvocationEnvelope {
   const parsed = parseIntegrationToolName(input.toolName)
   const envelope: IntegrationInvocationEnvelope = {
@@ -56,12 +58,15 @@ export function buildIntegrationInvocationEnvelope(input: {
     dryRun: input.dryRun,
     metadata: input.metadata,
   }
-  validateIntegrationInvocationEnvelope(envelope)
+  validateIntegrationInvocationEnvelope(envelope, { maxInputBytes: input.maxInputBytes })
   return envelope
 }
 
-export function invocationRequestFromEnvelope(envelope: IntegrationInvocationEnvelope): InvokeWithCapabilityRequest {
-  validateIntegrationInvocationEnvelope(envelope)
+export function invocationRequestFromEnvelope(
+  envelope: IntegrationInvocationEnvelope,
+  options: IntegrationInvocationEnvelopeValidationOptions = {},
+): InvokeWithCapabilityRequest {
+  validateIntegrationInvocationEnvelope(envelope, options)
   return {
     action: envelope.action,
     input: envelope.input,
@@ -108,6 +113,7 @@ export function redactInvocationEnvelope(envelope: IntegrationInvocationEnvelope
     ...envelope,
     capabilityToken: '[REDACTED]',
     input: redactUnknown(envelope.input),
+    metadata: redactUnknown(envelope.metadata) as Record<string, unknown> | undefined,
   }
 }
 
@@ -152,7 +158,7 @@ export async function dispatchIntegrationInvocation(
     validateIntegrationInvocationEnvelope(envelope, options)
     const result = await options.hub.invokeWithCapability(
       envelope.capabilityToken,
-      invocationRequestFromEnvelope(envelope),
+      invocationRequestFromEnvelope(envelope, options),
     )
     return normalizeIntegrationResult(result)
   } catch (error) {
@@ -174,20 +180,6 @@ export class IntegrationSandboxHost {
   dispatch(envelope: IntegrationInvocationEnvelope): Promise<NormalizedIntegrationResult> {
     return dispatchIntegrationInvocation(envelope, this.options)
   }
-}
-
-function redactUnknown(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactUnknown)
-  if (!value || typeof value !== 'object') return value
-  const out: Record<string, unknown> = {}
-  for (const [key, child] of Object.entries(value)) {
-    if (/token|secret|password|authorization|api[_-]?key|credential/i.test(key)) {
-      out[key] = '[REDACTED]'
-    } else {
-      out[key] = redactUnknown(child)
-    }
-  }
-  return out
 }
 
 function isNonEmptyString(value: unknown): value is string {

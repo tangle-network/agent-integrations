@@ -7,6 +7,7 @@ import type {
   IntegrationPolicyEngine,
 } from './core-types.js'
 import { createWebCryptoUuid } from './web-crypto.js'
+import { redactUnknown } from './redaction.js'
 
 export type IntegrationPolicyEffect = 'allow' | 'require_approval' | 'deny'
 
@@ -100,7 +101,7 @@ export function buildApprovalRequest(
     dataClass: ctx.action.dataClass,
     reason,
     requestedAt: requestedAt.toISOString(),
-    inputPreview: previewInput(ctx.request.input),
+    inputPreview: redactUnknown(ctx.request.input),
   }
 }
 
@@ -132,22 +133,4 @@ function defaultReason(effect: IntegrationPolicyEffect, risk: IntegrationActionR
   if (effect === 'allow') return `${risk} integration action allowed by default policy.`
   if (effect === 'deny') return `${risk} integration action denied by default policy.`
   return `${risk} integration action requires approval by default policy.`
-}
-
-function previewInput(input: unknown): unknown {
-  return redactUnknown(input)
-}
-
-function redactUnknown(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactUnknown)
-  if (!value || typeof value !== 'object') return value
-  const out: Record<string, unknown> = {}
-  for (const [key, child] of Object.entries(value)) {
-    if (/token|secret|password|authorization|api[_-]?key|credential/i.test(key)) {
-      out[key] = '[REDACTED]'
-    } else {
-      out[key] = redactUnknown(child)
-    }
-  }
-  return out
 }

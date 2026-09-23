@@ -1,3 +1,5 @@
+import { redactUnknown } from './redaction.js'
+
 export type IntegrationErrorCode =
   | 'missing_connection'
   | 'missing_grant'
@@ -99,18 +101,4 @@ function inferCode(message: string): IntegrationErrorCode {
   if (/rate.?limit|429/i.test(message)) return 'provider_rate_limited'
   if (/unauth|forbidden|401|403/i.test(message)) return 'provider_auth_failed'
   return 'unknown'
-}
-
-function redactUnknown(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactUnknown)
-  if (!value || typeof value !== 'object') return value
-  const out: Record<string, unknown> = {}
-  for (const [key, child] of Object.entries(value)) {
-    if (/token|secret|password|authorization|api[_-]?key|credential|refresh/i.test(key)) {
-      out[key] = '[REDACTED]'
-    } else {
-      out[key] = redactUnknown(child)
-    }
-  }
-  return out
 }

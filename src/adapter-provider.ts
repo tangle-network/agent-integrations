@@ -461,6 +461,7 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
         risk: capability.class === 'read' ? 'read' : capability.externalEffect ? 'destructive' : 'write',
         requiredScopes: capability.requiredScopes ?? [],
         dataClass: inferDataClass(manifest.category),
+        ...(capability.consistencyModel ? { consistencyModel: capability.consistencyModel } : {}),
         description: capability.description,
         approvalRequired: capability.class === 'mutation',
         inputSchema: capability.parameters,
