@@ -25,6 +25,7 @@ function finish(input: ProviderConversationEvent, data: {
   id: unknown; conversation: unknown; sender: unknown; destination: unknown;
   destinationAddress?: unknown; text: unknown; time: unknown; media?: unknown; parent?: unknown;
   subject?: unknown; destinationKind?: 'chat' | 'mailbox'; isGroup?: boolean; historyOnly?: boolean;
+  senderVerificationStatus?: 'unverified';
 }): ConversationEventNormalizationResult {
   const id = string(data.id), conversation = string(data.conversation), sender = string(data.sender), destination = string(data.destination)
   if (!id || !conversation || !sender || !destination) return invalid('Message identity, conversation, sender and destination are required')
@@ -39,7 +40,8 @@ function finish(input: ProviderConversationEvent, data: {
   const event: ConversationEvent = {
     version: 1, provider, eventType: input.type, operation: 'created', eventId: id,
     conversationId: conversation, parentEventIds: string(data.parent) ? [String(data.parent)] : [],
-    sender: { id: sender, address: sender, displayName: null },
+    sender: { id: sender, address: sender, displayName: null,
+      ...(data.senderVerificationStatus ? { verificationStatus: data.senderVerificationStatus } : {}) },
     destinations: [{ kind: data.destinationKind ?? 'chat', id: destination, address: string(data.destinationAddress), displayName: null }],
     subject: string(data.subject, 998), text: (data.text as string | null | undefined) ?? null, html: null,
     attachments: attachments as ConversationAttachment[], occurredAt: time,
@@ -74,6 +76,7 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
       return finish(input, { id: m.id, conversation: m.thread_id ?? m.id, sender: m.from_address,
         destination: m.email_address, destinationAddress: m.email_address, destinationKind: 'mailbox', text: m.body,
         time: m.created_at ?? p.timestamp, subject: m.subject,
+        senderVerificationStatus: 'unverified',
         historyOnly: m.body_state !== 'complete' || m.body_truncated === true })
     }
     return unsupported()

@@ -120,9 +120,53 @@ it('requires explicit owned phone id for Inkbox SMS replies', () => {
   expect(buildMessagingReply(input('inkbox', fixture), 'Hello', 'op').ok).toBe(false)
   expect(buildMessagingReply(input('inkbox', { ...fixture, data: { text_message: { ...message, phone_number_id: 'phone' } } }), 'Hello', 'op')).toMatchObject({ ok: true, reply: { action: 'inkbox.sms.reply', input: { phone_number_id: 'phone', conversation_id: 'sms-chat' } } })
 })
-it('replies to one email sender without propagating BCC', () => {
-  const fixture = { id: 'mail-evt', event_type: 'message.received', timestamp: iso, data: { message: { id: 'mail-id', thread_id: 'thread-id', direction: 'inbound', from_address: 'peer@example.com', email_address: 'agent@example.com', body: 'Hello', body_state: 'complete', subject: 'Desk', bcc_addresses: ['secret@example.com'] } } }
-  expect(buildMessagingReply(input('inkbox', fixture), 'Here are options', 'op')).toMatchObject({ ok: true, reply: { action: 'inkbox.email.send', input: { to: ['peer@example.com'], email_address: 'agent@example.com', in_reply_to_message_id: 'mail-id', subject: 'Re: Desk' } } })
+it('marks email From unverified and replies with the RFC Message-ID without propagating BCC', async () => {
+  const fixture = { id: 'mail-evt', event_type: 'message.received', timestamp: iso, data: { message: { id: 'mail-id', message_id: '<mail-123@example.com>', thread_id: 'thread-id', direction: 'inbound', from_address: 'peer@example.com', email_address: 'agent@example.com', body: 'Hello', body_state: 'complete', subject: 'Desk [private-token]', bcc_addresses: ['secret@example.com'], sender_verified: true } } }
+  expect(normalizeConversationEvent(input('inkbox', fixture))).toMatchObject({ ok: true, event: {
+    sender: { id: 'peer@example.com', verificationStatus: 'unverified' }, subject: 'Desk [private-token]',
+  } })
+  const validReply = buildMessagingReply(input('inkbox', fixture), 'Here are options', 'op')
+  expect(validReply).toMatchObject({ ok: true, reply: { action: 'inkbox.email.send', input: { to: ['peer@example.com'], email_address: 'agent@example.com', in_reply_to_message_id: '<mail-123@example.com>', subject: 'Re: Desk [private-token]' } } })
+  if (!validReply.ok) throw new Error('Expected a mail reply with RFC Message-ID')
+  const withoutRfcId = { ...fixture, data: { message: { ...fixture.data.message, message_id: 'mail-id' } } }
+  const reply = buildMessagingReply(input('inkbox', withoutRfcId), 'Here are options', 'op')
+  expect(reply.ok).toBe(true)
+  if (!reply.ok) throw new Error('Expected a mail reply')
+  expect(reply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  const overlongId = { ...fixture, data: { message: { ...fixture.data.message, message_id: `<${'x'.repeat(250)}@example.com>` } } }
+  const overlongReply = buildMessagingReply(input('inkbox', overlongId), 'Here are options', 'op')
+  expect(overlongReply.ok).toBe(true)
+  if (!overlongReply.ok) throw new Error('Expected an overlong-id mail reply')
+  expect(overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  const validDotAtom = { ...fixture, data: { message: { ...fixture.data.message, message_id: '<a+b.c_d@example.com>' } } }
+  expect(buildMessagingReply(input('inkbox', validDotAtom), 'Here are options', 'op')).toMatchObject({ ok: true, reply: {
+    input: { in_reply_to_message_id: '<a+b.c_d@example.com>' },
+  } })
+  for (const messageId of [
+    '<bad\u0001@example.com>', '<bad@exam\u007fple.com>', '<bad\u0085@example.com>', '<bad@exam\u202eple.com>',
+    '<a@@b@example.com>', '<a@b@c>', '<a,b@example.com>', '<a\\b@example.com>', '<a"b@example.com>',
+    '<a..b@example.com>', '<.a@example.com>', '<a.@example.com>',
+    '<a@-example.com>', '<a@example-.com>', '<a@example..com>', '<a@example_com>',
+  ]) {
+    const unsafe = { ...fixture, data: { message: { ...fixture.data.message, message_id: messageId } } }
+    const unsafeReply = buildMessagingReply(input('inkbox', unsafe), 'Here are options', 'op')
+    expect(unsafeReply.ok).toBe(true)
+    if (!unsafeReply.ok) throw new Error('Expected a control-id mail reply')
+    expect(unsafeReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  }
+  const request = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'accepted' }))
+  vi.stubGlobal('fetch', request)
+  await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
+    args: validReply.reply.input, idempotencyKey: validReply.reply.idempotencyKey })
+  expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+    recipients: { to: ['peer@example.com'] }, subject: 'Re: Desk [private-token]', body_text: 'Here are options',
+    in_reply_to_message_id: '<mail-123@example.com>',
+  })
+  await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
+    args: reply.reply.input, idempotencyKey: reply.reply.idempotencyKey })
+  expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
+    recipients: { to: ['peer@example.com'] }, subject: 'Re: Desk [private-token]', body_text: 'Here are options',
+  })
   fixture.data.message.body_state = 'truncated'
   expect(buildMessagingReply(input('inkbox', fixture), 'reply', 'op').ok).toBe(false)
 })

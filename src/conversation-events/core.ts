@@ -41,6 +41,8 @@ export interface ConversationParticipant {
   id: string | null
   address: string | null
   displayName: string | null
+  /** Explicitly marks an unauthenticated email From address. An omitted status makes no claim. */
+  verificationStatus?: 'unverified'
 }
 
 export interface ConversationDestination {
@@ -343,6 +345,7 @@ function normalizeEmail(
         id: null,
         address: normalizeNullableString(from, 320),
         displayName: null,
+        verificationStatus: 'unverified',
       },
       destinations: [
         {

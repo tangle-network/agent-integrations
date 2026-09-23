@@ -13,6 +13,16 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
+// Optional threading forwards only dot-atom IDs with DNS-style domains; other valid legacy forms are omitted.
+const messageIdDotAtom = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/
+const messageIdDomainLabel = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/
+function rfcMessageId(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 256 || !value.startsWith('<') || !value.endsWith('>')) return null
+  const parts = value.slice(1, -1).split('@')
+  if (parts.length !== 2 || !messageIdDotAtom.test(parts[0]!)) return null
+  const labels = parts[1]!.split('.')
+  return labels.every((label) => label.length <= 63 && messageIdDomainLabel.test(label)) ? value : null
+}
 
 /**
  * Derive a plain-text reply from a previously authenticated, stored event.
@@ -45,10 +55,11 @@ export function buildMessagingReply(
       const message = object(data.message)
       if (!event.sender.address || typeof message.email_address !== 'string') return fail('Mail reply requires an explicit sender and mailbox')
       const subject = event.subject ?? ''
+      const messageId = rfcMessageId(message.message_id)
       return { ok: true, reply: { idempotencyKey: operationId, action: 'inkbox.email.send', input: {
         email_address: message.email_address, to: [event.sender.address],
         subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`.slice(0, 998), text,
-        in_reply_to_message_id: event.eventId,
+        ...(messageId ? { in_reply_to_message_id: messageId } : {}),
       } } }
     }
   }
