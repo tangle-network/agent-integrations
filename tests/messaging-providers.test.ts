@@ -133,7 +133,16 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   expect(reply.reply.input).not.toHaveProperty('in_reply_to_message_id')
   const overlongId = { ...fixture, data: { message: { ...fixture.data.message, message_id: `<${'x'.repeat(250)}@example.com>` } } }
   const overlongReply = buildMessagingReply(input('inkbox', overlongId), 'Here are options', 'op')
-  expect(overlongReply.ok && overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  expect(overlongReply.ok).toBe(true)
+  if (!overlongReply.ok) throw new Error('Expected an overlong-id mail reply')
+  expect(overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  for (const messageId of ['<bad\u0001@example.com>', '<bad@exam\u007fple.com>']) {
+    const unsafe = { ...fixture, data: { message: { ...fixture.data.message, message_id: messageId } } }
+    const unsafeReply = buildMessagingReply(input('inkbox', unsafe), 'Here are options', 'op')
+    expect(unsafeReply.ok).toBe(true)
+    if (!unsafeReply.ok) throw new Error('Expected a control-id mail reply')
+    expect(unsafeReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  }
   const request = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'accepted' }))
   vi.stubGlobal('fetch', request)
   await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
