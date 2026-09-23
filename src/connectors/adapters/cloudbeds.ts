@@ -300,7 +300,7 @@ export const cloudbedsConnector: ConnectorAdapter = {
       ? result.data.soldProductID : null
     const notice = providerText(result.data.notice)
     const duplicate = soldProductId === null && notice !== null &&
-      /referenceid/i.test(notice) && /\b(already|duplicate|exists)\b|nothing was created/i.test(notice)
+      /referenceid/i.test(notice) && /nothing was created/i.test(notice)
     if (!soldProductId && !duplicate) {
       throw new ProviderProtocolError('Cloudbeds returned an indeterminate folio item receipt', 'capability_outcome_indeterminate')
     }

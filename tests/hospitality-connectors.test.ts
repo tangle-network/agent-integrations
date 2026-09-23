@@ -126,6 +126,11 @@ describe('Cloudbeds property and folio contract', () => {
     await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({
       code: 'capability_outcome_indeterminate', definitive: false,
     })
+    fetcher.mockImplementationOnce(async () => Response.json(reservationDetail))
+    fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: { notice: 'referenceID exists for another reservation' } }))
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({
+      code: 'capability_outcome_indeterminate', definitive: false,
+    })
   })
 
   it('refuses a cross-property or mismatched reservation before posting a folio item', async () => {
