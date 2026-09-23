@@ -70,10 +70,47 @@ describe('WhatsApp events and replies', () => {
     expect(normalizeConversationEvent(input(value)).ok).toBe(false)
     expect(normalizeConversationEvent(input({ ...payload(), data: { chat_id: 'chat-1', seq_from: 1, seq_to: 2 } })).ok).toBe(false)
   })
-  it('requires text handling rather than silently dropping attachments', () => {
-    const value = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [{ type: 'media', media_id: 'opaque' }] } } }
-    expect(normalizeConversationEvent(input(value)).ok).toBe(false)
+  it('keeps incoming audio and image attachments with captions and authenticated URLs', () => {
+    const url = 'https://whatsapp.messages.api.linqapp.com/v1/attachments/media_1/content'
+    const value = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [
+      { type: 'text', body: 'Please check this' },
+      { type: 'media', kind: 'audio', media_id: 'channel-audio', mime_type: 'audio/ogg; codecs=opus', byte_size: 4, url },
+      { type: 'media', kind: 'image', media_id: 'channel-image', mime_type: 'image/jpeg', caption: 'The room', url },
+    ] } } }
+    expect(normalizeConversationEvent(input(value))).toMatchObject({ ok: true, event: {
+      text: 'Please check this\nThe room', historyOnly: false,
+      attachments: [{ id: 'channel-audio', contentType: 'audio/ogg; codecs=opus', size: 4, url },
+        { id: 'channel-image', contentType: 'image/jpeg', url }],
+    } })
+    const pending = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [
+      { type: 'media', kind: 'audio', media_id: 'channel-audio' },
+    ] } } }
+    expect(normalizeConversationEvent(input(pending))).toMatchObject({ ok: true, event: { historyOnly: true, attachments: [{ url: null }] } })
+    const untrusted = { ...value, data: { ...value.data, message: { ...value.data.message, parts: [
+      { type: 'media', kind: 'audio', media_id: 'channel-audio', url: 'https://evil.example/v1/attachments/media_1/content' },
+    ] } } }
+    expect(normalizeConversationEvent(input(untrusted)).ok).toBe(false)
     expect(buildMessagingReply(input(), 'x'.repeat(4097), 'op').ok).toBe(false)
+  })
+  it('downloads media only from Linq’s exact attachment route without following redirects', async () => {
+    const url = 'https://whatsapp.messages.api.linqapp.com/v1/attachments/media_1/content'
+    const send = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response('voice', { status: 200,
+      headers: { 'content-type': 'audio/ogg', 'content-length': '5' } }))
+    vi.stubGlobal('fetch', send)
+    const result = await linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })
+    expect(result.data).toEqual({ contentType: 'audio/ogg', size: 5, contentBase64: 'dm9pY2U=' })
+    expect(send.mock.calls[0]![0]).toBe(url)
+    expect(send.mock.calls[0]![1]).toMatchObject({ redirect: 'error', headers: { authorization: 'Bearer fixture-brand-key' } })
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content',
+      args: { url: 'https://whatsapp.messages.api.linqapp.com.evil.example/v1/attachments/media_1/content' }, idempotencyKey: 'read' })).rejects.toThrow('exact attachment URL')
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+  it('bounds media bytes and surfaces pending capture without returning an error body', async () => {
+    const url = 'https://whatsapp.messages.api.linqapp.com/v1/attachments/media_1/content'
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('secret provider response', { status: 409 })))
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toThrow('capture is pending')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '16000001' } })))
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toThrow('byte limit')
   })
   it('lists each supported transport once without implying account readiness', () => {
     const channels = listConversationChannels()

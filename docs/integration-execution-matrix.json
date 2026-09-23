@@ -599,13 +599,84 @@
   },
   {
     "id": "adobe-sign",
-    "title": "adobe-sign",
-    "category": "internal",
+    "title": "Adobe Acrobat Sign",
+    "category": "docs",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://secure.na1.adobesign.com/public/oauth/v2",
+      "tokenUrl": "https://api.na1.adobesign.com/oauth/v2/token",
+      "clientIdEnv": "ADOBE_SIGN_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ADOBE_SIGN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "docs.read",
+          "providerScope": "user_read:self",
+          "title": "Adobe Acrobat Sign read",
+          "reason": "Read Adobe Acrobat Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "agreement_read:account",
+          "title": "Adobe Acrobat Sign read",
+          "reason": "Read Adobe Acrobat Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "agreement_write:account",
+          "title": "Adobe Acrobat Sign write",
+          "reason": "Create or update Adobe Acrobat Sign resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "agreement_send:account",
+          "title": "Adobe Acrobat Sign read",
+          "reason": "Read Adobe Acrobat Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "library_read:account",
+          "title": "Adobe Acrobat Sign read",
+          "reason": "Read Adobe Acrobat Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.read",
+          "providerScope": "webhook_read:account",
+          "title": "Adobe Acrobat Sign read",
+          "reason": "Read Adobe Acrobat Sign data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "docs.write",
+          "providerScope": "webhook_write:account",
+          "title": "Adobe Acrobat Sign write",
+          "reason": "Create or update Adobe Acrobat Sign resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/adobe-sign/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
-    "triggerCount": 0,
+    "actionCount": 9,
+    "triggerCount": 2,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
     "implementationKind": "native_adapter",
@@ -623,12 +694,43 @@
   },
   {
     "id": "adp",
-    "title": "adp",
-    "category": "internal",
+    "title": "ADP",
+    "category": "workflow",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.adp.com/auth/oauth/v2/authorize",
+      "tokenUrl": "https://accounts.adp.com/auth/oauth/v2/token",
+      "clientIdEnv": "ADP_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ADP_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "hr.read",
+          "providerScope": "hr/workerInformationManagement/read",
+          "title": "ADP read",
+          "reason": "Read ADP data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        },
+        {
+          "normalized": "hr.read",
+          "providerScope": "payroll/payStatementManagement/read",
+          "title": "ADP read",
+          "reason": "Read ADP data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "sensitive"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/adp/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 7,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -26357,6 +26459,30 @@
     ]
   },
   {
+    "id": "cloudbeds",
+    "title": "cloudbeds",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "cloudconvert",
     "title": "CloudConvert",
     "category": "workflow",
@@ -31509,12 +31635,26 @@
   },
   {
     "id": "demandbase",
-    "title": "demandbase",
-    "category": "internal",
+    "title": "Demandbase",
+    "category": "crm",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "grantType": "client_credentials",
+      "tokenUrl": "https://uapi.demandbase.com/auth/v1/token",
+      "clientIdEnv": "DEMANDBASE_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "DEMANDBASE_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/demandbase/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 3,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -48789,6 +48929,30 @@
     ]
   },
   {
+    "id": "inkbox",
+    "title": "inkbox",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "insightly",
     "title": "Insightly",
     "category": "crm",
@@ -57444,6 +57608,54 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "linq",
+    "title": "linq",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
+    "id": "linq-whatsapp",
+    "title": "linq-whatsapp",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "livesession",
@@ -71558,12 +71770,99 @@
   },
   {
     "id": "outreach",
-    "title": "outreach",
-    "category": "internal",
+    "title": "Outreach",
+    "category": "crm",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://api.outreach.io/oauth/authorize",
+      "tokenUrl": "https://api.outreach.io/oauth/token",
+      "clientIdEnv": "OUTREACH_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "OUTREACH_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "sales.read",
+          "providerScope": "prospects.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.write",
+          "providerScope": "prospects.write",
+          "title": "Outreach write",
+          "reason": "Create or update Outreach resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "accounts.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.write",
+          "providerScope": "accounts.write",
+          "title": "Outreach write",
+          "reason": "Create or update Outreach resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "opportunities.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "sequences.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "sequenceStates.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.write",
+          "providerScope": "sequenceStates.write",
+          "title": "Outreach write",
+          "reason": "Create or update Outreach resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "users.read",
+          "title": "Outreach read",
+          "reason": "Read Outreach data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/outreach/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 6,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -73150,12 +73449,26 @@
   },
   {
     "id": "paychex",
-    "title": "paychex",
-    "category": "internal",
+    "title": "Paychex",
+    "category": "workflow",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "grantType": "client_credentials",
+      "tokenUrl": "https://api.paychex.com/auth/oauth/v2/token",
+      "clientIdEnv": "PAYCHEX_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "PAYCHEX_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/paychex/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 9,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -77770,6 +78083,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "pricelabs",
+    "title": "pricelabs",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "productboard",
@@ -82550,12 +82887,26 @@
   },
   {
     "id": "salesloft",
-    "title": "salesloft",
-    "category": "internal",
+    "title": "Salesloft",
+    "category": "crm",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.salesloft.com/oauth/authorize",
+      "tokenUrl": "https://accounts.salesloft.com/oauth/token",
+      "clientIdEnv": "SALESLOFT_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "SALESLOFT_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/salesloft/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 6,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -98620,6 +98971,14 @@
           "dataClass": "private"
         },
         {
+          "normalized": "marketing.write",
+          "providerScope": "media.write",
+          "title": "X / Twitter write",
+          "reason": "Create or update X / Twitter resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
           "normalized": "marketing.read",
           "providerScope": "users.read",
           "title": "X / Twitter read",
@@ -110827,12 +111186,67 @@
   },
   {
     "id": "zoominfo",
-    "title": "zoominfo",
-    "category": "internal",
+    "title": "ZoomInfo",
+    "category": "crm",
     "catalogAuth": null,
-    "setupAuth": "custom",
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://api.zoominfo.com/gtm/oauth/v1/authorize",
+      "tokenUrl": "https://api.zoominfo.com/gtm/oauth/v1/token",
+      "clientIdEnv": "ZOOMINFO_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "ZOOMINFO_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "sales.read",
+          "providerScope": "api:data:contact",
+          "title": "ZoomInfo read",
+          "reason": "Read ZoomInfo data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "api:data:company",
+          "title": "ZoomInfo read",
+          "reason": "Read ZoomInfo data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "api:data:intent",
+          "title": "ZoomInfo read",
+          "reason": "Read ZoomInfo data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "api:data:scoops",
+          "title": "ZoomInfo read",
+          "reason": "Read ZoomInfo data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "sales.read",
+          "providerScope": "api:data:news",
+          "title": "ZoomInfo read",
+          "reason": "Read ZoomInfo data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/zoominfo/callback",
+      "pkce": "required"
+    },
     "runtimePackage": null,
-    "actionCount": null,
+    "actionCount": 13,
     "triggerCount": 0,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",

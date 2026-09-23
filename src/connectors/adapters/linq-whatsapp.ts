@@ -1,7 +1,51 @@
 import { declarativeRestConnector } from './declarative-rest.js'
+import { type ConnectorAdapter, CredentialsExpired } from '../types.js'
+import { ProviderProtocolError } from '../../http/response-json.js'
+import { linqWhatsappAttachmentUrl } from '../../linq-whatsapp-attachment-url.js'
 
 const id = { type: 'string', minLength: 1, maxLength: 256 }
 const page = { cursor: id, limit: { type: 'integer', minimum: 1, maximum: 100 } }
+const MAX_ATTACHMENT_BYTES = 16_000_000
+
+async function downloadAttachment(url: string, key: string, sourceId: string): Promise<Record<string, unknown>> {
+  const response = await fetch(url, { method: 'GET', headers: { authorization: `Bearer ${key}` },
+    redirect: 'error', signal: AbortSignal.timeout(30_000) })
+  if (response.status !== 200) {
+    void response.body?.cancel().catch(() => {})
+    if (response.status === 401) throw new CredentialsExpired('Linq WhatsApp rejected the API key', sourceId)
+    if (response.status === 409) throw new ProviderProtocolError('Linq WhatsApp attachment capture is pending', 'attachment_pending', 409)
+    throw new ProviderProtocolError(`Linq WhatsApp attachment download returned HTTP ${response.status}`, 'provider_http_error', response.status,
+      response.status >= 400 && response.status < 500)
+  }
+  const length = response.headers.get('content-length')
+  if (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_ATTACHMENT_BYTES)) {
+    void response.body?.cancel().catch(() => {})
+    throw new ProviderProtocolError('Linq WhatsApp attachment exceeded the byte limit', 'response_limit')
+  }
+  if (!response.body) throw new ProviderProtocolError('Linq WhatsApp attachment returned no bytes', 'invalid_response')
+  const contentType = response.headers.get('content-type')
+  if (!contentType || contentType.length > 200 || /[\u0000-\u001f\u007f]/.test(contentType)) {
+    void response.body.cancel().catch(() => {})
+    throw new ProviderProtocolError('Linq WhatsApp attachment returned an invalid media type', 'invalid_response')
+  }
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_ATTACHMENT_BYTES) throw new ProviderProtocolError('Linq WhatsApp attachment exceeded the byte limit', 'response_limit')
+      chunks.push(value)
+    }
+  } finally {
+    void reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
+  if (size === 0) throw new ProviderProtocolError('Linq WhatsApp attachment returned no bytes', 'invalid_response')
+  return { contentType, size, contentBase64: Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), size).toString('base64') }
+}
 
 /** WhatsApp is a separate Linq service and credential, not a transport flag on v3. */
 const base = declarativeRestConnector({
@@ -36,8 +80,22 @@ const base = declarativeRestConnector({
   ],
 })
 
-export const linqWhatsappConnector: typeof base = {
+export const linqWhatsappConnector: ConnectorAdapter = {
   ...base,
+  manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities,
+    { name: 'attachments.content', class: 'read', description: 'Download retained incoming media bytes from an authenticated Linq attachment URL. The host must store the bytes before passing media to an agent. Maximum 16 MB.',
+      parameters: { type: 'object', properties: { url: { type: 'string', format: 'uri' } }, required: ['url'] } },
+  ] },
+  async executeRead(inv) {
+    if (inv.capabilityName !== 'attachments.content') return base.executeRead!(inv)
+    const url = linqWhatsappAttachmentUrl(inv.args.url)
+    if (!url) throw new Error('Linq WhatsApp requires an exact attachment URL from an incoming media part')
+    if (inv.source.credentials.kind !== 'api-key' || !inv.source.credentials.apiKey ||
+        /[\u0000-\u0020\u007f]/.test(inv.source.credentials.apiKey)) {
+      throw new Error('Linq WhatsApp requires the connected brand API key')
+    }
+    return { data: await downloadAttachment(url, inv.source.credentials.apiKey, inv.source.id), fetchedAt: Date.now() }
+  },
   async executeMutation(inv) {
     if (!inv.idempotencyKey || inv.idempotencyKey.length > 255 || !/^[\x21-\x7e]+$/.test(inv.idempotencyKey)) {
       throw new Error('Linq WhatsApp requires a bounded stable operation key')
