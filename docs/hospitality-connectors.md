@@ -9,7 +9,7 @@ It does not call these provider APIs directly.
 Create an API key with `read:reservation`, `read:room`, and `write:item` scopes for the target property.
 Store it in the connection credential envelope.
 Set nonsecret connection metadata to `{ "propertyId": "1234" }`.
-Record both granted scopes on the Hub connection so its capability grant can expose the two actions.
+Record all three granted scopes on the Hub connection so its capability grant can expose the three actions.
 The connector sends this property ID on each request and refuses reservation rows from another property.
 
 `reservations.list` requires an arrival or departure date pair.
@@ -25,6 +25,8 @@ Page through property results while `mayHaveMore` is true.
 This is a provider snapshot at fetch time, not a held room or confirmed booking.
 
 `folio-items.post` writes one unpaid custom item to a reservation.
+It first reads the reservation by ID and checks that Cloudbeds returns the connected property and requested reservation ID.
+The write requires both `read:reservation` and `write:item` grants.
 The Hub operation key becomes Cloudbeds `referenceID` and must remain stable for retries of the same logical charge.
 The caller provides the approved price and explicit tax amounts; an empty `taxes` list means no tax applies.
 Cloudbeds records custom tax labels as free text and does not calculate the tax amount.

@@ -16,6 +16,7 @@ const invoke = (connection: ResolvedDataSource, capabilityName: string, args: Re
 })
 const reservation = { propertyID: '1234', reservationID: 'res-1', status: 'checked_in', startDate: '2026-10-20', endDate: '2026-10-27', guestName: 'Test Guest', balance: 0 }
 const charge = { reservationId: 'res-1', appItemId: 'massage', itemName: 'Massage', itemCategoryName: 'Wellness', itemPrice: 50, itemQuantity: 1, taxes: [{ taxName: 'Sales tax', taxValue: 5 }] }
+const reservationDetail = { success: true, data: { propertyID: '1234', reservationID: 'res-1' } }
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -45,6 +46,8 @@ describe('Cloudbeds property and folio contract', () => {
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('outside the connected property')
     fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: [reservation], count: 2, total: 2 }))
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('pagination')
+    fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: [{ ...reservation, startDate: '2026-02-30' }], count: 1, total: 1 }))
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toMatchObject({ code: 'invalid_response' })
   })
 
   it('reads provider room-type availability for one bounded stay and pinned property', async () => {
@@ -82,11 +85,17 @@ describe('Cloudbeds property and folio contract', () => {
   })
 
   it('posts one unpaid item with explicit tax and a stable provider reference', async () => {
-    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: true, data: { soldProductID: 'sold-1', transactionID: 'txn-1' } }))
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => Response.json(url.includes('/getReservation?')
+      ? reservationDetail : { success: true, data: { soldProductID: 'sold-1', transactionID: 'txn-1' } }))
     vi.stubGlobal('fetch', fetcher)
     const result = await cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))
     expect(result).toMatchObject({ status: 'committed', data: { referenceId: 'charge:business-1:ledger-1', soldProductId: 'sold-1', duplicate: false } })
-    const [url, init] = fetcher.mock.calls[0] as [string, RequestInit]
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    const lookup = new URL(fetcher.mock.calls[0]![0])
+    expect(lookup.pathname).toBe('/api/v1.3/getReservation')
+    expect(lookup.searchParams.get('propertyID')).toBe('1234')
+    expect(lookup.searchParams.get('reservationID')).toBe('res-1')
+    const [url, init] = fetcher.mock.calls[1] as [string, RequestInit]
     expect(url).toBe('https://api.cloudbeds.com/api/v1.3/postCustomItem')
     const body = new URLSearchParams(String(init.body))
     expect(body.get('propertyID')).toBe('1234')
@@ -99,9 +108,20 @@ describe('Cloudbeds property and folio contract', () => {
   })
 
   it('accepts a provider duplicate notice but never claims a new item was created', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ success: true, data: { notice: 'referenceID already posted' } })))
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json(url.includes('/getReservation?')
+      ? reservationDetail : { success: true, data: { notice: 'referenceID already posted' } })))
     const result = await cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))
     expect(result).toMatchObject({ status: 'committed', data: { soldProductId: null, duplicate: true }, idempotentReplay: true })
+  })
+
+  it('refuses a cross-property or mismatched reservation before posting a folio item', async () => {
+    const fetcher = vi.fn(async () => Response.json({ success: true, data: { propertyID: '9999', reservationID: 'res-1' } }))
+    vi.stubGlobal('fetch', fetcher)
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({ code: 'invalid_response' })
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: { propertyID: '1234', reservationID: 'other' } }))
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({ code: 'invalid_response' })
+    expect(fetcher).toHaveBeenCalledTimes(2)
   })
 
   it('fails closed before writing on invalid amounts, missing tax decisions and missing property binding', async () => {
@@ -115,9 +135,11 @@ describe('Cloudbeds property and folio contract', () => {
   })
 
   it('rejects provider soft failures and malformed write receipts', async () => {
-    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: false, message: 'denied' }))
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => Response.json(url.includes('/getReservation?')
+      ? reservationDetail : { success: false, message: 'denied' }))
     vi.stubGlobal('fetch', fetcher)
     await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toThrow('unsuccessful')
+    fetcher.mockImplementationOnce(async () => Response.json(reservationDetail))
     fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: {} }))
     await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toThrow('receipt')
   })

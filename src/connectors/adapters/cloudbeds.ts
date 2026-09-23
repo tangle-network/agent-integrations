@@ -118,8 +118,12 @@ function reservations(result: Record<string, unknown>, property: string, query: 
         typeof raw.status !== 'string' || !STATUSES.has(raw.status)) {
       throw new ProviderProtocolError('Cloudbeds returned a reservation outside the connected property or with invalid fields', 'invalid_response')
     }
-    date(raw.startDate, 'provider startDate')
-    date(raw.endDate, 'provider endDate')
+    try {
+      date(raw.startDate, 'provider startDate')
+      date(raw.endDate, 'provider endDate')
+    } catch {
+      throw new ProviderProtocolError('Cloudbeds returned an invalid reservation date', 'invalid_response')
+    }
     return {
       propertyId: property,
       reservationId: raw.reservationID,
@@ -241,8 +245,8 @@ export const cloudbedsConnector: ConnectorAdapter = {
       },
       {
         name: 'folio-items.post', class: 'mutation', cas: 'native-idempotency', externalEffect: true,
-        requiredScopes: ['write:item'],
-        description: 'Post one unpaid custom item to the connected property guest folio. The Hub operation key becomes Cloudbeds referenceID.',
+        requiredScopes: ['read:reservation', 'write:item'],
+        description: 'Verify reservation ownership, then post one unpaid custom item to the connected property guest folio. The Hub operation key becomes Cloudbeds referenceID.',
         parameters: { type: 'object', properties: {
           reservationId: { type: 'string', minLength: 1, maxLength: 256 },
           appItemId: { type: 'string', minLength: 1, maxLength: 256 },
@@ -274,6 +278,12 @@ export const cloudbedsConnector: ConnectorAdapter = {
     if (inv.capabilityName !== 'folio-items.post') throw new Error(`cloudbeds: unknown mutation ${inv.capabilityName}`)
     const property = propertyId(inv.source)
     const form = formForItem(inv, property)
+    const reservationId = form.get('reservationID')!
+    const query = new URLSearchParams({ propertyID: property, reservationID: reservationId })
+    const reservation = await call(inv.source, `getReservation?${query}`, { method: 'GET' })
+    if (!record(reservation.data) || reservation.data.propertyID !== property || reservation.data.reservationID !== reservationId) {
+      throw new ProviderProtocolError('Cloudbeds could not verify the reservation belongs to the connected property', 'invalid_response')
+    }
     const result = await call(inv.source, 'postCustomItem', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: form.toString() })
     if (!record(result.data) || (typeof result.data.soldProductID !== 'string' && typeof result.data.notice !== 'string')) {
       throw new ProviderProtocolError('Cloudbeds returned a malformed folio item receipt', 'invalid_response')
