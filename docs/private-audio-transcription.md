@@ -38,5 +38,7 @@ Deepgram does not provide a documented idempotency key for this request, so an u
 The action rejects redirects, unsupported audio types, oversized input, and malformed or oversized provider responses.
 It caps the provider JSON response at 8,000,000 bytes; a limit error after upload has an uncertain billed outcome.
 Approval, audit, sandbox, and error previews redact the audio bytes and base64 input before storing or displaying them.
+Preview redaction also catches standard, unpadded, and URL-safe encoded values of at least 16 characters under unexpected field names.
+Callers must use a sensitive field name for shorter encoded values, which cannot be distinguished reliably from ordinary text.
 
 Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching), and [data retention](https://developers.deepgram.com/trust-security/your-data).

@@ -169,6 +169,7 @@ describe('Deepgram private audio transcription', () => {
 
   it('does not persist private audio bytes in an approval request', async () => {
     const send = vi.fn()
+    const unexpectedAudio = Buffer.from('secret voice').toString('base64')
     vi.stubGlobal('fetch', send)
     const store = new InMemoryConnectionStore()
     const approvals = new InMemoryIntegrationApprovalStore()
@@ -193,17 +194,20 @@ describe('Deepgram private audio transcription', () => {
     })
 
     const result = await hub.invokeWithCapability(grant.token, {
-      action: 'transcription.bytes', input: args, idempotencyKey: 'voice-approval-1',
+      action: 'transcription.bytes', input: { ...args, extra: { data: unexpectedAudio } }, idempotencyKey: 'voice-approval-1',
     })
     const pending = approvals.list({ status: 'pending' })
     expect(result).toMatchObject({ ok: false, output: {
       approvalRequired: true, approval: { inputPreview: {
-        contentBase64: '[REDACTED]', contentType: args.contentType,
+        contentBase64: '[REDACTED]', contentType: args.contentType, extra: { data: '[REDACTED]' },
       } },
     } })
     expect(pending).toHaveLength(1)
-    expect(pending[0]?.request.inputPreview).toEqual({ contentBase64: '[REDACTED]', contentType: args.contentType })
+    expect(pending[0]?.request.inputPreview).toEqual({
+      contentBase64: '[REDACTED]', contentType: args.contentType, extra: { data: '[REDACTED]' },
+    })
     expect(JSON.stringify({ result, pending })).not.toContain(args.contentBase64)
+    expect(JSON.stringify({ result, pending })).not.toContain(unexpectedAudio)
     expect(send).not.toHaveBeenCalled()
   })
 
