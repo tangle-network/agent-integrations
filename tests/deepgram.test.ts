@@ -89,6 +89,28 @@ describe('Deepgram private audio transcription', () => {
     expect(init?.redirect).toBe('error')
   })
 
+  it.each([
+    ['empty', ''],
+    ['oversized', 'x'.repeat(257)],
+    ['non-string', 42],
+  ])('keeps a billed transcript when the request id is %s', async (_case, requestId) => {
+    const send = vi.fn(async () => Response.json({
+      metadata: { request_id: requestId },
+      results: { channels: [{ alternatives: [{ transcript: 'Turn left at the lobby.' }] }] },
+    }))
+    vi.stubGlobal('fetch', send)
+
+    const result = await deepgramConnector.executeMutation!({
+      source, capabilityName: 'transcription.bytes', args, idempotencyKey: 'voice-malformed-id',
+    })
+    expect(result.status).toBe('committed')
+    if (result.status !== 'committed') throw new Error('unreachable')
+    expect(result.data).toEqual({
+      text: 'Turn left at the lobby.', requestId: null, model: 'nova-3', language: 'multi',
+    })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
   it('returns the same transcript shape through the Hub adapter provider mutation path', async () => {
     vi.stubGlobal('fetch', async () => Response.json({
       results: { channels: [{ alternatives: [{ transcript: 'Necesito ayuda.' }] }] },

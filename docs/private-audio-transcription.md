@@ -26,6 +26,7 @@ The action uses Nova-3 multilingual recognition for English and Spanish in one c
 It opts this request out of Deepgram's Model Improvement Program, so Deepgram retains content only while processing it.
 A valid Deepgram alternative may contain an empty transcript when it recognizes no speech.
 The connector rejects a response with no alternative as malformed.
+It returns a valid transcript even if the optional provider request ID is malformed; `requestId` is then `null`.
 
 The host should store incoming media privately before invoking this action.
 The host should deduplicate and store transcripts at its own private boundary because each provider call is billable.

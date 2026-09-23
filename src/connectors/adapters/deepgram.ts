@@ -43,11 +43,11 @@ function transcriptResponse(value: unknown): { text: string; requestId: string |
   if (typeof text !== 'string') {
     throw new ProviderProtocolError('Deepgram returned an invalid transcript', 'invalid_response')
   }
-  const requestId = record(value.metadata) ? value.metadata.request_id : undefined
-  if (requestId !== undefined && (typeof requestId !== 'string' || requestId.length === 0 || requestId.length > 256)) {
-    throw new ProviderProtocolError('Deepgram returned an invalid request id', 'invalid_response')
-  }
-  return { text, requestId: requestId ?? null, model: 'nova-3', language: 'multi' }
+  const rawRequestId = record(value.metadata) ? value.metadata.request_id : undefined
+  // A metadata defect must not discard a completed, billable transcript.
+  const requestId = typeof rawRequestId === 'string' && rawRequestId.length > 0 && rawRequestId.length <= 256
+    ? rawRequestId : null
+  return { text, requestId, model: 'nova-3', language: 'multi' }
 }
 
 const base = declarativeRestConnector({
