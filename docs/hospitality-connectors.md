@@ -6,7 +6,7 @@ It does not call these provider APIs directly.
 
 ## Cloudbeds
 
-Create an API key with `read:reservation` and `write:item` scopes for the target property.
+Create an API key with `read:reservation`, `read:room`, and `write:item` scopes for the target property.
 Store it in the connection credential envelope.
 Set nonsecret connection metadata to `{ "propertyId": "1234" }`.
 Record both granted scopes on the Hub connection so its capability grant can expose the two actions.
@@ -17,13 +17,20 @@ Each range spans at most 31 days, and the caller pages with `pageNumber` and `pa
 The action returns only reservation identity, stay dates, status, guest name, balance, and paging fields.
 It does not request guest detail or custom fields.
 
+`room-types.available` reads Cloudbeds room-type availability for a requested stay of 1 to 31 nights.
+It sends one pinned property ID and explicit guest counts to `getAvailableRoomTypes`.
+The result contains each room type's reported available count and rate, plus page fields.
+Page through results while `mayHaveMore` is true.
+This is a provider snapshot at fetch time, not a held room or confirmed booking.
+
 `folio-items.post` writes one unpaid custom item to a reservation.
 The Hub operation key becomes Cloudbeds `referenceID` and must remain stable for retries of the same logical charge.
 The caller provides the approved price and explicit tax amounts; an empty `taxes` list means no tax applies.
 Cloudbeds records custom tax labels as free text and does not calculate the tax amount.
 The caller must confirm the tax and price before granting the write.
 Cloudbeds can return a `notice` on duplicate `referenceID`; the connector reports that outcome without claiming it created a second item.
-The connection test proves the read scope; only a real approved write can prove the write scope.
+The connection test proves reservation read access; it does not prove room read or write access.
+Only a real approved write can prove the write scope.
 
 Source: [Cloudbeds PMS OpenAPI](https://github.com/cloudbeds/openapi-specs/blob/main/src/pms-v1.3-openapi.yaml) and [Cloudbeds point of sale guide](https://developers.cloudbeds.com/docs/point-of-sale).
 

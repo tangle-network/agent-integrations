@@ -131,6 +131,51 @@ function reservations(result: Record<string, unknown>, property: string, query: 
   return { reservations: items, pageNumber, pageSize, total: result.total, hasMore: pageNumber * pageSize < (result.total as number) }
 }
 
+function roomAvailabilityQuery(args: Record<string, unknown>, property: string): URLSearchParams {
+  const startDate = date(args.startDate, 'startDate')
+  const endDate = date(args.endDate, 'endDate')
+  const days = (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000
+  if (days < 1 || days > 31) throw new Error('cloudbeds: stay must be between 1 and 31 nights')
+  const children = args.children ?? 0
+  if (!Number.isSafeInteger(children) || (children as number) < 0 || (children as number) > 20) {
+    throw new Error('cloudbeds: invalid children')
+  }
+  return new URLSearchParams({ propertyIDs: property, startDate, endDate,
+    rooms: String(page(args.rooms, 'rooms', 1, 10)), adults: String(page(args.adults, 'adults', 1, 20)),
+    children: String(children), pageNumber: String(page(args.pageNumber, 'pageNumber', 1, 100_000)),
+    pageSize: String(page(args.pageSize, 'pageSize', 100, 100)), detailedRates: 'false', includeSharedRooms: 'false' })
+}
+
+function roomAvailability(result: Record<string, unknown>, property: string, query: URLSearchParams): Record<string, unknown> {
+  if (!Array.isArray(result.data) || !Number.isSafeInteger(result.count) || !Number.isSafeInteger(result.total) ||
+      !Number.isSafeInteger(result.roomCount) || (result.count as number) < 0 || (result.count as number) > 1 ||
+      (result.total as number) < (result.count as number) || result.count !== result.data.length ||
+      (result.roomCount as number) < 0 || (result.roomCount as number) > Number(query.get('pageSize'))) {
+    throw new ProviderProtocolError('Cloudbeds returned malformed room availability pagination', 'invalid_response')
+  }
+  const roomTypes = result.data.flatMap((raw: unknown) => {
+    if (!record(raw) || raw.propertyID !== property || !Array.isArray(raw.propertyRooms)) {
+      throw new ProviderProtocolError('Cloudbeds returned availability outside the connected property', 'invalid_response')
+    }
+    return raw.propertyRooms.map((room: unknown) => {
+      if (!record(room) || typeof room.roomTypeID !== 'string' || !room.roomTypeID ||
+          !Number.isSafeInteger(room.roomsAvailable) || (room.roomsAvailable as number) < 0 ||
+          (room.roomRate !== undefined && (typeof room.roomRate !== 'number' || !Number.isFinite(room.roomRate) || room.roomRate < 0))) {
+        throw new ProviderProtocolError('Cloudbeds returned malformed room-type availability', 'invalid_response')
+      }
+      return { roomTypeId: room.roomTypeID, roomTypeName: typeof room.roomTypeName === 'string' ? room.roomTypeName : null,
+        roomsAvailable: room.roomsAvailable, roomRate: typeof room.roomRate === 'number' ? room.roomRate : null }
+    })
+  })
+  if (roomTypes.length !== result.roomCount) {
+    throw new ProviderProtocolError('Cloudbeds returned mismatched room-type count', 'invalid_response')
+  }
+  return { propertyId: property, startDate: query.get('startDate'), endDate: query.get('endDate'),
+    rooms: Number(query.get('rooms')), adults: Number(query.get('adults')), children: Number(query.get('children')),
+    roomTypes, pageNumber: Number(query.get('pageNumber')), pageSize: Number(query.get('pageSize')),
+    mayHaveMore: roomTypes.length === Number(query.get('pageSize')) }
+}
+
 function formForItem(inv: ConnectorInvocation, property: string): URLSearchParams {
   const args = inv.args
   const reservationId = boundedString(args.reservationId, 'reservationId')
@@ -164,8 +209,8 @@ export const cloudbedsConnector: ConnectorAdapter = {
   manifest: {
     kind: 'cloudbeds',
     displayName: 'Cloudbeds',
-    description: 'Read reservations for one connected property and post an approved custom item to a guest folio.',
-    auth: { kind: 'api-key', hint: 'Property-scoped Cloudbeds API key with read:reservation and write:item scopes. Set the connection propertyId.' },
+    description: 'Read reservations and room availability for one connected property, then post an approved custom item to a guest folio.',
+    auth: { kind: 'api-key', hint: 'Property-scoped Cloudbeds API key with read:reservation, read:room and write:item scopes. Set the connection propertyId.' },
     category: 'other',
     defaultConsistencyModel: 'authoritative',
     capabilities: [
@@ -179,6 +224,16 @@ export const cloudbedsConnector: ConnectorAdapter = {
           pageNumber: { type: 'integer', minimum: 1, maximum: 100000 },
           pageSize: { type: 'integer', minimum: 1, maximum: 100 },
         } },
+      },
+      {
+        name: 'room-types.available', class: 'read', requiredScopes: ['read:room'],
+        description: 'Read provider-reported room-type availability for a stay at the connected property. This does not hold or confirm a booking.',
+        parameters: { type: 'object', properties: {
+          startDate: { type: 'string', format: 'date' }, endDate: { type: 'string', format: 'date' },
+          rooms: { type: 'integer', minimum: 1, maximum: 10 }, adults: { type: 'integer', minimum: 1, maximum: 20 },
+          children: { type: 'integer', minimum: 0, maximum: 20 },
+          pageNumber: { type: 'integer', minimum: 1, maximum: 100000 }, pageSize: { type: 'integer', minimum: 1, maximum: 100 },
+        }, required: ['startDate', 'endDate'] },
       },
       {
         name: 'folio-items.post', class: 'mutation', cas: 'native-idempotency', externalEffect: true,
@@ -199,8 +254,13 @@ export const cloudbedsConnector: ConnectorAdapter = {
   },
 
   async executeRead(inv) {
-    if (inv.capabilityName !== 'reservations.list') throw new Error(`cloudbeds: unknown read ${inv.capabilityName}`)
     const property = propertyId(inv.source)
+    if (inv.capabilityName === 'room-types.available') {
+      const query = roomAvailabilityQuery(inv.args, property)
+      const result = await call(inv.source, `getAvailableRoomTypes?${query}`, { method: 'GET' })
+      return { data: roomAvailability(result, property, query), fetchedAt: Date.now() }
+    }
+    if (inv.capabilityName !== 'reservations.list') throw new Error(`cloudbeds: unknown read ${inv.capabilityName}`)
     const query = reservationQuery(inv.args, property)
     const result = await call(inv.source, `getReservations?${query}`, { method: 'GET' })
     return { data: reservations(result, property, query), fetchedAt: Date.now() }

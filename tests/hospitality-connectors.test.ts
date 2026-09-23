@@ -6,7 +6,7 @@ import type { ConnectorInvocation, ResolvedDataSource } from '../src/connectors/
 const source = (kind: string, metadata: Record<string, unknown>): ResolvedDataSource => ({
   id: 'connection-1', projectId: 'business-1', publishedAgentId: null, kind, label: kind,
   consistencyModel: kind === 'cloudbeds' ? 'authoritative' : 'advisory',
-  scopes: kind === 'cloudbeds' ? ['read:reservation', 'write:item'] : [],
+  scopes: kind === 'cloudbeds' ? ['read:reservation', 'read:room', 'write:item'] : [],
   metadata, credentials: { kind: 'api-key', apiKey: 'fixture-secret' }, status: 'active',
 })
 const cloudbeds = source('cloudbeds', { propertyId: '1234' })
@@ -45,6 +45,40 @@ describe('Cloudbeds property and folio contract', () => {
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('outside the connected property')
     fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: [reservation], count: 2, total: 2 }))
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('pagination')
+  })
+
+  it('reads provider room-type availability for one bounded stay and pinned property', async () => {
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: true, count: 1, total: 1,
+      roomCount: 2, data: [{ propertyID: '1234', propertyRooms: [
+        { roomTypeID: 'room-1', roomTypeName: 'King', roomsAvailable: 2, roomRate: 150 },
+        { roomTypeID: 'room-2', roomTypeName: 'Twin', roomsAvailable: 0, roomRate: 100 },
+      ] }] }))
+    vi.stubGlobal('fetch', fetcher)
+    const result = await cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', {
+      startDate: '2026-10-20', endDate: '2026-10-22', adults: 2, pageSize: 2,
+    }))
+    expect(result.data).toEqual({ propertyId: '1234', startDate: '2026-10-20', endDate: '2026-10-22', rooms: 1,
+      adults: 2, children: 0, roomTypes: [
+        { roomTypeId: 'room-1', roomTypeName: 'King', roomsAvailable: 2, roomRate: 150 },
+        { roomTypeId: 'room-2', roomTypeName: 'Twin', roomsAvailable: 0, roomRate: 100 },
+      ], pageNumber: 1, pageSize: 2, mayHaveMore: true })
+    const query = new URL(fetcher.mock.calls[0]![0])
+    expect(query.pathname).toBe('/api/v1.3/getAvailableRoomTypes')
+    expect(query.searchParams.get('propertyIDs')).toBe('1234')
+    expect(query.searchParams.get('includeSharedRooms')).toBe('false')
+  })
+
+  it('fails closed on invalid stays and cross-property or inconsistent availability', async () => {
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: true, count: 1, total: 1,
+      roomCount: 1, data: [{ propertyID: '9999', propertyRooms: [{ roomTypeID: 'room-1', roomsAvailable: 1 }] }] }))
+    vi.stubGlobal('fetch', fetcher)
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', { startDate: '2026-10-20', endDate: '2026-10-20' }))).rejects.toThrow('stay')
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', { startDate: '2026-10-20', endDate: '2026-10-22', children: -1 }))).rejects.toThrow('children')
+    expect(fetcher).not.toHaveBeenCalled()
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', { startDate: '2026-10-20', endDate: '2026-10-22' }))).rejects.toThrow('outside the connected property')
+    fetcher.mockImplementationOnce(async () => Response.json({ success: true, count: 1, total: 1, roomCount: 2,
+      data: [{ propertyID: '1234', propertyRooms: [{ roomTypeID: 'room-1', roomsAvailable: 1 }] }] }))
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', { startDate: '2026-10-20', endDate: '2026-10-22' }))).rejects.toThrow('room-type count')
   })
 
   it('posts one unpaid item with explicit tax and a stable provider reference', async () => {
