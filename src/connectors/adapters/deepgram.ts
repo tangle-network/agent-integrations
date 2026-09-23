@@ -231,7 +231,8 @@ export const deepgramConnector: ConnectorAdapter = {
         throw new CredentialsExpired('Deepgram rejected the connected API key', inv.source.id, { status: error.status })
       }
       if (error instanceof ProviderProtocolError && error.status === 429) {
-        throw new ProviderRateLimited('Deepgram rate limit', inv.source.id, { status: 429, retryAfterMs: 60_000 })
+        throw new ProviderRateLimited('Deepgram rate limit', inv.source.id,
+          { status: 429, retryAfterMs: error.retryAfterMs ?? 60_000 })
       }
       throw error
     }

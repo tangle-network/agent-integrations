@@ -162,6 +162,8 @@ describe('Deepgram private audio transcription', () => {
     await expect(invoke()).rejects.toMatchObject({ name: 'CredentialsExpired', status: 403 })
     vi.stubGlobal('fetch', async () => new Response('{}', { status: 429 }))
     await expect(invoke()).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 60_000 })
+    vi.stubGlobal('fetch', async () => new Response('{}', { status: 429, headers: { 'Retry-After': '3' } }))
+    await expect(invoke()).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 3_000 })
     vi.stubGlobal('fetch', async () => Response.json({ results: { channels: [] } }))
     await expect(invoke()).rejects.toMatchObject({ code: 'invalid_response' })
     vi.stubGlobal('fetch', async () => Response.json({ results: { channels: [{ alternatives: [{ transcript: 'x'.repeat(8_000_001) }] }] } }))
