@@ -91,6 +91,8 @@ describe('Deepgram private audio transcription', () => {
     const invoke = () => deepgramConnector.executeRead!({ source, capabilityName: 'transcription.bytes', args, idempotencyKey: 'voice-1' })
     vi.stubGlobal('fetch', async () => new Response('{}', { status: 401 }))
     await expect(invoke()).rejects.toMatchObject({ name: 'CredentialsExpired', status: 401 })
+    vi.stubGlobal('fetch', async () => new Response('{}', { status: 403 }))
+    await expect(invoke()).rejects.toMatchObject({ name: 'CredentialsExpired', status: 403 })
     vi.stubGlobal('fetch', async () => new Response('{}', { status: 429 }))
     await expect(invoke()).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429 })
     vi.stubGlobal('fetch', async () => Response.json({ results: { channels: [] } }))

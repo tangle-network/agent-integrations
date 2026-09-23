@@ -227,8 +227,8 @@ export const deepgramConnector: ConnectorAdapter = {
         body: Uint8Array.from(bytes),
       }, { timeoutMs: 60_000, maxResponseBytes: 250_000 })
     } catch (error) {
-      if (error instanceof ProviderProtocolError && error.status === 401) {
-        throw new CredentialsExpired('Deepgram rejected the connected API key', inv.source.id, { status: 401 })
+      if (error instanceof ProviderProtocolError && (error.status === 401 || error.status === 403)) {
+        throw new CredentialsExpired('Deepgram rejected the connected API key', inv.source.id, { status: error.status })
       }
       if (error instanceof ProviderProtocolError && error.status === 429) {
         throw new ProviderRateLimited('Deepgram rate limit', inv.source.id, { status: 429 })
