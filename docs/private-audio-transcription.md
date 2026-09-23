@@ -37,10 +37,12 @@ For less transcript retention, omit the key and persist uncertain outcomes witho
 Deepgram does not provide a documented idempotency key for this request, so an uncertain provider failure can still have incurred a charge.
 The action rejects redirects, unsupported audio types, oversized input, and malformed or oversized provider responses.
 It caps the provider JSON response at 8,000,000 bytes; a limit error after upload has an uncertain billed outcome.
-Approval, audit, sandbox, and error previews redact audio bytes, data URLs, and wrapped or spaced base64 before storing or displaying them.
-Preview redaction also catches standard, unpadded, and URL-safe encoded values of at least 16 characters under unexpected field names.
+Approval, audit, sandbox, and error previews always redact the named `contentBase64` field.
+The shared heuristic also catches data URLs and common base64 forms, including line wraps, tabs, and multi-space chunks.
+It recognizes standard, unpadded, and URL-safe values of at least 16 characters under neutral field names.
+It cannot guarantee redaction of arbitrary neutral-key encodings, including single-space chunks.
+It may also hide long ordinary identifiers under neutral field names.
 Callers must use a sensitive field name for shorter encoded values, which cannot be distinguished reliably from ordinary text.
-Encoded-value detection under neutral keys is a fallback, not a guarantee for arbitrary formats.
-Private audio bytes belong in `contentBase64`, whose field name always causes redaction.
+Private audio bytes belong in `contentBase64`.
 
 Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching), and [data retention](https://developers.deepgram.com/trust-security/your-data).

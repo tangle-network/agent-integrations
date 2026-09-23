@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.54.4
+
+### Added
+
+Cloudbeds connections read bounded reservations and room availability.
+They post approved folio items with a stable `referenceID`.
+PriceLabs connections read advisory nightly listing prices.
+Linq WhatsApp conversation events expose media parts.
+The owned Hub connection can retrieve bounded private attachment bytes before their URLs expire.
+Deepgram connections transcribe bounded private audio through an explicitly approved Hub mutation.
+Only that billable byte action declares advisory consistency; existing Deepgram actions keep their authoritative default.
+Approval, audit, sandbox, and error previews redact named private audio fields and common encoded forms.
 
 ### Fixed
 
@@ -8,6 +19,8 @@ Inkbox and direct email conversation events now label the From address as unveri
 A signed delivery does not prove mailbox control, and raw webhook fields are not treated as sender authentication.
 Mail replies use the RFC Message-ID when Inkbox supplies it and omit threading when it is absent.
 They no longer send the stored message UUID as `in_reply_to_message_id`.
+A completed Deepgram transcript remains available when the optional provider request ID is malformed.
+Preview redaction also catches data URLs, MIME-style wrapped base64, and common encoded values under neutral field names.
 
 ## 0.54.3
 
