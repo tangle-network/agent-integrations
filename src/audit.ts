@@ -9,6 +9,7 @@ import type {
   IntegrationGuardContext,
 } from './core-types.js'
 import { createWebCryptoUuid } from './web-crypto.js'
+import { redactUnknown } from './redaction.js'
 
 export type IntegrationAuditEventType =
   | 'connection.created'
@@ -182,18 +183,4 @@ function matchesFilter(event: IntegrationAuditEvent, filter: IntegrationAuditFil
   if (filter.connectorId && event.connectorId !== filter.connectorId) return false
   if (filter.action && event.action !== filter.action) return false
   return true
-}
-
-function redactUnknown(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactUnknown)
-  if (!value || typeof value !== 'object') return value
-  const out: Record<string, unknown> = {}
-  for (const [key, child] of Object.entries(value)) {
-    if (/token|secret|password|authorization|api[_-]?key|credential|refresh/i.test(key)) {
-      out[key] = '[REDACTED]'
-    } else {
-      out[key] = redactUnknown(child)
-    }
-  }
-  return out
 }

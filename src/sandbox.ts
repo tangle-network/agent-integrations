@@ -6,6 +6,7 @@ import type {
   InvokeWithCapabilityRequest,
 } from './index.js'
 import { parseIntegrationToolName } from './catalog.js'
+import { redactUnknown } from './redaction.js'
 
 export interface IntegrationInvocationEnvelope {
   kind: 'integration.invocation'
@@ -108,6 +109,7 @@ export function redactInvocationEnvelope(envelope: IntegrationInvocationEnvelope
     ...envelope,
     capabilityToken: '[REDACTED]',
     input: redactUnknown(envelope.input),
+    metadata: redactUnknown(envelope.metadata) as Record<string, unknown> | undefined,
   }
 }
 
@@ -176,19 +178,6 @@ export class IntegrationSandboxHost {
   }
 }
 
-function redactUnknown(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactUnknown)
-  if (!value || typeof value !== 'object') return value
-  const out: Record<string, unknown> = {}
-  for (const [key, child] of Object.entries(value)) {
-    if (/token|secret|password|authorization|api[_-]?key|credential/i.test(key)) {
-      out[key] = '[REDACTED]'
-    } else {
-      out[key] = redactUnknown(child)
-    }
-  }
-  return out
-}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0

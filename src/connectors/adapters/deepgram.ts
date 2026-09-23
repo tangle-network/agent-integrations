@@ -4,6 +4,7 @@ import { ProviderProtocolError, record, requestJson } from '../../http/response-
 
 const MAX_AUDIO_BYTES = 16_000_000
 const MAX_BASE64_LENGTH = 4 * Math.ceil(MAX_AUDIO_BYTES / 3)
+const DEEPGRAM_BASE_URL = 'https://api.deepgram.com/v1'
 const AUDIO_TYPES = new Set([
   'audio/aac', 'audio/flac', 'audio/m4a', 'audio/mp4', 'audio/mpeg',
   'audio/ogg', 'audio/wav', 'audio/webm', 'audio/x-m4a', 'audio/x-wav',
@@ -53,8 +54,9 @@ const base = declarativeRestConnector({
   description: 'Transcribe audio to text, synthesize text to speech, and analyze audio content with AI-powered speech recognition.',
   auth: { kind: 'api-key', hint: 'Deepgram API key.' },
   category: 'comms',
+  // This connector-wide default must be advisory because billable private-byte transcription has no provider CAS.
   defaultConsistencyModel: 'advisory',
-  baseUrl: 'https://api.deepgram.com/v1',
+  baseUrl: DEEPGRAM_BASE_URL,
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Token ' },
   test: { method: 'GET', path: '/status' },
   capabilities: [
@@ -221,7 +223,7 @@ export const deepgramConnector: ConnectorAdapter = {
     }
     let response: unknown
     try {
-      response = await requestJson('https://api.deepgram.com/v1/listen?model=nova-3&language=multi&punctuate=true&mip_opt_out=true', {
+      response = await requestJson(`${DEEPGRAM_BASE_URL}/listen?model=nova-3&language=multi&punctuate=true&mip_opt_out=true`, {
         method: 'POST',
         headers: { Authorization: `Token ${inv.source.credentials.apiKey}`, 'Content-Type': contentType },
         body: Uint8Array.from(bytes),

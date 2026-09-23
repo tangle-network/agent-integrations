@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConnectorAdapterProvider, manifestToConnector } from '../src/adapter-provider.js'
 import { deepgramConnector } from '../src/connectors/adapters/deepgram.js'
-import { InMemoryConnectionStore, IntegrationHub, createDefaultIntegrationPolicyEngine } from '../src/index.js'
+import {
+  ApprovalBackedPolicyEngine,
+  InMemoryConnectionStore,
+  InMemoryIntegrationApprovalStore,
+  IntegrationHub,
+  createDefaultIntegrationPolicyEngine,
+} from '../src/index.js'
 import { StaticIntegrationPolicyEngine } from '../src/policy.js'
 import type { IntegrationConnection } from '../src/core-types.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
@@ -133,6 +139,46 @@ describe('Deepgram private audio transcription', () => {
       ok: true, output: { text: 'Necesito ayuda.', model: 'nova-3', language: 'multi' },
     })
     expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not persist private audio bytes in an approval request', async () => {
+    const send = vi.fn()
+    vi.stubGlobal('fetch', send)
+    const store = new InMemoryConnectionStore()
+    const approvals = new InMemoryIntegrationApprovalStore()
+    const connection: IntegrationConnection = {
+      id: source.id, owner: { type: 'user', id: 'owner-1' }, providerId: 'first-party',
+      connectorId: 'deepgram', status: 'active', grantedScopes: [],
+      createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+    }
+    const hub = new IntegrationHub({
+      providers: [createConnectorAdapterProvider({ adapters: [deepgramConnector], resolveDataSource: () => source })],
+      store,
+      capabilitySecret: 'test-secret',
+      policy: new ApprovalBackedPolicyEngine({
+        base: createDefaultIntegrationPolicyEngine({ defaultDestructiveEffect: 'require_approval' }),
+        store: approvals,
+      }),
+    })
+    await hub.upsertConnection(connection)
+    const grant = await hub.issueCapability({
+      subject: { type: 'agent', id: 'agent-1' }, connectionId: connection.id,
+      scopes: [], allowedActions: ['transcription.bytes'], ttlMs: 60_000,
+    })
+
+    const result = await hub.invokeWithCapability(grant.token, {
+      action: 'transcription.bytes', input: args, idempotencyKey: 'voice-approval-1',
+    })
+    const pending = approvals.list({ status: 'pending' })
+    expect(result).toMatchObject({ ok: false, output: {
+      approvalRequired: true, approval: { inputPreview: {
+        contentBase64: '[REDACTED]', contentType: args.contentType,
+      } },
+    } })
+    expect(pending).toHaveLength(1)
+    expect(pending[0]?.request.inputPreview).toEqual({ contentBase64: '[REDACTED]', contentType: args.contentType })
+    expect(JSON.stringify({ result, pending })).not.toContain(args.contentBase64)
+    expect(send).not.toHaveBeenCalled()
   })
 
   it('uses Deepgram Token auth for the existing connection probe', async () => {
