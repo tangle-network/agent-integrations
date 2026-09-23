@@ -11,7 +11,7 @@ import {
 import { StaticIntegrationPolicyEngine } from '../src/policy.js'
 import { normalizeIntegrationError } from '../src/errors.js'
 import type { IntegrationConnection } from '../src/core-types.js'
-import type { ResolvedDataSource } from '../src/connectors/types.js'
+import { type ResolvedDataSource, validateConnectorManifest } from '../src/connectors/types.js'
 
 const source: ResolvedDataSource = {
   id: 'deepgram-connection', projectId: 'project', publishedAgentId: null,
@@ -27,7 +27,8 @@ describe('deepgram adapter manifest', () => {
   it('classifies itself as the comms category and exposes the deepgram kind', () => {
     expect(deepgramConnector.manifest.kind).toBe('deepgram')
     expect(deepgramConnector.manifest.category).toBe('comms')
-    expect(deepgramConnector.manifest.defaultConsistencyModel).toBe('advisory')
+    expect(deepgramConnector.manifest.defaultConsistencyModel).toBe('authoritative')
+    expect(validateConnectorManifest(deepgramConnector.manifest).ok).toBe(true)
   })
 
   it('declares api-key auth with a vendor-specific hint', () => {
@@ -60,10 +61,12 @@ describe('deepgram adapter manifest', () => {
       ['keys.create', 'speak.generate', 'transcription.bytes', 'transcription.create'].sort(),
     )
     expect(deepgramConnector.manifest.capabilities.find(c => c.name === 'transcription.bytes')).toMatchObject({
-      class: 'mutation', cas: 'none', externalEffect: true,
+      class: 'mutation', cas: 'none', externalEffect: true, consistencyModel: 'advisory',
     })
     expect(manifestToConnector('first-party', deepgramConnector).actions.find(action => action.id === 'transcription.bytes'))
-      .toMatchObject({ risk: 'destructive', approvalRequired: true })
+      .toMatchObject({ risk: 'destructive', approvalRequired: true, consistencyModel: 'advisory' })
+    expect(manifestToConnector('first-party', deepgramConnector).actions.find(action => action.id === 'transcription.create'))
+      .not.toHaveProperty('consistencyModel')
   })
 })
 
@@ -213,6 +216,20 @@ describe('Deepgram private audio transcription', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it('asks for reconnection when the connected API key is missing', async () => {
+    const send = vi.fn()
+    vi.stubGlobal('fetch', send)
+    const error = await deepgramConnector.executeMutation!({
+      source: { ...source, credentials: { kind: 'api-key', apiKey: '' } },
+      capabilityName: 'transcription.bytes', args, idempotencyKey: 'voice-no-key',
+    }).catch(error => error)
+    expect(normalizeIntegrationError(error)).toMatchObject({
+      code: 'provider_auth_failed', status: 401,
+      userAction: { type: 'reconnect', label: 'Reconnect Deepgram' },
+    })
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('classifies credential expiry, throttling, and malformed responses', async () => {
     const invoke = () => deepgramConnector.executeMutation!({ source, capabilityName: 'transcription.bytes', args, idempotencyKey: 'voice-1' })
     vi.stubGlobal('fetch', async () => new Response('{}', { status: 401 }))
@@ -223,6 +240,12 @@ describe('Deepgram private audio transcription', () => {
     await expect(invoke()).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 60_000 })
     vi.stubGlobal('fetch', async () => new Response('{}', { status: 429, headers: { 'Retry-After': '3' } }))
     await expect(invoke()).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 3_000 })
+    for (const status of [400, 413, 415, 422]) {
+      vi.stubGlobal('fetch', async () => new Response('private provider body', { status }))
+      const error = await invoke().catch(error => error)
+      expect(normalizeIntegrationError(error)).toMatchObject({ code: 'input_invalid', status: 400 })
+      expect(JSON.stringify(normalizeIntegrationError(error))).not.toContain('private provider body')
+    }
     vi.stubGlobal('fetch', async () => Response.json({ results: { channels: [] } }))
     await expect(invoke()).rejects.toMatchObject({ code: 'invalid_response' })
     vi.stubGlobal('fetch', async () => Response.json({ results: { channels: [{ alternatives: [{ transcript: 'x'.repeat(8_000_001) }] }] } }))

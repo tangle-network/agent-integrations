@@ -7,6 +7,7 @@ import {
   type IntegrationGuardContext,
 } from '../src/index.js'
 import { redactInvocationEnvelope, type IntegrationInvocationEnvelope } from '../src/sandbox.js'
+import { redactUnknown } from '../src/redaction.js'
 
 const contentBase64 = Buffer.from('private voice recording').toString('base64')
 const input = {
@@ -21,6 +22,12 @@ const redactedInput = {
 }
 
 describe('private action input previews', () => {
+  it('hides audio under unexpected keys without hiding ordinary text', () => {
+    const unexpectedAudio = Buffer.alloc(256, 0xa5).toString('base64')
+    expect(redactUnknown({ extra: unexpectedAudio, nested: { audio: 'short private bytes' }, note: 'ordinary text' }))
+      .toEqual({ extra: '[REDACTED]', nested: { audio: '[REDACTED]' }, note: 'ordinary text' })
+  })
+
   it('keeps audio out of an audit event with input previews enabled', async () => {
     const audit = new InMemoryIntegrationAuditStore()
     const guard = createAuditingActionGuard({ sink: audit, includeInputPreview: true })

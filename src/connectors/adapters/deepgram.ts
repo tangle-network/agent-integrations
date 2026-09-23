@@ -56,8 +56,7 @@ const base = declarativeRestConnector({
   description: 'Transcribe audio to text, synthesize text to speech, and analyze audio content with AI-powered speech recognition.',
   auth: { kind: 'api-key', hint: 'Deepgram API key.' },
   category: 'comms',
-  // This connector-wide default must be advisory because billable private-byte transcription has no provider CAS.
-  defaultConsistencyModel: 'advisory',
+  defaultConsistencyModel: 'authoritative',
   baseUrl: DEEPGRAM_BASE_URL,
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Token ' },
   test: { method: 'GET', path: '/status' },
@@ -210,6 +209,7 @@ export const deepgramConnector: ConnectorAdapter = {
   ...base,
   manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities,
     { name: 'transcription.bytes', class: 'mutation', cas: 'none', externalEffect: true,
+      consistencyModel: 'advisory',
       description: 'Transcribe private audio bytes with Nova-3 multilingual. Supports English and Spanish in the same clip; up to 16 MB. This billable action sends audio to Deepgram without exposing a public media URL.',
       parameters: { type: 'object', properties: {
         contentBase64: { type: 'string', minLength: 4, maxLength: MAX_BASE64_LENGTH },
@@ -221,7 +221,10 @@ export const deepgramConnector: ConnectorAdapter = {
     const { bytes, contentType } = privateAudio(inv.args)
     if (inv.source.credentials.kind !== 'api-key' || !inv.source.credentials.apiKey ||
         /[\u0000-\u0020\u007f]/.test(inv.source.credentials.apiKey)) {
-      throw new Error('Deepgram requires the connected API key')
+      throw new IntegrationRuntimeError({
+        code: 'provider_auth_failed', message: 'Deepgram requires the connected API key',
+        userAction: { type: 'reconnect', label: 'Reconnect Deepgram' },
+      })
     }
     let response: unknown
     try {
@@ -237,6 +240,11 @@ export const deepgramConnector: ConnectorAdapter = {
       if (error instanceof ProviderProtocolError && error.status === 429) {
         throw new ProviderRateLimited('Deepgram rate limit', inv.source.id,
           { status: 429, retryAfterMs: error.retryAfterMs ?? 60_000 })
+      }
+      if (error instanceof ProviderProtocolError && [400, 413, 415, 422].includes(error.status)) {
+        throw new IntegrationRuntimeError({
+          code: 'input_invalid', message: 'Deepgram rejected the audio format or transcription request',
+        })
       }
       throw error
     }

@@ -51,6 +51,8 @@ export interface IntegrationConnectorAction {
   risk: IntegrationActionRisk
   requiredScopes: string[]
   dataClass: IntegrationDataClass
+  /** Present when an action overrides its connector's default consistency. */
+  consistencyModel?: 'authoritative' | 'cache' | 'advisory'
   description?: string
   approvalRequired?: boolean
   inputSchema?: unknown

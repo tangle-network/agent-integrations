@@ -45,6 +45,7 @@ export function buildIntegrationInvocationEnvelope(input: {
   idempotencyKey: string
   dryRun?: boolean
   metadata?: Record<string, unknown>
+  maxInputBytes?: number
 }): IntegrationInvocationEnvelope {
   const parsed = parseIntegrationToolName(input.toolName)
   const envelope: IntegrationInvocationEnvelope = {
@@ -57,12 +58,15 @@ export function buildIntegrationInvocationEnvelope(input: {
     dryRun: input.dryRun,
     metadata: input.metadata,
   }
-  validateIntegrationInvocationEnvelope(envelope)
+  validateIntegrationInvocationEnvelope(envelope, { maxInputBytes: input.maxInputBytes })
   return envelope
 }
 
-export function invocationRequestFromEnvelope(envelope: IntegrationInvocationEnvelope): InvokeWithCapabilityRequest {
-  validateIntegrationInvocationEnvelope(envelope)
+export function invocationRequestFromEnvelope(
+  envelope: IntegrationInvocationEnvelope,
+  options: IntegrationInvocationEnvelopeValidationOptions = {},
+): InvokeWithCapabilityRequest {
+  validateIntegrationInvocationEnvelope(envelope, options)
   return {
     action: envelope.action,
     input: envelope.input,
@@ -90,13 +94,7 @@ export function validateIntegrationInvocationEnvelope(
     throw new Error(`Integration invocation action ${envelope.action} does not match tool ${parsed.actionId}.`)
   }
   const inputBytes = Buffer.byteLength(JSON.stringify(envelope.input ?? null), 'utf8')
-  // This action carries up to 16 MB of audio as base64. Keep the larger
-  // envelope allowance scoped to it; other tools retain the 256 KiB limit.
-  const maxInputBytes = options.maxInputBytes ?? (
-    parsed.connectorId === 'deepgram' && parsed.actionId === 'transcription.bytes'
-      ? 4 * Math.ceil(16_000_000 / 3) + 4096
-      : 256 * 1024
-  )
+  const maxInputBytes = options.maxInputBytes ?? 256 * 1024
   if (inputBytes > maxInputBytes) {
     throw new Error(`Integration invocation input exceeds ${maxInputBytes} bytes.`)
   }
@@ -160,7 +158,7 @@ export async function dispatchIntegrationInvocation(
     validateIntegrationInvocationEnvelope(envelope, options)
     const result = await options.hub.invokeWithCapability(
       envelope.capabilityToken,
-      invocationRequestFromEnvelope(envelope),
+      invocationRequestFromEnvelope(envelope, options),
     )
     return normalizeIntegrationResult(result)
   } catch (error) {
