@@ -37,7 +37,7 @@ function transcriptResponse(value: unknown): { text: string; requestId: string |
     throw new ProviderProtocolError('Deepgram returned no transcription alternative', 'invalid_response')
   }
   const text = channel.alternatives[0].transcript
-  if (typeof text !== 'string' || text.length > 64_000) {
+  if (typeof text !== 'string') {
     throw new ProviderProtocolError('Deepgram returned an invalid transcript', 'invalid_response')
   }
   const requestId = record(value.metadata) ? value.metadata.request_id : undefined
@@ -53,7 +53,7 @@ const base = declarativeRestConnector({
   description: 'Transcribe audio to text, synthesize text to speech, and analyze audio content with AI-powered speech recognition.',
   auth: { kind: 'api-key', hint: 'Deepgram API key.' },
   category: 'comms',
-  defaultConsistencyModel: 'authoritative',
+  defaultConsistencyModel: 'advisory',
   baseUrl: 'https://api.deepgram.com/v1',
   credentialPlacement: { kind: 'header', header: 'Authorization', prefix: 'Token ' },
   test: { method: 'GET', path: '/status' },
@@ -205,15 +205,15 @@ const base = declarativeRestConnector({
 export const deepgramConnector: ConnectorAdapter = {
   ...base,
   manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities,
-    { name: 'transcription.bytes', class: 'read',
-      description: 'Transcribe private audio bytes with Nova-3 multilingual. Supports English and Spanish in the same clip; up to 16 MB. This billable read sends audio to Deepgram, without exposing a public media URL.',
+    { name: 'transcription.bytes', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Transcribe private audio bytes with Nova-3 multilingual. Supports English and Spanish in the same clip; up to 16 MB. This billable action sends audio to Deepgram without exposing a public media URL.',
       parameters: { type: 'object', properties: {
         contentBase64: { type: 'string', minLength: 4, maxLength: MAX_BASE64_LENGTH },
         contentType: { type: 'string', minLength: 1, maxLength: 200 },
       }, required: ['contentBase64', 'contentType'], additionalProperties: false } },
   ] },
-  async executeRead(inv) {
-    if (inv.capabilityName !== 'transcription.bytes') return base.executeRead!(inv)
+  async executeMutation(inv) {
+    if (inv.capabilityName !== 'transcription.bytes') return base.executeMutation!(inv)
     const { bytes, contentType } = privateAudio(inv.args)
     if (inv.source.credentials.kind !== 'api-key' || !inv.source.credentials.apiKey ||
         /[\u0000-\u0020\u007f]/.test(inv.source.credentials.apiKey)) {
@@ -225,16 +225,16 @@ export const deepgramConnector: ConnectorAdapter = {
         method: 'POST',
         headers: { Authorization: `Token ${inv.source.credentials.apiKey}`, 'Content-Type': contentType },
         body: Uint8Array.from(bytes),
-      }, { timeoutMs: 60_000, maxResponseBytes: 250_000 })
+      }, { timeoutMs: 300_000, maxResponseBytes: 8_000_000 })
     } catch (error) {
       if (error instanceof ProviderProtocolError && (error.status === 401 || error.status === 403)) {
         throw new CredentialsExpired('Deepgram rejected the connected API key', inv.source.id, { status: error.status })
       }
       if (error instanceof ProviderProtocolError && error.status === 429) {
-        throw new ProviderRateLimited('Deepgram rate limit', inv.source.id, { status: 429 })
+        throw new ProviderRateLimited('Deepgram rate limit', inv.source.id, { status: 429, retryAfterMs: 60_000 })
       }
       throw error
     }
-    return { data: transcriptResponse(response), fetchedAt: Date.now() }
+    return { status: 'committed', data: transcriptResponse(response), committedAt: Date.now(), idempotentReplay: false }
   },
 }
