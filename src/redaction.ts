@@ -3,17 +3,44 @@ const MIN_OPAQUE_PREVIEW_VALUE_LENGTH = 16
 const MAX_DATA_URL_HEADER_LENGTH = 256
 
 function isEncodedPrivatePayload(value: string): boolean {
-  // A bounded header check catches data URLs without copying or parsing large private bodies.
-  if (/^data:[^,\r\n]*;base64,/i.test(value.slice(0, MAX_DATA_URL_HEADER_LENGTH))) return true
+  // Treat every data URL as private, including folded or oversized headers, without parsing its body.
+  if (/^data:/i.test(value.slice(0, MAX_DATA_URL_HEADER_LENGTH).trimStart())) return true
   // Below 16 characters, ordinary values and encoded bytes are indistinguishable; sensitive field names still redact them.
   if (value.length < MIN_OPAQUE_PREVIEW_VALUE_LENGTH) return false
   let encodedLength = 0
   let paddingLength = 0
+  let groupLength = 0
+  let horizontalLength = 0
+  let horizontalHasTab = false
+  let spacedGroups = false
+  let atLineStart = false
   for (let i = 0; i < value.length; i++) {
     const code = value.charCodeAt(i)
-    if (code === 10 || code === 13) continue
+    if (code === 10 || code === 13) {
+      horizontalLength = 0
+      horizontalHasTab = false
+      atLineStart = true
+      continue
+    }
+    if (code === 32 || code === 9) {
+      if (atLineStart) continue
+      horizontalLength++
+      if (code === 9) horizontalHasTab = true
+      continue
+    }
+    if (horizontalLength) {
+      // MIME-style chunks have long, aligned groups; an ordinary single space stays visible.
+      if (groupLength < MIN_OPAQUE_PREVIEW_VALUE_LENGTH || groupLength % 4 !== 0 ||
+          (horizontalLength < 2 && !horizontalHasTab)) return false
+      spacedGroups = true
+      groupLength = 0
+      horizontalLength = 0
+      horizontalHasTab = false
+    }
+    atLineStart = false
     if (code === 61) {
       if (++paddingLength > 2) return false
+      groupLength++
       continue
     }
     if (paddingLength) return false
@@ -21,10 +48,12 @@ function isEncodedPrivatePayload(value: string): boolean {
         (code >= 48 && code <= 57) || code === 43 || code === 47 ||
         code === 45 || code === 95) {
       encodedLength++
+      groupLength++
       continue
     }
     return false
   }
+  if (horizontalLength || (spacedGroups && groupLength < 4)) return false
   return encodedLength >= MIN_OPAQUE_PREVIEW_VALUE_LENGTH
 }
 

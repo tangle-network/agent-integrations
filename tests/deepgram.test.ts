@@ -173,6 +173,12 @@ describe('Deepgram private audio transcription', () => {
     const repeatedAudio = Buffer.alloc(90, 0xa5).toString('base64')
     const dataUrl = `data:audio/ogg;base64,${repeatedAudio}`
     const wrappedAudio = repeatedAudio.match(/.{1,76}/g)!.join('\n')
+    const foldedDataUrl = `DATA:audio/ogg;\r\n\tbase64,${repeatedAudio}`
+    const tabbedDataUrl = `data:audio/ogg;\tbase64,${repeatedAudio}`
+    const longHeaderDataUrl = `data:audio/ogg;${'x'.repeat(300)};base64,${repeatedAudio}`
+    const spacedAudio = repeatedAudio.match(/.{1,20}/g)!.join('  ')
+    const tabbedAudio = repeatedAudio.match(/.{1,20}/g)!.join('\t')
+    const indentedAudio = repeatedAudio.match(/.{1,20}/g)!.join('\n  ')
     vi.stubGlobal('fetch', send)
     const store = new InMemoryConnectionStore()
     const approvals = new InMemoryIntegrationApprovalStore()
@@ -198,25 +204,36 @@ describe('Deepgram private audio transcription', () => {
 
     const result = await hub.invokeWithCapability(grant.token, {
       action: 'transcription.bytes',
-      input: { ...args, extra: { data: unexpectedAudio, dataUrl, wrapped: wrappedAudio } },
+      input: { ...args, extra: { data: unexpectedAudio, dataUrl, wrapped: wrappedAudio,
+        foldedDataUrl, tabbedDataUrl, longHeaderDataUrl,
+        spaced: spacedAudio, tabbed: tabbedAudio, indented: indentedAudio } },
       idempotencyKey: 'voice-approval-1',
     })
     const pending = approvals.list({ status: 'pending' })
     expect(result).toMatchObject({ ok: false, output: {
       approvalRequired: true, approval: { inputPreview: {
         contentBase64: '[REDACTED]', contentType: args.contentType,
-        extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]' },
+        extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
+          foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
+          longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
+          tabbed: '[REDACTED]', indented: '[REDACTED]' },
       } },
     } })
     expect(pending).toHaveLength(1)
     expect(pending[0]?.request.inputPreview).toEqual({
       contentBase64: '[REDACTED]', contentType: args.contentType,
-      extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]' },
+      extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
+        foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
+        longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
+        tabbed: '[REDACTED]', indented: '[REDACTED]' },
     })
     expect(JSON.stringify({ result, pending })).not.toContain(args.contentBase64)
     expect(JSON.stringify({ result, pending })).not.toContain(unexpectedAudio)
     expect(JSON.stringify({ result, pending })).not.toContain(dataUrl)
     expect(JSON.stringify({ result, pending })).not.toContain(repeatedAudio.slice(0, 76))
+    expect(JSON.stringify({ result, pending })).not.toContain(spacedAudio)
+    expect(JSON.stringify({ result, pending })).not.toContain(tabbedAudio)
+    expect(JSON.stringify({ result, pending })).not.toContain(indentedAudio)
     expect(send).not.toHaveBeenCalled()
   })
 
