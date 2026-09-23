@@ -19,6 +19,10 @@ function boundedString(value: unknown, name: string, max = 256): string {
   return value
 }
 
+function providerText(value: unknown): string | null {
+  return typeof value === 'string' && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value) ? value : null
+}
+
 function propertyId(source: ResolvedDataSource): string {
   const value = source.metadata.propertyId
   if (typeof value !== 'string' || !PROPERTY_ID.test(value)) {
@@ -122,7 +126,7 @@ function reservations(result: Record<string, unknown>, property: string, query: 
       status: raw.status,
       arrivalDate: raw.startDate,
       departureDate: raw.endDate,
-      guestName: typeof raw.guestName === 'string' ? raw.guestName : null,
+      guestName: providerText(raw.guestName),
       balance: typeof raw.balance === 'number' && Number.isFinite(raw.balance) ? raw.balance : null,
     }
   })
@@ -163,7 +167,7 @@ function roomAvailability(result: Record<string, unknown>, property: string, que
           (room.roomRate !== undefined && (typeof room.roomRate !== 'number' || !Number.isFinite(room.roomRate) || room.roomRate < 0))) {
         throw new ProviderProtocolError('Cloudbeds returned malformed room-type availability', 'invalid_response')
       }
-      return { roomTypeId: room.roomTypeID, roomTypeName: typeof room.roomTypeName === 'string' ? room.roomTypeName : null,
+      return { roomTypeId: room.roomTypeID, roomTypeName: providerText(room.roomTypeName),
         roomsAvailable: room.roomsAvailable, roomRate: typeof room.roomRate === 'number' ? room.roomRate : null }
     })
   })
@@ -240,14 +244,14 @@ export const cloudbedsConnector: ConnectorAdapter = {
         requiredScopes: ['write:item'],
         description: 'Post one unpaid custom item to the connected property guest folio. The Hub operation key becomes Cloudbeds referenceID.',
         parameters: { type: 'object', properties: {
-          reservationId: { type: 'string', minLength: 1 },
-          appItemId: { type: 'string', minLength: 1 },
-          itemName: { type: 'string', minLength: 1 },
-          itemCategoryName: { type: 'string', minLength: 1 },
-          itemPrice: { type: 'number', exclusiveMinimum: 0 },
+          reservationId: { type: 'string', minLength: 1, maxLength: 256 },
+          appItemId: { type: 'string', minLength: 1, maxLength: 256 },
+          itemName: { type: 'string', minLength: 1, maxLength: 256 },
+          itemCategoryName: { type: 'string', minLength: 1, maxLength: 256 },
+          itemPrice: { type: 'number', minimum: 0.01, maximum: 1_000_000, multipleOf: 0.01 },
           itemQuantity: { type: 'integer', minimum: 1, maximum: 1000 },
           taxes: { type: 'array', description: 'Explicit tax amounts in the property currency. Use [] only when no tax applies.',
-            maxItems: 10, items: { type: 'object', properties: { taxName: { type: 'string' }, taxValue: { type: 'number', minimum: 0 } }, required: ['taxName', 'taxValue'] } },
+            maxItems: 10, items: { type: 'object', properties: { taxName: { type: 'string', minLength: 1, maxLength: 256 }, taxValue: { type: 'number', minimum: 0, maximum: 1_000_000, multipleOf: 0.01 } }, required: ['taxName', 'taxValue'] } },
         }, required: ['reservationId', 'appItemId', 'itemName', 'itemCategoryName', 'itemPrice', 'taxes'] },
       },
     ],
@@ -274,11 +278,12 @@ export const cloudbedsConnector: ConnectorAdapter = {
     if (!record(result.data) || (typeof result.data.soldProductID !== 'string' && typeof result.data.notice !== 'string')) {
       throw new ProviderProtocolError('Cloudbeds returned a malformed folio item receipt', 'invalid_response')
     }
+    const duplicate = typeof result.data.notice === 'string'
     return { status: 'committed', data: { referenceId: inv.idempotencyKey,
       soldProductId: typeof result.data.soldProductID === 'string' ? result.data.soldProductID : null,
       transactionId: typeof result.data.transactionID === 'string' ? result.data.transactionID : null,
-      duplicate: typeof result.data.notice === 'string', notice: typeof result.data.notice === 'string' ? result.data.notice : null },
-    committedAt: Date.now(), idempotentReplay: false }
+      duplicate, notice: providerText(result.data.notice) },
+    committedAt: Date.now(), idempotentReplay: duplicate }
   },
 
   async test(source) {

@@ -101,7 +101,7 @@ describe('Cloudbeds property and folio contract', () => {
   it('accepts a provider duplicate notice but never claims a new item was created', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ success: true, data: { notice: 'referenceID already posted' } })))
     const result = await cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))
-    expect(result).toMatchObject({ status: 'committed', data: { soldProductId: null, duplicate: true } })
+    expect(result).toMatchObject({ status: 'committed', data: { soldProductId: null, duplicate: true }, idempotentReplay: true })
   })
 
   it('fails closed before writing on invalid amounts, missing tax decisions and missing property binding', async () => {
@@ -125,6 +125,15 @@ describe('Cloudbeds property and folio contract', () => {
   it('does not leak the key in a provider error', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('fixture-secret', { status: 403 })))
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('HTTP 403')
+  })
+
+  it('tests a pinned property with the reservation read grant', async () => {
+    const fetcher = vi.fn(async (_url: string) => Response.json({ success: true, data: [] }))
+    vi.stubGlobal('fetch', fetcher)
+    expect(await cloudbedsConnector.test!(cloudbeds)).toEqual({ ok: true })
+    expect(String(fetcher.mock.calls[0]![0])).toContain('propertyID=1234')
+    fetcher.mockImplementationOnce(async () => new Response('fixture-secret', { status: 401 }))
+    expect(await cloudbedsConnector.test!(cloudbeds)).toMatchObject({ ok: false, reason: expect.stringContaining('rejected the API key') })
   })
 })
 
@@ -150,6 +159,15 @@ describe('PriceLabs read-only listing prices', () => {
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toThrow('daily price')
     fetcher.mockImplementationOnce(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds', currency: 'USD', data: [{ date: '2026-11-20', price: 125, unbookable: 'yes' }] }]))
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toThrow('daily price')
+  })
+
+  it('reports documented per-listing errors without echoing provider text', async () => {
+    const args = { listingId: 'listing-1', pms: 'cloudbeds', dateFrom: '2026-10-20', dateTo: '2026-10-20' }
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds',
+      error_status: 'LISTING_NO_DATA', error: 'fixture-secret' }])))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({
+      code: 'listing_unavailable', message: 'PriceLabs has not fetched prices for this listing', definitive: true,
+    })
   })
 
   it('tests pinned listings against the authenticated account inventory', async () => {

@@ -13,7 +13,12 @@ async function downloadAttachment(url: string, key: string, sourceId: string): P
   if (response.status !== 200) {
     void response.body?.cancel().catch(() => {})
     if (response.status === 401) throw new CredentialsExpired('Linq WhatsApp rejected the API key', sourceId)
-    if (response.status === 409) throw new ProviderProtocolError('Linq WhatsApp attachment capture is pending', 'attachment_pending', 409)
+    if (response.status === 409) {
+      if (response.headers.has('retry-after')) {
+        throw new ProviderProtocolError('Linq WhatsApp attachment capture is pending', 'attachment_pending', 409)
+      }
+      throw new ProviderProtocolError('Linq WhatsApp attachment outcome is indeterminate', 'capability_outcome_indeterminate', 409, true)
+    }
     throw new ProviderProtocolError(`Linq WhatsApp attachment download returned HTTP ${response.status}`, 'provider_http_error', response.status,
       response.status >= 400 && response.status < 500)
   }

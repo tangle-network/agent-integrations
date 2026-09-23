@@ -107,8 +107,10 @@ describe('WhatsApp events and replies', () => {
   })
   it('bounds media bytes and surfaces pending capture without returning an error body', async () => {
     const url = 'https://whatsapp.messages.api.linqapp.com/v1/attachments/media_1/content'
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('secret provider response', { status: 409, headers: { 'retry-after': '1' } })))
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toMatchObject({ code: 'attachment_pending', definitive: false })
     vi.stubGlobal('fetch', vi.fn(async () => new Response('secret provider response', { status: 409 })))
-    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toThrow('capture is pending')
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toMatchObject({ code: 'capability_outcome_indeterminate', definitive: true })
     vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '16000001' } })))
     await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toThrow('byte limit')
   })

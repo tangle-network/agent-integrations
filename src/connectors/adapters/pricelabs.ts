@@ -61,6 +61,8 @@ function date(value: unknown, label: string): string {
 }
 
 function readPrice(row: unknown, from: string, to: string): Record<string, unknown> {
+  // PriceLabs describes min_stay as a double, but it counts whole nights. A
+  // fractional stay has no safe interpretation for a booking recommendation.
   if (!record(row) || typeof row.date !== 'string' || !DATE.test(row.date) || row.date < from || row.date > to ||
       typeof row.price !== 'number' || !Number.isFinite(row.price) || row.price < 0 ||
       (row.min_stay !== undefined && (!Number.isSafeInteger(row.min_stay) || (row.min_stay as number) < 1)) ||
@@ -111,13 +113,27 @@ export const pricelabsConnector: ConnectorAdapter = {
     if (days < 0 || days > 31) throw new Error('pricelabs: price date range must be at most 31 days')
     const result = await call(inv.source, 'listing_prices', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ listings: [{ id, pms, dateFrom, dateTo }] }) })
-    if (!Array.isArray(result) || result.length !== 1 || !record(result[0]) || result[0].id !== id || result[0].pms !== pms ||
-        !Array.isArray(result[0].data) || typeof result[0].currency !== 'string' || !/^[A-Z]{3}$/.test(result[0].currency)) {
+    if (!Array.isArray(result) || result.length !== 1 || !record(result[0]) || result[0].id !== id || result[0].pms !== pms) {
       throw new ProviderProtocolError('PriceLabs returned malformed or mismatched listing prices', 'invalid_response')
     }
-    return { data: { listingId: id, pms, currency: result[0].currency,
-      lastRefreshedAt: typeof result[0].last_refreshed_at === 'string' ? result[0].last_refreshed_at : null,
-      prices: result[0].data.map(row => readPrice(row, dateFrom, dateTo)) }, fetchedAt: Date.now() }
+    const listing = result[0]
+    const failures: Record<string, string> = {
+      LISTING_NOT_PRESENT: 'PriceLabs listing is no longer present',
+      LISTING_NO_DATA: 'PriceLabs has not fetched prices for this listing',
+      LISTING_TOGGLE_OFF: 'PriceLabs price sync is off for this listing',
+    }
+    if (typeof listing.error_status === 'string' && Object.hasOwn(failures, listing.error_status)) {
+      throw new ProviderProtocolError(failures[listing.error_status]!, 'listing_unavailable', 409, true)
+    }
+    if (typeof listing.error === 'string') {
+      throw new ProviderProtocolError('PriceLabs cannot return prices for this listing', 'listing_unavailable', 409, true)
+    }
+    if (!Array.isArray(listing.data) || typeof listing.currency !== 'string' || !/^[A-Z]{3}$/.test(listing.currency)) {
+      throw new ProviderProtocolError('PriceLabs returned malformed or mismatched listing prices', 'invalid_response')
+    }
+    return { data: { listingId: id, pms, currency: listing.currency,
+      lastRefreshedAt: typeof listing.last_refreshed_at === 'string' ? listing.last_refreshed_at : null,
+      prices: listing.data.map(row => readPrice(row, dateFrom, dateTo)) }, fetchedAt: Date.now() }
   },
 
   async test(source) {
