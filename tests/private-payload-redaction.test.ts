@@ -14,22 +14,28 @@ const shortBase64 = Buffer.from('secret voice').toString('base64')
 const unpaddedBase64 = Buffer.from('private bytes').toString('base64').replace(/=+$/, '')
 const urlSafeBase64 = Buffer.from([251, 255, 253, 251, 255, 253, 251, 255, 253, 251, 255, 253]).toString('base64url')
 const oddLengthOpaque = 'A'.repeat(129)
+const repeatedBase64 = Buffer.alloc(90, 0xa5).toString('base64')
+const dataUrl = `data:audio/ogg;base64,${repeatedBase64}`
+const wrappedBase64 = repeatedBase64.match(/.{1,76}/g)!.join('\n')
 const input = {
   contentBase64,
   contentType: 'audio/ogg',
   nested: { payload: new Uint8Array([1, 2, 3]) },
-  extra: { data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque },
+  extra: { data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque,
+    dataUrl, wrapped: wrappedBase64 },
 }
 const redactedInput = {
   contentBase64: '[REDACTED]',
   contentType: 'audio/ogg',
   nested: { payload: '[REDACTED]' },
-  extra: { data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]' },
+  extra: { data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]',
+    dataUrl: '[REDACTED]', wrapped: '[REDACTED]' },
 }
 
 function expectPrivateValuesHidden(value: unknown): void {
   const preview = JSON.stringify(value)
-  for (const privateValue of [contentBase64, shortBase64, unpaddedBase64, urlSafeBase64, oddLengthOpaque]) {
+  for (const privateValue of [contentBase64, shortBase64, unpaddedBase64, urlSafeBase64,
+    oddLengthOpaque, dataUrl, repeatedBase64.slice(0, 76)]) {
     expect(preview).not.toContain(privateValue)
   }
 }
@@ -38,9 +44,11 @@ describe('private action input previews', () => {
   it('hides audio under unexpected keys without hiding ordinary text', () => {
     const unexpectedAudio = Buffer.alloc(256, 0xa5).toString('base64')
     expect(redactUnknown({ extra: unexpectedAudio, nested: { audio: 'short private bytes' }, note: 'ordinary text',
-      data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque }))
+      data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque,
+      dataUrl, wrapped: wrappedBase64 }))
       .toEqual({ extra: '[REDACTED]', nested: { audio: '[REDACTED]' }, note: 'ordinary text',
-        data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]' })
+        data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]',
+        dataUrl: '[REDACTED]', wrapped: '[REDACTED]' })
   })
 
   it('keeps audio out of an audit event with input previews enabled', async () => {

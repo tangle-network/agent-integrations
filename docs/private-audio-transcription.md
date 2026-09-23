@@ -37,7 +37,7 @@ For less transcript retention, omit the key and persist uncertain outcomes witho
 Deepgram does not provide a documented idempotency key for this request, so an uncertain provider failure can still have incurred a charge.
 The action rejects redirects, unsupported audio types, oversized input, and malformed or oversized provider responses.
 It caps the provider JSON response at 8,000,000 bytes; a limit error after upload has an uncertain billed outcome.
-Approval, audit, sandbox, and error previews redact the audio bytes and base64 input before storing or displaying them.
+Approval, audit, sandbox, and error previews redact audio bytes, base64 data URLs, and line-wrapped base64 before storing or displaying them.
 Preview redaction also catches standard, unpadded, and URL-safe encoded values of at least 16 characters under unexpected field names.
 Callers must use a sensitive field name for shorter encoded values, which cannot be distinguished reliably from ordinary text.
 
