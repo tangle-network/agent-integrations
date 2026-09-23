@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConnectorAdapterProvider, manifestToConnector } from '../src/adapter-provider.js'
 import { deepgramConnector } from '../src/connectors/adapters/deepgram.js'
+import { InMemoryConnectionStore, IntegrationHub, createDefaultIntegrationPolicyEngine } from '../src/index.js'
+import { StaticIntegrationPolicyEngine } from '../src/policy.js'
 import type { IntegrationConnection } from '../src/core-types.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -93,6 +95,44 @@ describe('Deepgram private audio transcription', () => {
     expect(result).toMatchObject({ ok: true, output: {
       text: 'Necesito ayuda.', requestId: null, model: 'nova-3', language: 'multi',
     }, metadata: { idempotentReplay: false } })
+  })
+
+  it('blocks private audio by default and executes only with an explicit action grant', async () => {
+    const send = vi.fn(async () => Response.json({
+      results: { channels: [{ alternatives: [{ transcript: 'Necesito ayuda.' }] }] },
+    }))
+    vi.stubGlobal('fetch', send)
+    const store = new InMemoryConnectionStore()
+    const provider = createConnectorAdapterProvider({ adapters: [deepgramConnector], resolveDataSource: () => source })
+    const connection: IntegrationConnection = {
+      id: source.id, owner: { type: 'user', id: 'owner-1' }, providerId: 'first-party',
+      connectorId: 'deepgram', status: 'active', grantedScopes: [],
+      createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+    }
+    const deniedHub = new IntegrationHub({
+      providers: [provider], store, capabilitySecret: 'test-secret',
+      policy: createDefaultIntegrationPolicyEngine(),
+    })
+    await deniedHub.upsertConnection(connection)
+    const grant = await deniedHub.issueCapability({
+      subject: { type: 'agent', id: 'agent-1' }, connectionId: connection.id,
+      scopes: [], allowedActions: ['transcription.bytes'], ttlMs: 60_000,
+    })
+    const request = { action: 'transcription.bytes', input: args, idempotencyKey: 'voice-1' }
+    await expect(deniedHub.invokeWithCapability(grant.token, request)).rejects.toMatchObject({ code: 'policy_denied' })
+    expect(send).not.toHaveBeenCalled()
+
+    const allowedHub = new IntegrationHub({
+      providers: [provider], store, capabilitySecret: 'test-secret',
+      policy: new StaticIntegrationPolicyEngine({ rules: [{
+        id: 'owner-stt-grant', effect: 'allow', reason: 'Owner allowed this action.',
+        providerId: 'first-party', connectorId: 'deepgram', action: 'transcription.bytes',
+      }] }),
+    })
+    await expect(allowedHub.invokeWithCapability(grant.token, request)).resolves.toMatchObject({
+      ok: true, output: { text: 'Necesito ayuda.', model: 'nova-3', language: 'multi' },
+    })
+    expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('uses Deepgram Token auth for the existing connection probe', async () => {
