@@ -21,7 +21,7 @@ It does not request guest detail or custom fields.
 It sends one pinned property ID and explicit guest counts to `getAvailableRoomTypes`.
 The result contains each room type's reported available count and rate, plus property page fields.
 Cloudbeds pages properties, not room types; `roomCount` may exceed `pageSize` for one property.
-Page through property results while `mayHaveMore` is true.
+The connector accepts only the one pinned property row and rejects unexpected additional property rows.
 This is a provider snapshot at fetch time, not a held room or confirmed booking.
 
 `folio-items.post` writes one unpaid custom item to a reservation.
@@ -31,7 +31,8 @@ The Hub operation key becomes Cloudbeds `referenceID` and must remain stable for
 The caller provides the approved price and explicit tax amounts; an empty `taxes` list means no tax applies.
 Cloudbeds records custom tax labels as free text and does not calculate the tax amount.
 The caller must confirm the tax and price before granting the write.
-Cloudbeds can return a `notice` on duplicate `referenceID`; the connector reports that outcome without claiming it created a second item.
+Cloudbeds can return a `notice` on duplicate `referenceID`; the connector reports recognized duplicate notices without claiming it created a second item.
+Other receipts without a sold product ID remain indeterminate and require operator reconciliation.
 The connection test proves reservation read access; it does not prove room read or write access.
 Only a real approved write can prove the write scope.
 

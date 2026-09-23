@@ -1,6 +1,6 @@
 import { declarativeRestConnector } from './declarative-rest.js'
-import { type ConnectorAdapter, CredentialsExpired } from '../types.js'
-import { ProviderProtocolError } from '../../http/response-json.js'
+import { type ConnectorAdapter, CredentialsExpired, ProviderRateLimited } from '../types.js'
+import { ProviderProtocolError, retryAfterMs } from '../../http/response-json.js'
 import { linqWhatsappAttachmentUrl } from '../../linq-whatsapp-attachment-url.js'
 
 const id = { type: 'string', minLength: 1, maxLength: 256 }
@@ -14,11 +14,10 @@ async function downloadAttachment(url: string, key: string, sourceId: string): P
     void response.body?.cancel().catch(() => {})
     if (response.status === 401) throw new CredentialsExpired('Linq WhatsApp rejected the API key', sourceId)
     if (response.status === 409) {
-      if (response.headers.has('retry-after')) {
-        throw new ProviderProtocolError('Linq WhatsApp attachment capture is pending', 'attachment_pending', 409)
-      }
-      throw new ProviderProtocolError('Linq WhatsApp attachment outcome is indeterminate', 'capability_outcome_indeterminate', 409, true)
+      throw new ProviderProtocolError('Linq WhatsApp attachment capture is pending', 'attachment_pending', 409)
     }
+    if (response.status === 429) throw new ProviderRateLimited('Linq WhatsApp attachment rate limit (429)', sourceId,
+      { status: 429, retryAfterMs: retryAfterMs(response.headers.get('retry-after')) })
     throw new ProviderProtocolError(`Linq WhatsApp attachment download returned HTTP ${response.status}`, 'provider_http_error', response.status,
       response.status >= 400 && response.status < 500 && response.status !== 408)
   }
@@ -89,7 +88,7 @@ export const linqWhatsappConnector: ConnectorAdapter = {
   ...base,
   manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities,
     { name: 'attachments.content', class: 'read', description: 'Download retained incoming media bytes from an authenticated Linq attachment URL. The host must store the bytes before passing media to an agent. Maximum 16 MB.',
-      parameters: { type: 'object', properties: { url: { type: 'string', format: 'uri' } }, required: ['url'] } },
+      parameters: { type: 'object', properties: { url: { type: 'string', format: 'uri', minLength: 1, maxLength: 2048 } }, required: ['url'] } },
   ] },
   async executeRead(inv) {
     if (inv.capabilityName !== 'attachments.content') return base.executeRead!(inv)

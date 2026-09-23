@@ -109,7 +109,7 @@ describe('Cloudbeds property and folio contract', () => {
 
   it('accepts a provider duplicate notice but never claims a new item was created', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json(url.includes('/getReservation?')
-      ? reservationDetail : { success: true, data: { notice: 'referenceID already posted' } })))
+      ? reservationDetail : { success: true, data: { notice: 'referenceID exists; nothing was created' } })))
     const result = await cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))
     expect(result).toMatchObject({ status: 'committed', data: { soldProductId: null, duplicate: true }, idempotentReplay: true })
   })
@@ -169,6 +169,13 @@ describe('Cloudbeds property and folio contract', () => {
     await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', { checkInFrom: '2026-10-20', checkInTo: '2026-10-20' }))).rejects.toThrow('HTTP 403')
   })
 
+  it('surfaces throttling as retryable with the provider delay', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 429, headers: { 'retry-after': '7' } })))
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', {
+      checkInFrom: '2026-10-20', checkInTo: '2026-10-20',
+    }))).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 7_000 })
+  })
+
   it('tests a pinned property with the reservation read grant', async () => {
     const fetcher = vi.fn(async (_url: string) => Response.json({ success: true, data: [] }))
     vi.stubGlobal('fetch', fetcher)
@@ -205,6 +212,12 @@ describe('PriceLabs read-only listing prices', () => {
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', { ...args,
       dateFrom: '2026-02-01', dateTo: '2026-03-01',
     }))).rejects.toThrow('daily price')
+    fetcher.mockImplementationOnce(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds', currency: 'USD',
+      data: [{ date: '2026-10-20', price: 125, booking_status: 'booked\u0085false' }] }]))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({ code: 'invalid_response' })
+    fetcher.mockImplementationOnce(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds', currency: 'USD',
+      last_refreshed_at: 'now\u2028then', data: [] }]))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({ code: 'invalid_response' })
   })
 
   it('reports documented per-listing errors without echoing provider text', async () => {
@@ -219,6 +232,13 @@ describe('PriceLabs read-only listing prices', () => {
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({
       code: 'listing_unavailable', message: 'PriceLabs reported an unavailable listing', definitive: true,
     })
+  })
+
+  it('surfaces a listing API throttle as retryable with the provider delay', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 429, headers: { 'retry-after': '3' } })))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', {
+      listingId: 'listing-1', pms: 'cloudbeds', dateFrom: '2026-10-20', dateTo: '2026-10-20',
+    }))).rejects.toMatchObject({ name: 'ProviderRateLimited', status: 429, retryAfterMs: 3_000 })
   })
 
   it('tests pinned listings against the authenticated account inventory', async () => {

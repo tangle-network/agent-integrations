@@ -1,5 +1,5 @@
 import { requestJson, record, ProviderProtocolError } from '../../http/response-json.js'
-import { type ConnectorAdapter, type ResolvedDataSource, CredentialsExpired } from '../types.js'
+import { type ConnectorAdapter, type ResolvedDataSource, CredentialsExpired, ProviderRateLimited } from '../types.js'
 
 const API = 'https://api.pricelabs.co/v1'
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -9,6 +9,14 @@ interface Listing { id: string; pms: string }
 function identifier(value: unknown, name: string): string {
   if (typeof value !== 'string' || !value.trim() || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) {
     throw new Error(`pricelabs: invalid ${name}`)
+  }
+  return value
+}
+
+function providerText(value: unknown, max: number): string | null {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string' || value.length > max || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u.test(value)) {
+    throw new ProviderProtocolError('PriceLabs returned malformed text', 'invalid_response')
   }
   return value
 }
@@ -48,6 +56,10 @@ async function call(source: ResolvedDataSource, path: string, init: RequestInit)
     if (error instanceof ProviderProtocolError && error.status === 401) {
       throw new CredentialsExpired('PriceLabs rejected the API key', source.id)
     }
+    if (error instanceof ProviderProtocolError && error.status === 429) {
+      throw new ProviderRateLimited('PriceLabs rate limit (429)', source.id,
+        { status: 429, retryAfterMs: error.retryAfterMs })
+    }
     throw error
   }
 }
@@ -66,7 +78,6 @@ function readPrice(row: unknown, from: string, to: string): Record<string, unkno
   if (!record(row) || typeof row.date !== 'string' || !DATE.test(row.date) || row.date < from || row.date > to ||
       typeof row.price !== 'number' || !Number.isFinite(row.price) || row.price < 0 ||
       (row.min_stay !== undefined && (!Number.isSafeInteger(row.min_stay) || (row.min_stay as number) < 1)) ||
-      (row.booking_status !== undefined && (typeof row.booking_status !== 'string' || row.booking_status.length > 100)) ||
       (row.unbookable !== undefined && row.unbookable !== 0 && row.unbookable !== 1 &&
         row.unbookable !== true && row.unbookable !== false)) {
     throw new ProviderProtocolError('PriceLabs returned a malformed daily price', 'invalid_response')
@@ -80,7 +91,7 @@ function readPrice(row: unknown, from: string, to: string): Record<string, unkno
     date: row.date,
     price: row.price,
     minStay: typeof row.min_stay === 'number' && Number.isSafeInteger(row.min_stay) ? row.min_stay : null,
-    bookingStatus: typeof row.booking_status === 'string' ? row.booking_status : null,
+    bookingStatus: providerText(row.booking_status, 100),
     unbookable: row.unbookable === 1 || row.unbookable === true,
   }
 }
@@ -138,7 +149,7 @@ export const pricelabsConnector: ConnectorAdapter = {
       throw new ProviderProtocolError('PriceLabs returned malformed or mismatched listing prices', 'invalid_response')
     }
     return { data: { listingId: id, pms, currency: listing.currency,
-      lastRefreshedAt: typeof listing.last_refreshed_at === 'string' ? listing.last_refreshed_at : null,
+      lastRefreshedAt: providerText(listing.last_refreshed_at, 256),
       prices: listing.data.map(row => readPrice(row, dateFrom, dateTo)) }, fetchedAt: Date.now() }
   },
 

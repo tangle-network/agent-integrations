@@ -4,6 +4,7 @@ import {
   type ConnectorInvocation,
   type ResolvedDataSource,
   CredentialsExpired,
+  ProviderRateLimited,
 } from '../types.js'
 
 const API = 'https://api.cloudbeds.com/api/v1.3'
@@ -48,6 +49,10 @@ async function call(source: ResolvedDataSource, path: string, init: RequestInit)
   } catch (error) {
     if (error instanceof ProviderProtocolError && error.status === 401) {
       throw new CredentialsExpired('Cloudbeds rejected the API key', source.id)
+    }
+    if (error instanceof ProviderProtocolError && error.status === 429) {
+      throw new ProviderRateLimited('Cloudbeds rate limit (429)', source.id,
+        { status: 429, retryAfterMs: error.retryAfterMs })
     }
     throw error
   }
@@ -295,7 +300,7 @@ export const cloudbedsConnector: ConnectorAdapter = {
       ? result.data.soldProductID : null
     const notice = providerText(result.data.notice)
     const duplicate = soldProductId === null && notice !== null &&
-      /referenceid/i.test(notice) && /\b(already|duplicate)\b/i.test(notice)
+      /referenceid/i.test(notice) && /\b(already|duplicate|exists)\b|nothing was created/i.test(notice)
     if (!soldProductId && !duplicate) {
       throw new ProviderProtocolError('Cloudbeds returned an indeterminate folio item receipt', 'capability_outcome_indeterminate')
     }
