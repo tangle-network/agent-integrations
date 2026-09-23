@@ -13,9 +13,15 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
+// Optional threading forwards only dot-atom IDs with DNS-style domains; other valid legacy forms are omitted.
+const messageIdDotAtom = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/
+const messageIdDomainLabel = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/
 function rfcMessageId(value: unknown): string | null {
-  // Each component allows printable ASCII except angle brackets and @; one @ separates them.
-  return typeof value === 'string' && value.length <= 256 && /^<[\x21-\x3B\x3D\x3F\x41-\x7E]+@[\x21-\x3B\x3D\x3F\x41-\x7E]+>$/.test(value) ? value : null
+  if (typeof value !== 'string' || value.length > 256 || !value.startsWith('<') || !value.endsWith('>')) return null
+  const parts = value.slice(1, -1).split('@')
+  if (parts.length !== 2 || !messageIdDotAtom.test(parts[0]!)) return null
+  const labels = parts[1]!.split('.')
+  return labels.every((label) => label.length <= 63 && messageIdDomainLabel.test(label)) ? value : null
 }
 
 /**
