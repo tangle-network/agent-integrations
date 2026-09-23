@@ -138,7 +138,7 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   expect(overlongReply.ok).toBe(true)
   if (!overlongReply.ok) throw new Error('Expected an overlong-id mail reply')
   expect(overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
-  for (const messageId of ['<bad\u0001@example.com>', '<bad@exam\u007fple.com>', '<bad\u0085@example.com>', '<bad@exam\u202eple.com>']) {
+  for (const messageId of ['<bad\u0001@example.com>', '<bad@exam\u007fple.com>', '<bad\u0085@example.com>', '<bad@exam\u202eple.com>', '<a@@b@example.com>', '<a@b@c>']) {
     const unsafe = { ...fixture, data: { message: { ...fixture.data.message, message_id: messageId } } }
     const unsafeReply = buildMessagingReply(input('inkbox', unsafe), 'Here are options', 'op')
     expect(unsafeReply.ok).toBe(true)
