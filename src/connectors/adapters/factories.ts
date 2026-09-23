@@ -278,6 +278,8 @@ import { zapierConnector } from './zapier.js'
 import { zendeskConnector } from './zendesk.js'
 import { zoomConnector } from './zoom.js'
 import { zohoBookingsConnector } from './zoho-bookings.js'
+import { cloudbedsConnector } from './cloudbeds.js'
+import { pricelabsConnector } from './pricelabs.js'
 import { zohoDeskConnector } from './zoho-desk.js'
 import { zohoCrmConnector } from './zoho-crm.js'
 import { zohoBooksConnector } from './zoho-books.js'
@@ -766,6 +768,8 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => zohoCrmConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoDeskConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoBookingsConnector, zohoOAuthEnvMap),
+    defineFactoryAdapter(() => cloudbedsConnector, {}),
+    defineFactoryAdapter(() => pricelabsConnector, {}),
     defineFactoryAdapter(() => zohoBooksConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoInvoiceConnector, zohoOAuthEnvMap),
     defineFactoryAdapter(() => zohoMailConnector, zohoOAuthEnvMap),

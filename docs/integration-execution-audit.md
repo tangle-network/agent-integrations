@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 246 |
-| Executable setup specs | 234 |
+| Setup specs | 253 |
+| Executable setup specs | 241 |
 | Catalog/setup-only specs | 12 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 516 |
-| Native adapter surfaces shipped | 627 |
+| Native adapter surfaces shipped | 632 |
 | Package-runtime backends | 153 |
 | Runtime manifest dependencies for catalog-only connectors | 162 |
 | Catalog-only connectors exposable behind runtime | 153 |
@@ -149,13 +149,15 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `bitly`
 - `bland-ai`
 
-...and 547 more native adapter surfaces.
+...and 552 more native adapter surfaces.
 
 Executable setup specs:
 
 - `actualbudget`
 - `acuity-scheduling`
 - `adobe-creative-cloud`
+- `adobe-sign`
+- `adp`
 - `affinity`
 - `aianswer`
 - `aircall`
@@ -223,6 +225,7 @@ Executable setup specs:
 - `dappier`
 - `datadog`
 - `deepgram`
+- `demandbase`
 - `detecting-ai`
 - `dialpad`
 - `digital-ocean`
@@ -325,10 +328,12 @@ Executable setup specs:
 - `openai`
 - `opsgenie`
 - `outlook-mail`
+- `outreach`
 - `paddle`
 - `pagerduty`
 - `pandadoc`
 - `parquet-files`
+- `paychex`
 - `phony`
 - `pinecone`
 - `ping-identity`
@@ -348,6 +353,7 @@ Executable setup specs:
 - `rss`
 - `sage-intacct`
 - `salesforce`
+- `salesloft`
 - `sanity`
 - `scim`
 - `segment`
@@ -387,6 +393,7 @@ Executable setup specs:
 - `zoho-invoice`
 - `zoho-mail`
 - `zoom`
+- `zoominfo`
 
 ## Flow Readiness
 
@@ -394,8 +401,8 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 627 reviewed native adapter surfaces ship from this package; 516 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 246 setup specs exist; 234 are executable setup specs and 12 are catalog/setup-only. |
+| Native adapter execution | Done for listed native backends | 632 reviewed native adapter surfaces ship from this package; 516 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 253 setup specs exist; 241 are executable setup specs and 12 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 153 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
@@ -474,7 +481,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 627 native adapter surfaces. 516 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 632 native adapter surfaces. 516 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 

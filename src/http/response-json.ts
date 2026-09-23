@@ -1,9 +1,17 @@
 /** Internal transport for small JSON APIs. One attempt; callers own retry policy. */
 export class ProviderProtocolError extends Error {
-  constructor(message: string, readonly code: string, readonly status = 502, readonly definitive = false) {
+  constructor(message: string, readonly code: string, readonly status = 502, readonly definitive = false,
+    readonly retryAfterMs?: number) {
     super(message)
     this.name = 'ProviderProtocolError'
   }
+}
+
+export function retryAfterMs(value: string | null): number {
+  if (!value) return 60_000
+  const seconds = Number(value)
+  const delay = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(value) - Date.now()
+  return Number.isFinite(delay) && delay >= 0 ? Math.max(1_000, Math.min(delay, 3_600_000)) : 60_000
 }
 
 export interface JsonRequestOptions {
@@ -41,7 +49,8 @@ export async function requestJson(url: string, init: RequestInit, options: JsonR
     void response.body?.cancel().catch(() => {})
     // Deliberately do not surface provider error bodies, which can reflect secrets.
     throw new ProviderProtocolError(`Provider returned HTTP ${response.status}`, 'provider_http_error',
-      response.status, response.status >= 400 && response.status < 500 && response.status !== 408)
+      response.status, response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429,
+      response.status === 429 ? retryAfterMs(response.headers.get('retry-after')) : undefined)
   }
   if (!response.body) throw new ProviderProtocolError('Provider returned no body', 'invalid_response')
   const reader = response.body.getReader()

@@ -753,3 +753,6 @@ export { inkboxConnector } from './inkbox.js'
 export { linqConnector } from './linq.js'
 
 export { linqWhatsappConnector } from './linq-whatsapp.js'
+
+export { cloudbedsConnector } from './cloudbeds.js'
+export { pricelabsConnector } from './pricelabs.js'
