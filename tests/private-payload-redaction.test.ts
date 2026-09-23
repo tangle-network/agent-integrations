@@ -23,13 +23,18 @@ const longHeaderDataUrl = `data:audio/ogg;${'x'.repeat(300)};base64,${repeatedBa
 const spacedBase64 = repeatedBase64.match(/.{1,20}/g)!.join('  ')
 const tabbedBase64 = repeatedBase64.match(/.{1,20}/g)!.join('\t')
 const indentedBase64 = repeatedBase64.match(/.{1,20}/g)!.join('\n  ')
+const leadingSpace = ` ${repeatedBase64}`
+const trailingSpace = `${repeatedBase64} `
+const leadingTab = `\t${repeatedBase64}`
+const trailingTab = `${repeatedBase64}\t`
 const input = {
   contentBase64,
   contentType: 'audio/ogg',
   nested: { payload: new Uint8Array([1, 2, 3]) },
   extra: { data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque,
     dataUrl, wrapped: wrappedBase64, foldedDataUrl, tabbedDataUrl, longHeaderDataUrl,
-    spaced: spacedBase64, tabbed: tabbedBase64, indented: indentedBase64 },
+    spaced: spacedBase64, tabbed: tabbedBase64, indented: indentedBase64,
+    padA: leadingSpace, padB: trailingSpace, padC: leadingTab, padD: trailingTab },
 }
 const redactedInput = {
   contentBase64: '[REDACTED]',
@@ -38,14 +43,15 @@ const redactedInput = {
   extra: { data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]',
     dataUrl: '[REDACTED]', wrapped: '[REDACTED]', foldedDataUrl: '[REDACTED]',
     tabbedDataUrl: '[REDACTED]', longHeaderDataUrl: '[REDACTED]',
-    spaced: '[REDACTED]', tabbed: '[REDACTED]', indented: '[REDACTED]' },
+    spaced: '[REDACTED]', tabbed: '[REDACTED]', indented: '[REDACTED]',
+    padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' },
 }
 
 function expectPrivateValuesHidden(value: unknown): void {
   const preview = JSON.stringify(value)
   for (const privateValue of [contentBase64, shortBase64, unpaddedBase64, urlSafeBase64,
     oddLengthOpaque, dataUrl, tabbedDataUrl, longHeaderDataUrl, spacedBase64, tabbedBase64, indentedBase64,
-    repeatedBase64.slice(0, 76)]) {
+    leadingSpace, trailingSpace, leadingTab, trailingTab, repeatedBase64.slice(0, 76)]) {
     expect(preview).not.toContain(privateValue)
   }
 }
@@ -57,13 +63,15 @@ describe('private action input previews', () => {
       note: 'ordinary text', ordinarySpacing: 'ordinary  text',
       data: shortBase64, trace: unpaddedBase64, value: urlSafeBase64, odd: oddLengthOpaque,
       dataUrl, wrapped: wrappedBase64, foldedDataUrl, tabbedDataUrl, longHeaderDataUrl,
-      spaced: spacedBase64, tabbed: tabbedBase64, indented: indentedBase64 }))
+      spaced: spacedBase64, tabbed: tabbedBase64, indented: indentedBase64,
+      padA: leadingSpace, padB: trailingSpace, padC: leadingTab, padD: trailingTab }))
       .toEqual({ extra: '[REDACTED]', nested: { audio: '[REDACTED]' },
         note: 'ordinary text', ordinarySpacing: 'ordinary  text',
         data: '[REDACTED]', trace: '[REDACTED]', value: '[REDACTED]', odd: '[REDACTED]',
         dataUrl: '[REDACTED]', wrapped: '[REDACTED]', foldedDataUrl: '[REDACTED]',
         tabbedDataUrl: '[REDACTED]', longHeaderDataUrl: '[REDACTED]',
-        spaced: '[REDACTED]', tabbed: '[REDACTED]', indented: '[REDACTED]' })
+        spaced: '[REDACTED]', tabbed: '[REDACTED]', indented: '[REDACTED]',
+        padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' })
   })
 
   it('keeps audio out of an audit event with input previews enabled', async () => {

@@ -179,6 +179,10 @@ describe('Deepgram private audio transcription', () => {
     const spacedAudio = repeatedAudio.match(/.{1,20}/g)!.join('  ')
     const tabbedAudio = repeatedAudio.match(/.{1,20}/g)!.join('\t')
     const indentedAudio = repeatedAudio.match(/.{1,20}/g)!.join('\n  ')
+    const leadingSpace = ` ${repeatedAudio}`
+    const trailingSpace = `${repeatedAudio} `
+    const leadingTab = `\t${repeatedAudio}`
+    const trailingTab = `${repeatedAudio}\t`
     vi.stubGlobal('fetch', send)
     const store = new InMemoryConnectionStore()
     const approvals = new InMemoryIntegrationApprovalStore()
@@ -206,7 +210,8 @@ describe('Deepgram private audio transcription', () => {
       action: 'transcription.bytes',
       input: { ...args, extra: { data: unexpectedAudio, dataUrl, wrapped: wrappedAudio,
         foldedDataUrl, tabbedDataUrl, longHeaderDataUrl,
-        spaced: spacedAudio, tabbed: tabbedAudio, indented: indentedAudio } },
+        spaced: spacedAudio, tabbed: tabbedAudio, indented: indentedAudio,
+        padA: leadingSpace, padB: trailingSpace, padC: leadingTab, padD: trailingTab } },
       idempotencyKey: 'voice-approval-1',
     })
     const pending = approvals.list({ status: 'pending' })
@@ -216,7 +221,8 @@ describe('Deepgram private audio transcription', () => {
         extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
           foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
           longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
-          tabbed: '[REDACTED]', indented: '[REDACTED]' },
+          tabbed: '[REDACTED]', indented: '[REDACTED]',
+          padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' },
       } },
     } })
     expect(pending).toHaveLength(1)
@@ -225,7 +231,8 @@ describe('Deepgram private audio transcription', () => {
       extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
         foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
         longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
-        tabbed: '[REDACTED]', indented: '[REDACTED]' },
+        tabbed: '[REDACTED]', indented: '[REDACTED]',
+        padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' },
     })
     expect(JSON.stringify({ result, pending })).not.toContain(args.contentBase64)
     expect(JSON.stringify({ result, pending })).not.toContain(unexpectedAudio)
@@ -234,6 +241,8 @@ describe('Deepgram private audio transcription', () => {
     expect(JSON.stringify({ result, pending })).not.toContain(spacedAudio)
     expect(JSON.stringify({ result, pending })).not.toContain(tabbedAudio)
     expect(JSON.stringify({ result, pending })).not.toContain(indentedAudio)
+    expect(JSON.stringify({ result, pending })).not.toContain(leadingSpace)
+    expect(JSON.stringify({ result, pending })).not.toContain(trailingSpace)
     expect(send).not.toHaveBeenCalled()
   })
 

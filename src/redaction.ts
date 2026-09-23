@@ -1,12 +1,22 @@
 const SENSITIVE_INPUT_KEY = /token|secret|password|authorization|api[_-]?key|credential|refresh|base64|bytes|binary|audio|attachment|media|payload/i
 const MIN_OPAQUE_PREVIEW_VALUE_LENGTH = 16
 const MAX_DATA_URL_HEADER_LENGTH = 256
+const MAX_EDGE_WHITESPACE_LENGTH = 64
 
 function isEncodedPrivatePayload(value: string): boolean {
   // Treat every data URL as private, including folded or oversized headers, without parsing its body.
   if (/^data:/i.test(value.slice(0, MAX_DATA_URL_HEADER_LENGTH).trimStart())) return true
   // Below 16 characters, ordinary values and encoded bytes are indistinguishable; sensitive field names still redact them.
   if (value.length < MIN_OPAQUE_PREVIEW_VALUE_LENGTH) return false
+  let start = 0
+  let end = value.length
+  while (start < end && (value.charCodeAt(start) === 32 || value.charCodeAt(start) === 9)) {
+    if (++start > MAX_EDGE_WHITESPACE_LENGTH) return true
+  }
+  while (end > start && (value.charCodeAt(end - 1) === 32 || value.charCodeAt(end - 1) === 9)) {
+    if (value.length - --end > MAX_EDGE_WHITESPACE_LENGTH) return true
+  }
+  if (end - start < MIN_OPAQUE_PREVIEW_VALUE_LENGTH) return false
   let encodedLength = 0
   let paddingLength = 0
   let groupLength = 0
@@ -14,7 +24,7 @@ function isEncodedPrivatePayload(value: string): boolean {
   let horizontalHasTab = false
   let spacedGroups = false
   let atLineStart = false
-  for (let i = 0; i < value.length; i++) {
+  for (let i = start; i < end; i++) {
     const code = value.charCodeAt(i)
     if (code === 10 || code === 13) {
       horizontalLength = 0

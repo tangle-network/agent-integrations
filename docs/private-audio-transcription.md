@@ -40,5 +40,7 @@ It caps the provider JSON response at 8,000,000 bytes; a limit error after uploa
 Approval, audit, sandbox, and error previews redact audio bytes, data URLs, and wrapped or spaced base64 before storing or displaying them.
 Preview redaction also catches standard, unpadded, and URL-safe encoded values of at least 16 characters under unexpected field names.
 Callers must use a sensitive field name for shorter encoded values, which cannot be distinguished reliably from ordinary text.
+Encoded-value detection under neutral keys is a fallback, not a guarantee for arbitrary formats.
+Private audio bytes belong in `contentBase64`, whose field name always causes redaction.
 
 Sources: [Deepgram prerecorded audio API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded), [supported audio formats](https://developers.deepgram.com/docs/supported-audio-formats), [multilingual code switching](https://developers.deepgram.com/docs/multilingual-code-switching), and [data retention](https://developers.deepgram.com/trust-security/your-data).
