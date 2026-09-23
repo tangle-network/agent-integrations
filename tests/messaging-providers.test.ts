@@ -131,6 +131,9 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   expect(reply.ok).toBe(true)
   if (!reply.ok) throw new Error('Expected a mail reply')
   expect(reply.reply.input).not.toHaveProperty('in_reply_to_message_id')
+  const overlongId = { ...fixture, data: { message: { ...fixture.data.message, message_id: `<${'x'.repeat(250)}@example.com>` } } }
+  const overlongReply = buildMessagingReply(input('inkbox', overlongId), 'Here are options', 'op')
+  expect(overlongReply.ok && overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
   const request = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'accepted' }))
   vi.stubGlobal('fetch', request)
   await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
