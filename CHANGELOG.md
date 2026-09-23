@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.55.0
+
+### Added
+
+Inkbox `phone.incoming_call_action.set` sets how the connected identity handles inbound calls.
+It accepts only `webhook` with an HTTPS `incoming_call_webhook_url`, or `auto_reject` with a null URL.
+The identity-scoped key configures its own identity, so the request never names `agent_identity_id`.
+Inkbox `phone.call.place` places an outbound call from an owned E.164 number to an E.164 number.
+It always sends `origination: 'dedicated_number'` and `mode: 'client_websocket'`, and it requires a `wss://` media WebSocket URL.
+The result is the Inkbox call object, including its `id`.
+Both capabilities are external-effect mutations and refuse invalid or unsupported arguments before any request.
+Forwarding, auto-accept, Voice AI, reason and voicemail fields are not exposed.
+Managed provisioning still defaults new identities to `auto_reject`.
+
 ## 0.54.4
 
 ### Added
