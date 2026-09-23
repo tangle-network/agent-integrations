@@ -14,7 +14,7 @@ function object(value: unknown): Record<string, unknown> {
 }
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
 function rfcMessageId(value: unknown): string | null {
-  return typeof value === 'string' && value.length <= 256 && /^<[^<>\s@\x00-\x1f\x7f]+@[^<>\s@\x00-\x1f\x7f]+>$/.test(value) ? value : null
+  return typeof value === 'string' && value.length <= 256 && /^<[\x21-\x3B\x3D\x3F-\x7E]+@[\x21-\x3B\x3D\x3F-\x7E]+>$/.test(value) ? value : null
 }
 
 /**

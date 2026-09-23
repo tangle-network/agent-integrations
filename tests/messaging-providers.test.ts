@@ -125,7 +125,9 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   expect(normalizeConversationEvent(input('inkbox', fixture))).toMatchObject({ ok: true, event: {
     sender: { id: 'peer@example.com', verificationStatus: 'unverified' }, subject: 'Desk [private-token]',
   } })
-  expect(buildMessagingReply(input('inkbox', fixture), 'Here are options', 'op')).toMatchObject({ ok: true, reply: { action: 'inkbox.email.send', input: { to: ['peer@example.com'], email_address: 'agent@example.com', in_reply_to_message_id: '<mail-123@example.com>', subject: 'Re: Desk [private-token]' } } })
+  const validReply = buildMessagingReply(input('inkbox', fixture), 'Here are options', 'op')
+  expect(validReply).toMatchObject({ ok: true, reply: { action: 'inkbox.email.send', input: { to: ['peer@example.com'], email_address: 'agent@example.com', in_reply_to_message_id: '<mail-123@example.com>', subject: 'Re: Desk [private-token]' } } })
+  if (!validReply.ok) throw new Error('Expected a mail reply with RFC Message-ID')
   const withoutRfcId = { ...fixture, data: { message: { ...fixture.data.message, message_id: 'mail-id' } } }
   const reply = buildMessagingReply(input('inkbox', withoutRfcId), 'Here are options', 'op')
   expect(reply.ok).toBe(true)
@@ -136,7 +138,7 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   expect(overlongReply.ok).toBe(true)
   if (!overlongReply.ok) throw new Error('Expected an overlong-id mail reply')
   expect(overlongReply.reply.input).not.toHaveProperty('in_reply_to_message_id')
-  for (const messageId of ['<bad\u0001@example.com>', '<bad@exam\u007fple.com>']) {
+  for (const messageId of ['<bad\u0001@example.com>', '<bad@exam\u007fple.com>', '<bad\u0085@example.com>', '<bad@exam\u202eple.com>']) {
     const unsafe = { ...fixture, data: { message: { ...fixture.data.message, message_id: messageId } } }
     const unsafeReply = buildMessagingReply(input('inkbox', unsafe), 'Here are options', 'op')
     expect(unsafeReply.ok).toBe(true)
@@ -146,8 +148,14 @@ it('marks email From unverified and replies with the RFC Message-ID without prop
   const request = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'accepted' }))
   vi.stubGlobal('fetch', request)
   await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
-    args: reply.reply.input, idempotencyKey: reply.reply.idempotencyKey })
+    args: validReply.reply.input, idempotencyKey: validReply.reply.idempotencyKey })
   expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+    recipients: { to: ['peer@example.com'] }, subject: 'Re: Desk [private-token]', body_text: 'Here are options',
+    in_reply_to_message_id: '<mail-123@example.com>',
+  })
+  await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'email.send',
+    args: reply.reply.input, idempotencyKey: reply.reply.idempotencyKey })
+  expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
     recipients: { to: ['peer@example.com'] }, subject: 'Re: Desk [private-token]', body_text: 'Here are options',
   })
   fixture.data.message.body_state = 'truncated'

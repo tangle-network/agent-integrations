@@ -41,7 +41,7 @@ export interface ConversationParticipant {
   id: string | null
   address: string | null
   displayName: string | null
-  /** A signed webhook does not prove the sender owns its email From address. Missing also means unverified. */
+  /** Explicitly marks an unauthenticated email From address. An omitted status makes no claim. */
   verificationStatus?: 'unverified'
 }
 
@@ -345,6 +345,7 @@ function normalizeEmail(
         id: null,
         address: normalizeNullableString(from, 320),
         displayName: null,
+        verificationStatus: 'unverified',
       },
       destinations: [
         {

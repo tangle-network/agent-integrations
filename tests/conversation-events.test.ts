@@ -57,6 +57,7 @@ describe('normalizeConversationEvent', () => {
           id: null,
           address: 'Broker@Example.Test',
           displayName: null,
+          verificationStatus: 'unverified',
         },
         destinations: [
           {
