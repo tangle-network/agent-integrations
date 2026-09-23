@@ -19,8 +19,9 @@ It does not request guest detail or custom fields.
 
 `room-types.available` reads Cloudbeds room-type availability for a requested stay of 1 to 31 nights.
 It sends one pinned property ID and explicit guest counts to `getAvailableRoomTypes`.
-The result contains each room type's reported available count and rate, plus page fields.
-Page through results while `mayHaveMore` is true.
+The result contains each room type's reported available count and rate, plus property page fields.
+Cloudbeds pages properties, not room types; `roomCount` may exceed `pageSize` for one property.
+Page through property results while `mayHaveMore` is true.
 This is a provider snapshot at fetch time, not a held room or confirmed booking.
 
 `folio-items.post` writes one unpaid custom item to a reservation.

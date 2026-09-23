@@ -150,7 +150,7 @@ function roomAvailability(result: Record<string, unknown>, property: string, que
   if (!Array.isArray(result.data) || !Number.isSafeInteger(result.count) || !Number.isSafeInteger(result.total) ||
       !Number.isSafeInteger(result.roomCount) || (result.count as number) < 0 || (result.count as number) > 1 ||
       (result.total as number) < (result.count as number) || result.count !== result.data.length ||
-      (result.roomCount as number) < 0 || (result.roomCount as number) > Number(query.get('pageSize'))) {
+      (result.roomCount as number) < 0 || (result.count as number) > Number(query.get('pageSize'))) {
     throw new ProviderProtocolError('Cloudbeds returned malformed room availability pagination', 'invalid_response')
   }
   const roomTypes = result.data.flatMap((raw: unknown) => {
@@ -173,7 +173,7 @@ function roomAvailability(result: Record<string, unknown>, property: string, que
   return { propertyId: property, startDate: query.get('startDate'), endDate: query.get('endDate'),
     rooms: Number(query.get('rooms')), adults: Number(query.get('adults')), children: Number(query.get('children')),
     roomTypes, pageNumber: Number(query.get('pageNumber')), pageSize: Number(query.get('pageSize')),
-    mayHaveMore: roomTypes.length === Number(query.get('pageSize')) }
+    mayHaveMore: Number(query.get('pageNumber')) * Number(query.get('pageSize')) < (result.total as number) }
 }
 
 function formForItem(inv: ConnectorInvocation, property: string): URLSearchParams {

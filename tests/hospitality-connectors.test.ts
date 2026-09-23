@@ -55,13 +55,13 @@ describe('Cloudbeds property and folio contract', () => {
       ] }] }))
     vi.stubGlobal('fetch', fetcher)
     const result = await cloudbedsConnector.executeRead!(invoke(cloudbeds, 'room-types.available', {
-      startDate: '2026-10-20', endDate: '2026-10-22', adults: 2, pageSize: 2,
+      startDate: '2026-10-20', endDate: '2026-10-22', adults: 2, pageSize: 1,
     }))
     expect(result.data).toEqual({ propertyId: '1234', startDate: '2026-10-20', endDate: '2026-10-22', rooms: 1,
       adults: 2, children: 0, roomTypes: [
         { roomTypeId: 'room-1', roomTypeName: 'King', roomsAvailable: 2, roomRate: 150 },
         { roomTypeId: 'room-2', roomTypeName: 'Twin', roomsAvailable: 0, roomRate: 100 },
-      ], pageNumber: 1, pageSize: 2, mayHaveMore: true })
+      ], pageNumber: 1, pageSize: 1, mayHaveMore: false })
     const query = new URL(fetcher.mock.calls[0]![0])
     expect(query.pathname).toBe('/api/v1.3/getAvailableRoomTypes')
     expect(query.searchParams.get('propertyIDs')).toBe('1234')
