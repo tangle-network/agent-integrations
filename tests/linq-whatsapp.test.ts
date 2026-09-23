@@ -86,6 +86,10 @@ describe('WhatsApp events and replies', () => {
       { type: 'media', kind: 'audio', media_id: 'channel-audio' },
     ] } } }
     expect(normalizeConversationEvent(input(pending))).toMatchObject({ ok: true, event: { historyOnly: true, attachments: [{ url: null }] } })
+    const explicitNull = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [
+      { type: 'media', kind: 'audio', media_id: 'channel-audio', url: null },
+    ] } } }
+    expect(normalizeConversationEvent(input(explicitNull))).toMatchObject({ ok: true, event: { historyOnly: true, attachments: [{ url: null }] } })
     const untrusted = { ...value, data: { ...value.data, message: { ...value.data.message, parts: [
       { type: 'media', kind: 'audio', media_id: 'channel-audio', url: 'https://evil.example/v1/attachments/media_1/content' },
     ] } } }
@@ -113,6 +117,10 @@ describe('WhatsApp events and replies', () => {
     await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toMatchObject({ code: 'capability_outcome_indeterminate', definitive: true })
     vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '16000001' } })))
     await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toThrow('byte limit')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('retry', { status: 408 })))
+    await expect(linqWhatsappConnector.executeRead!({ source, capabilityName: 'attachments.content', args: { url }, idempotencyKey: 'read' })).rejects.toMatchObject({
+      code: 'provider_http_error', definitive: false,
+    })
   })
   it('lists each supported transport once without implying account readiness', () => {
     const channels = listConversationChannels()

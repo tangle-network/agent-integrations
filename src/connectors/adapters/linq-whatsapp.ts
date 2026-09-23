@@ -20,7 +20,7 @@ async function downloadAttachment(url: string, key: string, sourceId: string): P
       throw new ProviderProtocolError('Linq WhatsApp attachment outcome is indeterminate', 'capability_outcome_indeterminate', 409, true)
     }
     throw new ProviderProtocolError(`Linq WhatsApp attachment download returned HTTP ${response.status}`, 'provider_http_error', response.status,
-      response.status >= 400 && response.status < 500)
+      response.status >= 400 && response.status < 500 && response.status !== 408)
   }
   const length = response.headers.get('content-length')
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_ATTACHMENT_BYTES)) {

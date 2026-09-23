@@ -114,6 +114,20 @@ describe('Cloudbeds property and folio contract', () => {
     expect(result).toMatchObject({ status: 'committed', data: { soldProductId: null, duplicate: true }, idempotentReplay: true })
   })
 
+  it('keeps non-duplicate notices from masking a new or uncertain folio posting', async () => {
+    const fetcher = vi.fn(async (url: string) => Response.json(url.includes('/getReservation?')
+      ? reservationDetail : { success: true, data: { soldProductID: 'sold-1', notice: 'Posting completed' } }))
+    vi.stubGlobal('fetch', fetcher)
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).resolves.toMatchObject({
+      data: { soldProductId: 'sold-1', duplicate: false }, idempotentReplay: false,
+    })
+    fetcher.mockImplementationOnce(async () => Response.json(reservationDetail))
+    fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: { notice: 'Please contact support' } }))
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({
+      code: 'capability_outcome_indeterminate', definitive: false,
+    })
+  })
+
   it('refuses a cross-property or mismatched reservation before posting a folio item', async () => {
     const fetcher = vi.fn(async () => Response.json({ success: true, data: { propertyID: '9999', reservationID: 'res-1' } }))
     vi.stubGlobal('fetch', fetcher)
@@ -138,10 +152,16 @@ describe('Cloudbeds property and folio contract', () => {
     const fetcher = vi.fn(async (url: string, _init?: RequestInit) => Response.json(url.includes('/getReservation?')
       ? reservationDetail : { success: false, message: 'denied' }))
     vi.stubGlobal('fetch', fetcher)
-    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toThrow('unsuccessful')
+    await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toMatchObject({
+      code: 'provider_rejected', definitive: true,
+    })
     fetcher.mockImplementationOnce(async () => Response.json(reservationDetail))
     fetcher.mockImplementationOnce(async () => Response.json({ success: true, data: {} }))
     await expect(cloudbedsConnector.executeMutation!(invoke(cloudbeds, 'folio-items.post', charge))).rejects.toThrow('receipt')
+    fetcher.mockImplementationOnce(async () => Response.json({ success: 'unexpected' }))
+    await expect(cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', {
+      checkInFrom: '2026-10-20', checkInTo: '2026-10-20',
+    }))).rejects.toMatchObject({ code: 'invalid_response', definitive: false })
   })
 
   it('does not leak the key in a provider error', async () => {
@@ -181,6 +201,10 @@ describe('PriceLabs read-only listing prices', () => {
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toThrow('daily price')
     fetcher.mockImplementationOnce(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds', currency: 'USD', data: [{ date: '2026-11-20', price: 125, unbookable: 'yes' }] }]))
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toThrow('daily price')
+    fetcher.mockImplementationOnce(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds', currency: 'USD', data: [{ date: '2026-02-30', price: 125 }] }]))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', { ...args,
+      dateFrom: '2026-02-01', dateTo: '2026-03-01',
+    }))).rejects.toThrow('daily price')
   })
 
   it('reports documented per-listing errors without echoing provider text', async () => {
@@ -189,6 +213,11 @@ describe('PriceLabs read-only listing prices', () => {
       error_status: 'LISTING_NO_DATA', error: 'fixture-secret' }])))
     await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({
       code: 'listing_unavailable', message: 'PriceLabs has not fetched prices for this listing', definitive: true,
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json([{ id: 'listing-1', pms: 'cloudbeds',
+      error_status: 'LISTING_NEW_ERROR', currency: 'USD', data: [{ date: '2026-10-20', price: 125 }] }])))
+    await expect(pricelabsConnector.executeRead!(invoke(pricelabs, 'listing-prices.get', args))).rejects.toMatchObject({
+      code: 'listing_unavailable', message: 'PriceLabs reported an unavailable listing', definitive: true,
     })
   })
 

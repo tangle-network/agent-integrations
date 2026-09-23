@@ -12,8 +12,8 @@ const MEDIA_KINDS = new Set(['image', 'video', 'audio', 'document', 'sticker'])
 
 function mediaPart(part: Record<string, unknown>) {
   if (typeof part.kind !== 'string' || !MEDIA_KINDS.has(part.kind)) return null
-  const url = part.url === undefined ? null : linqWhatsappAttachmentUrl(part.url)
-  if (part.url !== undefined && !url) return null
+  const url = part.url == null ? null : linqWhatsappAttachmentUrl(part.url)
+  if (part.url != null && !url) return null
   if (!id(part.media_id)) return null
   if (part.filename !== undefined && (typeof part.filename !== 'string' || part.filename.length > 240 || /[\u0000-\u001f\u007f]/.test(part.filename))) return null
   if (part.mime_type !== undefined && (typeof part.mime_type !== 'string' || part.mime_type.length > 200 || /[\u0000-\u001f\u007f]/.test(part.mime_type))) return null

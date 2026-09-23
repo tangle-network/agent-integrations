@@ -71,6 +71,11 @@ function readPrice(row: unknown, from: string, to: string): Record<string, unkno
         row.unbookable !== true && row.unbookable !== false)) {
     throw new ProviderProtocolError('PriceLabs returned a malformed daily price', 'invalid_response')
   }
+  try {
+    date(row.date, 'provider date')
+  } catch {
+    throw new ProviderProtocolError('PriceLabs returned a malformed daily price', 'invalid_response')
+  }
   return {
     date: row.date,
     price: row.price,
@@ -122,8 +127,9 @@ export const pricelabsConnector: ConnectorAdapter = {
       LISTING_NO_DATA: 'PriceLabs has not fetched prices for this listing',
       LISTING_TOGGLE_OFF: 'PriceLabs price sync is off for this listing',
     }
-    if (typeof listing.error_status === 'string' && Object.hasOwn(failures, listing.error_status)) {
-      throw new ProviderProtocolError(failures[listing.error_status]!, 'listing_unavailable', 409, true)
+    if (typeof listing.error_status === 'string') {
+      throw new ProviderProtocolError(failures[listing.error_status] ?? 'PriceLabs reported an unavailable listing',
+        'listing_unavailable', 409, true)
     }
     if (typeof listing.error === 'string') {
       throw new ProviderProtocolError('PriceLabs cannot return prices for this listing', 'listing_unavailable', 409, true)

@@ -51,6 +51,9 @@ async function call(source: ResolvedDataSource, path: string, init: RequestInit)
     }
     throw error
   }
+  if (record(result) && result.success === false) {
+    throw new ProviderProtocolError('Cloudbeds rejected the request', 'provider_rejected', 422, true)
+  }
   if (!record(result) || result.success !== true) {
     throw new ProviderProtocolError('Cloudbeds returned an unsuccessful or malformed response', 'invalid_response')
   }
@@ -285,14 +288,21 @@ export const cloudbedsConnector: ConnectorAdapter = {
       throw new ProviderProtocolError('Cloudbeds could not verify the reservation belongs to the connected property', 'invalid_response')
     }
     const result = await call(inv.source, 'postCustomItem', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: form.toString() })
-    if (!record(result.data) || (typeof result.data.soldProductID !== 'string' && typeof result.data.notice !== 'string')) {
+    if (!record(result.data)) {
       throw new ProviderProtocolError('Cloudbeds returned a malformed folio item receipt', 'invalid_response')
     }
-    const duplicate = typeof result.data.notice === 'string'
+    const soldProductId = typeof result.data.soldProductID === 'string' && result.data.soldProductID
+      ? result.data.soldProductID : null
+    const notice = providerText(result.data.notice)
+    const duplicate = soldProductId === null && notice !== null &&
+      /referenceid/i.test(notice) && /\b(already|duplicate)\b/i.test(notice)
+    if (!soldProductId && !duplicate) {
+      throw new ProviderProtocolError('Cloudbeds returned an indeterminate folio item receipt', 'capability_outcome_indeterminate')
+    }
     return { status: 'committed', data: { referenceId: inv.idempotencyKey,
-      soldProductId: typeof result.data.soldProductID === 'string' ? result.data.soldProductID : null,
+      soldProductId,
       transactionId: typeof result.data.transactionID === 'string' ? result.data.transactionID : null,
-      duplicate, notice: providerText(result.data.notice) },
+      duplicate, notice },
     committedAt: Date.now(), idempotentReplay: duplicate }
   },
 
