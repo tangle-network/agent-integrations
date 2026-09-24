@@ -207,3 +207,87 @@ describe('documented outbound provider contracts', () => {
     }
   })
 })
+
+describe('inkbox voice capabilities', () => {
+  const call = { id: 'c1d2e3f4-a5b6-7890-cdef-012345678901', status: 'ringing', direction: 'outbound' }
+  const run = async (capabilityName: string, args: Record<string, unknown>, body: unknown = call) => {
+    const request = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json(body))
+    vi.stubGlobal('fetch', request)
+    const result = await inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName, args, idempotencyKey: 'operation' })
+    return { request, result }
+  }
+  const sent = (request: ReturnType<typeof vi.fn>) => {
+    const [url, init] = request.mock.calls[0]! as [RequestInfo | URL, RequestInit]
+    return { url: String(url), method: init.method, body: JSON.parse(String(init.body)), key: new Headers(init.headers).get('x-api-key') }
+  }
+
+  it('declares both voice mutations as external effects', () => {
+    for (const name of ['phone.incoming_call_action.set', 'phone.call.place']) {
+      expect(inkboxConnector.manifest.capabilities.find((c) => c.name === name)).toMatchObject({ class: 'mutation', externalEffect: true })
+    }
+    const setAction = inkboxConnector.manifest.capabilities.find((c) => c.name === 'phone.incoming_call_action.set')!
+    expect((setAction.parameters as { properties: { incoming_call_action: { enum: string[] } } }).properties.incoming_call_action.enum).toEqual(['webhook', 'auto_reject'])
+  })
+
+  it('sets a webhook incoming-call action for its own identity', async () => {
+    const { request, result } = await run('phone.incoming_call_action.set', { incoming_call_action: 'webhook', incoming_call_webhook_url: 'https://builder.example.com/calls' }, { incoming_call_action: 'webhook' })
+    expect(sent(request)).toEqual({ url: 'https://inkbox.ai/api/v1/phone/incoming-call-action', method: 'PUT', key: 'fixture-secret',
+      body: { incoming_call_action: 'webhook', incoming_call_webhook_url: 'https://builder.example.com/calls' } })
+    expect(result.status).toBe('committed')
+  })
+
+  it('sends an explicit null webhook URL for auto_reject', async () => {
+    const { request } = await run('phone.incoming_call_action.set', { incoming_call_action: 'auto_reject' }, { incoming_call_action: 'auto_reject' })
+    expect(sent(request).body).toEqual({ incoming_call_action: 'auto_reject', incoming_call_webhook_url: null })
+  })
+
+  it.each([
+    [{ incoming_call_action: 'webhook' }],
+    [{ incoming_call_action: 'webhook', incoming_call_webhook_url: null }],
+    [{ incoming_call_action: 'webhook', incoming_call_webhook_url: 'http://builder.example.com/calls' }],
+    [{ incoming_call_action: 'webhook', incoming_call_webhook_url: 'https://user:pass@builder.example.com/calls' }],
+    [{ incoming_call_action: 'webhook', incoming_call_webhook_url: 'wss://builder.example.com/calls' }],
+    [{ incoming_call_action: 'auto_reject', incoming_call_webhook_url: 'https://builder.example.com/calls' }],
+    [{ incoming_call_action: 'forward' }],
+    [{ incoming_call_action: 'auto_accept' }],
+    [{ incoming_call_action: 'hosted_agent' }],
+    [{ incoming_call_action: 'auto_reject', agent_identity_id: 'other-identity' }],
+  ])('refuses incoming-call action %j before any request', async (args) => {
+    const request = vi.fn(); vi.stubGlobal('fetch', request)
+    await expect(inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'phone.incoming_call_action.set', args, idempotencyKey: 'operation' })).rejects.toThrow(/inkbox:/)
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('places a dedicated-number client-websocket call and surfaces the call id', async () => {
+    const { request, result } = await run('phone.call.place', { from_number: '+14155550100', to_number: '+12125550199', client_websocket_url: 'wss://agent.example.com/stream' })
+    expect(sent(request)).toEqual({ url: 'https://inkbox.ai/api/v1/phone/place-call', method: 'POST', key: 'fixture-secret',
+      body: { origination: 'dedicated_number', mode: 'client_websocket', from_number: '+14155550100', to_number: '+12125550199', client_websocket_url: 'wss://agent.example.com/stream' } })
+    expect(result).toMatchObject({ status: 'committed', data: { id: call.id, status: 'ringing' } })
+  })
+
+  const valid = { from_number: '+14155550100', to_number: '+12125550199', client_websocket_url: 'wss://agent.example.com/stream' }
+  it.each([
+    [{ ...valid, from_number: '4155550100' }],
+    [{ ...valid, from_number: '+04155550100' }],
+    [{ ...valid, to_number: '+1415555' }],
+    [{ ...valid, to_number: '+1234567890123456' }],
+    [{ ...valid, to_number: undefined }],
+    [{ ...valid, client_websocket_url: 'ws://agent.example.com/stream' }],
+    [{ ...valid, client_websocket_url: 'https://agent.example.com/stream' }],
+    [{ ...valid, client_websocket_url: undefined }],
+    [{ ...valid, mode: 'hosted_agent' }],
+    [{ ...valid, reason: 'Call the dentist' }],
+    [{ ...valid, on_voicemail: 'leave_message' }],
+    [{ ...valid, origination: 'shared_imessage_number' }],
+  ])('refuses call %j before any request', async (args) => {
+    const request = vi.fn(); vi.stubGlobal('fetch', request)
+    await expect(inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'phone.call.place', args, idempotencyKey: 'operation' })).rejects.toThrow(/inkbox:/)
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('propagates an uncertain call placement without retrying', async () => {
+    const request = vi.fn(async () => { throw new Error('connection reset after write') }); vi.stubGlobal('fetch', request)
+    await expect(inkboxConnector.executeMutation!({ source: source('inkbox'), capabilityName: 'phone.call.place', args: { ...valid }, idempotencyKey: 'operation' })).rejects.toThrow()
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+})
