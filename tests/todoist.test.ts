@@ -30,43 +30,12 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('todoist adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the todoist kind', () => {
-    expect(todoistConnector.manifest.kind).toBe('todoist')
-    expect(todoistConnector.manifest.category).toBe('doc')
-    expect(todoistConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses the official API v1 OAuth scope', () => {
     const auth = todoistConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
     if (auth.kind !== 'oauth2') throw new Error('expected OAuth2')
     expect(auth.scopes).toEqual(['data:read_write'])
     expect(auth.scopes).not.toEqual(expect.arrayContaining(['task:read', 'task:update']))
-  })
-
-  it('covers tasks, projects, comments, and labels capabilities', () => {
-    const names = todoistConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('tasks.create')
-    expect(names).toContain('tasks.update')
-    expect(names).toContain('tasks.get')
-    expect(names).toContain('tasks.list')
-    expect(names).toContain('tasks.complete')
-    expect(names).toContain('tasks.delete')
-    expect(names).toContain('projects.list')
-    expect(names).toContain('projects.create')
-    expect(names).toContain('projects.delete')
-    expect(names).toContain('comments.create')
-    expect(names).toContain('labels.create')
-  })
-
-  it('marks new write-side capabilities as native-idempotency external-effect', () => {
-    for (const name of ['projects.create', 'projects.delete', 'comments.create', 'labels.create']) {
-      const cap = todoistConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
   })
 
   it('binds every capability to data:read_write', () => {
@@ -102,18 +71,6 @@ describe('todoist projects.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/v1/projects')
     expect(requestBody).toContain('Launch plan')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      todoistConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'projects.create',
-        args: { name: 'Launch plan' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

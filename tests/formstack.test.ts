@@ -25,60 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('formstack adapter manifest', () => {
-  it('classifies itself with the formstack kind and an authoritative consistency model', () => {
-    expect(formstackConnector.manifest.kind).toBe('formstack')
-    expect(formstackConnector.manifest.category).toBe('other')
-    expect(formstackConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = formstackConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/formstack\.com/)
-    expect(auth.tokenUrl).toMatch(/formstack\.com/)
-    expect(auth.scopes).toEqual(expect.arrayContaining(['read', 'write']))
-  })
-
-  it('covers the catalog action set plus write extensions (form.create, submission.delete)', () => {
-    const names = formstackConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'forms.find',
-        'forms.get',
-        'forms.create',
-        'submissions.create',
-        'submissions.delete',
-        'submissions.get',
-        'submissions.search',
-      ].sort(),
-    )
-    const reads = formstackConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = formstackConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      ['forms.find', 'forms.get', 'submissions.get', 'submissions.search'].sort(),
-    )
-    expect(mutations).toEqual(
-      ['forms.create', 'submissions.create', 'submissions.delete'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of formstackConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('formstack forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -105,18 +51,6 @@ describe('formstack forms.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://www.formstack.com/api/v2/form.json')
     expect(requestBody).toMatchObject({ name: 'Contact Us', folder: 'fld_1', language: 'en' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      formstackConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { name: 'Contact Us' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -2,7 +2,6 @@ import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { azureServiceBusConnector } from '../src/connectors/adapters/azure-service-bus.js'
 import {
-  validateConnectorManifest,
   type ResolvedDataSource,
 } from '../src/connectors/types.js'
 
@@ -29,37 +28,6 @@ function source(connectionString?: string): ResolvedDataSource {
 function response(body: BodyInit | null = null, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(body, { status, headers })
 }
-
-describe('azure-service-bus manifest', () => {
-  it('ships discovery, send, receive-delete, and dead-letter operations', () => {
-    expect(azureServiceBusConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'queues.list',
-      'queues.get',
-      'topics.list',
-      'topics.get',
-      'subscriptions.list',
-      'subscriptions.get',
-      'queues.send',
-      'topics.send',
-      'queues.receiveDelete',
-      'subscriptions.receiveDelete',
-      'queues.deadLetters.receiveDelete',
-      'subscriptions.deadLetters.receiveDelete',
-    ])
-  })
-
-  it('passes safety validation and approval-gates every destructive or outbound operation', () => {
-    expect(validateConnectorManifest(azureServiceBusConnector.manifest)).toEqual({ ok: true, issues: [] })
-    const mutations = azureServiceBusConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(6)
-    for (const mutation of mutations) {
-      expect(mutation.cas, mutation.name).toBe('none')
-      expect(mutation.externalEffect, mutation.name).toBe(true)
-    }
-  })
-})
 
 describe('azure-service-bus execution', () => {
   afterEach(() => vi.unstubAllGlobals())

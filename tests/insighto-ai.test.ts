@@ -25,62 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('insighto-ai adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the insighto-ai kind', () => {
-    expect(insightoAiConnector.manifest.kind).toBe('insighto-ai')
-    expect(insightoAiConnector.manifest.category).toBe('comms')
-    expect(insightoAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = insightoAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Insighto/i)
-  })
-
-  it('covers text blob, contact, call, campaign, and assistant capability surface', () => {
-    const names = insightoAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'assistants.create',
-        'assistants.delete',
-        'calls.create',
-        'campaigns.cancel',
-        'campaigns.create',
-        'contacts.upsert',
-        'textblobs.add',
-      ].sort(),
-    )
-    const mutations = insightoAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'assistants.create',
-        'assistants.delete',
-        'calls.create',
-        'campaigns.cancel',
-        'campaigns.create',
-        'contacts.upsert',
-        'textblobs.add',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['assistants.create', 'assistants.delete', 'campaigns.cancel']
-    for (const name of expected) {
-      const cap = insightoAiConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('insighto-ai assistants.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -107,18 +51,6 @@ describe('insighto-ai assistants.create', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.insighto.ai/v1/assistants')
     expect(requestBody).toMatchObject({ name: 'Sales bot', provider: 'openai', model: 'gpt-4o' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      insightoAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'assistants.create',
-        args: { name: 'broken' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

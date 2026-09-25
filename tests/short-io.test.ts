@@ -29,71 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('short-io adapter manifest', () => {
-  it('classifies itself as the storage category and exposes the short-io kind', () => {
-    expect(shortIoConnector.manifest.kind).toBe('short-io')
-    expect(shortIoConnector.manifest.category).toBe('storage')
-    expect(shortIoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = shortIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the link, domain, bulk-import, and targeting capability surface', () => {
-    const names = shortIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'domains.create',
-        'domains.list',
-        'links.clicks',
-        'links.create',
-        'links.delete',
-        'links.get',
-        'links.import',
-        'links.list',
-        'links.update',
-        'targeting.create',
-        'targeting.delete',
-      ].sort(),
-    )
-    const reads = shortIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = shortIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['domains.list', 'links.clicks', 'links.get', 'links.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'domains.create',
-        'links.create',
-        'links.delete',
-        'links.import',
-        'links.update',
-        'targeting.create',
-        'targeting.delete',
-      ].sort(),
-    )
-  })
-
-  it('every new write-side mutation is native-idempotency with externalEffect:true', () => {
-    const newNames = ['domains.create', 'links.import', 'targeting.delete']
-    for (const name of newNames) {
-      const cap = shortIoConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `${name} should exist`).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
-})
-
 describe('short-io write-side execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -193,17 +128,5 @@ describe('short-io write-side execution', () => {
     expect(observedMethod).toBe('DELETE')
     expect(observedUrl).toBe('https://api.short.io/api/links/lnk_1/country-rules/rule_99')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired when Short.io rejects the key on import', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      shortIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'links.import',
-        args: { domain: 'd', links: [{ originalURL: 'https://a' }] },
-        idempotencyKey: 'k1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

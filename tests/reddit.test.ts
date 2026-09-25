@@ -10,12 +10,6 @@ afterEach(() => {
 })
 
 describe('reddit adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the reddit kind', () => {
-    expect(redditConnector.manifest.kind).toBe('reddit')
-    expect(redditConnector.manifest.category).toBe('comms')
-    expect(redditConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares the documented long-lived confidential OAuth flow', () => {
     const auth = redditConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')

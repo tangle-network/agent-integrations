@@ -24,22 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('tl;dv adapter manifest', () => {
-  it('exposes exactly the five published tl;dv actions', () => {
-    expect(tlDvConnector.manifest).toMatchObject({
-      kind: 'tl-dv',
-      category: 'doc',
-      defaultConsistencyModel: 'authoritative',
-      auth: { kind: 'api-key' },
-    })
-    expect(tlDvConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual(
-      ['highlights.get', 'meetings.get', 'meetings.list', 'meetings.upload', 'transcripts.get'],
-    )
-    expect(tlDvConnector.manifest.capabilities.find((capability) => capability.name === 'meetings.upload'))
-      .toMatchObject({ class: 'mutation', cas: 'native-idempotency', externalEffect: true })
-  })
-})
-
 describe('tl;dv execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

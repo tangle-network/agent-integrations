@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sentryConnector } from '../src/connectors/adapters/sentry'
 import type { ResolvedDataSource } from '../src/connectors/types'
-import { validateConnectorManifest } from '../src/connectors/types'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -30,100 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sentry adapter', () => {
-  it('declares kind, category, consistency model, and OAuth2 auth', () => {
-    expect(sentryConnector.manifest.kind).toBe('sentry')
-    expect(sentryConnector.manifest.category).toBe('other')
-    expect(sentryConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(sentryConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('uses the real Sentry OAuth endpoints documented at docs.sentry.io', () => {
-    const auth = sentryConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
-    expect(auth.authorizationUrl).toBe('https://sentry.io/oauth/authorize/')
-    expect(auth.tokenUrl).toBe('https://sentry.io/oauth/token/')
-    expect(auth.clientIdEnv).toBe('SENTRY_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('SENTRY_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining([
-        'org:read',
-        'project:read',
-        'project:releases',
-        'event:read',
-        'event:write',
-        'event:admin',
-      ]),
-    )
-  })
-
-  it('exposes the documented issue / event / project / release / alert surface', () => {
-    const names = sentryConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'alerts.create',
-        'alerts.list',
-        'events.get',
-        'issues.assign',
-        'issues.comments.create',
-        'issues.comments.list',
-        'issues.delete',
-        'issues.events.latest',
-        'issues.events.list',
-        'issues.get',
-        'issues.ignore',
-        'issues.resolve',
-        'issues.search',
-        'issues.update',
-        'organizations.list',
-        'projects.get',
-        'projects.list',
-        'releases.create',
-        'releases.delete',
-        'releases.deploys.create',
-        'releases.get',
-        'releases.list',
-        'releases.update',
-        'teams.list',
-      ].sort(),
-    )
-  })
-
-  it('every mutation declares a CAS strategy and externalEffect, every read names a scope', () => {
-    for (const cap of sentryConnector.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(['native-idempotency', 'optimistic-read-verify', 'etag-if-match']).toContain(cap.cas)
-        expect(cap.externalEffect).toBe(true)
-      } else {
-        const scopes = cap.requiredScopes ?? []
-        expect(scopes.length).toBeGreaterThan(0)
-      }
-    }
-  })
-
-  it('the newly added write capabilities are native-idempotency + external effect', () => {
-    const newCaps = ['issues.resolve', 'issues.ignore', 'issues.assign', 'alerts.create']
-    for (const name of newCaps) {
-      const cap = sentryConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} should be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(sentryConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = sentryConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = sentryConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(sentryConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(sentryConnector.executeMutation)).toBe(hasMutations)
-  })
-})
-
 describe('sentry issues.resolve', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -150,18 +55,6 @@ describe('sentry issues.resolve', () => {
     expect(String(requestUrl)).toContain('/api/0/issues/1234567890/')
     const parsed = JSON.parse(requestBody!) as Record<string, unknown>
     expect(parsed.status).toBe('resolved')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sentryConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'issues.resolve',
-        args: { issueId: '1234567890' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

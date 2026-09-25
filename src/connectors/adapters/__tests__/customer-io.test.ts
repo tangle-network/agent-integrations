@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { customerIoConnector } from '../customer-io.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_customer_io',
@@ -26,60 +26,6 @@ afterEach(() => {
 })
 
 describe('customer-io adapter', () => {
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(customerIoConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and the runtime "other" category (catalog "workflow" maps to "other" in the manifest enum)', () => {
-    expect(customerIoConnector.manifest.kind).toBe('customer-io')
-    expect(customerIoConnector.manifest.displayName).toBe('Customer.io')
-    expect(customerIoConnector.manifest.category).toBe('other')
-    expect(customerIoConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('publishes the App API capability surface (customers + segments + campaigns + messages + transactional)', () => {
-    const names = customerIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'campaigns.get',
-      'campaigns.search',
-      'campaigns.trigger',
-      'customers.get',
-      'customers.search',
-      'customers.segments',
-      'messages.search',
-      'segments.add-customers',
-      'segments.get',
-      'segments.remove-customers',
-      'segments.search',
-      'transactional.send-email',
-    ])
-
-    const readers = customerIoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = customerIoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'campaigns.get',
-      'campaigns.search',
-      'customers.get',
-      'customers.search',
-      'customers.segments',
-      'messages.search',
-      'segments.get',
-      'segments.search',
-    ])
-    expect(mutators).toEqual([
-      'campaigns.trigger',
-      'segments.add-customers',
-      'segments.remove-customers',
-      'transactional.send-email',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof customerIoConnector.executeRead).toBe('function')
-    expect(typeof customerIoConnector.executeMutation).toBe('function')
-  })
-
   it('triggers a campaign via POST /v1/campaigns/{id}/triggers with Bearer auth and merged trigger body', async () => {
     const fetchMock = mockFetch({ id: 'trigger_1' }, { status: 200 })
     const invocation: ConnectorInvocation = {

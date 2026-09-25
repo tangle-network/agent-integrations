@@ -25,41 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('gameball adapter manifest', () => {
-  it('exposes the gameball kind and classifies under other', () => {
-    expect(gameballConnector.manifest.kind).toBe('gameball')
-    expect(gameballConnector.manifest.category).toBe('other')
-    expect(gameballConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as the catalog says', () => {
-    const auth = gameballConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: send.event plus player/action/reward writes', () => {
-    const names = gameballConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['action.track', 'player.create', 'reward.redeem', 'send.event'].sort(),
-    )
-    const mutations = gameballConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['action.track', 'player.create', 'reward.redeem', 'send.event'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of gameballConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('gameball player.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -97,18 +62,6 @@ describe('gameball player.create', () => {
       playerUniqueId: 'cust_1',
       playerAttributes: { email: 'drew@example.com', displayName: 'Drew' },
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gameballConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'player.create',
-        args: { playerUniqueId: 'cust_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

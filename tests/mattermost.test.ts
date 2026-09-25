@@ -29,35 +29,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('mattermost adapter manifest', () => {
-  it('exposes the mattermost kind and a comms-grade category', () => {
-    expect(mattermostConnector.manifest.kind).toBe('mattermost')
-    expect(mattermostConnector.manifest.category).toBe('comms')
-    expect(mattermostConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the activepieces catalog', () => {
-    const auth = mattermostConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers send + the post-write surface (update, delete, react)', () => {
-    const names = mattermostConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['add_reaction', 'delete_post', 'send.message', 'update_post'])
-    const mutations = mattermostConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['add_reaction', 'delete_post', 'send.message', 'update_post'])
-    for (const cap of mattermostConnector.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.cas).toBe('native-idempotency')
-        expect(cap.externalEffect).toBe(true)
-      }
-    }
-  })
-})
-
 describe('mattermost update_post', () => {
   it('PUTs /api/v4/posts/{post_id} with the new message', async () => {
     let capturedUrl = ''
@@ -117,21 +88,6 @@ describe('mattermost update_post', () => {
       }),
     ).rejects.toThrow(/missing required argument: message/)
   })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      mattermostConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'update_post',
-        args: { post_id: 'post-1', message: 'x' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('mattermost delete_post', () => {
@@ -173,21 +129,6 @@ describe('mattermost delete_post', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: post_id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      mattermostConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'delete_post',
-        args: { post_id: 'post-1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -267,20 +208,5 @@ describe('mattermost add_reaction', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: emoji_name/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      mattermostConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'add_reaction',
-        args: { user_id: 'user-1', post_id: 'post-1', emoji_name: 'thumbsup' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -25,51 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bettermode adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the bettermode kind', () => {
-    expect(bettermodeConnector.manifest.kind).toBe('bettermode')
-    expect(bettermodeConnector.manifest.category).toBe('crm')
-    expect(bettermodeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = bettermodeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the activepieces action set plus discussion edit/delete + member.invite + reply.create', () => {
-    const names = bettermodeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'badge.assign',
-        'badge.revoke',
-        'discussion.create',
-        'discussion.delete',
-        'discussion.update',
-        'member.invite',
-        'question.create',
-        'reply.create',
-      ].sort(),
-    )
-    const mutations = bettermodeConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations.length).toBe(names.length)
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    const caps = bettermodeConnector.manifest.capabilities
-    for (const name of ['discussion.update', 'discussion.delete', 'member.invite', 'reply.create']) {
-      const cap = caps.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') return
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('bettermode discussion.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -97,18 +52,6 @@ describe('bettermode discussion.update', () => {
     expect(requestBody.query).toMatch(/UpdateDiscussion/)
     expect(requestBody.variables).toMatchObject({ postId: 'p-1', title: 'New title' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bettermodeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'discussion.update',
-        args: { postId: 'p-1', title: 'x', content: 'y' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

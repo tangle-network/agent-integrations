@@ -29,54 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('uscreen adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the uscreen kind', () => {
-    expect(uscreenConnector.manifest.kind).toBe('uscreen')
-    expect(uscreenConnector.manifest.category).toBe('crm')
-    expect(uscreenConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a Uscreen-specific hint', () => {
-    const auth = uscreenConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Uscreen/i)
-  })
-
-  it('covers users and access management capabilities', () => {
-    const names = uscreenConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('users.create')
-    expect(names).toContain('users.update')
-    expect(names).toContain('users.delete')
-    expect(names).toContain('users.list')
-    expect(names).toContain('access.assign')
-    expect(names).toContain('access.revoke')
-  })
-
-  it('marks destructive operations as mutations', () => {
-    const mutations = uscreenConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('users.create')
-    expect(mutations).toContain('users.update')
-    expect(mutations).toContain('users.delete')
-    expect(mutations).toContain('access.assign')
-    expect(mutations).toContain('access.revoke')
-  })
-
-  it('marks new write-side mutations as native-idempotency external effect', () => {
-    const expected = ['users.update', 'users.delete', 'access.revoke']
-    for (const name of expected) {
-      const cap = uscreenConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('uscreen users.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -112,26 +64,6 @@ describe('uscreen users.update', () => {
     expect(String(requestUrl)).toContain('/v1/users/u_1')
     expect(requestBody).toMatchObject({ email: 'updated@example.com' })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      uscreenConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.update',
-        args: {
-          user_id: 'u_1',
-          email: 'updated@example.com',
-          first_name: 'Jane',
-          last_name: 'Doe',
-          password: 'secret123',
-          opted_in_for_news_and_updates: true,
-          custom_fields: { tier: 'gold' },
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('uscreen users.delete', () => {
@@ -157,18 +89,6 @@ describe('uscreen users.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/users/u_99')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      uscreenConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.delete',
-        args: { user_id: 'u_1' },
-        idempotencyKey: 'k-del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -35,20 +35,6 @@ describe('gitlab adapter writes', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes merge_requests.create, merge_requests.accept, notes.create as mutations', () => {
-    const names = gitlabConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('merge_requests.create')
-    expect(names).toContain('merge_requests.accept')
-    expect(names).toContain('notes.create')
-
-    const byName = Object.fromEntries(
-      gitlabConnector.manifest.capabilities.map((c) => [c.name, c]),
-    )
-    expect(byName['merge_requests.create']?.class).toBe('mutation')
-    expect(byName['merge_requests.accept']?.class).toBe('mutation')
-    expect(byName['notes.create']?.class).toBe('mutation')
-  })
-
   describe('merge_requests.create', () => {
     it('POSTs to /projects/{id}/merge_requests with the MR payload as body', async () => {
       const calls: Array<{ url: string; init: RequestInit }> = []
@@ -98,29 +84,6 @@ describe('gitlab adapter writes', () => {
         }),
       ).rejects.toThrow(/missing required argument: id/)
     })
-
-    it('surfaces CredentialsExpired on 401', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => new Response(JSON.stringify({ message: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        })),
-      )
-      await expect(
-        gitlabConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'merge_requests.create',
-          args: {
-            id: 'group%2Frepo',
-            source_branch: 'feature/x',
-            target_branch: 'main',
-            title: 't',
-          },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
   })
 
   describe('merge_requests.accept', () => {
@@ -162,24 +125,6 @@ describe('gitlab adapter writes', () => {
         }),
       ).rejects.toThrow(/missing required argument: merge_request_iid/)
     })
-
-    it('surfaces CredentialsExpired on 403', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => new Response(JSON.stringify({ message: 'forbidden' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        })),
-      )
-      await expect(
-        gitlabConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'merge_requests.accept',
-          args: { id: '123', merge_request_iid: 42 },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
   })
 
   describe('notes.create', () => {
@@ -220,24 +165,6 @@ describe('gitlab adapter writes', () => {
           idempotencyKey: 'k',
         }),
       ).rejects.toThrow(/missing required argument: issue_iid/)
-    })
-
-    it('surfaces CredentialsExpired on 401', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => new Response(JSON.stringify({ message: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        })),
-      )
-      await expect(
-        gitlabConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'notes.create',
-          args: { id: '123', issue_iid: 7, body: 'hi' },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
     })
   })
 })

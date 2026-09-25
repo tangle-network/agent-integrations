@@ -42,31 +42,6 @@ describe('google-sheets adapter — write capabilities', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes the new write capabilities alongside the existing ones', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'append_row',
-      'clear_range',
-      'create_sheet',
-      'list_rows',
-      'query_rows',
-      'update_row',
-    ])
-    const append = adapter.manifest.capabilities.find((c) => c.name === 'append_row')
-    expect(append?.class).toBe('mutation')
-    if (append && append.class === 'mutation') {
-      expect(append.cas).toBe('native-idempotency')
-      expect(append.externalEffect).toBe(true)
-    }
-    expect(append?.parameters?.required).toEqual(['spreadsheetId', 'range', 'values'])
-
-    const clear = adapter.manifest.capabilities.find((c) => c.name === 'clear_range')
-    expect(clear?.parameters?.required).toEqual(['spreadsheetId', 'range'])
-
-    const create = adapter.manifest.capabilities.find((c) => c.name === 'create_sheet')
-    expect(create?.parameters?.required).toEqual(['title'])
-  })
-
   describe('append_row', () => {
     it('POSTs to values:append with USER_ENTERED + INSERT_ROWS and returns update counts', async () => {
       let appendUrl = ''

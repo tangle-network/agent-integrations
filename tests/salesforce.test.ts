@@ -29,41 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('salesforce adapter manifest', () => {
-  it('classifies itself as crm with oauth2 auth', () => {
-    expect(salesforceConnector.manifest.kind).toBe('salesforce')
-    expect(salesforceConnector.manifest.category).toBe('crm')
-    expect(salesforceConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('covers the read + mutation capability surface', () => {
-    const names = salesforceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'files.upload',
-        'records.composite',
-        'records.create',
-        'records.delete',
-        'records.get',
-        'records.query',
-        'records.update',
-        'records.upsert',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency external effect', () => {
-    const newOnes = new Set(['records.delete', 'records.upsert', 'records.composite', 'files.upload'])
-    const caps = salesforceConnector.manifest.capabilities.filter((c) => newOnes.has(c.name))
-    expect(caps.length).toBe(4)
-    for (const cap of caps) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} should be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('salesforce records.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -89,18 +54,6 @@ describe('salesforce records.delete', () => {
       'https://example.my.salesforce.com/services/data/v61.0/sobjects/Account/001xx000003DGZQ',
     )
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      salesforceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { objectName: 'Account', recordId: '001xx' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

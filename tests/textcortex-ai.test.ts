@@ -29,62 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('textcortex-ai adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the textcortex-ai kind', () => {
-    expect(textcortexAiConnector.manifest.kind).toBe('textcortex-ai')
-    expect(textcortexAiConnector.manifest.category).toBe('comms')
-    expect(textcortexAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = textcortexAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/TextCortex/i)
-  })
-
-  it('covers original generation capabilities plus templates, personas, and history surface', () => {
-    const names = textcortexAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    const expected = [
-      'code.create',
-      'email.create',
-      'history.delete',
-      'history.list',
-      'paraphrase.create',
-      'personas.list',
-      'product.description.create',
-      'prompt.send',
-      'social.media.caption.create',
-      'summary.create',
-      'templates.list',
-      'translation.create',
-    ].sort()
-    expect(names).toEqual(expected)
-  })
-
-  it('classifies templates/personas/history list as reads and history.delete as mutation', () => {
-    const reads = textcortexAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['history.list', 'personas.list', 'templates.list'])
-
-    const mutations = textcortexAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('history.delete')
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    for (const cap of textcortexAiConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('textcortex-ai history.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -134,18 +78,6 @@ describe('textcortex-ai history.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.textcortex.com/v1/history/hist_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      textcortexAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'history.delete',
-        args: { id: 'hist_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

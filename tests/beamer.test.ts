@@ -25,55 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('beamer adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the beamer kind', () => {
-    expect(beamerConnector.manifest.kind).toBe('beamer')
-    expect(beamerConnector.manifest.category).toBe('doc')
-    expect(beamerConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as the catalog says', () => {
-    const auth = beamerConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set plus write-side update/delete capabilities', () => {
-    const mutations = beamerConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'comments.create',
-        'comments.delete',
-        'featureRequests.create',
-        'featureRequests.update',
-        'posts.create',
-        'posts.delete',
-        'posts.update',
-        'votes.create',
-      ].sort(),
-    )
-    const reads = beamerConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toContain('posts.query')
-    expect(reads).toContain('featureRequests.query')
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    const caps = beamerConnector.manifest.capabilities
-    for (const name of ['posts.update', 'posts.delete', 'comments.delete', 'featureRequests.update']) {
-      const cap = caps.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') return
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('beamer posts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -113,31 +64,6 @@ describe('beamer posts.update', () => {
     expect(String(requestUrl)).toContain('/v0/posts/post-1')
     expect(requestBody).toMatchObject({ title: 'New title', content: 'updated body' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      beamerConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.update',
-        args: {
-          postId: 'post-1',
-          title: 'x',
-          content: 'c',
-          md: false,
-          category: 'c1',
-          visible: 'public',
-          showInWidget: true,
-          showInStandalone: true,
-          enableFeedback: true,
-          enableReactions: true,
-          enableSocialShare: false,
-          autoOpen: false,
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

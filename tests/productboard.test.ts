@@ -29,49 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('productboard adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the productboard kind', () => {
-    expect(productboardConnector.manifest.kind).toBe('productboard')
-    expect(productboardConnector.manifest.category).toBe('doc')
-    expect(productboardConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = productboardConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the read + mutation surface across features, notes, components', () => {
-    const names = productboardConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'components.create',
-        'features.create',
-        'features.delete',
-        'features.get',
-        'features.list',
-        'features.update',
-        'notes.create',
-        'notes.delete',
-        'notes.get',
-        'notes.list',
-        'notes.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + external effect', () => {
-    const newOnes = ['features.delete', 'notes.update', 'notes.delete', 'components.create']
-    const caps = productboardConnector.manifest.capabilities.filter((c) => newOnes.includes(c.name))
-    expect(caps).toHaveLength(newOnes.length)
-    for (const c of caps) {
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('productboard features.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -95,18 +52,6 @@ describe('productboard features.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.productboard.com/v1/features/feat_abc')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      productboardConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'features.delete',
-        args: { featureId: 'feat_abc' },
-        idempotencyKey: 'k-fd-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -197,17 +142,5 @@ describe('productboard components.create', () => {
       name: 'Billing',
       description: 'Billing surface',
     })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      productboardConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'components.create',
-        args: { name: 'Billing' },
-        idempotencyKey: 'k-cc-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

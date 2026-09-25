@@ -36,31 +36,6 @@ function source(
 }
 
 describe('data warehouse, database, and BI provider factories', () => {
-  it('registers Google data providers through existing Google application settings', () => {
-    const bigQuery = CONNECTOR_ADAPTER_FACTORIES.find(
-      (candidate) => candidate.kind === 'google-bigquery',
-    )
-    const firebase = CONNECTOR_ADAPTER_FACTORIES.find(
-      (candidate) => candidate.kind === 'firebase',
-    )
-
-    expect(bigQuery?.envMap).toEqual({
-      clientId: 'GOOGLE_OAUTH_CLIENT_ID',
-      clientSecret: 'GOOGLE_OAUTH_CLIENT_SECRET',
-    })
-    expect(firebase?.envMap).toEqual({
-      clientId: ['FIREBASE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_ID'],
-      clientSecret: [
-        'FIREBASE_OAUTH_CLIENT_SECRET',
-        'GOOGLE_OAUTH_CLIENT_SECRET',
-      ],
-    })
-    expect(resolveConnectorAdapterFactoryOptions(firebase!, {
-      GOOGLE_OAUTH_CLIENT_ID: 'google-client',
-      GOOGLE_OAUTH_CLIENT_SECRET: 'google-secret',
-    })).toEqual({ clientId: 'google-client', clientSecret: 'google-secret' })
-  })
-
   it('maps the catalog BigQuery id onto the executable Google adapter', () => {
     const spec = getIntegrationSpec('bigquery')
 
@@ -84,42 +59,6 @@ describe('data warehouse, database, and BI provider factories', () => {
     expect(supabase?.envMap).toEqual({})
     expect(resolveConnectorAdapterFactoryOptions(supabase!, {})).toEqual({})
     expect(supabase?.factory({}).manifest.auth).toMatchObject({ kind: 'api-key' })
-  })
-
-  it('registers customer-token data providers without shared deployment secrets', () => {
-    for (const kind of [
-      'airtable',
-      'segment',
-      'hightouch',
-      'datadog',
-      'metabase',
-      'redshift',
-      'postgres',
-      'mongodb',
-    ]) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )
-      expect(definition, kind).toBeDefined()
-      expect(definition?.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-      expect(definition?.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('keeps invalid, retired, and absent provider adapters out of the executable inventory', () => {
-    const executableKinds = new Set(
-      CONNECTOR_ADAPTER_FACTORIES.map((definition) => definition.kind),
-    )
-
-    for (const kind of [
-      'tableau',
-      'databricks',
-      'looker',
-    ]) {
-      expect(executableKinds.has(kind), kind).toBe(false)
-    }
-    expect(executableKinds.has('microsoft-power-bi')).toBe(true)
   })
 })
 

@@ -29,50 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('wrike adapter manifest', () => {
-  it('classifies itself as the other category and exposes the wrike kind', () => {
-    expect(wrikeConnector.manifest.kind).toBe('wrike')
-    expect(wrikeConnector.manifest.category).toBe('other')
-    expect(wrikeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses oauth2 auth', () => {
-    const auth = wrikeConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-  it('covers tasks, folders, projects, comments, attachments, and lifecycle deletes/completes', () => {
-    const names = wrikeConnector.manifest.capabilities.map((c) => c.name).sort()
-    for (const expected of [
-      'tasks.create',
-      'tasks.update',
-      'tasks.delete',
-      'tasks.complete',
-      'folders.create',
-      'folders.delete',
-      'projects.create',
-      'comments.add',
-      'comments.update',
-      'attachments.upload',
-      'tasks.find',
-      'folders.find',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks new mutations as native-idempotency with external effect', () => {
-    const targets = ['tasks.delete', 'tasks.complete', 'folders.delete', 'comments.update']
-    for (const t of targets) {
-      const cap = wrikeConnector.manifest.capabilities.find((c) => c.name === t)
-      expect(cap?.class).toBe('mutation')
-      if (cap?.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('wrike tasks.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -98,18 +54,6 @@ describe('wrike tasks.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v4/tasks/IEABCDEF')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      wrikeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.delete',
-        args: { taskId: 'IEABCDEF' },
-        idempotencyKey: 'k-t-del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -1,20 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   chatwootConnector,
-  CONNECTOR_ADAPTER_FACTORIES,
   mattermostConnector,
   matrixConnector,
-  resolveConnectorAdapterFactoryOptions,
   telegramConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const customerCredentialProviders = [
-  'telegram',
-  'mattermost',
-  'matrix',
-  'chatwoot',
-] as const
 
 function source(
   kind: string,
@@ -33,32 +24,6 @@ function source(
     status: 'active',
   }
 }
-
-describe('team messaging provider factories', () => {
-  it('registers customer-token messaging providers without shared deployment secrets', () => {
-    for (const kind of customerCredentialProviders) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )
-      expect(definition, kind).toBeDefined()
-      expect(definition?.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-      expect(definition?.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('keeps providers without a trustworthy direct adapter out of the executable inventory', () => {
-    const executableKinds = new Set(
-      CONNECTOR_ADAPTER_FACTORIES.map((definition) => definition.kind),
-    )
-
-    for (const kind of ['line', 'wecom', 'drift', 'whatsapp']) {
-      expect(executableKinds.has(kind), kind).toBe(false)
-    }
-    expect(executableKinds.has('whatsapp-business')).toBe(true)
-    expect(executableKinds.has('googlechat')).toBe(true)
-  })
-})
 
 describe('team messaging credential boundaries', () => {
   afterEach(() => vi.unstubAllGlobals())

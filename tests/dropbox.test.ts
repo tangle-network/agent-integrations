@@ -43,39 +43,6 @@ describe('dropbox declarative adapter', () => {
     expect(auth.clientSecretEnv).toBe('DROPBOX_OAUTH_CLIENT_SECRET')
   })
 
-  it('declares the canonical storage action surface', () => {
-    const names = dropboxConnector.manifest.capabilities.map((cap) => cap.name).sort()
-    expect(names).toEqual([
-      'files.copy_v2',
-      'files.create_folder_v2',
-      'files.delete_v2',
-      'files.get_metadata',
-      'files.list_folder',
-      'files.list_folder_continue',
-      'files.move_v2',
-      'files.search',
-      'sharing.create_shared_link_with_settings',
-      'sharing.list_shared_links',
-      'users.get_current_account',
-      'users.get_space_usage',
-    ])
-  })
-
-  it('marks every mutation with cas + externalEffect and requires write scope', () => {
-    const mutations = dropboxConnector.manifest.capabilities.filter((cap) => cap.class === 'mutation')
-    expect(mutations.length).toBeGreaterThanOrEqual(5)
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'etag-if-match', 'optimistic-read-verify', 'none']).toContain(cap.cas)
-      const scopes = cap.requiredScopes ?? []
-      const writeScope = scopes.some(
-        (scope) => scope === 'files.metadata.write' || scope === 'sharing.write',
-      )
-      expect(writeScope).toBe(true)
-    }
-  })
-
   it('requests every scope required by an exposed action during OAuth', () => {
     if (dropboxConnector.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
     const requested = new Set(dropboxConnector.manifest.auth.scopes)

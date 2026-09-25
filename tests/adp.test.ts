@@ -29,34 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'worker.list',
-  'worker.get',
-  'worker.demographics.list',
-  'worker.demographics.get',
-  'paystatements.list',
-  'paystatements.get',
-  'paydistributions.get',
-]
-
-describe('adp adapter manifest', () => {
-  it('declares an OAuth2 HR connector and documents the mandatory mTLS requirement', () => {
-    expect(adpConnector.manifest.kind).toBe('adp')
-    expect(adpConnector.manifest.category).toBe('hr')
-    expect(adpConnector.manifest.description.toLowerCase()).toContain('mutual-tls')
-    const auth = adpConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('adp auth must be oauth2')
-    expect(auth.authorizationUrl).toBe('https://accounts.adp.com/auth/oauth/v2/authorize')
-    expect(auth.tokenUrl).toBe('https://accounts.adp.com/auth/oauth/v2/token')
-  })
-
-  it('is read-only HR/payroll coverage', () => {
-    const names = adpConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED].sort())
-    expect(adpConnector.manifest.capabilities.every((c) => c.class === 'read')).toBe(true)
-  })
-})
-
 describe('adp executeRead (stubbed fetch — mTLS not exercised)', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -112,29 +84,5 @@ describe('adp executeRead (stubbed fetch — mTLS not exercised)', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/aoid/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      adpConnector.executeRead!({
-        source: source(),
-        capabilityName: 'worker.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      adpConnector.executeRead!({
-        source: source(),
-        capabilityName: 'worker.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -24,22 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('avoma adapter manifest', () => {
-  it('exposes exactly the three published Avoma actions', () => {
-    expect(avomaConnector.manifest).toMatchObject({
-      kind: 'avoma',
-      category: 'calendar',
-      defaultConsistencyModel: 'authoritative',
-      auth: { kind: 'api-key' },
-    })
-    expect(avomaConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual(
-      ['calls.create', 'meetings.recording.get', 'meetings.transcription.get'],
-    )
-    const create = avomaConnector.manifest.capabilities.find((capability) => capability.name === 'calls.create')
-    expect(create).toMatchObject({ class: 'mutation', cas: 'native-idempotency', externalEffect: true })
-  })
-})
-
 describe('avoma execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

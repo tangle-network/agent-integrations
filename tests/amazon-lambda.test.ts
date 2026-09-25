@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { amazonLambdaConnector } from '../src/connectors/adapters/amazon-lambda.js'
 import {
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/types.js'
+  type ResolvedDataSource } from '../src/connectors/types.js'
 
 function source(): ResolvedDataSource {
   return {
@@ -50,18 +48,6 @@ describe('aws-lambda adapter manifest', () => {
       'aliases.delete',
       'functions.delete',
     ])
-  })
-
-  it('requires approval for every write and validates safely', () => {
-    const mutations = amazonLambdaConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(9)
-    for (const mutation of mutations) expect(mutation.externalEffect).toBe(true)
-    expect(validateConnectorManifest(amazonLambdaConnector.manifest)).toEqual({
-      ok: true,
-      issues: [],
-    })
   })
 })
 

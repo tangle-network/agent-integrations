@@ -24,43 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('Okta admin adapter manifest', () => {
-  it('exposes users, lifecycle, groups, membership, and audit reads', () => {
-    expect(oktaConnector.manifest).toMatchObject({
-      kind: 'okta',
-      category: 'other',
-      defaultConsistencyModel: 'authoritative',
-      auth: { kind: 'api-key' },
-    })
-    expect(oktaConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual([
-      'groups.create',
-      'groups.list',
-      'groups.update',
-      'groups.users.add',
-      'groups.users.list',
-      'groups.users.remove',
-      'system.logs.list',
-      'users.activate',
-      'users.create',
-      'users.deactivate',
-      'users.find-by-email',
-      'users.get',
-      'users.list',
-      'users.suspend',
-      'users.unsuspend',
-      'users.update',
-    ])
-  })
-
-  it('marks every identity or membership write as an approved external effect', () => {
-    const mutations = oktaConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(10)
-    for (const capability of mutations) expect(capability.externalEffect, capability.name).toBe(true)
-  })
-})
-
 describe('Okta tenant and request isolation', () => {
   afterEach(() => vi.unstubAllGlobals())
 

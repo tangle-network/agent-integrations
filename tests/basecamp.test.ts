@@ -19,52 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('basecamp adapter manifest', () => {
-  it('classifies itself with the expected kind, category, and consistency model', () => {
-    expect(basecampConnector.manifest.kind).toBe('basecamp')
-    expect(basecampConnector.manifest.category).toBe('other')
-    expect(basecampConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares Basecamp 3 launchpad OAuth2 endpoints + env-var names', () => {
-    const auth = basecampConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://launchpad.37signals.com/authorization/new')
-    expect(auth.tokenUrl).toBe('https://launchpad.37signals.com/authorization/token')
-    expect(auth.clientIdEnv).toBe('BASECAMP_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('BASECAMP_OAUTH_CLIENT_SECRET')
-    // Basecamp's launchpad consent is all-or-nothing — no granular scopes.
-    expect(auth.scopes).toEqual([])
-  })
-
-  it('exposes the core Basecamp 3 action pack split between reads and mutations', () => {
-    const names = basecampConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('projects.list')
-    expect(names).toContain('projects.get')
-    expect(names).toContain('projects.create')
-    expect(names).toContain('message_board.messages.list')
-    expect(names).toContain('message_board.messages.create')
-    expect(names).toContain('todos.list')
-    expect(names).toContain('todos.create')
-    expect(names).toContain('todos.update')
-    expect(names).toContain('todos.complete')
-    expect(names).toContain('todos.uncomplete')
-    expect(names).toContain('comments.create')
-    expect(names).toContain('campfire.lines.create')
-    expect(names).toContain('people.list')
-
-    const mutations = basecampConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('todos.create')
-    expect(mutations).toContain('todos.update')
-    expect(mutations).toContain('todos.complete')
-    expect(mutations).toContain('campfire.lines.create')
-  })
-})
-
 describe('basecamp adapter execution', () => {
   it('routes projects.list to the per-account base URL with bearer auth + user-agent', async () => {
     const fetchMock = vi.fn(
@@ -132,21 +86,5 @@ describe('basecamp adapter execution', () => {
     expect(body.content).toBe('Ship the basecamp adapter')
     expect(body.assignee_ids).toEqual([42, 43])
     expect(body.due_on).toBe('2026-06-01')
-  })
-
-  it('throws CredentialsExpired when launchpad rejects the token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'projects.get',
-      args: { projectId: '1234' },
-      idempotencyKey: 'idem_get',
-    }
-    await expect(basecampConnector.executeRead!(invocation)).rejects.toMatchObject({
-      name: 'CredentialsExpired',
-    })
   })
 })

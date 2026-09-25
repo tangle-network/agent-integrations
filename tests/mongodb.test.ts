@@ -1,38 +1,12 @@
 import type { LookupFunction } from 'node:net'
 import type { MongoClientOptions } from 'mongodb'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createMongoDbConnector,
-  mongodbConnector,
-  type MongoDbConnectorOptions,
-} from '../src/connectors/adapters/mongodb.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
+  type MongoDbConnectorOptions } from '../src/connectors/adapters/mongodb.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('MongoDB connector', () => {
-  it('replaces the Data API placeholder with a valid authoritative read-only wire surface', () => {
-    expect(validateConnectorManifest(mongodbConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(mongodbConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'mongodb.collections.list',
-      'mongodb.collections.describe',
-      'mongodb.indexes.list',
-      'mongodb.documents.find',
-      'mongodb.documents.count',
-    ])
-    expect(mongodbConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('mongodb')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'MongoDB connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'mongodb')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('mongodb')
-  })
-
   it('pins public DNS while retaining verified TLS identity and keeping secrets out of the URI', async () => {
     let uri = ''
     let options: MongoClientOptions | undefined

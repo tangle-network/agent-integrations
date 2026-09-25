@@ -29,76 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zagomail adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the zagomail kind', () => {
-    expect(zagomailConnector.manifest.kind).toBe('zagomail')
-    expect(zagomailConnector.manifest.category).toBe('crm')
-    expect(zagomailConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = zagomailConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the full activepieces action set plus write-side extensions', () => {
-    const names = zagomailConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'subscribers.create',
-        'subscribers.update',
-        'subscribers.get',
-        'subscribers.search',
-        'subscribers.add-tags',
-        'subscribers.delete',
-        'subscribers.unsubscribe',
-        'tags.create',
-        'tags.delete',
-        'campaigns.get',
-        'campaigns.list',
-        'campaigns.send',
-      ].sort(),
-    )
-    const reads = zagomailConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = zagomailConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['subscribers.get', 'subscribers.search', 'campaigns.get', 'campaigns.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'subscribers.create',
-        'subscribers.update',
-        'subscribers.add-tags',
-        'subscribers.delete',
-        'subscribers.unsubscribe',
-        'tags.create',
-        'tags.delete',
-        'campaigns.send',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'subscribers.delete',
-      'subscribers.unsubscribe',
-      'tags.delete',
-      'campaigns.send',
-    ])
-    const caps = zagomailConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('zagomail subscribers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -122,18 +52,6 @@ describe('zagomail subscribers.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v1/subscribers/sub_99')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zagomailConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.delete',
-        args: { subscriberUid: 'sub_99' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

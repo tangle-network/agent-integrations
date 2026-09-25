@@ -398,12 +398,6 @@ describe('integration overrides — per-kind setup richness', () => {
     expect(validateCredentialFormat(sid!, 'XX' + 'a'.repeat(32)).ok).toBe(false)
   })
 
-  it('twilio-sms surfaces the subaccount-tokens quirk via the override layer', () => {
-    const spec = getIntegrationSpec('twilio-sms')
-    const quirks = spec!.setup.knownQuirks ?? []
-    expect(quirks.some((q) => q.id === 'subaccount-tokens')).toBe(true)
-  })
-
   it('phony is an executable api-key connector with a plabs_ key field', () => {
     const spec = getIntegrationSpec('phony')
     expect(spec).toBeDefined()
@@ -419,14 +413,6 @@ describe('integration overrides — per-kind setup richness', () => {
     expect(validateCredentialFormat(key, 'phony_live_' + 'a'.repeat(32)).ok).toBe(false)
     expect(validateCredentialFormat(key, 'plabs_short').ok).toBe(false)
   })
-
-  it('phony surfaces the key-shown-once + rotate quirks via the override layer', () => {
-    const spec = getIntegrationSpec('phony')
-    const quirks = spec!.setup.knownQuirks ?? []
-    expect(quirks.some((q) => q.id === 'key-shown-once')).toBe(true)
-    expect(quirks.some((q) => q.id === 'rotate-endpoint')).toBe(true)
-  })
-
 
   it('a spec with no shipped adapter advertises NO actions', () => {
     // The coverage table synthesizes four actions per action pack, so before

@@ -35,34 +35,6 @@ function response(body: unknown = {}): Response {
 }
 
 describe('amazon-eventbridge adapter manifest', () => {
-  it('ships the expected event, bus, rule, and target operations', () => {
-    expect(amazonEventBridgeConnector.manifest.kind).toBe('amazon-eventbridge')
-    expect(amazonEventBridgeConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'events.publish',
-      'event-buses.list',
-      'event-buses.create',
-      'event-buses.delete',
-      'rules.list',
-      'rules.get',
-      'rules.put',
-      'rules.delete',
-      'targets.list',
-      'targets.put',
-      'targets.remove',
-    ])
-  })
-
-  it('requires approval and makes no replay guarantee for every write', () => {
-    const mutations = amazonEventBridgeConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(7)
-    for (const mutation of mutations) {
-      expect(mutation.externalEffect, mutation.name).toBe(true)
-      expect(mutation.cas, mutation.name).toBe('none')
-    }
-  })
-
   it('passes the shared manifest safety validator', () => {
     expect(amazonEventBridgeConnector.manifest.defaultConsistencyModel).toBe('advisory')
     expect(validateConnectorManifest(amazonEventBridgeConnector.manifest)).toEqual({

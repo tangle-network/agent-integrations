@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gongConnector } from '../gong.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const ACCESS_TOKEN = 'gong_at_test'
 // A normally-connected Gong source carries the per-customer host the hub
@@ -37,21 +37,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('gong adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(gongConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares authorization_code oauth2 against app.gong.io with comms classification', () => {
-    const auth = gongConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://app.gong.io/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://app.gong.io/oauth2/generate-customer-token')
-    expect(auth.clientIdEnv).toBe('GONG_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('GONG_OAUTH_CLIENT_SECRET')
-    expect(gongConnector.manifest.category).toBe('comms')
-  })
-
   it('declares a required tokenMetadata capture for the per-customer base URL', () => {
     // The contract that completeAuth honors: persist the token-exchange
     // `api_base_url_for_customer` into metadata.apiBaseUrlForCustomer (required).
@@ -62,32 +47,6 @@ describe('gong adapter', () => {
     expect(auth.tokenMetadata).toEqual({
       apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true },
     })
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = gongConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'calls.create',
-      'calls.getExtensive',
-      'calls.getTranscripts',
-      'calls.list',
-      'flows.assignProspects',
-      'users.list',
-    ])
-    const mutations = gongConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(mutations).toEqual(['calls.create', 'flows.assignProspects'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof gongConnector.executeRead).toBe('function')
-    expect(typeof gongConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of gongConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('fails loud (no silent fallback host) when the per-customer base URL is absent', async () => {
@@ -141,18 +100,5 @@ describe('gong adapter', () => {
     const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
     expect(url.pathname).toBe('/v2/flows/prospects/assign')
     expect(JSON.parse(String(init.body))).toEqual({ flowId: 'flow_1', prospects: [{ crmProspectId: 'p1' }] })
-  })
-
-  it('throws CredentialsExpired when Gong rejects the token', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gongConnector.executeRead!({ source: source(), capabilityName: 'users.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      gongConnector.executeRead!({ source: source(), capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

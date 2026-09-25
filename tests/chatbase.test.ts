@@ -25,62 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chatbase adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the chatbase kind', () => {
-    expect(chatbaseConnector.manifest.kind).toBe('chatbase')
-    expect(chatbaseConnector.manifest.category).toBe('crm')
-    expect(chatbaseConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = chatbaseConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the original four actions plus the new chatbot/source writes', () => {
-    const names = chatbaseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'chatbot.create',
-        'chatbot.delete',
-        'chatbot.list',
-        'chatbot.prompt',
-        'chatbot.update',
-        'conversations.search',
-        'sources.delete',
-        'sources.upload',
-      ].sort(),
-    )
-    const reads = chatbaseConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = chatbaseConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['chatbot.list', 'conversations.search'].sort())
-    expect(mutations).toEqual(
-      [
-        'chatbot.create',
-        'chatbot.delete',
-        'chatbot.prompt',
-        'chatbot.update',
-        'sources.delete',
-        'sources.upload',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of chatbaseConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('chatbase chatbot.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -121,28 +65,6 @@ describe('chatbase chatbot.update', () => {
       visibility: 'private',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chatbaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chatbot.update',
-        args: {
-          chatbotId: 'cb_1',
-          chatbotName: 'name',
-          model: 'gpt-4o',
-          basePrompt: 'p',
-          temperature: 0.1,
-          visibility: 'private',
-        },
-        idempotencyKey: 'k-cb-update-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -28,34 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('emailit adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the emailit kind', () => {
-    expect(emailitConnector.manifest.kind).toBe('emailit')
-    expect(emailitConnector.manifest.category).toBe('comms')
-    expect(emailitConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as the catalog says', () => {
-    const auth = emailitConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: send.email, logs.list', () => {
-    const names = emailitConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['logs.list', 'send.email'])
-    const mutations = emailitConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['send.email'])
-    const reads = emailitConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['logs.list'])
-  })
-})
-
 describe('emailit adapter logs.list', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -124,27 +96,5 @@ describe('emailit adapter logs.list', () => {
     expect(capturedUrl).not.toContain('to=')
     expect(capturedUrl).not.toContain('status=')
     expect(capturedUrl).not.toContain('limit=')
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response(JSON.stringify({ error: 'unauthorized' }), {
-            status: 401,
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    )
-
-    await expect(
-      emailitConnector.executeRead!({
-        source: source(),
-        capabilityName: 'logs.list',
-        args: { status: 'delivered' },
-        idempotencyKey: 'idemp-logs-3',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -25,38 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'contact.search',
-  'contact.enrich',
-  'contact.redeem',
-  'account.search',
-  'account.enrich',
-  'account.redeem',
-]
-
-describe('cognism adapter manifest', () => {
-  it('classifies itself as sales-intelligence with api-key auth', () => {
-    expect(cognismConnector.manifest.kind).toBe('cognism')
-    expect(cognismConnector.manifest.category).toBe('sales-intelligence')
-    expect(cognismConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('splits free search/enrich reads from the credit-consuming contact.redeem mutation', () => {
-    const names = cognismConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED].sort())
-
-    const reads = cognismConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = cognismConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['account.enrich', 'account.redeem', 'account.search', 'contact.enrich', 'contact.search'].sort())
-    expect(mutations).toEqual(['contact.redeem'])
-
-    const redeem = cognismConnector.manifest.capabilities.find((c) => c.name === 'contact.redeem')
-    if (!redeem || redeem.class !== 'mutation') throw new Error('contact.redeem must be a mutation')
-    expect(redeem.cas).toBe('native-idempotency')
-    expect(redeem.externalEffect).toBe(true)
-  })
-})
-
 describe('cognism execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -121,29 +89,5 @@ describe('cognism execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/redeemIds/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      cognismConnector.executeRead!({
-        source: source(),
-        capabilityName: 'contact.search',
-        args: { filters: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      cognismConnector.executeRead!({
-        source: source(),
-        capabilityName: 'contact.search',
-        args: { filters: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

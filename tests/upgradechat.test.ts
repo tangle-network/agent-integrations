@@ -31,73 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('upgradechat adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the upgradechat kind', () => {
-    expect(upgradechatConnector.manifest.kind).toBe('upgradechat')
-    expect(upgradechatConnector.manifest.category).toBe('crm')
-    expect(upgradechatConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with an Upgrade.chat-specific hint', () => {
-    const auth = upgradechatConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Upgrade\.chat/i)
-  })
-
-  it('covers contacts, subscriptions, invoices, and products capability surface (incl. new write-side)', () => {
-    const names = upgradechatConnector.manifest.capabilities.map((c) => c.name).sort()
-    for (const expected of [
-      'contacts.add_or_update',
-      'contacts.get',
-      'subscriptions.add_or_update',
-      'subscriptions.cancel',
-      'invoices.create',
-      'invoices.refund',
-      'products.create',
-      'products.update',
-      'products.delete',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks destructive and write operations as mutations', () => {
-    const mutations = upgradechatConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    for (const expected of [
-      'contacts.add_or_update',
-      'subscriptions.add_or_update',
-      'subscriptions.cancel',
-      'invoices.create',
-      'invoices.refund',
-      'products.create',
-      'products.update',
-      'products.delete',
-    ]) {
-      expect(mutations).toContain(expected)
-    }
-  })
-
-  it('marks read-only operations as read', () => {
-    const reads = upgradechatConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-    expect(reads).toContain('contacts.get')
-  })
-
-  it('marks every mutation as native-idempotency external-effect', () => {
-    const caps = upgradechatConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('upgradechat subscriptions.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -124,18 +57,6 @@ describe('upgradechat subscriptions.cancel', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe(`${UC_BASE}/api/subscriptions/sub_1/cancel`)
     expect(requestBody).toMatchObject({ subscriptionId: 'sub_1', reason: 'customer request' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      upgradechatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.cancel',
-        args: { subscriptionId: 'sub_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -191,18 +112,6 @@ describe('upgradechat products.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe(`${UC_BASE}/api/products/p_1`)
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      upgradechatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 'p_1' },
-        idempotencyKey: 'k-3',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

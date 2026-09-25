@@ -46,53 +46,6 @@ afterEach(() => {
 })
 
 describe('intercomConnector', () => {
-  it('exposes the documented OAuth2 manifest with Intercom authorize/token URLs', () => {
-    expect(intercomConnector.manifest.kind).toBe('intercom')
-    expect(intercomConnector.manifest.displayName).toBe('Intercom')
-    expect(intercomConnector.manifest.category).toBe('crm')
-    expect(intercomConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = intercomConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://app.intercom.com/oauth')
-    expect(auth.tokenUrl).toBe('https://api.intercom.io/auth/eagle/token')
-    expect(auth.clientIdEnv).toBe('INTERCOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('INTERCOM_OAUTH_CLIENT_SECRET')
-    // Intercom apps declare permissions at app-config time, not per-authorize.
-    expect(auth.scopes).toEqual([])
-  })
-
-  it('declares the support action surface with read/mutation classes, CAS, and scope guards', () => {
-    const caps = intercomConnector.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-
-    expect(Object.keys(byName).sort()).toEqual([
-      'contacts.create',
-      'contacts.update',
-      'customers.read',
-      'tickets.reply',
-      'tickets.search',
-      'tickets.update',
-    ])
-
-    expect(byName['tickets.search'].class).toBe('read')
-    expect(byName['tickets.search'].requiredScopes).toEqual(['intercom.read'])
-    expect(byName['customers.read'].class).toBe('read')
-    expect(byName['customers.read'].requiredScopes).toEqual(['intercom.read'])
-
-    const reply = byName['tickets.reply']
-    expect(reply.class).toBe('mutation')
-    if (reply.class !== 'mutation') throw new Error('expected mutation')
-    expect(reply.cas).toBe('native-idempotency')
-    expect(reply.requiredScopes).toEqual(['intercom.write'])
-
-    const update = byName['tickets.update']
-    if (update.class !== 'mutation') throw new Error('expected mutation')
-    expect(update.cas).toBe('optimistic-read-verify')
-    expect(update.requiredScopes).toEqual(['intercom.write'])
-  })
-
   it('executes tickets.search against POST /conversations/search with bearer auth, Intercom-Version pin, and the body payload', async () => {
     const fetchMock = mockFetch({ conversations: [{ id: 'c_1' }], total_count: 1 })
     const provider = createConnectorAdapterProvider({

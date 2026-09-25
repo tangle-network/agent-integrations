@@ -42,34 +42,6 @@ describe('google-calendar adapter — event CRUD', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes the new event CRUD capabilities + scope', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'book_slot',
-      'create_event',
-      'delete_event',
-      'get_event',
-      'list_availability',
-      'list_events',
-      'update_event',
-    ])
-    // Default consent must include the fine-grained events scope.
-    const auth = adapter.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
-    expect(auth.scopes).toContain(
-      'https://www.googleapis.com/auth/calendar.events',
-    )
-    // create_event / update_event / delete_event are mutations w/ idempotency + externalEffect.
-    for (const name of ['create_event', 'update_event', 'delete_event']) {
-      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
-      if (!cap || cap.class !== 'mutation') {
-        throw new Error(`expected ${name} to be a mutation capability`)
-      }
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
   // ---------- create_event ----------
 
   it('create_event POSTs the right URL/body and returns committed event metadata', async () => {

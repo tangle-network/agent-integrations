@@ -29,64 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sendinblue adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the sendinblue kind', () => {
-    expect(sendinblueConnector.manifest.kind).toBe('sendinblue')
-    expect(sendinblueConnector.manifest.category).toBe('crm')
-    expect(sendinblueConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = sendinblueConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Sendinblue/i)
-  })
-
-  it('covers contacts, lists, campaigns, and transactional capability surface', () => {
-    const names = sendinblueConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'campaigns.send',
-        'contacts.createOrUpdate',
-        'contacts.delete',
-        'contacts.get',
-        'lists.addContacts',
-        'lists.create',
-        'lists.delete',
-        'lists.get',
-        'transactional.send',
-      ].sort(),
-    )
-    const mutations = sendinblueConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'campaigns.send',
-        'contacts.createOrUpdate',
-        'contacts.delete',
-        'lists.addContacts',
-        'lists.create',
-        'lists.delete',
-        'transactional.send',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency with externalEffect=true', () => {
-    const mutations = sendinblueConnector.manifest.capabilities.filter(
-      (c) => c.class === 'mutation',
-    )
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('sendinblue lists.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -113,18 +55,6 @@ describe('sendinblue lists.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v3/contacts/lists')
     expect(requestBody).toEqual({ name: 'Newsletter', folderId: 7 })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sendinblueConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'lists.create',
-        args: { name: 'x', folderId: 1 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

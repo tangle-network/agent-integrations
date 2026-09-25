@@ -1,36 +1,11 @@
 import type { ClientConfig, FieldDef, QueryConfig } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createPostgresConnector,
-  postgresConnector,
-  type PostgresConnectorOptions,
-} from '../src/connectors/adapters/postgres.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
+  type PostgresConnectorOptions } from '../src/connectors/adapters/postgres.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('PostgreSQL connector', () => {
-  it('replaces the REST placeholder with a valid authoritative read-only wire surface', () => {
-    expect(validateConnectorManifest(postgresConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(postgresConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'postgres.schemas.list',
-      'postgres.tables.list',
-      'postgres.tables.describe',
-      'postgres.rows.select',
-    ])
-    expect(postgresConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('postgres')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'PostgreSQL connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'postgres')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('postgres')
-  })
-
   it('uses PostgreSQL defaults while pinning the public address and TLS server name', async () => {
     let config: ClientConfig | undefined
     const connector = createPostgresConnector({

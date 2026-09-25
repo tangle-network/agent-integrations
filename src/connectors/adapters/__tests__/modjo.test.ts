@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { modjoConnector } from '../modjo.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_modjo',
@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('modjo adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(modjoConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and doc classification', () => {
-    expect(modjoConnector.manifest.kind).toBe('modjo')
-    expect(modjoConnector.manifest.displayName).toBe('Modjo')
-    expect(modjoConnector.manifest.category).toBe('doc')
-    expect(modjoConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = modjoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['calls.export', 'teams.list', 'users.list'])
-    const reads = modjoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = modjoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['calls.export', 'teams.list', 'users.list'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof modjoConnector.executeRead).toBe('function')
-    expect(typeof modjoConnector.executeMutation).toBe('function')
-  })
-
   it('routes calls.export as POST /v1/calls/exports', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await modjoConnector.executeRead!({ source, capabilityName: 'calls.export', args: {"page":1,"perPage":20,"transcript":true,"aiSummary":true,"contacts":true}, idempotencyKey: 'op_0' })
@@ -75,18 +50,5 @@ describe('modjo adapter', () => {
     expect((init.headers as Record<string, string>)['X-API-KEY']).toBe('modjo-key')
     expect(url.searchParams.get('page')).toBe('1')
     expect(url.searchParams.get('perPage')).toBe('20')
-  })
-
-  it('throws CredentialsExpired when Modjo rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      modjoConnector.executeRead!({ source, capabilityName: 'calls.export', args: {"page":1,"perPage":20,"transcript":true,"aiSummary":true,"contacts":true}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      modjoConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

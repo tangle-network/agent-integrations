@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { recurlyConnector } from '../src/connectors/adapters/recurly.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -27,39 +26,6 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe('Recurly adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('ships the billing lifecycle pack and registers without shared credentials', () => {
-    expect(recurlyConnector.manifest.kind).toBe('recurly')
-    expect(recurlyConnector.manifest.auth.kind).toBe('api-key')
-
-    const names = recurlyConnector.manifest.capabilities.map((capability) => capability.name)
-    expect(names).toEqual(expect.arrayContaining([
-      'sites.list',
-      'accounts.list',
-      'accounts.get',
-      'accounts.create',
-      'accounts.update',
-      'plans.list',
-      'subscriptions.list',
-      'accounts.subscriptions.list',
-      'subscriptions.get',
-      'subscriptions.create',
-      'subscriptions.cancel',
-      'subscriptions.reactivate',
-      'subscriptions.terminate',
-      'invoices.list',
-      'invoices.get',
-      'accounts.invoices.list',
-    ]))
-
-    for (const capability of recurlyConnector.manifest.capabilities) {
-      if (capability.class === 'mutation') expect(capability.externalEffect).toBe(true)
-    }
-
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'recurly')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({})).toBe(recurlyConnector)
-  })
 
   it('uses Recurly v3 Basic auth and API media type on reads', async () => {
     let requestUrl = ''

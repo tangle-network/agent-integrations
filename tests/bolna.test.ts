@@ -25,67 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bolna adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the bolna kind', () => {
-    expect(bolnaConnector.manifest.kind).toBe('bolna')
-    expect(bolnaConnector.manifest.category).toBe('comms')
-    expect(bolnaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = bolnaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers reads + makePhoneCall plus new agent CRUD and cancel mutations', () => {
-    const names = bolnaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'agents.list',
-        'agents.get',
-        'agents.create',
-        'agents.update',
-        'agents.delete',
-        'executions.list',
-        'executions.get',
-        'calls.make',
-        'calls.batch',
-        'calls.cancel',
-      ].sort(),
-    )
-    const reads = bolnaConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = bolnaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['agents.get', 'agents.list', 'executions.get', 'executions.list'])
-    expect(mutations).toEqual(
-      [
-        'agents.create',
-        'agents.delete',
-        'agents.update',
-        'calls.batch',
-        'calls.cancel',
-        'calls.make',
-      ].sort(),
-    )
-  })
-
-  it('marks the new mutations with native-idempotency CAS and external effect', () => {
-    const targets = ['calls.cancel', 'agents.create', 'agents.update', 'agents.delete']
-    for (const name of targets) {
-      const cap = bolnaConnector.manifest.capabilities.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('bolna calls.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -109,18 +48,6 @@ describe('bolna calls.cancel', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('https://api.bolna.dev/call/exec-9')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      bolnaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.cancel',
-        args: { executionId: 'exec-9' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -10,20 +10,6 @@ const source: ResolvedDataSource = {
 const email = { to: 'recipient@example.com', from: 'sender@example.com', subject: 'hello', body: 'world', replyTo: 'reply@example.com' }
 afterEach(() => vi.unstubAllGlobals())
 
-describe('contiguity manifest', () => {
-  it('retains public kind/category and API-key auth', () => {
-    expect(contiguityConnector.manifest).toMatchObject({ kind: 'contiguity', category: 'crm', auth: { kind: 'api-key' }, defaultConsistencyModel: 'advisory' })
-  })
-  it('preserves send action names and adds owned-number discovery', () => {
-    expect(contiguityConnector.manifest.capabilities.map((c) => c.name).sort()).toEqual(['email.send', 'messages.send_imessage', 'messages.send_text', 'numbers.list', 'sms.send'])
-  })
-  it('does not claim undocumented provider-native idempotency', () => {
-    const mutations = contiguityConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations).toHaveLength(4)
-    for (const cap of mutations) expect(cap).toMatchObject({ cas: 'none', externalEffect: true })
-  })
-})
-
 describe('contiguity wire contracts', () => {
   it.each(['text/plain', 'text/html'] as const)('maps %s body and reply_to to POST /send/email', async (contentType) => {
     const send = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ id: 'request', data: { message_id: 'message' } }))

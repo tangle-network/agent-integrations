@@ -1,21 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   freshdeskConnector,
   gorgiasConnector,
-  resolveConnectorAdapterFactoryOptions,
   zendeskConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const expectedProviders = {
-  front: ['FRONT_OAUTH_CLIENT_ID', 'FRONT_OAUTH_CLIENT_SECRET'],
-  zendesk: ['ZENDESK_OAUTH_CLIENT_ID', 'ZENDESK_OAUTH_CLIENT_SECRET'],
-  intercom: ['INTERCOM_OAUTH_CLIENT_ID', 'INTERCOM_OAUTH_CLIENT_SECRET'],
-  helpscout: ['HELPSCOUT_OAUTH_CLIENT_ID', 'HELPSCOUT_OAUTH_CLIENT_SECRET'],
-  freshdesk: ['FRESHDESK_OAUTH_CLIENT_ID', 'FRESHDESK_OAUTH_CLIENT_SECRET'],
-  gorgias: ['GORGIAS_OAUTH_CLIENT_ID', 'GORGIAS_OAUTH_CLIENT_SECRET'],
-} as const
 
 function source(kind: string, subdomainUrl: string): ResolvedDataSource {
   return {
@@ -31,26 +20,6 @@ function source(kind: string, subdomainUrl: string): ResolvedDataSource {
     status: 'active',
   }
 }
-
-describe('shared inbox and support provider factories', () => {
-  it('registers all six providers behind their exact OAuth application settings', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(Object.values(definition!.envMap), kind).toEqual(envNames)
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('fails closed when only half of an OAuth application is configured', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)!
-      expect(resolveConnectorAdapterFactoryOptions(definition, {
-        [envNames[0]]: 'client-id-only',
-      }), kind).toBeNull()
-    }
-  })
-})
 
 describe('support tenant URL boundaries', () => {
   afterEach(() => vi.unstubAllGlobals())

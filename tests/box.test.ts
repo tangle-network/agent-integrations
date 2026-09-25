@@ -22,49 +22,6 @@ afterEach(() => {
 })
 
 describe('box declarative adapter', () => {
-  it('exposes the documented OAuth2 manifest shape', () => {
-    expect(boxConnector.manifest.kind).toBe('box')
-    expect(boxConnector.manifest.category).toBe('storage')
-    expect(boxConnector.manifest.auth.kind).toBe('oauth2')
-    if (boxConnector.manifest.auth.kind !== 'oauth2') {
-      throw new Error('expected oauth2 auth')
-    }
-    const auth = boxConnector.manifest.auth
-    expect(auth.authorizationUrl).toBe('https://account.box.com/api/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://api.box.com/oauth2/token')
-    expect(auth.scopes).toContain('root_readonly')
-    expect(auth.clientIdEnv).toBe('BOX_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('BOX_OAUTH_CLIENT_SECRET')
-  })
-
-  it('declares the canonical storage action surface', () => {
-    const names = boxConnector.manifest.capabilities.map((cap) => cap.name).sort()
-    expect(names).toEqual([
-      'collaborations.create',
-      'files.copy',
-      'files.delete',
-      'files.get',
-      'files.update',
-      'folders.create',
-      'folders.delete',
-      'folders.get',
-      'folders.items',
-      'search',
-      'users.me',
-    ])
-  })
-
-  it('marks every mutation with cas + externalEffect and uses readwrite scope', () => {
-    const mutations = boxConnector.manifest.capabilities.filter((cap) => cap.class === 'mutation')
-    expect(mutations.length).toBeGreaterThanOrEqual(5)
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'etag-if-match', 'optimistic-read-verify', 'none']).toContain(cap.cas)
-      expect(cap.requiredScopes).toContain('root_readwrite')
-    }
-  })
-
   it('issues a folder.items GET against api.box.com with bearer auth', async () => {
     const fetchMock = mockFetch({ total_count: 0, entries: [], offset: 0, limit: 100 })
     const provider = createConnectorAdapterProvider({

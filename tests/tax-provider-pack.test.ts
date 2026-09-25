@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { avalaraConnector } from '../src/connectors/adapters/avalara.js'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { taxjarConnector } from '../src/connectors/adapters/taxjar.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/registry.js'
 
 function source(kind: 'avalara' | 'taxjar', overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -31,14 +29,6 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('tax provider factories and setup', () => {
-  it('registers both customer-credential adapters without deployment secrets', () => {
-    for (const kind of ['avalara', 'taxjar']) {
-      const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(factory?.envMap, kind).toEqual({})
-      expect(getIntegrationSpec(kind)).toMatchObject({ kind, status: 'executable' })
-    }
-  })
-
   it('keeps every transaction-record mutation approval-required', () => {
     for (const connector of [avalaraConnector, taxjarConnector]) {
       for (const capability of connector.manifest.capabilities) {

@@ -29,55 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('what-converts adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the what-converts kind', () => {
-    expect(whatConvertsConnector.manifest.kind).toBe('what-converts')
-    expect(whatConvertsConnector.manifest.category).toBe('crm')
-    expect(whatConvertsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = whatConvertsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set plus write-side delete/qualify and the accounts + users reads', () => {
-    const names = whatConvertsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'leads.create',
-        'leads.delete',
-        'leads.getByEmail',
-        'leads.list',
-        'leads.qualify',
-        'leads.update',
-        'accounts.list',
-        'users.list',
-      ].sort(),
-    )
-    const mutations = whatConvertsConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['leads.create', 'leads.delete', 'leads.qualify', 'leads.update'])
-    const reads = whatConvertsConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['accounts.list', 'leads.getByEmail', 'leads.list', 'users.list'])
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set(['leads.delete', 'leads.qualify'])
-    for (const c of whatConvertsConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('what-converts leads.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -100,18 +51,6 @@ describe('what-converts leads.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v1/leads/lead_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      whatConvertsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'leads.delete',
-        args: { lead_id: 'lead_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

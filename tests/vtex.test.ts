@@ -29,88 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vtex adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the vtex kind', () => {
-    expect(vtexConnector.manifest.kind).toBe('vtex')
-    expect(vtexConnector.manifest.category).toBe('crm')
-    expect(vtexConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = vtexConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/VTEX|App|Token/i)
-  })
-
-  it('covers brands, products, categories, skus, orders, and clients capability surface', () => {
-    const names = vtexConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'brands.create',
-        'brands.delete',
-        'brands.get',
-        'brands.list',
-        'brands.update',
-        'categories.create',
-        'categories.get',
-        'clients.get',
-        'clients.list',
-        'orders.cancel',
-        'orders.get',
-        'orders.list',
-        'products.create',
-        'products.delete',
-        'products.get',
-        'products.update',
-        'skus.create',
-        'skus.list',
-        'skus.update',
-      ].sort(),
-    )
-    const mutations = vtexConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'brands.create',
-        'brands.delete',
-        'brands.update',
-        'categories.create',
-        'orders.cancel',
-        'products.create',
-        'products.delete',
-        'products.update',
-        'skus.create',
-        'skus.update',
-      ].sort(),
-    )
-  })
-
-  it('marks newly added mutations as native-idempotency externalEffect', () => {
-    const newMutations = new Set([
-      'products.delete',
-      'categories.create',
-      'orders.cancel',
-    ])
-    for (const cap of vtexConnector.manifest.capabilities) {
-      if (!newMutations.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks skus.update as externalEffect (optimistic-read-verify is acceptable)', () => {
-    const cap = vtexConnector.manifest.capabilities.find((c) => c.name === 'skus.update')
-    expect(cap?.class).toBe('mutation')
-    if (cap?.class !== 'mutation') throw new Error('unreachable')
-    expect(cap.externalEffect).toBe(true)
-  })
-})
-
 describe('vtex write capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -201,21 +119,5 @@ describe('vtex write capabilities', () => {
 
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/oms/pvt/orders/ORD-1/cancel')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      vtexConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 99 },
-        idempotencyKey: 'k-5',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

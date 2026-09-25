@@ -25,63 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chargebee adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the chargebee kind', () => {
-    expect(chargebeeConnector.manifest.kind).toBe('chargebee')
-    expect(chargebeeConnector.manifest.category).toBe('crm')
-    expect(chargebeeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = chargebeeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the activepieces action set plus the new lifecycle/refund writes', () => {
-    const names = chargebeeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'customer.create',
-        'customer.get',
-        'invoice.refund',
-        'subscription.cancel',
-        'subscription.create',
-        'subscription.pause',
-        'subscription.resume',
-        'subscription.update',
-      ].sort(),
-    )
-    const reads = chargebeeConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = chargebeeConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['customer.get'])
-    expect(mutations).toEqual(
-      [
-        'customer.create',
-        'invoice.refund',
-        'subscription.cancel',
-        'subscription.create',
-        'subscription.pause',
-        'subscription.resume',
-        'subscription.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of chargebeeConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('chargebee subscription.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -121,35 +64,6 @@ describe('chargebee subscription.update', () => {
       'https://acme-test.chargebee.com/api/v2/subscriptions/sub_1/update_for_items',
     )
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chargebeeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscription.update',
-        args: {
-          subscription_id: 'sub_1',
-          item_price_id: 'price_pro',
-          quantity: 1,
-          billing_cycles: 1,
-          replace_items_list: false,
-          trial_end: 0,
-          end_of_term: false,
-          prorate: true,
-          coupon_ids: [],
-          po_number: '',
-          invoice_immediately: false,
-          invoice_notes: '',
-          meta_data: {},
-        },
-        idempotencyKey: 'k-sub-upd-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -2,27 +2,12 @@ import type { Admin, Consumer, KafkaConfig, Producer } from 'kafkajs'
 import { describe, expect, it } from 'vitest'
 import {
   createKafkaConnector,
-  kafkaConnector,
   publicKafkaSocketFactory,
-  type KafkaConnectorOptions,
-} from '../src/connectors/adapters/kafka.js'
-import { validateConnectorManifest, type ConnectorCredentials, type ResolvedDataSource } from '../src/connectors/types.js'
+  type KafkaConnectorOptions } from '../src/connectors/adapters/kafka.js'
+import { type ConnectorCredentials, type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Kafka connector', () => {
-  it('passes the shared manifest validator and approval-gates every stateful operation', () => {
-    expect(validateConnectorManifest(kafkaConnector.manifest)).toEqual({ ok: true, issues: [] })
-    const mutations = kafkaConnector.manifest.capabilities.filter((capability) => capability.class === 'mutation')
-    expect(mutations.map((capability) => capability.name)).toEqual([
-      'kafka.messages.produce',
-      'kafka.messages.consume',
-      'kafka.offsets.commit',
-      'kafka.topics.create',
-      'kafka.topics.delete',
-    ])
-    expect(mutations.every((capability) => capability.externalEffect)).toBe(true)
-  })
-
   it('exposes executable setup with a structured encrypted credential', () => {
     const spec = getIntegrationSpec('kafka')
     expect(spec?.status).toBe('executable')

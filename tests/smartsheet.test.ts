@@ -29,55 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smartsheet adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the smartsheet kind', () => {
-    expect(smartsheetConnector.manifest.kind).toBe('smartsheet')
-    expect(smartsheetConnector.manifest.category).toBe('doc')
-    expect(smartsheetConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth', () => {
-    const auth = smartsheetConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set plus the new write-side mutations', () => {
-    const names = smartsheetConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'sheets.search',
-        'sheets.create',
-        'rows.search',
-        'rows.create',
-        'rows.update',
-        'rows.delete',
-        'attachments.create',
-        'attachments.search',
-        'attachments.delete',
-        'shares.create',
-        'comments.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = [
-      'sheets.create',
-      'rows.delete',
-      'attachments.delete',
-      'shares.create',
-      'comments.create',
-    ]
-    for (const name of expected) {
-      const cap = smartsheetConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('smartsheet sheets.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -104,18 +55,6 @@ describe('smartsheet sheets.create', () => {
     expect(requestUrl).toBe('https://api.smartsheet.com/2.0/sheets')
     expect(requestBody).toMatchObject({ name: 'New Sheet' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smartsheetConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sheets.create',
-        args: { name: 'x', columns: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

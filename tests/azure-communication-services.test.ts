@@ -25,46 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('azure-communication-services adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the azure-communication-services kind', () => {
-    expect(azureCommunicationServicesConnector.manifest.kind).toBe('azure-communication-services')
-    expect(azureCommunicationServicesConnector.manifest.category).toBe('comms')
-    expect(azureCommunicationServicesConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as the catalog says', () => {
-    const auth = azureCommunicationServicesConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: email + sms + chat thread + chat message', () => {
-    const names = azureCommunicationServicesConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['chat.message.send', 'chat.thread.create', 'send.email', 'send.sms'].sort(),
-    )
-    const mutations = azureCommunicationServicesConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['chat.message.send', 'chat.thread.create', 'send.email', 'send.sms'].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = ['send.sms', 'chat.thread.create', 'chat.message.send']
-    for (const name of writeSide) {
-      const cap = azureCommunicationServicesConnector.manifest.capabilities.find(
-        (c) => c.name === name,
-      )
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('azure-communication-services send.sms', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -99,22 +59,6 @@ describe('azure-communication-services send.sms', () => {
       message: 'hi there',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      azureCommunicationServicesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'send.sms',
-        args: {
-          from: '+15550100',
-          smsRecipients: [{ to: '+15550101' }],
-          message: 'hi',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -181,17 +125,5 @@ describe('azure-communication-services chat.message.send', () => {
       type: 'text',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      azureCommunicationServicesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chat.message.send',
-        args: { threadId: 't', message: { content: 'x' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -28,51 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('kissflow adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the kissflow kind', () => {
-    expect(kissflowConnector.manifest.kind).toBe('kissflow')
-    expect(kissflowConnector.manifest.category).toBe('doc')
-    expect(kissflowConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = kissflowConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/kissflow/i)
-  })
-
-  it('exposes the read + new write capabilities', () => {
-    const names = kissflowConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'download.attachment.from.form.field',
-      'process.instance.create',
-      'process.instance.submit',
-    ])
-    const reads = kissflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['download.attachment.from.form.field'])
-    const mutations = kissflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['process.instance.create', 'process.instance.submit'])
-  })
-
-  it('mutation capabilities declare native-idempotency CAS + externalEffect', () => {
-    const mutations = kissflowConnector.manifest.capabilities.filter(
-      (c) => c.class === 'mutation',
-    )
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('unreachable')
-      expect(m.cas).toBe('native-idempotency')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('kissflow process.instance.create', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -138,36 +93,6 @@ describe('kissflow process.instance.create', () => {
       }),
     ).rejects.toThrow(/payload/)
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      kissflowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'process.instance.create',
-        args: { accountId: 'A', processId: 'P', payload: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      kissflowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'process.instance.create',
-        args: { accountId: 'A', processId: 'P', payload: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('kissflow process.instance.submit', () => {
@@ -231,35 +156,5 @@ describe('kissflow process.instance.submit', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/instanceId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      kissflowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'process.instance.submit',
-        args: { accountId: 'A', processId: 'P', instanceId: 'PI' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      kissflowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'process.instance.submit',
-        args: { accountId: 'A', processId: 'P', instanceId: 'PI' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

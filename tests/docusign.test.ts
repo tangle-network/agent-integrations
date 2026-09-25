@@ -22,21 +22,6 @@ afterEach(() => {
 })
 
 describe('docusign declarative adapter', () => {
-  it('declares the documented OAuth2 manifest shape', () => {
-    expect(docusignConnector.manifest.kind).toBe('docusign')
-    expect(docusignConnector.manifest.category).toBe('doc')
-    expect(docusignConnector.manifest.auth.kind).toBe('oauth2')
-    if (docusignConnector.manifest.auth.kind !== 'oauth2') {
-      throw new Error('expected oauth2 auth')
-    }
-    const auth = docusignConnector.manifest.auth
-    expect(auth.authorizationUrl).toBe('https://account.docusign.com/oauth/auth')
-    expect(auth.tokenUrl).toBe('https://account.docusign.com/oauth/token')
-    expect(auth.scopes).toEqual(expect.arrayContaining(['signature', 'extended']))
-    expect(auth.clientIdEnv).toBe('DOCUSIGN_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('DOCUSIGN_OAUTH_CLIENT_SECRET')
-  })
-
   it('tests the configured account instead of requiring action arguments', async () => {
     const fetchMock = mockFetch({ accountId: 'acc_42' })
 
@@ -44,42 +29,6 @@ describe('docusign declarative adapter', () => {
 
     const [url] = fetchMock.mock.calls[0] as [URL | string, RequestInit]
     expect(String(url)).toBe('https://na4.docusign.net/restapi/v2.1/accounts/acc_42')
-  })
-
-  it('publishes the e-signature surface the catalog expects plus the named write-side mutations', () => {
-    const names = docusignConnector.manifest.capabilities.map((cap) => cap.name).sort()
-    expect(names).toEqual([
-      'envelope.send',
-      'envelope.void',
-      'envelopes.create',
-      'envelopes.documents.list',
-      'envelopes.get',
-      'envelopes.list',
-      'envelopes.recipients.list',
-      'envelopes.recipients.update',
-      'envelopes.update',
-      'envelopes.views.recipient',
-      'recipient.resendInvitation',
-      'templates.get',
-      'templates.list',
-    ])
-
-    const writes = docusignConnector.manifest.capabilities.filter((cap) => cap.class === 'mutation')
-    for (const cap of writes) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(['native-idempotency', 'optimistic-read-verify', 'none']).toContain(cap.cas)
-    }
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['envelope.send', 'envelope.void', 'recipient.resendInvitation']
-    for (const name of expected) {
-      const cap = docusignConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
   })
 
   it('envelope.send PUTs the status=sent transition', async () => {

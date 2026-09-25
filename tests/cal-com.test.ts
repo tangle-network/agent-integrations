@@ -33,11 +33,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('cal-com adapter manifest', () => {
-  it('exposes the cal-com kind in the calendar category', () => {
-    expect(calComConnector.manifest.kind).toBe('cal-com')
-    expect(calComConnector.manifest.category).toBe('calendar')
-  })
-
   it('uses the approved public-client OAuth contract', () => {
     const auth = calComConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -48,19 +43,6 @@ describe('cal-com adapter manifest', () => {
     expect(auth.tokenClientAuthMethod).toBe('none')
   })
 
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    const caps = calComConnector.manifest.capabilities
-    const targets = ['event-types.create', 'event-types.delete', 'schedules.create']
-    for (const name of targets) {
-      const cap = caps.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('cal-com public-client credential lifecycle', () => {

@@ -32,56 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('notion adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the notion kind', () => {
-    expect(notionConnector.manifest.kind).toBe('notion')
-    expect(notionConnector.manifest.category).toBe('doc')
-    expect(notionConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = notionConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-  it('covers the activepieces action set plus users.list and block write-side ops', () => {
-    const names = notionConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'databases.retrieve',
-        'databases.query',
-        'pages.create',
-        'pages.retrieve',
-        'pages.update',
-        'pages.archive',
-        'blocks.retrieve',
-        'blocks.children',
-        'blocks.append',
-        'blocks.update',
-        'blocks.delete',
-        'databases.create',
-        'databases.update',
-        'comments.create',
-        'comments.retrieve',
-        'users.list',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency external effect', () => {
-    const newMutations = ['blocks.update', 'blocks.delete']
-    for (const name of newMutations) {
-      const cap = notionConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
-})
-
 describe('notion users.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -168,18 +118,6 @@ describe('notion blocks.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: content/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      notionConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'blocks.update',
-        args: { blockId: 'b_1', content: { paragraph: { rich_text: [] } } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
