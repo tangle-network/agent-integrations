@@ -1,12 +1,10 @@
 import type { LookupFunction } from 'node:net'
 import type { MongoClientOptions } from 'mongodb'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createMongoDbConnector,
   type MongoDbConnectorOptions } from '../src/connectors/adapters/mongodb.js'
 import { type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MongoDB connector', () => {
   it('pins public DNS while retaining verified TLS identity and keeping secrets out of the URI', async () => {

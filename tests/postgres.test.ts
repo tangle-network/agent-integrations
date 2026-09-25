@@ -1,11 +1,9 @@
 import type { ClientConfig, FieldDef, QueryConfig } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createPostgresConnector,
   type PostgresConnectorOptions } from '../src/connectors/adapters/postgres.js'
 import { type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('PostgreSQL connector', () => {
   it('uses PostgreSQL defaults while pinning the public address and TLS server name', async () => {

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   pipedriveConnector,
-  resolveConnectorAdapterFactoryOptions,
   zohoCrmConnector,
 } from '../src/connectors/adapters/index'
 

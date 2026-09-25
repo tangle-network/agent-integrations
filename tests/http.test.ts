@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { httpConnector } from '../src/connectors/adapters/http.js'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 import type { ConnectorInvocation, ResolvedDataSource } from '../src/connectors/types.js'
 
 function makeSource(): ResolvedDataSource {

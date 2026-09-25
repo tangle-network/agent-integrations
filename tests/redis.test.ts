@@ -1,11 +1,9 @@
 import type { RedisClientOptions } from 'redis'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createRedisConnector,
   type RedisConnectorOptions } from '../src/connectors/adapters/redis.js'
 import { type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Redis connector', () => {
   it('pins a public address while retaining the DNS name for verified TLS identity', async () => {

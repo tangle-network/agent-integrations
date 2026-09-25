@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { acuitySchedulingConnector } from '../src/connectors/adapters/acuity-scheduling.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 

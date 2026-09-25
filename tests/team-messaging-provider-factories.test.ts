@@ -1,20 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   chatwootConnector,
-  CONNECTOR_ADAPTER_FACTORIES,
   mattermostConnector,
   matrixConnector,
-  resolveConnectorAdapterFactoryOptions,
   telegramConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const customerCredentialProviders = [
-  'telegram',
-  'mattermost',
-  'matrix',
-  'chatwoot',
-] as const
 
 function source(
   kind: string,

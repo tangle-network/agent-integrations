@@ -1,23 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
-  resolveConnectorAdapterFactoryOptions,
   smartleadConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
-
-const expectedProviders = {
-  outreach: ['OUTREACH_OAUTH_CLIENT_ID', 'OUTREACH_OAUTH_CLIENT_SECRET'],
-  salesloft: ['SALESLOFT_OAUTH_CLIENT_ID', 'SALESLOFT_OAUTH_CLIENT_SECRET'],
-  mailchimp: ['MAILCHIMP_OAUTH_CLIENT_ID', 'MAILCHIMP_OAUTH_CLIENT_SECRET'],
-  marketo: ['MARKETO_OAUTH_CLIENT_ID', 'MARKETO_OAUTH_CLIENT_SECRET'],
-  klaviyo: ['KLAVIYO_OAUTH_CLIENT_ID', 'KLAVIYO_OAUTH_CLIENT_SECRET'],
-  apollo: [],
-  'customer-io': [],
-  braze: [],
-  smartlead: [],
-  lemlist: [],
-} as const
 
 describe('Smartlead API-key placement', () => {
   afterEach(() => vi.unstubAllGlobals())

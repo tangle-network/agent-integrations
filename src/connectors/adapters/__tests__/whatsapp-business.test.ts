@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { whatsappBusiness } from '../whatsapp-business.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const opts = { clientId: 'client_id', clientSecret: 'client_secret' }
 

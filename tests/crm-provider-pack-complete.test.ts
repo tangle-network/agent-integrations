@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   biginByZohoConnector,
   fireberryConnector,
   flowluConnector,
@@ -9,7 +8,6 @@ import {
   microsoftDynamicsCrmConnector,
   ninjapipeConnector,
   pipedriveConnector,
-  resolveConnectorAdapterFactoryOptions,
   salesforceConnector,
   zohoCrmConnector,
 } from '../src/connectors/adapters/index.js'
@@ -18,19 +16,6 @@ import type {
   ConnectorCredentials,
   ResolvedDataSource,
 } from '../src/connectors/types.js'
-
-const activatedCrms = [
-  'twenty',
-  'folk',
-  'freshsales',
-  'capsule-crm',
-  'insightly',
-  'bigin-by-zoho',
-  'fireberry',
-  'flowlu',
-  'lead-connector',
-  'ninjapipe',
-] as const
 
 afterEach(() => vi.unstubAllGlobals())
 

@@ -1,11 +1,9 @@
 import type { ClientConfig, FieldDef, QueryConfig } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createRedshiftConnector,
   type RedshiftConnectorOptions } from '../src/connectors/adapters/redshift.js'
 import { type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Redshift connector', () => {
   it('pins a public address while retaining the DNS name for verified TLS identity', async () => {

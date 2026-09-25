@@ -4,7 +4,6 @@ import {
   azureBlobStorageConnector,
   parseAzureStorageCredentials,
 } from '../src/connectors/adapters/azure-blob-storage.js'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 const ACCOUNT_KEY = Buffer.from('0123456789abcdef0123456789abcdef').toString('base64')

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { azureEventGridConnector } from '../src/connectors/adapters/azure-event-grid.js'
 import {
-  validateConnectorManifest,
   type ResolvedDataSource,
 } from '../src/connectors/types.js'
 

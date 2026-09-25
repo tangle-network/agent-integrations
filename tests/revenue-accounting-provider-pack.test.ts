@@ -1,30 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   billComConnector,
   brexConnector,
-  chargebeeConnector,
   netsuiteConnector,
-  paddleConnector,
   plaidConnector,
   rampConnector,
-  resolveConnectorAdapterFactoryOptions,
   sageIntacctConnector,
-  stripePackConnector,
 } from '../src/connectors/adapters/index.js'
-import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const expectedProviders = [
-  'stripe-pack',
-  'chargebee',
-  'paddle',
-  'plaid',
-  'ramp',
-  'brex',
-  'bill-com',
-  'netsuite',
-  'sage-intacct',
-] as const
+import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 function source(
   kind: string,

@@ -1,21 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   freshdeskConnector,
   gorgiasConnector,
-  resolveConnectorAdapterFactoryOptions,
   zendeskConnector,
 } from '../src/connectors/adapters/index.js'
 import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const expectedProviders = {
-  front: ['FRONT_OAUTH_CLIENT_ID', 'FRONT_OAUTH_CLIENT_SECRET'],
-  zendesk: ['ZENDESK_OAUTH_CLIENT_ID', 'ZENDESK_OAUTH_CLIENT_SECRET'],
-  intercom: ['INTERCOM_OAUTH_CLIENT_ID', 'INTERCOM_OAUTH_CLIENT_SECRET'],
-  helpscout: ['HELPSCOUT_OAUTH_CLIENT_ID', 'HELPSCOUT_OAUTH_CLIENT_SECRET'],
-  freshdesk: ['FRESHDESK_OAUTH_CLIENT_ID', 'FRESHDESK_OAUTH_CLIENT_SECRET'],
-  gorgias: ['GORGIAS_OAUTH_CLIENT_ID', 'GORGIAS_OAUTH_CLIENT_SECRET'],
-} as const
 
 function source(kind: string, subdomainUrl: string): ResolvedDataSource {
   return {

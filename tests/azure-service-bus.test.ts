@@ -2,7 +2,6 @@ import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { azureServiceBusConnector } from '../src/connectors/adapters/azure-service-bus.js'
 import {
-  validateConnectorManifest,
   type ResolvedDataSource,
 } from '../src/connectors/types.js'
 

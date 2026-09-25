@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   oneDrive,
-  validateConnectorManifest,
   type ResolvedDataSource,
 } from '../src/connectors/index'
 

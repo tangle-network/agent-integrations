@@ -1,11 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   builtwithConnector,
-  CONNECTOR_ADAPTER_FACTORIES,
   fullenrichConnector,
   hunterConnector,
   neverbounceConnector,
-  resolveConnectorAdapterFactoryOptions,
   theirstackConnector,
   zerobounceConnector,
 } from '../src/connectors/adapters/index.js'
@@ -13,15 +11,6 @@ import type {
   ConnectorAdapter,
   ResolvedDataSource,
 } from '../src/connectors/types.js'
-
-const activatedProviders = [
-  'builtwith',
-  'fullenrich',
-  'hunter',
-  'neverbounce',
-  'theirstack',
-  'zerobounce',
-] as const
 
 afterEach(() => vi.unstubAllGlobals())
 

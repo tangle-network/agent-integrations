@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   confluenceConnector,
-  validateConnectorManifest,
   type ConnectorInvocation,
   type ResolvedDataSource,
 } from '../src/connectors/index'

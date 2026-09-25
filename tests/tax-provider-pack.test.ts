@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { avalaraConnector } from '../src/connectors/adapters/avalara.js'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { taxjarConnector } from '../src/connectors/adapters/taxjar.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/registry.js'
 
 function source(kind: 'avalara' | 'taxjar', overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {

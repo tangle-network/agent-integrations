@@ -1,24 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   circleConnector,
   instagramBusinessConnector,
   mastodonConnector,
-  resolveConnectorAdapterFactoryOptions,
 } from '../src/connectors/adapters/index.js'
 import type {
   ConnectorCredentials,
   ResolvedDataSource,
 } from '../src/connectors/types.js'
-
-const activatedProviders = [
-  'instagram-business',
-  'linkedin',
-  'mastodon',
-  'circle',
-  'youtube',
-  'tiktok',
-] as const
 
 afterEach(() => vi.unstubAllGlobals())
 

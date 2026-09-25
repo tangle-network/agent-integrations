@@ -3,9 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   createMySqlConnector,
   type MySqlConnectorOptions } from '../src/connectors/adapters/mysql.js'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MySQL connector', () => {
   it('uses a pinned public address while retaining the hostname for verified TLS identity', async () => {

@@ -17,7 +17,6 @@ import {
   startOAuthFlow,
   tiktok,
   tiktokConnector,
-  validateConnectorManifest,
   type ConnectorCredentials,
   type ResolvedDataSource,
 } from '../src/connectors/index.js'

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { segmentConnector } from '../src/connectors/adapters/segment.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
