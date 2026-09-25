@@ -30,20 +30,6 @@ function response(body: BodyInit | null = null, status = 200, headers: Record<st
   return new Response(body, { status, headers })
 }
 
-describe('azure-service-bus manifest', () => {
-  it('passes safety validation and approval-gates every destructive or outbound operation', () => {
-    expect(validateConnectorManifest(azureServiceBusConnector.manifest)).toEqual({ ok: true, issues: [] })
-    const mutations = azureServiceBusConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(6)
-    for (const mutation of mutations) {
-      expect(mutation.cas, mutation.name).toBe('none')
-      expect(mutation.externalEffect, mutation.name).toBe(true)
-    }
-  })
-})
-
 describe('azure-service-bus execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

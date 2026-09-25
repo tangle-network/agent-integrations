@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('cartloom adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = cartloomConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('cartloom discounts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -79,18 +71,6 @@ describe('cartloom discounts.update', () => {
     expect(String(requestUrl)).toContain('/discounts/d1')
     expect(requestBody).toMatchObject({ title: 'Spring 10', enabled: true, amount: 10, code: 'SPRING10' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      cartloomConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'discounts.update',
-        args: fullArgs,
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

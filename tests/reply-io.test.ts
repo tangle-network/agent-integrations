@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('reply-io adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = replyIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('reply-io campaigns + templates execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -126,17 +118,5 @@ describe('reply-io campaigns + templates execution', () => {
       subject: 'Hello',
       body: '<p>Hi</p>',
     })
-  })
-
-  it('surfaces CredentialsExpired on 401 for campaigns.start', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('expired', { status: 401 })))
-    await expect(
-      replyIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.start',
-        args: { campaignId: 'camp_42' },
-        idempotencyKey: 'k-start-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

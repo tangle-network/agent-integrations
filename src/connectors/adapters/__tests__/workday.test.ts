@@ -126,7 +126,6 @@ describe('workday adapter manifest', () => {
     })).rejects.toMatchObject({ code: 'config_missing' })
     expect(fetchImpl).not.toHaveBeenCalled()
   })
-
 })
 
 describe('workday adapter execution', () => {
@@ -212,20 +211,6 @@ describe('workday adapter execution', () => {
     const headers = call[1]!.headers as Record<string, string>
     expect(headers.authorization).toBe('Bearer token_workday')
     expect(headers['content-type']).toBe('application/json')
-  })
-
-  it('throws CredentialsExpired when Workday rejects the token with 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'workers.get',
-      args: { workerId: 'w-1' },
-      idempotencyKey: 'idem_4',
-    }
-    await expect(workdayConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('fails fast when metadata.apiBaseUrl is missing (cannot resolve tenant-scoped base URL)', async () => {

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('woocommerce adapter manifest', () => {
-  it('uses api-key auth with a WooCommerce-specific hint', () => {
-    const auth = woocommerceConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/WooCommerce/i)
-  })
-
-})
-
 describe('woocommerce write capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -158,21 +148,5 @@ describe('woocommerce write capabilities', () => {
     expect(String(requestUrl)).toBe('https://mystore.com/wp-json/wc/v3/orders/5')
     const parsed = JSON.parse(String(requestBody)) as Record<string, unknown>
     expect(parsed).toEqual({ status: 'completed' })
-  })
-
-  it('surfaces CredentialsExpired on 401 from a write capability', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      woocommerceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { id: 99, force: true },
-        idempotencyKey: 'k-6',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

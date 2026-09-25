@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('dub adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = dubConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('dub tags.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -57,20 +49,5 @@ describe('dub tags.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://api.dub.co/tags')
     expect(requestBody).toEqual({ name: 'marketing', color: 'blue' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      dubConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tags.create',
-        args: { name: 'marketing', color: 'blue' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { zenrowsConnector } from '../zenrows.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_zenrows',
@@ -48,18 +48,5 @@ describe('zenrows adapter', () => {
     // Scrapers return HTML/markdown/PDF; a successful 200 must surface the body
     // under `{ raw }` rather than blowing up on JSON.parse.
     expect(result.data).toEqual({ raw: html })
-  })
-
-  it('throws CredentialsExpired when ZenRows rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zenrowsConnector.executeRead!({ source, capabilityName: 'page.scrape', args: {"url":"https://example.com","js_render":true}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      zenrowsConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

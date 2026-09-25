@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('omni-co adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = omniCoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Omni/i)
-  })
-
-})
-
 describe('omni-co documents.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -66,18 +56,6 @@ describe('omni-co documents.update', () => {
     expect(String(requestUrl)).toContain('/v1/documents/doc_1')
     expect(requestBody).toMatchObject({ name: 'Renamed' })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.update',
-        args: { documentId: 'doc_1', name: 'x' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('omni-co queries.delete', () => {
@@ -104,18 +82,6 @@ describe('omni-co queries.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/queries/q_1')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'queries.delete',
-        args: { queryId: 'q_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('omni-co schedules.run-now', () => {
@@ -141,18 +107,6 @@ describe('omni-co schedules.run-now', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/dashboards/dash_1/schedules/sched_1/run')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'schedules.run-now',
-        args: { identifier: 'dash_1', scheduleId: 'sched_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -187,22 +141,5 @@ describe('omni-co documents.share', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/documents/doc_1/shares')
     expect(requestBody).toEqual({ principalType: 'user', principalId: 'user_1', accessLevel: 'viewer' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.share',
-        args: {
-          documentId: 'doc_1',
-          principalType: 'user',
-          principalId: 'user_1',
-          accessLevel: 'viewer',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

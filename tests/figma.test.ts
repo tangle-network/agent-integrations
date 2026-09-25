@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { figmaConnector } from '../src/connectors/adapters/figma'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 describe('figma adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -97,5 +97,4 @@ describe('figma adapter', () => {
     })).resolves.toMatchObject({ data: { id: '12345', name: 'Product' } })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
-
 })

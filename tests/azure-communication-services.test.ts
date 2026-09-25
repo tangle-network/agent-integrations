@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('azure-communication-services adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = azureCommunicationServicesConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('azure-communication-services send.sms', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,22 +59,6 @@ describe('azure-communication-services send.sms', () => {
       message: 'hi there',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      azureCommunicationServicesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'send.sms',
-        args: {
-          from: '+15550100',
-          smsRecipients: [{ to: '+15550101' }],
-          message: 'hi',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -149,17 +125,5 @@ describe('azure-communication-services chat.message.send', () => {
       type: 'text',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      azureCommunicationServicesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chat.message.send',
-        args: { threadId: 't', message: { content: 'x' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

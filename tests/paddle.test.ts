@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('paddle adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = paddleConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('paddle customers.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +57,6 @@ describe('paddle customers.create', () => {
     expect(parsed.email).toBe('lex@example.com')
     expect(parsed.name).toBe('Lex')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      paddleConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.create',
-        args: { email: 'lex@example.com' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zeplin adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = zeplinConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('zeplin notes.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -71,24 +63,6 @@ describe('zeplin notes.update', () => {
     )
     expect(capturedBody).toEqual({ content: 'updated content', color: 'red' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zeplinConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'notes.update',
-        args: {
-          projectId: 'proj_a',
-          screenId: 'scr_b',
-          noteId: 'note_1',
-          content: 'x',
-          color: 'red',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

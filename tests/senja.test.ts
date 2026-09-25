@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('senja adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = senjaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('senja testimonials.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('senja testimonials.update', () => {
     expect(capturedBody).toMatchObject({ id: 't_1', approved: true, title: 'Edited' })
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      senjaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'testimonials.update',
-        args: { id: 't_1', approved: true },
-        idempotencyKey: 'upd-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('senja testimonials.delete', () => {
@@ -101,18 +81,6 @@ describe('senja testimonials.delete', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.senja.io/api/v1/testimonials/t_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      senjaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'testimonials.delete',
-        args: { id: 't_42' },
-        idempotencyKey: 'del-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

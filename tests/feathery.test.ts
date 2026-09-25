@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('feathery adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = featheryConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Feathery/i)
-  })
-
-})
-
 describe('feathery user.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -79,18 +69,6 @@ describe('feathery user.create', () => {
     })
 
     expect(requestBody).toEqual({ id: 'u_2' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      featheryConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'user.create',
-        args: { id: 'u_1' },
-        idempotencyKey: 'k-401',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

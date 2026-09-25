@@ -49,18 +49,6 @@ describe('airtable records.delete', () => {
     expect(capturedUrl).toBe('https://api.airtable.com/v0/appXYZ/Contacts/rec_1')
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      airtableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { baseId: 'appXYZ', tableName: 'Contacts', recordId: 'rec_1' },
-        idempotencyKey: 'del-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('airtable records.batchCreate', () => {

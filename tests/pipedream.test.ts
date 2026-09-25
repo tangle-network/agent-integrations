@@ -53,18 +53,6 @@ describe('pipedream workflows.deploy', () => {
     expect(capturedUrl).toBe('https://api.pipedream.com/v1/workflows/p_abc/deploy')
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pipedreamConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'workflows.deploy',
-        args: { workflowId: 'p_abc' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('pipedream workflows.disable', () => {

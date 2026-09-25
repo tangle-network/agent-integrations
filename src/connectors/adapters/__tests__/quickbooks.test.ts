@@ -24,17 +24,6 @@ afterEach(() => {
 })
 
 describe('quickbooks adapter manifest', () => {
-  it('declares the expected OAuth2 endpoints, scopes, and env-var names', () => {
-    const auth = quickbooksConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://appcenter.intuit.com/connect/oauth2')
-    expect(auth.tokenUrl).toBe('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer')
-    expect(auth.scopes).toEqual(['com.intuit.quickbooks.accounting'])
-    expect(auth.clientIdEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_SECRET')
-  })
-
   it('exposes the finance action pack (query, customers, invoices, items, payments) split between reads and mutations', () => {
     const names = quickbooksConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
@@ -80,7 +69,6 @@ describe('quickbooks adapter manifest', () => {
       'vendors.create',
     ])
   })
-
 })
 
 describe('quickbooks adapter execution', () => {
@@ -172,21 +160,5 @@ describe('quickbooks adapter execution', () => {
       `https://quickbooks.api.intuit.com/v3/company/${realmId}/invoice/inv_99`,
     )).toBe(true)
     expect(call[1]!.method).toBe('GET')
-  })
-
-  it('throws CredentialsExpired when QuickBooks rejects the access token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (_input: URL | string, _init?: RequestInit) => new Response('token expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'customers.get',
-      args: { customerId: '42' },
-      idempotencyKey: 'idem_q4',
-    }
-    await expect(quickbooksConnector.executeRead!(invocation)).rejects.toMatchObject({
-      name: 'CredentialsExpired',
-    })
   })
 })

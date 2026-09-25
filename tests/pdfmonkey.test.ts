@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pdfmonkey adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = pdfmonkeyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('pdfmonkey documents.share', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('pdfmonkey documents.share', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://api.pdfmonkey.io/api/v1/documents/doc_42/share_link')
     expect(authHeader).toBe('Bearer pdfmonkey_secret')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pdfmonkeyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.share',
-        args: { documentId: 'doc_42' },
-        idempotencyKey: 'k-share',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

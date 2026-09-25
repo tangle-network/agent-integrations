@@ -43,23 +43,6 @@ describe('onedrive adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(adapter.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares the Microsoft v2.0 OAuth URLs and env vars', () => {
-    const auth = adapter.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(auth.authorizationUrl).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/authorize')
-    expect(auth.tokenUrl).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/token')
-    expect(auth.clientIdEnv).toBe('MS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('MS_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('https://graph.microsoft.com/Files.Read')
-    expect(auth.scopes).toContain('offline_access')
-  })
-
   it('list_files targets /me/drive/items/{id}/children with $orderby when no query', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)

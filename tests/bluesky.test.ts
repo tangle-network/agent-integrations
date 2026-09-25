@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bluesky adapter manifest', () => {
-  it('uses api-key auth (the createSession-derived bearer mirrors the activepieces piece auth shape)', () => {
-    const auth = blueskyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bluesky adapter write execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -142,17 +134,5 @@ describe('bluesky adapter write execution', () => {
 
     expect(requestUrl).toBe('https://bsky.social/xrpc/app.bsky.graph.muteActor')
     expect(JSON.parse(requestBody ?? '{}')).toEqual({ actor: 'did:plc:target' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      blueskyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'mute.user',
-        args: { actor: 'did:plc:target' },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

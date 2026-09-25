@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('postiz adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = postizConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('postiz posts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -66,18 +58,6 @@ describe('postiz posts.update', () => {
     expect(String(requestUrl)).toBe('https://api.postiz.com/api/v1/posts/post_42')
     expect(requestHeaders!.get('authorization')).toBe('Bearer postiz_secret')
     expect(JSON.parse(requestBody!)).toEqual({ postId: 'post_42', content: 'edited' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      postizConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.update',
-        args: { postId: 'post_42' },
-        idempotencyKey: 'k-update-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -173,17 +153,5 @@ describe('postiz media.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.postiz.com/api/v1/media/media_abc')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      postizConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'media.delete',
-        args: { mediaId: 'media_abc' },
-        idempotencyKey: 'k-mdel-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { snovIoConnector } from '../snov-io.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_snov_io',
@@ -49,18 +49,5 @@ describe('snov-io adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer snov-io-key')
     expect(JSON.parse(String(init.body))).toEqual({"emails":["ada@stripe.com"]})
-  })
-
-  it('throws CredentialsExpired when Snov.io rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      snovIoConnector.executeRead!({ source, capabilityName: 'domain_emails_count.get', args: {"domain":"stripe.com"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      snovIoConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

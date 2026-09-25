@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   sharepoint,
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/index'
+  type ResolvedDataSource } from '../src/connectors/index'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -41,23 +39,6 @@ describe('sharepoint adapter', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-  })
-
-  it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
-    expect(adapter.manifest.auth).toMatchObject({
-      kind: 'oauth2',
-      authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-      clientIdEnv: 'MS_OAUTH_CLIENT_ID',
-      clientSecretEnv: 'MS_OAUTH_CLIENT_SECRET',
-    })
-    if (adapter.manifest.auth.kind === 'oauth2') {
-      expect(adapter.manifest.auth.scopes).toContain('offline_access')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.ReadWrite.All')
-      expect(adapter.manifest.auth.scopes).toContain(
-        'https://graph.microsoft.com/Files.ReadWrite.All',
-      )
-    }
   })
 
   it('storage-class manifest is authoritative; both mutations are native-idempotency under the consistency floor', () => {

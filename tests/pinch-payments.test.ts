@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pinch-payments adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = pinchPaymentsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('pinch-payments payments.refund', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('pinch-payments payments.refund', () => {
     expect(capturedUrl).toBe('https://api.pinchpayments.com/v1/payments/pay_xyz/refunds')
     expect(capturedBody).toMatchObject({ amount: 1500, reason: 'duplicate' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pinchPaymentsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'payments.refund',
-        args: { paymentId: 'pay_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

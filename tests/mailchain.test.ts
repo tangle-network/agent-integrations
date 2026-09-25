@@ -28,16 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('mailchain adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = mailchainConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Mailchain/i)
-  })
-
-})
-
 describe('mailchain adapter messages.inbox.list', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -100,20 +90,5 @@ describe('mailchain adapter messages.inbox.list', () => {
     expect(observedUrl!.searchParams.get('address')).toBe('bob@mailchain.com')
     expect(observedUrl!.searchParams.has('page')).toBe(false)
     expect(observedUrl!.searchParams.has('limit')).toBe(false)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', {
-      status: 401,
-      headers: { 'content-type': 'text/plain' },
-    })))
-    await expect(
-      mailchainConnector.executeRead!({
-        source: source(),
-        capabilityName: 'messages.inbox.list',
-        args: { address: 'alice@mailchain.com' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

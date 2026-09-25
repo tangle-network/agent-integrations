@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('braze adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(brazeConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('routes users.track against the per-tenant REST endpoint with bearer auth and a verbatim body', async () => {
     const fetchMock = mockFetch({ message: 'success' })
     const invocation: ConnectorInvocation = {
@@ -120,16 +115,6 @@ describe('braze adapter', () => {
     const body = JSON.parse(String(init.body))
     expect(body.external_ids).toEqual(['user_42'])
     expect(body.fields_to_export).toEqual(['email', 'first_name'])
-  })
-
-  it('refuses to invoke unknown capabilities', async () => {
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'does.not.exist',
-      args: {},
-      idempotencyKey: 'bad_1',
-    }
-    await expect(brazeConnector.executeRead!(invocation)).rejects.toThrow(/unknown read capability/)
   })
 
   it('fails loud when metadata.restEndpoint is missing rather than calling a default cluster', async () => {

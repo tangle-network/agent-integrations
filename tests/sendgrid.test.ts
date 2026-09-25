@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sendgrid adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = sendgridConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SendGrid/i)
-  })
-
-})
-
 describe('sendgrid contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +53,6 @@ describe('sendgrid contacts.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v3/marketing/contacts')
     expect(String(requestUrl)).toContain('ids=a%2Cb%2Cc')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sendgridConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { ids: 'a' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

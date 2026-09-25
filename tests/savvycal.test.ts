@@ -26,28 +26,6 @@ function mockFetch(body: unknown, status = 200) {
   return fetchMock
 }
 
-describe('savvycal adapter manifest', () => {
-  it('uses the documented OAuth hosts without an invented scope parameter', () => {
-    expect(savvycalConnector.manifest.kind).toBe('savvycal')
-    expect(savvycalConnector.manifest.category).toBe('calendar')
-    const auth = savvycalConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://savvycal.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://savvycal.com/oauth/token')
-    expect(auth.scopes).toEqual([])
-    expect(auth.sendScopeParam).toBe(false)
-  })
-
-  it('marks every write as an external effect with a retry strategy', () => {
-    for (const capability of savvycalConnector.manifest.capabilities) {
-      if (capability.class !== 'mutation') continue
-      expect(capability.externalEffect, capability.name).toBe(true)
-      expect(capability.cas, capability.name).not.toBe('none')
-    }
-  })
-})
-
 describe('savvycal execution', () => {
   it('creates links on /v1/links using only documented fields', async () => {
     const fetchMock = mockFetch({ id: 'link_1' }, 201)

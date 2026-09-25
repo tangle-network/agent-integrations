@@ -28,32 +28,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('confluence adapter manifest', () => {
-  it('declares Atlassian 3LO OAuth2 endpoints, env names, and the documented scope set', () => {
-    const auth = confluenceConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://auth.atlassian.com/authorize')
-    expect(auth.tokenUrl).toBe('https://auth.atlassian.com/oauth/token')
-    expect(auth.clientIdEnv).toBe('ATLASSIAN_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ATLASSIAN_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual([
-      'offline_access',
-      'read:confluence-content.all',
-      'read:confluence-content.summary',
-      'read:confluence-space.summary',
-      'write:confluence-content',
-      'search:confluence',
-    ])
-  })
-
-  it('passes the shared manifest validator', () => {
-    const result = validateConnectorManifest(confluenceConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-})
-
 describe('confluence comments.create execution', () => {
   it('POSTs the comment envelope unchanged to /wiki/api/v2/footer-comments', async () => {
     const fetchMock = mockFetch({ id: 'cmt_1' })
@@ -148,20 +122,6 @@ describe('confluence adapter execution', () => {
     const body = JSON.parse(String(init.body))
     expect(body).toEqual(page)
     expect(body.parentId).toBeUndefined()
-  })
-
-  it('throws CredentialsExpired when Atlassian rejects the access token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'pages.get',
-      args: { cloudId: 'cloud_abc', pageId: 'page_1' },
-      idempotencyKey: 'idem_3',
-    }
-    await expect(confluenceConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

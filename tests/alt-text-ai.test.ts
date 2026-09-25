@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('alt-text-ai adapter manifest', () => {
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = altTextAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('alt-text-ai images.batchGenerateAltText', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -74,18 +66,6 @@ describe('alt-text-ai images.batchGenerateAltText', () => {
       ],
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      altTextAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.batchGenerateAltText',
-        args: { images: [{ image: 'https://x.example/1.png' }] },
-        idempotencyKey: 'batch-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

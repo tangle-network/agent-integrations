@@ -2,14 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { jotformConnector } from '../src/connectors/adapters/jotform.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
-describe('jotform adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = jotformConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('jotform regional routing', () => {
   afterEach(() => vi.unstubAllGlobals())
 

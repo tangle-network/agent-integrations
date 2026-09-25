@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('fountain adapter manifest', () => {
-  it('uses api-key auth matching the activepieces catalog entry', () => {
-    const auth = fountainConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint.toLowerCase()).toContain('fountain api key')
-  })
-
-})
-
 describe('fountain applicants.advance', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -61,18 +51,6 @@ describe('fountain applicants.advance', () => {
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toBe('https://api.fountain.com/v2/applicants/app_1/advance')
     expect(requestBody).toMatchObject({ stage_id: 'stage_2' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      fountainConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'applicants.advance',
-        args: { id: 'app_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

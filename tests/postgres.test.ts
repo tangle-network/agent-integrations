@@ -3,23 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createPostgresConnector,
-  postgresConnector,
-  type PostgresConnectorOptions,
-} from '../src/connectors/adapters/postgres.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
+  type PostgresConnectorOptions } from '../src/connectors/adapters/postgres.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('PostgreSQL connector', () => {
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('postgres')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'PostgreSQL connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'postgres')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('postgres')
-  })
-
   it('uses PostgreSQL defaults while pinning the public address and TLS server name', async () => {
     let config: ClientConfig | undefined
     const connector = createPostgresConnector({

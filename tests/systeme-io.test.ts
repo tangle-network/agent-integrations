@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('systeme-io adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = systemeIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('systeme-io contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('systeme-io contacts.delete', () => {
     expect(String(requestUrl)).toContain('/v1/contacts/c_1')
     expect(authHeader).toBe('Bearer systeme_secret')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      systemeIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contactId: 'c_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

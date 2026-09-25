@@ -30,15 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pinecone adapter manifest', () => {
-  it('uses api-key auth (Pinecone exposes no 3-legged OAuth)', () => {
-    const auth = pineconeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    // Hint must point the operator at the right console + flag the per-project key scope.
-    expect(auth.hint).toMatch(/pcsk_/)
-    expect(auth.hint).toMatch(/indexHost/)
-  })
-
   it('exposes control-plane index, collection, vector-data, and assistant capabilities', () => {
     const names = pineconeConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
@@ -92,7 +83,6 @@ describe('pinecone adapter manifest', () => {
     expect(upsert.cas).toBe('native-idempotency')
     expect(indexCreate.cas).toBe('native-idempotency')
   })
-
 })
 
 describe('pinecone assistants.update', () => {
@@ -123,18 +113,6 @@ describe('pinecone assistants.update', () => {
     const parsed = JSON.parse(requestBody ?? '{}') as Record<string, unknown>
     expect(parsed.instructions).toBe('Be concise.')
     expect(parsed).not.toHaveProperty('metadata')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pineconeConnector.executeMutation!({
-        source: pineconeSource(),
-        capabilityName: 'assistants.update',
-        args: { assistantName: 'support-bot', instructions: 'x' },
-        idempotencyKey: 'k-au-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

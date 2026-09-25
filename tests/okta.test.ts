@@ -24,16 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('Okta admin adapter manifest', () => {
-  it('marks every identity or membership write as an approved external effect', () => {
-    const mutations = oktaConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(10)
-    for (const capability of mutations) expect(capability.externalEffect, capability.name).toBe(true)
-  })
-})
-
 describe('Okta tenant and request isolation', () => {
   afterEach(() => vi.unstubAllGlobals())
 

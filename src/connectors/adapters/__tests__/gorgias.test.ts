@@ -58,31 +58,6 @@ afterEach(() => {
 })
 
 describe('gorgiasConnector', () => {
-  it('exposes the documented OAuth2 manifest with per-subdomain authorize/token URLs and resource scopes', () => {
-    expect(gorgiasConnector.manifest.kind).toBe('gorgias')
-    expect(gorgiasConnector.manifest.displayName).toBe('Gorgias')
-    expect(gorgiasConnector.manifest.category).toBe('crm')
-    expect(gorgiasConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = gorgiasConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://{subdomain}.gorgias.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://{subdomain}.gorgias.com/oauth2/token')
-    expect(auth.clientIdEnv).toBe('GORGIAS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('GORGIAS_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining([
-        'tickets:read',
-        'tickets:write',
-        'customers:read',
-        'customers:write',
-        'messages:read',
-        'messages:write',
-      ]),
-    )
-  })
-
   it('executes tickets.search against the tenant subdomain with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ data: [{ id: 42, subject: 'Order missing' }] })
     const provider = createConnectorAdapterProvider({

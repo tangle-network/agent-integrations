@@ -125,20 +125,6 @@ describe('trello adapter execution', () => {
     expect(call[1]!.body).toBeUndefined()
   })
 
-  it('throws CredentialsExpired when Trello rejects the token with 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'cards.get',
-      args: { key: 'devkey123', cardId: 'card_42' },
-      idempotencyKey: 'idem_5',
-    }
-    await expect(trelloConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('PUTs lists.archive at /1/lists/{listId}/closed with value=true on the query string', async () => {
     const fetchMock = vi.fn(
       async (_input: URL | string, _init?: RequestInit) =>

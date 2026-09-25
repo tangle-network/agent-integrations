@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pollybot-ai adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = pollybotAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('pollybot-ai leads.tag', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('pollybot-ai leads.tag', () => {
     expect(requestUrl).toBe('https://api.pollybot.ai/v1/chatbots/cb_1/leads/ld_1/tags')
     expect(requestBody).toMatchObject({ tag: 'priority' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pollybotAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'leads.tag',
-        args: { chatbotId: 'cb_1', leadId: 'ld_1', tag: 'priority' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

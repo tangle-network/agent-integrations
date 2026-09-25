@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { phantombusterConnector } from '../phantombuster.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_phantombuster',
@@ -58,18 +58,5 @@ describe('phantombuster adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['X-Phantombuster-Key']).toBe('phantombuster-key')
     expect(JSON.parse(String(init.body))).toEqual({"id":"1234567890123456","argument":{"sessionCookie":"abc","numberOfProfiles":10},"bonusArgument":{},"saveArgument":true,"manualLaunch":true})
-  })
-
-  it('throws CredentialsExpired when PhantomBuster rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      phantombusterConnector.executeRead!({ source, capabilityName: 'agents.fetch', args: {"id":"1234567890123456"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      phantombusterConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

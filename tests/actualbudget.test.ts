@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('actualbudget adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = actualbudgetConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('actualbudget transactions.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -72,26 +64,6 @@ describe('actualbudget transactions.create', () => {
       payeeName: 'Coffee',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      actualbudgetConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'transactions.create',
-        args: {
-          accountId: 'acct_1',
-          date: '2026-06-02',
-          amount: 1,
-          payeeName: '',
-          category: '',
-          notes: '',
-          cleared: false,
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,17 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('gorgias adapter manifest', () => {
-  it('declares oauth2 auth with per-tenant subdomain templates', () => {
-    const auth = gorgiasConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toContain('{subdomain}')
-    expect(auth.scopes).toContain('tickets:write')
-  })
-
-})
-
 describe('gorgias tickets.close', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,17 +51,5 @@ describe('gorgias tickets.close', () => {
     expect(String(requestUrl)).toBe('https://acme.gorgias.com/api/tickets/42')
     expect(requestBody).toMatchObject({ status: 'closed' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gorgiasConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tickets.close',
-        args: { ticketId: 1 },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

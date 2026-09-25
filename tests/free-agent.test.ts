@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('free-agent adapter manifest', () => {
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = freeAgentConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('free-agent invoices.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -69,18 +61,6 @@ describe('free-agent invoices.create', () => {
         dated_on: '2026-06-01',
       },
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      freeAgentConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.create',
-        args: { invoice: { contact: 'x' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

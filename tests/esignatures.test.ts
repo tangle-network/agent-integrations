@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('esignatures adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = esignaturesConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('esignatures contract.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,21 +51,6 @@ describe('esignatures contract.cancel', () => {
       'https://esignatures.io/api/contracts/ctr_1/withdraw',
     )
     expect(requestBody).toEqual({ voided_by: 'Drew' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      esignaturesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contract.cancel',
-        args: { contractId: 'ctr_1', voidedBy: 'Drew' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

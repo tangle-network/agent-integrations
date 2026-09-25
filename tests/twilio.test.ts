@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twilio adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = twilioConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('twilio messages.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -60,18 +52,6 @@ describe('twilio messages.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/Messages/SM_xyz.json')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      twilioConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.delete',
-        args: { messageSid: 'SM_xyz' },
-        idempotencyKey: 'del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

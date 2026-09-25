@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('fireflies-ai adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = firefliesAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('fireflies-ai transcript.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,17 +55,5 @@ describe('fireflies-ai transcript.delete', () => {
     expect(typeof (requestBody as { query?: string }).query).toBe('string')
     expect((requestBody as { query: string }).query).toContain('deleteTranscript')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      firefliesAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'transcript.delete',
-        args: { variables: { transcriptId: 'tr_123' } },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

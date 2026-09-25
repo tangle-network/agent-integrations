@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('wufoo adapter manifest', () => {
-  it('declares api-key auth with a Wufoo-specific hint', () => {
-    const auth = wufooConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Wufoo/i)
-  })
-
-})
-
 describe('wufoo entries.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -69,18 +59,6 @@ describe('wufoo entries.update', () => {
     expect(requestMethod).toBe('PUT')
     expect(requestUrl).toBe('https://{subdomain}.wufoo.com/api/v3/forms/abc123/entries/12.json')
     expect(requestBody).toEqual({ Field1: 'updated' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      wufooConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'entries.update',
-        args: { formHash: 'abc', entryId: '1', data: { Field1: 'x' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

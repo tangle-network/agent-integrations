@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('saastic adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = saasticConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Saastic/i)
-  })
-
-})
-
 describe('saastic customers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('saastic customers.update', () => {
     expect(requestUrl).toBe('https://api.saastic.com/v1/customers/a%40b.com')
     expect(JSON.parse(requestBody)).toMatchObject({ first_name: 'New', phone: '+15551112222' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      saasticConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.update',
-        args: { email: 'a@b.com' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

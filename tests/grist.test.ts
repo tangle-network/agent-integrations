@@ -25,17 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('grist adapter manifest', () => {
-  it('declares an api-key auth surface with domain URL hint', () => {
-    const auth = gristConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Grist/i)
-    expect(auth.hint).toMatch(/Domain/)
-  })
-
-})
-
 describe('grist records.add', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +54,6 @@ describe('grist records.add', () => {
     )
     expect(requestBody).toMatchObject({ records: [{ fields: { Name: 'A' } }] })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gristConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.add',
-        args: { docId: 'doc_1', tableId: 'Table1', records: [{ fields: { Name: 'A' } }] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

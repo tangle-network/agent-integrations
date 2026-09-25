@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('saleor adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = saleorConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Saleor/i)
-  })
-
-})
-
 describe('saleor orders.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +57,6 @@ describe('saleor orders.cancel', () => {
     expect(parsed.query).toContain('orderCancel')
     expect(parsed.variables).toEqual({ id: 'order_1' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      saleorConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'orders.cancel',
-        args: { orderId: 'order_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('cal-com adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(calComConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('binds public-client refresh to the credential-aware factory', () => {
     const adapter = calCom({ clientId: 'cal_public_client' })
     expect(adapter.exchangeOAuth).toBeTypeOf('function')

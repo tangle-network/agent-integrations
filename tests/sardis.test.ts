@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sardis adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = sardisConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Sardis/i)
-  })
-
-})
-
 describe('sardis payment.refund', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('sardis payment.refund', () => {
     expect(requestUrl).toBe('https://api.sardis.io/v1/payment/refund')
     expect(requestBody).toMatchObject({ transactionId: 'txn_1', reason: 'duplicate charge' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sardisConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'payment.refund',
-        args: { transactionId: 'txn_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

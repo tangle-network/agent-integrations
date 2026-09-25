@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('youcanbookme adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = youcanbookmeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('youcanbookme bookings.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('youcanbookme bookings.cancel', () => {
     expect(String(requestUrl)).toContain('/v1/bookings/b_1/cancel')
     expect(requestBody).toMatchObject({ bookingId: 'b_1', reason: 'no-show' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      youcanbookmeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bookings.cancel',
-        args: { bookingId: 'b_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

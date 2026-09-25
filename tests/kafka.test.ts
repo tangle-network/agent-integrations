@@ -2,11 +2,9 @@ import type { Admin, Consumer, KafkaConfig, Producer } from 'kafkajs'
 import { describe, expect, it } from 'vitest'
 import {
   createKafkaConnector,
-  kafkaConnector,
   publicKafkaSocketFactory,
-  type KafkaConnectorOptions,
-} from '../src/connectors/adapters/kafka.js'
-import { validateConnectorManifest, type ConnectorCredentials, type ResolvedDataSource } from '../src/connectors/types.js'
+  type KafkaConnectorOptions } from '../src/connectors/adapters/kafka.js'
+import { type ConnectorCredentials, type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Kafka connector', () => {

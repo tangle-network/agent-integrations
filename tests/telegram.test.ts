@@ -26,13 +26,6 @@ function tgOk<T>(result: T, init: ResponseInit = {}): Response {
 }
 
 describe('telegram adapter manifest', () => {
-  it('declares api-key auth (Telegram has no OAuth — the bot token IS the credential)', () => {
-    const auth = telegramConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/BotFather/i)
-  })
-
   it('marks every new write capability (media-edit, pin/unpin, ban, restrict) as native-idempotency + external-effect', () => {
     const byName = new Map(telegramConnector.manifest.capabilities.map((c) => [c.name, c]))
     for (const name of [

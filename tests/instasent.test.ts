@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('instasent adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = instasentConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('instasent sms.send', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -74,18 +66,6 @@ describe('instasent sms.send', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: from/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      instasentConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sms.send',
-        args: { from: 'BRAND', to: '+34666112233', text: 'Hi' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

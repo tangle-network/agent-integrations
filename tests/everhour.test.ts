@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('everhour adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = everhourConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('everhour time.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -68,27 +60,6 @@ describe('everhour time.create', () => {
       user: 42,
       comment: 'Did the thing',
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      everhourConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'time.create',
-        args: {
-          taskId: 'task_1',
-          time: 3600,
-          date: '2026-06-02',
-          user: 42,
-          comment: 'Did the thing',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

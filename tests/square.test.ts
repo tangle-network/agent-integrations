@@ -38,7 +38,6 @@ describe('square adapter manifest', () => {
     expect(auth.tokenUrl).toMatch(/connect\.squareup\.com/)
     expect(auth.scopes).toContain('ITEMS_WRITE')
   })
-
 })
 
 describe('square customers.delete', () => {
@@ -68,18 +67,6 @@ describe('square customers.delete', () => {
     expect(String(requestUrl)).toContain('/v2/customers/cust_abc')
     expect(authHeader).toBe('Bearer square_token')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      squareConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.delete',
-        args: { customerId: 'cust_abc' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

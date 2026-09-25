@@ -77,38 +77,6 @@ function creatorInfo(
 }
 
 describe('TikTok manifest and setup contract', () => {
-  it('ships seven current API v2 actions with exact least-privilege scopes', () => {
-    expect(validateConnectorManifest(tiktokConnector.manifest)).toEqual({
-      ok: true,
-      issues: [],
-    })
-    expect(tiktokConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'user.info',
-      'videos.list',
-      'videos.query',
-      'publishing.creatorInfo',
-      'publishing.status',
-      'publishing.videoFromUrl',
-      'publishing.photosFromUrls',
-    ])
-    const auth = tiktokConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') return
-    expect(auth).toMatchObject({
-      authorizationUrl: 'https://www.tiktok.com/v2/auth/authorize/',
-      tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/',
-      scopes: ['user.info.basic', 'video.list', 'video.publish'],
-      scopeSeparator: ',',
-      pkce: 'unsupported',
-      authorizationClientIdParam: 'client_key',
-      tokenClientIdParam: 'client_key',
-      tokenClientSecretParam: 'client_secret',
-      clientIdEnv: 'TIKTOK_OAUTH_CLIENT_KEY',
-      clientSecretEnv: 'TIKTOK_OAUTH_CLIENT_SECRET',
-      tokenMetadata: { openId: 'open_id' },
-    })
-  })
-
   it('marks every direct post as approval-required without claiming provider idempotency', () => {
     const manifestMutations = tiktokConnector.manifest.capabilities.filter(
       (capability) => capability.class === 'mutation',

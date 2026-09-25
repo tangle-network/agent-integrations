@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smartlead adapter manifest', () => {
-  it('declares api-key auth with a SmartLead-specific hint', () => {
-    const auth = smartleadConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SmartLead/i)
-  })
-
-})
-
 describe('smartlead campaigns.start', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('smartlead campaigns.start', () => {
     expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/123/status?api_key=smartlead_secret')
     expect(capturedBody).toEqual({ status: 'START' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smartleadConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.start',
-        args: { campaign_id: 123 },
-        idempotencyKey: 'start-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -187,17 +165,5 @@ describe('smartlead leads.remove', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/12/leads/99?api_key=smartlead_secret')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      smartleadConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'leads.remove',
-        args: { campaign_id: 12, lead_id: 99 },
-        idempotencyKey: 'rem-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

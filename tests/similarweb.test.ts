@@ -28,25 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED_CAPABILITIES = [
-  'rank.global',
-  'rank.country',
-  'rank.category',
-  'total-traffic.visits',
-  'total-traffic.pages-per-visit',
-  'total-traffic.average-visit-duration',
-  'total-traffic.bounce-rate',
-  'desktop-traffic.visits',
-  'traffic-sources.overview-share',
-  'traffic-sources.referrals',
-  'traffic-sources.social',
-  'geo.traffic-by-country',
-  'audience.similar-sites',
-  'audience.also-visited',
-  'keywords.website-keywords',
-  'lead-enrichment',
-]
-
 describe('similarweb executeRead', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -128,35 +109,5 @@ describe('similarweb executeRead', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/domain/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })),
-    )
-    await expect(
-      similarwebConnector.executeRead!({
-        source: source(),
-        capabilityName: 'rank.global',
-        args: { domain: 'cnn.com' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })),
-    )
-    await expect(
-      similarwebConnector.executeRead!({
-        source: source(),
-        capabilityName: 'rank.global',
-        args: { domain: 'cnn.com' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

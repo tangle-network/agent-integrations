@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chartly adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = chartlyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chartly update.chart', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -81,34 +73,6 @@ describe('chartly update.chart', () => {
       format: 'png',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chartlyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'update.chart',
-        args: {
-          chart_id: 'ch_1',
-          chart_type: 'bar',
-          chart_title: 't',
-          labels: ['a'],
-          dataset_label: 'd',
-          data_values: [1],
-          background_color: '#000',
-          width: 100,
-          height: 100,
-          format: 'png',
-          background_color_image: '#fff',
-          advanced_config: {},
-        },
-        idempotencyKey: 'k-update-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

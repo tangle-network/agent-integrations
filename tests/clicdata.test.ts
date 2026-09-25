@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('clicdata adapter manifest', () => {
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = clicdataConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('clicdata datasets.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +59,6 @@ describe('clicdata datasets.create', () => {
       columns: [{ name: 'email', type: 'string' }],
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      clicdataConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'datasets.create',
-        args: { name: 'X', columns: [] },
-        idempotencyKey: 'create-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

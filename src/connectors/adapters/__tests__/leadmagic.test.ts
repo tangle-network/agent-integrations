@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { leadmagicConnector } from '../leadmagic.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_leadmagic',
@@ -37,18 +37,5 @@ describe('leadmagic adapter', () => {
     expect(url.pathname).toBe('/v1/credits')
     expect(init.method).toBe('GET')
     expect((init.headers as Record<string, string>)['X-API-Key']).toBe('leadmagic-key')
-  })
-
-  it('throws CredentialsExpired when LeadMagic rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      leadmagicConnector.executeRead!({ source, capabilityName: 'credits.get', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      leadmagicConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

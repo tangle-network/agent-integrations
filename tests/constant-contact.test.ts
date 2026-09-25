@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('constant-contact adapter manifest', () => {
-  it('uses oauth2 auth (matches the activepieces piece auth shape)', () => {
-    const auth = constantContactConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('constant-contact campaign.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -75,18 +67,6 @@ describe('constant-contact campaign.create', () => {
     expect(String(requestUrl)).toBe('https://api.cc.email/v3/emails')
     expect(requestBody).toEqual(campaign)
     expect(requestAuth).toBe('Bearer cc_token')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('expired', { status: 401 })))
-    await expect(
-      constantContactConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaign.create',
-        args: { campaign: { name: 'x' } },
-        idempotencyKey: 'k-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

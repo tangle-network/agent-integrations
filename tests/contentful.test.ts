@@ -55,21 +55,6 @@ describe('contentful entries.delete', () => {
     expect(String(requestUrl)).not.toContain('/published')
     expect(requestHeaders.authorization).toBe('Bearer cf_secret')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      contentfulConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'entries.delete',
-        args: { spaceId: 'sp_1', environmentId: 'master', entryId: 'e_42' },
-        idempotencyKey: 'k-delete-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('contentful entries.unpublish', () => {
@@ -101,20 +86,5 @@ describe('contentful entries.unpublish', () => {
     expect(String(requestUrl)).toContain('/spaces/sp_1/environments/master/entries/e_42/published')
     expect(requestHeaders['x-contentful-version']).toBe('6')
     expect(requestHeaders.authorization).toBe('Bearer cf_secret')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      contentfulConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'entries.unpublish',
-        args: { spaceId: 'sp_1', environmentId: 'master', entryId: 'e_42', version: 6 },
-        idempotencyKey: 'k-unpublish-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

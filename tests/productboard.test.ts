@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('productboard adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = productboardConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('productboard features.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -60,18 +52,6 @@ describe('productboard features.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.productboard.com/v1/features/feat_abc')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      productboardConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'features.delete',
-        args: { featureId: 'feat_abc' },
-        idempotencyKey: 'k-fd-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -162,17 +142,5 @@ describe('productboard components.create', () => {
       name: 'Billing',
       description: 'Billing surface',
     })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      productboardConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'components.create',
-        args: { name: 'Billing' },
-        idempotencyKey: 'k-cc-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

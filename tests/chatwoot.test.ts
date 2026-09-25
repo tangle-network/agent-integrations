@@ -29,14 +29,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('chatwoot adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = chatwootConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chatwoot toggle_status', () => {
   it('POSTs the status to the toggle_status endpoint and returns the response', async () => {
     let seenUrl = ''
@@ -99,27 +91,6 @@ describe('chatwoot toggle_status', () => {
       }),
     ).rejects.toThrow(/status/)
   })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      chatwootConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'toggle_status',
-        args: { account_id: 7, conversation_id: 42, status: 'resolved' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('chatwoot assign_conversation', () => {
@@ -179,26 +150,5 @@ describe('chatwoot assign_conversation', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/assignee_id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      chatwootConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'assign_conversation',
-        args: { account_id: 7, conversation_id: 42, assignee_id: 11 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

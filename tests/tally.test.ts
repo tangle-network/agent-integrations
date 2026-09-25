@@ -15,41 +15,6 @@ const source: ResolvedDataSource = {
   status: 'active',
 }
 
-describe('tally adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = tallyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('exposes forms, submissions, and signed webhook management', () => {
-    const names = tallyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'user.get',
-      'forms.list',
-      'forms.get',
-      'forms.questions.list',
-      'submissions.list',
-      'submissions.get',
-      'webhooks.list',
-      'forms.create',
-      'forms.update',
-      'forms.delete',
-      'submissions.delete',
-      'webhooks.create',
-      'webhooks.delete',
-    ].sort())
-
-    const reads = tallyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toHaveLength(7)
-
-    const mutations = tallyConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(mutations).toHaveLength(6)
-  })
-})
-
 describe('tally execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

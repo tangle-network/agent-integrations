@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getIntegrationSpec,
-  neverbounceConnector,
-  validateConnectorManifest,
-} from '../src/index.js'
+  neverbounceConnector } from '../src/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 import { listActivepiecesCatalogEntries } from '../src/activepieces-catalog.js'
 

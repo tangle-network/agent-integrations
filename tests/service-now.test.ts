@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('service-now adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = serviceNowConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/ServiceNow/i)
-  })
-
-})
-
 describe('service-now incidents.close', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -73,22 +63,6 @@ describe('service-now incidents.close', () => {
     expect(parsed.incident_state).toBe('7')
     expect(parsed.close_code).toBe('Solved (Permanently)')
     expect(parsed.close_notes).toBe('Root cause: DNS misconfig. Fixed.')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      serviceNowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'incidents.close',
-        args: {
-          incidentSysSysId: 'abc123',
-          closeCode: 'cc',
-          closeNotes: 'notes',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

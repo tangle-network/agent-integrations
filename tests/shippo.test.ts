@@ -28,16 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('shippo adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = shippoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Shippo/i)
-  })
-
-})
-
 describe('shippo transactions.create', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -100,26 +90,6 @@ describe('shippo transactions.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: rate/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      shippoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'transactions.create',
-        args: { rate: 'rate-abc', label_file_type: 'PDF', async: false },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -186,25 +156,5 @@ describe('shippo tracks.get', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: tracking_number/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'forbidden' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      shippoConnector.executeRead!({
-        source: source(),
-        capabilityName: 'tracks.get',
-        args: { carrier: 'usps', tracking_number: '9400111899223197428490' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

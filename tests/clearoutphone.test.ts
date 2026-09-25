@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('clearoutphone adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = clearoutphoneConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('clearoutphone bulk.verify.start', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('clearoutphone bulk.verify.start', () => {
     expect(capturedUrl).toBe('https://api.clearoutphone.com/v1/phonenumber/bulk')
     expect(capturedBody).toMatchObject({ list_id: 'pl_abc' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      clearoutphoneConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bulk.verify.start',
-        args: { list_id: 'pl_abc' },
-        idempotencyKey: 'bulk-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

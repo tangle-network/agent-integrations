@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { huggingfaceConnector } from '../src/connectors/adapters/huggingface.js'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 
 describe('huggingface adapter manifest', () => {
   it('requires the scope families documented in the hint on each capability', () => {
@@ -12,5 +11,4 @@ describe('huggingface adapter manifest', () => {
     expect(byName.get('discussions.create')?.requiredScopes).toEqual(['discussion'])
     expect(byName.get('inference.chat_completions')?.requiredScopes).toEqual(['inference-api'])
   })
-
 })

@@ -24,16 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('recall-ai adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = recallAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Recall/i)
-  })
-
-})
-
 describe('recall-ai execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

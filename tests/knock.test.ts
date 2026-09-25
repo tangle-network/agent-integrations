@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('knock adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = knockConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('knock workflows.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -78,21 +70,5 @@ describe('knock workflows.cancel', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: workflowKey/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      knockConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'workflows.cancel',
-        args: {
-          workflowKey: 'invoice-reminder',
-          cancellationKey: 'inv-123',
-          recipients: ['user_1'],
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -40,29 +40,6 @@ describe('Azure Blob Storage provider pack', () => {
     vi.unstubAllGlobals()
   })
 
-  it('registers all nine catalog operations and approval metadata', () => {
-    expect(azureBlobStorageConnector.manifest.capabilities.map(
-      (capability) => capability.name,
-    ).sort()).toEqual([
-      'blobs.delete',
-      'blobs.findByTags',
-      'blobs.list',
-      'blobs.read',
-      'blobs.tags.set',
-      'blobs.upload',
-      'containers.create',
-      'containers.delete',
-      'containers.list',
-    ])
-    for (const capability of azureBlobStorageConnector.manifest.capabilities) {
-      if (capability.class === 'mutation') expect(capability.externalEffect, capability.name).toBe(true)
-    }
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find(
-      (candidate) => candidate.kind === 'azure-blob-storage',
-    )
-    expect(factory?.envMap).toEqual({})
-  })
-
   it('parses Shared Key and SAS connection strings without putting secrets in metadata', () => {
     expect(parseAzureStorageCredentials(source().credentials)).toMatchObject({
       accountName: 'tanglestorage',

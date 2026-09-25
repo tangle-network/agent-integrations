@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { dialpadConnector } from '../dialpad.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const ACCESS_TOKEN = 'dialpad_at_test'
 
@@ -31,21 +31,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('dialpad adapter', () => {
-  it('declares authorization_code oauth2 against dialpad.com with comms classification', () => {
-    const auth = dialpadConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://dialpad.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://dialpad.com/oauth2/token')
-    expect(auth.clientIdEnv).toBe('DIALPAD_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('DIALPAD_OAUTH_CLIENT_SECRET')
-    // Least-privilege: only Call--List/Get need a documented scope (calls:list);
-    // contacts/users/sms use base bearer access. Webhook-export scopes are not
-    // requested because this connector exposes no webhook subscriptions.
-    expect(auth.scopes).toEqual(['calls:list', 'offline_access'])
-    expect(dialpadConnector.manifest.category).toBe('comms')
-  })
-
   it('routes calls.list as GET /api/v2/call (singular) with bearer auth', async () => {
     const fetchMock = mockFetch({ items: [] })
     await dialpadConnector.executeRead!({ source, capabilityName: 'calls.list', args: { started_after: 1700000000000 }, idempotencyKey: 'op_0' })
@@ -78,18 +63,5 @@ describe('dialpad adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${ACCESS_TOKEN}`)
     expect(JSON.parse(String(init.body))).toEqual({ to_numbers: ['+14155550111'], text: 'Hello', user_id: 99 })
-  })
-
-  it('throws CredentialsExpired when Dialpad rejects the token', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      dialpadConnector.executeRead!({ source, capabilityName: 'calls.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      dialpadConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

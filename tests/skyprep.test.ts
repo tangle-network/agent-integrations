@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('skyprep adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = skyprepConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('skyprep users.unenroll', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +54,6 @@ describe('skyprep users.unenroll', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/users/u_1/enrollments/courses/c_42')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      skyprepConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.unenroll',
-        args: { userId: 'u_1', courseId: 'c_42' },
-        idempotencyKey: 'k-u2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

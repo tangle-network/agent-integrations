@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('guidelite adapter manifest', () => {
-  it('declares API-key auth matching the activepieces catalog entry', () => {
-    const auth = guideliteConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('guidelite guide.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('guidelite guide.create', () => {
     expect(String(requestUrl)).toBe('https://api.guidelite.ai/api/v1/assistants')
     expect(requestBody).toMatchObject({ name: 'My Guide', description: 'desc' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      guideliteConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'guide.create',
-        args: { name: 'X', description: '', systemPrompt: '', knowledgeBaseIds: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

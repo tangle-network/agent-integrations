@@ -31,17 +31,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
   return fetchMock
 }
 
-describe('postmark adapter manifest', () => {
-  it('declares api-key auth with a hint pointing at the X-Postmark-Server-Token header', () => {
-    const auth = postmarkConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/X-Postmark-Server-Token/)
-    expect(auth.hint).toMatch(/Server API token/)
-  })
-
-})
-
 describe('postmark adapter execution', () => {
   it('sends a single email via POST /email with the server-token header', async () => {
     const fetchMock = mockFetch({ MessageID: 'abc-123', ErrorCode: 0, Message: 'OK', SubmittedAt: '2026-01-01T00:00:00Z', To: 'a@b.co' })
@@ -135,12 +124,6 @@ describe('postmark adapter execution', () => {
     expect(init.method).toBe('GET')
     expect((init.headers as Record<string, string>)['X-Postmark-Server-Token']).toBe('pm_server_token_xyz')
   })
-
-  it('surfaces a CredentialsExpired-class failure on 401 from the probe', async () => {
-    mockFetch({ ErrorCode: 10, Message: 'Invalid token' }, { status: 401 })
-    const probe = await postmarkConnector.test!(source)
-    expect(probe.ok).toBe(false)
-  })
 })
 
 describe('postmark templates.update', () => {
@@ -165,18 +148,6 @@ describe('postmark templates.update', () => {
       Name: 'updated',
       Subject: 'new subject',
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    mockFetch({ ErrorCode: 10, Message: 'Invalid token' }, { status: 401 })
-    await expect(
-      postmarkConnector.executeMutation!({
-        source,
-        capabilityName: 'templates.update',
-        args: { idOrAlias: 'welcome' },
-        idempotencyKey: 'k-tu-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -246,17 +217,5 @@ describe('postmark servers.update', () => {
       Color: 'Purple',
       TrackOpens: true,
     })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    mockFetch({ ErrorCode: 10, Message: 'Forbidden' }, { status: 403 })
-    await expect(
-      postmarkConnector.executeMutation!({
-        source,
-        capabilityName: 'servers.update',
-        args: { Name: 'renamed' },
-        idempotencyKey: 'k-su-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

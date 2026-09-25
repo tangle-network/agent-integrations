@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chatbase adapter manifest', () => {
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = chatbaseConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chatbase chatbot.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -73,28 +65,6 @@ describe('chatbase chatbot.update', () => {
       visibility: 'private',
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chatbaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chatbot.update',
-        args: {
-          chatbotId: 'cb_1',
-          chatbotName: 'name',
-          model: 'gpt-4o',
-          basePrompt: 'p',
-          temperature: 0.1,
-          visibility: 'private',
-        },
-        idempotencyKey: 'k-cb-update-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

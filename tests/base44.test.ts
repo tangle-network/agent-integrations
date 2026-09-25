@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('base44 adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = base44Connector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('base44 entities.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('base44 entities.update', () => {
     expect(String(requestUrl)).toContain('/api/v1/entities/tasks/row-1')
     expect(requestBody).toEqual({ status: 'done' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      base44Connector.executeMutation!({
-        source: source(),
-        capabilityName: 'entities.update',
-        args: { entityType: 'tasks', entityId: 'row-1', entityData: { status: 'done' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

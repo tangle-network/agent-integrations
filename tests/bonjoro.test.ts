@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bonjoro adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = bonjoroConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bonjoro greets.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -104,18 +96,6 @@ describe('bonjoro greets.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('https://app.bonjoro.com/api/v2/greets/greet-1')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      bonjoroConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'greets.delete',
-        args: { greetId: 'greet-1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

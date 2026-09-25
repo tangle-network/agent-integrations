@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bland-ai adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = blandAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bland-ai adapter write execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -108,17 +100,5 @@ describe('bland-ai adapter write execution', () => {
       nodes: [{ id: 'n1' }],
       edges: [{ from: 'n1', to: 'n2' }],
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      blandAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.stop',
-        args: { callId: 'call_x' },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bolna adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = bolnaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bolna calls.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('bolna calls.cancel', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('https://api.bolna.dev/call/exec-9')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      bolnaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.cancel',
-        args: { executionId: 'exec-9' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

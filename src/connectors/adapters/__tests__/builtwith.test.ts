@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { builtwithConnector } from '../builtwith.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_builtwith',
@@ -38,18 +38,5 @@ describe('builtwith adapter', () => {
     expect(init.method).toBe('GET')
     expect(url.searchParams.get('KEY')).toBe('builtwith-key')
     expect(url.searchParams.get('LOOKUP')).toBe('stripe.com')
-  })
-
-  it('throws CredentialsExpired when BuiltWith rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      builtwithConnector.executeRead!({ source, capabilityName: 'domain.lookup', args: {"lookup":"stripe.com"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      builtwithConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

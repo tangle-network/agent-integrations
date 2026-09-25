@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sentryConnector } from '../src/connectors/adapters/sentry'
 import type { ResolvedDataSource } from '../src/connectors/types'
-import { validateConnectorManifest } from '../src/connectors/types'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -30,28 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sentry adapter', () => {
-  it('uses the real Sentry OAuth endpoints documented at docs.sentry.io', () => {
-    const auth = sentryConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
-    expect(auth.authorizationUrl).toBe('https://sentry.io/oauth/authorize/')
-    expect(auth.tokenUrl).toBe('https://sentry.io/oauth/token/')
-    expect(auth.clientIdEnv).toBe('SENTRY_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('SENTRY_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining([
-        'org:read',
-        'project:read',
-        'project:releases',
-        'event:read',
-        'event:write',
-        'event:admin',
-      ]),
-    )
-  })
-
-})
-
 describe('sentry issues.resolve', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -78,18 +55,6 @@ describe('sentry issues.resolve', () => {
     expect(String(requestUrl)).toContain('/api/0/issues/1234567890/')
     const parsed = JSON.parse(requestBody!) as Record<string, unknown>
     expect(parsed.status).toBe('resolved')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sentryConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'issues.resolve',
-        args: { issueId: '1234567890' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

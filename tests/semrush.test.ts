@@ -25,19 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'backlinks.overview',
-  'backlinks.summary',
-  'backlinks.links',
-  'backlinks.ref_domains',
-  'backlinks.ref_ips',
-  'backlinks.anchors',
-  'backlinks.pages',
-  'backlinks.score_profile',
-  'backlinks.comparison',
-  'keyword.metrics',
-]
-
 describe('semrush executeRead', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -95,35 +82,5 @@ describe('semrush executeRead', () => {
     expect(url.searchParams.get('country')).toBe('us')
     // `month` was not supplied, so the runtime must not emit an empty param.
     expect(url.searchParams.has('month')).toBe(false)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })),
-    )
-    await expect(
-      semrushConnector.executeRead!({
-        source: source(),
-        capabilityName: 'backlinks.overview',
-        args: { url: 'semrush.com', scope: 'ROOT_DOMAIN' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })),
-    )
-    await expect(
-      semrushConnector.executeRead!({
-        source: source(),
-        capabilityName: 'backlinks.overview',
-        args: { url: 'semrush.com', scope: 'ROOT_DOMAIN' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

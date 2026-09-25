@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('buttondown adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = buttondownConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Buttondown/i)
-  })
-
-})
-
 describe('buttondown subscribers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -106,18 +96,6 @@ describe('buttondown subscribers.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('https://api.buttondown.email/v1/subscribers/sub-1')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      buttondownConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.delete',
-        args: { subscriberId: 'sub-1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

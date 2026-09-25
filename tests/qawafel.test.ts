@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('qawafel adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = qawafelConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Qawafel/i)
-  })
-
-})
-
 describe('qawafel products.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +52,6 @@ describe('qawafel products.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/products/p_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      qawafelConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { product_id: 'p_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

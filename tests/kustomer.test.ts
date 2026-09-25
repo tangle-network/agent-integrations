@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('kustomer adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = kustomerConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('kustomer customers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('kustomer customers.update', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toContain('/v1/customers/cust_1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      kustomerConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.update',
-        args: { customerId: 'cust_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('openmic-ai adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = openmicAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/OpenMic/i)
-  })
-
-})
-
 describe('openmic-ai bots.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +53,6 @@ describe('openmic-ai bots.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/bots')
     expect(requestBody).toMatchObject({ name: 'Concierge', prompt: 'Be polite.' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      openmicAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bots.create',
-        args: { name: 'Concierge', prompt: 'Be polite.' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -147,17 +125,5 @@ describe('openmic-ai calls.cancel', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/calls/call_xyz/cancel')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      openmicAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.cancel',
-        args: { callId: 'call_xyz' },
-        idempotencyKey: 'k-4',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

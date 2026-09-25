@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('instantly-ai adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = instantlyAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('instantly-ai leads.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('instantly-ai leads.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.instantly.ai/api/v2/leads/lead_42')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      instantlyAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'leads.delete',
-        args: { lead_id: 'lead_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

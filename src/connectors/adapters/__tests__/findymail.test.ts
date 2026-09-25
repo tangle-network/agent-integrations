@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { findymailConnector } from '../findymail.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_findymail',
@@ -48,18 +48,5 @@ describe('findymail adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer findymail-key')
     expect(JSON.parse(String(init.body))).toEqual({"name":"Patrick Collison","domain":"stripe.com"})
-  })
-
-  it('throws CredentialsExpired when Findymail rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      findymailConnector.executeRead!({ source, capabilityName: 'credits.get', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      findymailConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

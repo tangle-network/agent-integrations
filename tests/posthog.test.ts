@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('posthog adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = posthogConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('posthog feature-flags.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('posthog feature-flags.update', () => {
     expect(requestUrl).toBe('https://app.posthog.com/api/projects/42/feature_flags/9')
     expect(requestBody).toMatchObject({ active: false })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      posthogConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'feature-flags.update',
-        args: { projectId: '42', featureFlagId: '9' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

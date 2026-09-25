@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('clockify adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = clockifyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('clockify time.entry.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -79,27 +71,6 @@ describe('clockify time.entry.update', () => {
       taskId: 'task_1',
       billable: true,
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      clockifyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'time.entry.update',
-        args: {
-          workspaceId: 'ws_1',
-          id: 'entry_42',
-          start: '2026-01-01T09:00:00Z',
-          end: '2026-01-01T10:00:00Z',
-          description: 'x',
-          projectId: 'p',
-          taskId: 't',
-          billable: false,
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

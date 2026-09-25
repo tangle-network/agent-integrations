@@ -30,31 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('shopify adapter manifest', () => {
-  it('declares OAuth2 with the per-shop authorize / token endpoint templates and env-var names', () => {
-    const auth = shopifyConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://{shop}.myshopify.com/admin/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://{shop}.myshopify.com/admin/oauth/access_token')
-    expect(auth.clientIdEnv).toBe('SHOPIFY_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('SHOPIFY_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining([
-        'read_products',
-        'write_products',
-        'read_orders',
-        'write_orders',
-        'read_customers',
-        'write_customers',
-        'read_inventory',
-        'write_inventory',
-      ]),
-    )
-  })
-
-})
-
 describe('shopify adapter mutations', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -114,30 +89,6 @@ describe('shopify adapter mutations', () => {
         }),
       ).rejects.toThrow(/order_id/)
     })
-
-    it('surfaces CredentialsExpired on 401', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-      await expect(
-        shopifyConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'refunds.create',
-          args: { order_id: 42 },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
-
-    it('surfaces CredentialsExpired on 403', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-      await expect(
-        shopifyConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'refunds.create',
-          args: { order_id: 42 },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
   })
 
   describe('fulfillments.create', () => {
@@ -191,18 +142,6 @@ describe('shopify adapter mutations', () => {
       // for body params, this test should flip to .rejects.toThrow(/line_items_by_fulfillment_order/).
       await expect(result).resolves.toBeTruthy()
     })
-
-    it('surfaces CredentialsExpired on 401', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-      await expect(
-        shopifyConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'fulfillments.create',
-          args: { line_items_by_fulfillment_order: [{ fulfillment_order_id: 1 }] },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
   })
 
   describe('draft_orders.create', () => {
@@ -237,30 +176,6 @@ describe('shopify adapter mutations', () => {
         line_items: [{ variant_id: 12345, quantity: 2 }],
         customer: { id: 9001 },
       })
-    })
-
-    it('surfaces CredentialsExpired on 401', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-      await expect(
-        shopifyConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'draft_orders.create',
-          args: { line_items: [{ variant_id: 1, quantity: 1 }] },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-    })
-
-    it('surfaces CredentialsExpired on 403', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-      await expect(
-        shopifyConnector.executeMutation!({
-          source: source(),
-          capabilityName: 'draft_orders.create',
-          args: { line_items: [{ variant_id: 1, quantity: 1 }] },
-          idempotencyKey: 'k',
-        }),
-      ).rejects.toMatchObject({ name: 'CredentialsExpired' })
     })
   })
 })

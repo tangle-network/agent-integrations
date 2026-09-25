@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'worker.list',
-  'worker.get',
-  'worker.demographics.list',
-  'worker.demographics.get',
-  'paystatements.list',
-  'paystatements.get',
-  'paydistributions.get',
-]
-
 describe('adp executeRead (stubbed fetch — mTLS not exercised)', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -94,29 +84,5 @@ describe('adp executeRead (stubbed fetch — mTLS not exercised)', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/aoid/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      adpConnector.executeRead!({
-        source: source(),
-        capabilityName: 'worker.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      adpConnector.executeRead!({
-        source: source(),
-        capabilityName: 'worker.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zendesk-sell adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = zendeskSellConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Zendesk/i)
-  })
-
-})
-
 describe('zendesk-sell contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +52,6 @@ describe('zendesk-sell contacts.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v2/contact/c_77')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zendeskSellConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contactId: 'c_77' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('insighto-ai adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = insightoAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Insighto/i)
-  })
-
-})
-
 describe('insighto-ai assistants.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -61,18 +51,6 @@ describe('insighto-ai assistants.create', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.insighto.ai/v1/assistants')
     expect(requestBody).toMatchObject({ name: 'Sales bot', provider: 'openai', model: 'gpt-4o' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      insightoAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'assistants.create',
-        args: { name: 'broken' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

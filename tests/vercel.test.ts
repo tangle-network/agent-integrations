@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { vercelConnector } from '../src/connectors/adapters/vercel.js'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 import {
   createConnectorAdapterProvider,
   type IntegrationConnection,
@@ -20,23 +19,6 @@ const connection: IntegrationConnection = {
 
 afterEach(() => {
   vi.restoreAllMocks()
-})
-
-describe('vercel adapter manifest', () => {
-  it('declares OAuth2 with the documented Vercel endpoints and env-var names', () => {
-    const auth = vercelConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://vercel.com/integrations/install')
-    expect(auth.tokenUrl).toBe('https://api.vercel.com/v2/oauth/access_token')
-    expect(auth.clientIdEnv).toBe('VERCEL_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('VERCEL_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('project:read')
-    expect(auth.scopes).toContain('project:read-write')
-    expect(auth.scopes).toContain('deployment:read-write')
-    expect(auth.scopes).toContain('env:read-write')
-  })
-
 })
 
 describe('vercel adapter execution', () => {

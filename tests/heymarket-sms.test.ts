@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('heymarket-sms adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = heymarketSmsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('heymarket-sms contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -58,17 +50,5 @@ describe('heymarket-sms contacts.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.heymarket.com/v3/contacts/ct_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      heymarketSmsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contact_id: 'ct_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

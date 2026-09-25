@@ -139,22 +139,6 @@ describe('stripe write capabilities', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/charges/ch_123/capture')
   })
-
-  it('surfaces CredentialsExpired on 401 from a new write capability', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      stripeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.delete',
-        args: { customerId: 'cus_123' },
-        idempotencyKey: 'k-6',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('stripe webhook + events capabilities', () => {

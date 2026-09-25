@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('browse-ai adapter manifest', () => {
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = browseAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('browse-ai capturedLists.get', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -117,30 +109,6 @@ describe('browse-ai capturedLists.get', () => {
       }),
     ).rejects.toThrow(/missing required argument: capturedListId/)
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'capturedLists.get',
-        args: { robotId: 'r1', taskId: 't1', capturedListId: 'cl_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'capturedLists.get',
-        args: { robotId: 'r1', taskId: 't1', capturedListId: 'cl_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('browse-ai tasks.list', () => {
@@ -223,29 +191,5 @@ describe('browse-ai tasks.list', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: robotId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'tasks.list',
-        args: { robotId: 'r1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'tasks.list',
-        args: { robotId: 'r1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

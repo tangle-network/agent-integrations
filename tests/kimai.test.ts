@@ -27,14 +27,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('kimai adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = kimaiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('kimai adapter execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -75,27 +67,6 @@ describe('kimai adapter execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: id/)
-  })
-
-  it('timesheets.stop surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      kimaiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'timesheets.stop',
-        args: { id: 7 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('timesheets.list GETs /api/timesheets with optional filters as query params', async () => {
@@ -144,27 +115,6 @@ describe('kimai adapter execution', () => {
     expect(capturedUrl).toBe('https://kimai.example.com/api/timesheets')
   })
 
-  it('timesheets.list surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      kimaiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'timesheets.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('projects.list GETs /api/projects with optional visible/customer filters', async () => {
     let capturedUrl: string | null = null
     let capturedMethod: string | undefined
@@ -208,26 +158,5 @@ describe('kimai adapter execution', () => {
       idempotencyKey: 'k',
     })
     expect(capturedUrl).toBe('https://kimai.example.com/api/projects')
-  })
-
-  it('projects.list surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      kimaiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'projects.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

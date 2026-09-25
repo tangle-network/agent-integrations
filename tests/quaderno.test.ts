@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('quaderno adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = quadernoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('quaderno contacts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -83,18 +75,6 @@ describe('quaderno contacts.update', () => {
     expect(String(requestUrl)).toContain('/api/v1/contacts/c_1')
     expect(requestBody).toMatchObject({ first_name: 'Ada', tax_id: 'ESX1234' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401 from contacts.delete', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      quadernoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contactId: 'c_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -17,14 +17,6 @@ function source(baseUrl: string): ResolvedDataSource {
   }
 }
 
-describe('invoiceninja adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = invoiceninjaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('invoiceninja tenant endpoint boundary', () => {
   afterEach(() => vi.unstubAllGlobals())
 

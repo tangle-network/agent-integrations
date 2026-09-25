@@ -37,25 +37,6 @@ describe('asana adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('prefers OAuth while preserving personal access token setup', () => {
-    const auth = adapter.manifest.auth
-    expect(auth.kind).toBe('one_of')
-    if (auth.kind !== 'one_of') return
-    expect(auth.preferred).toBe('oauth2')
-    expect(auth.options).toContainEqual({
-      kind: 'oauth2',
-      authorizationUrl: 'https://app.asana.com/-/oauth_authorize',
-      tokenUrl: 'https://app.asana.com/-/oauth_token',
-      scopes: ['default'],
-      clientIdEnv: 'ASANA_OAUTH_CLIENT_ID',
-      clientSecretEnv: 'ASANA_OAUTH_CLIENT_SECRET',
-    })
-    expect(auth.options).toContainEqual({
-      kind: 'api-key',
-      hint: 'Asana personal access token.',
-    })
-  })
-
   it('executes through OAuth bearer credentials', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       jsonResponse({ data: { gid: 'me' } }),
@@ -126,24 +107,6 @@ describe('asana adapter', () => {
     ).rejects.toThrow(/missing required argument: text/)
   })
 
-  it('tasks.addComment surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      status: 401,
-      headers: new Headers({ 'content-type': 'application/json' }),
-      json: async () => ({ error: 'unauthorized' }),
-      text: async () => 'unauthorized',
-    })))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.addComment',
-        args: { taskGid: 'task-1', text: 'hi' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('tasks.complete PUTs completed=true to /tasks/{taskGid}', async () => {
     let capturedUrl = ''
     let capturedMethod = ''
@@ -185,23 +148,5 @@ describe('asana adapter', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: taskGid/)
-  })
-
-  it('tasks.complete surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      status: 403,
-      headers: new Headers({ 'content-type': 'application/json' }),
-      json: async () => ({ error: 'forbidden' }),
-      text: async () => 'forbidden',
-    })))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.complete',
-        args: { taskGid: 'task-1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

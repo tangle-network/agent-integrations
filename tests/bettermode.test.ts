@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bettermode adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = bettermodeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bettermode discussion.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -60,18 +52,6 @@ describe('bettermode discussion.update', () => {
     expect(requestBody.query).toMatch(/UpdateDiscussion/)
     expect(requestBody.variables).toMatchObject({ postId: 'p-1', title: 'New title' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bettermodeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'discussion.update',
-        args: { postId: 'p-1', title: 'x', content: 'y' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('paywhirl adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = paywhirlConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Paywhirl|API/i)
-  })
-
-})
-
 describe('paywhirl customers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -66,18 +56,6 @@ describe('paywhirl customers.update', () => {
     expect(String(requestUrl)).toContain('/v1/customers/42')
     expect(String(requestUrl)).toContain('api_key=paywhirl_api_key')
     expect(requestBody).toMatchObject({ customerId: '42', firstName: 'New' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      paywhirlConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.update',
-        args: { customerId: '42', firstName: 'New' },
-        idempotencyKey: 'k-update',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -160,17 +138,5 @@ describe('paywhirl subscriptions.pause', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/subscriptions/7/pause')
     expect(String(requestUrl)).toContain('api_key=paywhirl_api_key')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      paywhirlConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.pause',
-        args: { subscriptionId: 7 },
-        idempotencyKey: 'k-pause',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

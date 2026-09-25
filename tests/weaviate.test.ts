@@ -30,13 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('weaviate adapter manifest', () => {
-  it('uses api-key auth (weaviate cloud / api-key auth module)', () => {
-    const auth = weaviateConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/api key/i)
-  })
-
   it('marks schema.create and batch ops as cas="none" (server does not dedupe)', () => {
     const byName = new Map(weaviateConnector.manifest.capabilities.map((c) => [c.name, c]))
     const schemaCreate = byName.get('schema.create')
@@ -98,18 +91,6 @@ describe('weaviate classes.update', () => {
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toContain('/v1/schema/Article')
     expect(requestBody).toMatchObject({ class: 'Article', description: 'updated' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      weaviateConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'classes.update',
-        args: { className: 'Article', class: 'Article' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

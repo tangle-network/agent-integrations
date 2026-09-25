@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('apitable adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = apitableConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('apitable records.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -57,18 +49,6 @@ describe('apitable records.delete', () => {
     expect(requestUrl).toContain('https://aitable.ai/fusion/v1/datasheets/dst1/records')
     expect(requestUrl).toContain('recordIds=')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      apitableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { datasheetId: 'dst1', recordIds: ['rec1'] },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

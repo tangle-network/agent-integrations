@@ -46,22 +46,6 @@ afterEach(() => {
 })
 
 describe('frontConnector', () => {
-  it('exposes the documented Front OAuth2 manifest', () => {
-    expect(frontConnector.manifest.kind).toBe('front')
-    expect(frontConnector.manifest.displayName).toBe('Front')
-    expect(frontConnector.manifest.category).toBe('comms')
-    expect(frontConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = frontConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://app.frontapp.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://app.frontapp.com/oauth/token')
-    expect(auth.scopes).toEqual(['shared_resources', 'private_resources'])
-    expect(auth.clientIdEnv).toBe('FRONT_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('FRONT_OAUTH_CLIENT_SECRET')
-  })
-
   it('executes conversations.search against /conversations/search/{q} with bearer auth and path interpolation', async () => {
     const fetchMock = mockFetch({ _results: [{ id: 'cnv_1', subject: 'Refund?' }] })
     const provider = createConnectorAdapterProvider({

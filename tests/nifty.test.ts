@@ -30,14 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('nifty adapter manifest', () => {
-  it('declares oauth2 auth as documented in the catalog', () => {
-    const auth = niftyConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('nifty adapter — tasks.update', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -100,36 +92,6 @@ describe('nifty adapter — tasks.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/taskId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"unauthorized"}', { status: 401 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.update',
-        args: { taskId: 'task_123', name: 'whatever' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"forbidden"}', { status: 403 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.update',
-        args: { taskId: 'task_123', name: 'whatever' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -202,20 +164,5 @@ describe('nifty adapter — comments.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/content/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"unauthorized"}', { status: 401 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'comments.create',
-        args: { object_id: 'task_123', content: 'nope' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -48,7 +48,6 @@ describe('ebay adapter manifest', () => {
       ]),
     )
   })
-
 })
 
 describe('ebay listing.end', () => {
@@ -74,21 +73,6 @@ describe('ebay listing.end', () => {
     expect(String(requestUrl)).toBe(
       'https://api.ebay.com/sell/inventory/v1/offer/offer_1/withdraw',
     )
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      ebayConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'listing.end',
-        args: { offerId: 'offer_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

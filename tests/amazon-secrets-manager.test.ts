@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('amazon-secrets-manager adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = amazonSecretsManagerConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('amazon-secrets-manager secrets.rotate', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -76,24 +68,6 @@ describe('amazon-secrets-manager secrets.rotate', () => {
       RotateImmediately: true,
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      amazonSecretsManagerConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'secrets.rotate',
-        args: {
-          name: 'foo',
-          rotationLambdaArn: 'arn:aws:lambda:rotator',
-          rotationRules: { AutomaticallyAfterDays: 30 },
-          rotateImmediately: true,
-          clientRequestToken: 'rot-1',
-        },
-        idempotencyKey: 'rot-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

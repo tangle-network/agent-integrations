@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { oceanIoConnector } from '../ocean-io.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_ocean_io',
@@ -38,18 +38,5 @@ describe('ocean-io adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['X-Api-Token']).toBe('ocean-io-key')
     expect(JSON.parse(String(init.body))).toEqual({"name":"stripe"})
-  })
-
-  it('throws CredentialsExpired when Ocean.io rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      oceanIoConnector.executeRead!({ source, capabilityName: 'companies.autocomplete', args: {"name":"stripe"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      oceanIoConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

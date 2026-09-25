@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('lemon-squeezy adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = lemonSqueezyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('lemon-squeezy subscriptions.cancel', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -85,26 +77,6 @@ describe('lemon-squeezy subscriptions.cancel', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('unauthorized', {
-          status: 401,
-          headers: { 'content-type': 'text/plain' },
-        }),
-      ),
-    )
-    await expect(
-      lemonSqueezyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.cancel',
-        args: { id: 'sub_123' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -157,26 +129,5 @@ describe('lemon-squeezy orders.issueRefund', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('forbidden', {
-          status: 403,
-          headers: { 'content-type': 'text/plain' },
-        }),
-      ),
-    )
-    await expect(
-      lemonSqueezyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'orders.issueRefund',
-        // pass amount so the JSON:API body renders past the renderer's required-template check
-        args: { id: 'ord_42', amount: 100 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

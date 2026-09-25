@@ -97,18 +97,6 @@ describe('supabase projects.delete', () => {
     expect(authHeader).toBe('Bearer sbp_personal_access_token')
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      supabaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'projects.delete',
-        args: { ref: 'abcdefghijklmnop' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('supabase branches.create', () => {

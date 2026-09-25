@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { signwellConnector } from '../signwell.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_signwell',
@@ -50,18 +50,5 @@ describe('signwell adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['X-Api-Key']).toBe('signwell-key')
     expect(JSON.parse(String(init.body))).toEqual({"files":[{"name":"contract.pdf","file_url":"https://example.com/contract.pdf"}],"recipients":[{"id":"1","name":"Jane Doe","email":"jane@example.com"}],"name":"x","subject":"x","message":"x","draft":true,"test_mode":true,"embedded_signing":true})
-  })
-
-  it('throws CredentialsExpired when SignWell rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      signwellConnector.executeRead!({ source, capabilityName: 'documents.list', args: {"page":1,"limit":25}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      signwellConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

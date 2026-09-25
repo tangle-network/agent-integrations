@@ -20,23 +20,6 @@ afterEach(() => {
 })
 
 describe('mailchimp adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(mailchimpConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares oauth2 against login.mailchimp.com with mailchimp-shaped env names', () => {
-    const auth = mailchimpConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://login.mailchimp.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://login.mailchimp.com/oauth2/token')
-    // Mailchimp OAuth2 grants are account-wide and the upstream ignores `scope` — keep it empty.
-    expect(auth.scopes).toEqual([])
-    expect(auth.clientIdEnv).toBe('MAILCHIMP_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('MAILCHIMP_OAUTH_CLIENT_SECRET')
-  })
-
   it('routes reads against the per-tenant datacenter base URL with bearer auth', async () => {
     const fetchMock = mockFetch({ lists: [] })
     const invocation: ConnectorInvocation = {

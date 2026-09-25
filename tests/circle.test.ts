@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('circle adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = circleConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('circle posts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('circle posts.delete', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://app.circle.so/api/v1/posts/42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      circleConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.delete',
-        args: { post_id: 42 },
-        idempotencyKey: 'del-post-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

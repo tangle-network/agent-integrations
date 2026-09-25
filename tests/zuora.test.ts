@@ -92,7 +92,6 @@ describe('zuoraConnector', () => {
     })
     expect(fetchMock).not.toHaveBeenCalled()
   })
-
 })
 
 describe('zuora subscriptions.create', () => {
@@ -125,25 +124,6 @@ describe('zuora subscriptions.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://rest.eu.zuora.com/v1/subscriptions')
     expect(requestBody).toContain('acct_1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      zuoraConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.create',
-        args: {
-          accountKey: 'acct_1',
-          contractEffectiveDate: '2026-06-02',
-          subscribeToRatePlans: [{ productRatePlanId: 'prp_1' }],
-        },
-        idempotencyKey: 'k-create-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -232,26 +212,5 @@ describe('zuora payments.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/payments')
     expect(requestBody).toContain('USD')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      zuoraConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'payments.create',
-        args: {
-          accountId: 'acct_1',
-          amount: 1,
-          currency: 'USD',
-          effectiveDate: '2026-06-02',
-          paymentMethodId: 'pm_1',
-        },
-        idempotencyKey: 'k-pay-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

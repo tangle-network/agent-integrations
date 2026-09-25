@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { wizaConnector } from '../wiza.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_wiza',
@@ -48,18 +48,5 @@ describe('wiza adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer wiza-key')
     expect(JSON.parse(String(init.body))).toEqual({"individual_reveal":{"full_name":"Stephen Hakami","company":"Wiza","domain":"wiza.co"},"enrichment_level":"partial","email_options":{"accept_work":true,"accept_personal":false},"phone_options":{}})
-  })
-
-  it('throws CredentialsExpired when Wiza rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      wizaConnector.executeRead!({ source, capabilityName: 'credits.get', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      wizaConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

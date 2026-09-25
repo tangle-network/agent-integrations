@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('wafeq adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = wafeqConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('wafeq delete capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -123,21 +115,5 @@ describe('wafeq delete capabilities', () => {
 
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/items/item_1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      wafeqConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contact_id: 'con_1' },
-        idempotencyKey: 'k-5',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

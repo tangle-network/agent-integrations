@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smartsheet adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = smartsheetConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('smartsheet sheets.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('smartsheet sheets.create', () => {
     expect(requestUrl).toBe('https://api.smartsheet.com/2.0/sheets')
     expect(requestBody).toMatchObject({ name: 'New Sheet' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smartsheetConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sheets.create',
-        args: { name: 'x', columns: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

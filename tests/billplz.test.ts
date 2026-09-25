@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('billplz adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = billplzConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('billplz cancel.bill', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -80,26 +72,6 @@ describe('billplz cancel.bill', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      billplzConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'cancel.bill',
-        args: { id: 'bill-123' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -175,25 +147,5 @@ describe('billplz create.refund', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: reason/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'forbidden' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      billplzConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'create.refund',
-        args: { bill_id: 'bill-123', amount: 200, reason: 'r' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

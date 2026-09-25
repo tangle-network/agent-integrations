@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('certopus adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = certopusConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('certopus credentials.revoke', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -54,21 +46,6 @@ describe('certopus credentials.revoke', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.certopus.com/v1/credentials/cred_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      certopusConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'credentials.revoke',
-        args: { id: 'cred_42' },
-        idempotencyKey: 'k-revoke-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

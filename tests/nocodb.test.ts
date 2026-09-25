@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('nocodb adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = nocodbConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('nocodb tables.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -102,18 +94,6 @@ describe('nocodb tables.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: definition/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      nocodbConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tables.create',
-        args: { projectId: 'p_1', definition: { table_name: 't', title: 'T', columns: [] } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chaindesk adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = chaindeskConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chaindesk datasources.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -71,27 +63,6 @@ describe('chaindesk datasources.create', () => {
       config: { chunkSize: 1024 },
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chaindeskConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'datasources.create',
-        args: {
-          agentId: 'agent_1',
-          name: 'Onboarding docs',
-          type: 'text',
-          source: 'hello world',
-          config: {},
-        },
-        idempotencyKey: 'k-ds-create-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

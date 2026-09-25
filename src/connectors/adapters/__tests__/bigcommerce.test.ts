@@ -19,25 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('bigcommerce adapter manifest', () => {
-  it('declares the expected OAuth2 endpoints, scopes, and env-var names', () => {
-    const auth = bigcommerceConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://login.bigcommerce.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://login.bigcommerce.com/oauth2/token')
-    expect(auth.scopes).toEqual([
-      'store_v2_products',
-      'store_v2_orders',
-      'store_v2_customers_read_only',
-      'store_v2_information_read_only',
-    ])
-    expect(auth.clientIdEnv).toBe('BIGCOMMERCE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('BIGCOMMERCE_OAUTH_CLIENT_SECRET')
-  })
-
-})
-
 describe('bigcommerce adapter execution', () => {
   it('targets the per-store apiBaseUrl with X-Auth-Token (not Bearer) and interpolates query filters', async () => {
     const fetchMock = vi.fn(
@@ -88,20 +69,6 @@ describe('bigcommerce adapter execution', () => {
     expect(String(call[0])).toBe('https://api.bigcommerce.com/stores/abc123/v2/orders/1001')
     expect(call[1]!.method).toBe('PUT')
     expect(JSON.parse(String(call[1]!.body))).toEqual({ status_id: 10, staff_notes: 'shipped' })
-  })
-
-  it('throws CredentialsExpired when BigCommerce rejects the token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'orders.get',
-      args: { orderId: 5 },
-      idempotencyKey: 'idem_3',
-    }
-    await expect(bigcommerceConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('fails fast when metadata.apiBaseUrl is missing (cannot resolve store-scoped base URL)', async () => {

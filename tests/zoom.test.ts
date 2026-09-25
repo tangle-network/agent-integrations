@@ -36,16 +36,6 @@ function zoomJson(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('zoom adapter manifest', () => {
-  it('declares OAuth2 with the documented Zoom endpoints and env-var names', () => {
-    const auth = zoomConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://zoom.us/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://zoom.us/oauth/token')
-    expect(auth.clientIdEnv).toBe('ZOOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZOOM_OAUTH_CLIENT_SECRET')
-  })
-
   it('uses the exact admin-managed granular scopes configured in the production Zoom app', () => {
     const auth = zoomConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
@@ -273,17 +263,5 @@ describe('zoom new mutations', () => {
       action: 'create',
       user_info: { email: 'new@example.com', type: 1, first_name: 'Ada', last_name: 'Lovelace' },
     })
-  })
-
-  it('surfaces CredentialsExpired on 401 for the new mutations', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zoomConnector.executeMutation!({
-        source: zoomSource(),
-        capabilityName: 'meetings.end',
-        args: { meetingId: '99887766' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

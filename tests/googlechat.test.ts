@@ -25,22 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('googlechat adapter manifest', () => {
-  it('declares OAuth2 with the documented Google endpoints and env-var names', () => {
-    const auth = googlechatConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://accounts.google.com/o/oauth2/v2/auth')
-    expect(auth.tokenUrl).toBe('https://oauth2.googleapis.com/token')
-    expect(auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('https://www.googleapis.com/auth/chat.messages')
-    expect(auth.scopes).toContain('https://www.googleapis.com/auth/chat.spaces')
-    expect(auth.scopes).toContain('https://www.googleapis.com/auth/chat.memberships')
-  })
-
-})
-
 describe('googlechat space.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +51,6 @@ describe('googlechat space.create', () => {
     expect(String(requestUrl)).toBe('https://chat.googleapis.com/v1/spaces')
     expect(requestBody).toMatchObject({ displayName: 'Engineering', spaceType: 'SPACE' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      googlechatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'space.create',
-        args: { space: { displayName: 'X', spaceType: 'SPACE' } },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,22 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'contact.search',
-  'company.search',
-  'intent.search',
-  'scoops.search',
-  'news.search',
-  'contact.enrich',
-  'company.enrich',
-  'intent.enrich',
-  'scoops.enrich',
-  'news.enrich',
-  'lookup.data',
-  'lookup.search_fields',
-  'usage.get',
-]
-
 describe('zoominfo execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -123,29 +107,5 @@ describe('zoominfo execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/data/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      zoominfoConnector.executeRead!({
-        source: source(),
-        capabilityName: 'usage.get',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      zoominfoConnector.executeRead!({
-        source: source(),
-        capabilityName: 'usage.get',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

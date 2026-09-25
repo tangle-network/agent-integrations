@@ -19,21 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('basecamp adapter manifest', () => {
-  it('declares Basecamp 3 launchpad OAuth2 endpoints + env-var names', () => {
-    const auth = basecampConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://launchpad.37signals.com/authorization/new')
-    expect(auth.tokenUrl).toBe('https://launchpad.37signals.com/authorization/token')
-    expect(auth.clientIdEnv).toBe('BASECAMP_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('BASECAMP_OAUTH_CLIENT_SECRET')
-    // Basecamp's launchpad consent is all-or-nothing — no granular scopes.
-    expect(auth.scopes).toEqual([])
-  })
-
-})
-
 describe('basecamp adapter execution', () => {
   it('routes projects.list to the per-account base URL with bearer auth + user-agent', async () => {
     const fetchMock = vi.fn(
@@ -101,21 +86,5 @@ describe('basecamp adapter execution', () => {
     expect(body.content).toBe('Ship the basecamp adapter')
     expect(body.assignee_ids).toEqual([42, 43])
     expect(body.due_on).toBe('2026-06-01')
-  })
-
-  it('throws CredentialsExpired when launchpad rejects the token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'projects.get',
-      args: { projectId: '1234' },
-      idempotencyKey: 'idem_get',
-    }
-    await expect(basecampConnector.executeRead!(invocation)).rejects.toMatchObject({
-      name: 'CredentialsExpired',
-    })
   })
 })

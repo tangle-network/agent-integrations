@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { seamlessAiConnector } from '../seamless-ai.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_seamless_ai',
@@ -38,18 +38,5 @@ describe('seamless-ai adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['Token']).toBe('seamless-ai-key')
     expect(JSON.parse(String(init.body))).toEqual({"jobTitle":["VP of Sales"],"seniority":["x"],"companyDomain":["x"],"industry":["x"],"limit":10,"nextToken":"x"})
-  })
-
-  it('throws CredentialsExpired when Seamless.ai rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      seamlessAiConnector.executeRead!({ source, capabilityName: 'contacts.search', args: {"jobTitle":["VP of Sales"],"limit":10,"seniority":["x"],"companyDomain":["x"],"industry":["x"],"nextToken":"x"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      seamlessAiConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

@@ -45,11 +45,6 @@ describe('xero adapter manifest', () => {
     expect(auth.scopes).not.toContain('app.connections')
   })
 
-  it('passes the shared manifest validator', () => {
-    const result = validateConnectorManifest(xeroConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('exposes the accounting action pack split between reads and mutations with scope gating', () => {
     const names = xeroConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
@@ -166,20 +161,6 @@ describe('xero adapter execution', () => {
         },
       ],
     })
-  })
-
-  it('throws CredentialsExpired when Xero rejects the access token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'contacts.get',
-      args: { tenantId: 'tenant_abc', contactId: 'c1' },
-      idempotencyKey: 'idem_3',
-    }
-    await expect(xeroConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

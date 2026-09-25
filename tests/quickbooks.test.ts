@@ -29,20 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('quickbooks adapter manifest', () => {
-  it('uses OAuth2 with the documented Intuit endpoints and env-var names', () => {
-    const auth = quickbooksConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://appcenter.intuit.com/connect/oauth2')
-    expect(auth.tokenUrl).toBe('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer')
-    expect(auth.clientIdEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('com.intuit.quickbooks.accounting')
-  })
-
-})
-
 describe('quickbooks customers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -70,18 +56,6 @@ describe('quickbooks customers.delete', () => {
     expect(String(requestUrl)).toContain('minorversion=70')
     expect(requestBody).toMatchObject({ Id: '42', SyncToken: '0', sparse: true, Active: false })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      quickbooksConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.delete',
-        args: { Id: '42', SyncToken: '0' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

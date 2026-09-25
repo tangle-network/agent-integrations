@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { amazonLambdaConnector } from '../src/connectors/adapters/amazon-lambda.js'
 import {
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/types.js'
+  type ResolvedDataSource } from '../src/connectors/types.js'
 
 function source(): ResolvedDataSource {
   return {
@@ -51,7 +49,6 @@ describe('aws-lambda adapter manifest', () => {
       'functions.delete',
     ])
   })
-
 })
 
 describe('aws-lambda execution', () => {

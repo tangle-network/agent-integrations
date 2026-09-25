@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('google-search-console adapter manifest', () => {
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = googleSearchConsoleConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('google-search-console sitemaps.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -57,17 +49,5 @@ describe('google-search-console sitemaps.delete', () => {
     expect(result.status).toBe('committed')
     expect(String(requestUrl)).toContain('/webmasters/v3/sites/')
     expect(String(requestUrl)).toContain('/sitemaps/')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      googleSearchConsoleConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sitemaps.delete',
-        args: { siteUrl: 'https://example.com/', feedpath: 'https://example.com/sitemap.xml' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

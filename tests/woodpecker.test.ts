@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('woodpecker adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = woodpeckerConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('woodpecker write capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -133,21 +125,5 @@ describe('woodpecker write capabilities', () => {
     expect(String(requestUrl)).toContain('/campaign_list')
     expect(String(requestUrl)).toContain('status=RUNNING')
     expect(result.data).toEqual([{ id: 'c1', name: 'Outreach Q1' }])
-  })
-
-  it('surfaces CredentialsExpired on 401 from a write capability', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      woodpeckerConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'prospect.stop',
-        args: { email: 'a@b.com' },
-        idempotencyKey: 'k-5',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('apollo adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = apolloConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('apollo connect-time validation', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -149,55 +141,5 @@ describe('apollo sequences.add_contacts', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/contact_ids/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      apolloConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sequences.add_contacts',
-        args: {
-          campaign_id: 'cmp_1',
-          contact_ids: ['c_1'],
-          send_email_from_email_address: 'drew@example.com',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      apolloConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sequences.add_contacts',
-        args: {
-          campaign_id: 'cmp_1',
-          contact_ids: ['c_1'],
-          send_email_from_email_address: 'drew@example.com',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

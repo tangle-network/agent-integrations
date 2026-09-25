@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('devin adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = devinConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('devin adapter execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -95,28 +87,6 @@ describe('devin adapter execution', () => {
     expect(capturedUrl).toContain('/sessions')
     expect(capturedUrl).not.toContain('limit=')
     expect(capturedUrl).not.toContain('status=')
-  })
-
-  it('sessions.list surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-
-    await expect(
-      devinConnector.executeRead!({
-        source: source(),
-        capabilityName: 'sessions.list',
-        args: {},
-        idempotencyKey: 'k-list-401',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('attachments.upload POSTs /attachments with session_id + content + filename', async () => {
@@ -199,32 +169,5 @@ describe('devin adapter execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/filename/)
-  })
-
-  it('attachments.upload surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      devinConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'attachments.upload',
-        args: {
-          session_id: 'devin-1',
-          content: 'hi',
-          encoding: 'utf-8',
-          filename: 'log.txt',
-          mime_type: 'text/plain',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

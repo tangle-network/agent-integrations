@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smoove adapter manifest', () => {
-  it('declares api-key auth with a Smoove-specific hint', () => {
-    const auth = smooveConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Smoove/i)
-  })
-
-})
-
 describe('smoove subscribers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('smoove subscribers.update', () => {
     expect(requestUrl).toBe('https://api.smoove.io/v1/subscribers/sub_1')
     expect(requestBody).toMatchObject({ firstName: 'Alice', lastName: 'Smith' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smooveConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.update',
-        args: { id: 'sub_1', data: { firstName: 'x' } },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

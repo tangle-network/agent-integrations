@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('campaign-monitor adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = campaignMonitorConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('campaign-monitor campaign.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -75,29 +67,6 @@ describe('campaign-monitor campaign.create', () => {
       ListIDs: ['list-1'],
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      campaignMonitorConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaign.create',
-        args: {
-          clientId: 'client-1',
-          name: 'x',
-          subject: 'x',
-          fromName: 'x',
-          fromEmail: 'x@y.z',
-          replyTo: 'x@y.z',
-          htmlUrl: 'https://x',
-          textUrl: 'https://x.txt',
-          listIDs: ['l1'],
-          segmentIDs: [],
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

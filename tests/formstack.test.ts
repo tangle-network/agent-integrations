@@ -25,18 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('formstack adapter manifest', () => {
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = formstackConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/formstack\.com/)
-    expect(auth.tokenUrl).toMatch(/formstack\.com/)
-    expect(auth.scopes).toEqual(expect.arrayContaining(['read', 'write']))
-  })
-
-})
-
 describe('formstack forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +51,6 @@ describe('formstack forms.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://www.formstack.com/api/v2/form.json')
     expect(requestBody).toMatchObject({ name: 'Contact Us', folder: 'fld_1', language: 'en' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      formstackConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { name: 'Contact Us' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

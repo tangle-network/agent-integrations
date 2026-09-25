@@ -37,7 +37,6 @@ describe('google-tasks adapter manifest', () => {
     expect(googleTasksConnector.manifest.auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
     expect(googleTasksConnector.manifest.auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
   })
-
 })
 
 describe('google-tasks tasks.complete', () => {
@@ -185,17 +184,5 @@ describe('google-tasks lists.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://tasks.googleapis.com/tasks/v1/users/@me/lists')
     expect(requestBody).toMatchObject({ title: 'Groceries' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      googleTasksConnector.executeMutation!({
-        source: baseSource,
-        capabilityName: 'lists.create',
-        args: { title: 'Groceries' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

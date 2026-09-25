@@ -5,9 +5,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { googlePubSubConnector } from '../src/connectors/adapters/google-pubsub.js'
 import {
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/types.js'
+  type ResolvedDataSource } from '../src/connectors/types.js'
 
 const keyPair = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const privateKey = keyPair.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()

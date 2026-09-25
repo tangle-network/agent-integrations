@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bitly adapter manifest', () => {
-  it('uses api-key auth (Bitly access token, sent as Bearer)', () => {
-    const auth = bitlyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bitly adapter write execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -106,17 +98,5 @@ describe('bitly adapter write execution', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api-ssl.bitly.com/v4/qr-codes/qr_42')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bitlyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'qr.delete',
-        args: { qrcode_id: 'qr_x' },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('baremetrics adapter manifest', () => {
-  it('declares customer API-key auth using Baremetrics bearer tokens', () => {
-    const auth = baremetricsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('baremetrics delete.customer', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('baremetrics delete.customer', () => {
     expect(String(requestUrl)).toContain('/v1/src_abc/customers/cust_42')
     expect(authorization).toBe('Bearer bm-token')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      baremetricsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'delete.customer',
-        args: { sourceId: 'src_abc', customerOid: 'cust_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

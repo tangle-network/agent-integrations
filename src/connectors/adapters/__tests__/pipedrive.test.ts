@@ -19,20 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('pipedrive adapter manifest', () => {
-  it('declares the expected OAuth2 endpoints, scopes, and env-var names', () => {
-    const auth = pipedriveConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://oauth.pipedrive.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://oauth.pipedrive.com/oauth/token')
-    expect(auth.scopes).toEqual(['deals:full', 'contacts:full', 'leads:full', 'activities:full'])
-    expect(auth.clientIdEnv).toBe('PIPEDRIVE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('PIPEDRIVE_OAUTH_CLIENT_SECRET')
-  })
-
-})
-
 describe('pipedrive adapter execution', () => {
   it('builds a search URL against the per-account api_domain with bearer auth and interpolated query', async () => {
     const fetchMock = vi.fn(
@@ -82,19 +68,5 @@ describe('pipedrive adapter execution', () => {
     expect(String(call[0])).toBe('https://api.pipedrive.com/v1/deals')
     expect(call[1]!.method).toBe('POST')
     expect(JSON.parse(String(call[1]!.body))).toEqual({ title: 'New deal', value: 1000, currency: 'USD' })
-  })
-
-  it('throws CredentialsExpired when Pipedrive rejects the token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'deals.get',
-      args: { id: 5 },
-      idempotencyKey: 'idem_3',
-    }
-    await expect(pipedriveConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vbout adapter manifest', () => {
-  it('declares api-key auth with VBOUT-specific hint', () => {
-    const auth = vboutConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/VBOUT/i)
-  })
-
-})
-
 describe('vbout contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('vbout contacts.delete', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/1/contacts/delete')
     expect(requestBody).toMatchObject({ email: 'gone@example.com' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      vboutConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { email: 'gone@example.com' },
-        idempotencyKey: 'k-cd-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

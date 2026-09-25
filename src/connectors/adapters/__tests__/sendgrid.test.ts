@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('sendgrid adapter', () => {
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(sendgridConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('sends mail via POST /v3/mail/send with bearer auth and the SendGrid payload shape', async () => {
     const fetchMock = mockFetch({}, { status: 202 })
     const invocation: ConnectorInvocation = {

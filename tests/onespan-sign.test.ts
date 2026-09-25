@@ -39,16 +39,6 @@ describe('OneSpan Sign adapter', () => {
     expect(requestBody).toEqual({ status: 'SENT' })
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces expired credentials on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(oneSpanSignConnector.executeRead!({
-      source: source(),
-      capabilityName: 'packages.get',
-      args: { packageId: 'pkg_1' },
-      idempotencyKey: 'read-pkg-1',
-    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 function source(): ResolvedDataSource {

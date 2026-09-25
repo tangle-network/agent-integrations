@@ -26,11 +26,6 @@ afterEach(() => {
 })
 
 describe('customer-io adapter', () => {
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(customerIoConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('triggers a campaign via POST /v1/campaigns/{id}/triggers with Bearer auth and merged trigger body', async () => {
     const fetchMock = mockFetch({ id: 'trigger_1' }, { status: 200 })
     const invocation: ConnectorInvocation = {

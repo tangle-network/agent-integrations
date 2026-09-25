@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('giftbit adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = giftbitConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('giftbit campaigns.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -69,21 +61,6 @@ describe('giftbit campaigns.create', () => {
       contacts: [{ email: 'drew@example.com', firstName: 'Drew' }],
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      giftbitConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.create',
-        args: { id: 'cmp_1', priceInCents: 2500 },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

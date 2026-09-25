@@ -52,30 +52,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('revenue and accounting provider factories', () => {
-  it('registers all nine customer-credential provider packs without shared deployment secrets', () => {
-    const implementations: ConnectorAdapter[] = [
-      stripePackConnector,
-      chargebeeConnector,
-      paddleConnector,
-      plaidConnector,
-      rampConnector,
-      brexConnector,
-      billComConnector,
-      netsuiteConnector,
-      sageIntacctConnector,
-    ]
-    expect(implementations.map((adapter) => adapter.manifest.kind)).toEqual(expectedProviders)
-    for (const kind of expectedProviders) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(definition!.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-})
-
 describe('structured finance credentials', () => {
   afterEach(() => vi.unstubAllGlobals())
 

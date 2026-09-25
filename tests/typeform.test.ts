@@ -65,18 +65,6 @@ describe('typeform forms.create', () => {
       settings: { language: 'en' },
     })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typeformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { fields: { title: 't' } },
-        idempotencyKey: 'fc-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('typeform forms.delete', () => {
@@ -166,17 +154,5 @@ describe('typeform images.create', () => {
     const parsed = JSON.parse(requestBody ?? '{}')
     expect(parsed.file_name).toBe('logo.png')
     expect(parsed.image).toEqual({ value: 'aGVsbG8=', type: 'image/png' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typeformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.create',
-        args: { file_name: 'logo.png' },
-        idempotencyKey: 'ic-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

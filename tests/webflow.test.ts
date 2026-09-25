@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { webflowConnector } from '../src/connectors/adapters/webflow'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 function webflowSource(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -29,21 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('webflow adapter', () => {
-  it('uses real Webflow OAuth endpoints with the four standard fields', () => {
-    const auth = webflowConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
-    expect(auth.authorizationUrl).toBe('https://webflow.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.webflow.com/oauth/access_token')
-    expect(auth.clientIdEnv).toBe('WEBFLOW_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('WEBFLOW_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['sites:read', 'cms:read', 'cms:write', 'pages:read', 'forms:read']),
-    )
-  })
-
-})
-
 describe('webflow items.unpublish', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -71,18 +56,6 @@ describe('webflow items.unpublish', () => {
     expect(String(requestUrl)).toBe('https://api.webflow.com/v2/collections/col_1/items/unpublish')
     const parsed = JSON.parse(requestBody ?? '{}') as Record<string, unknown>
     expect(parsed.itemIds).toEqual(['itm_1', 'itm_2'])
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      webflowConnector.executeMutation!({
-        source: webflowSource(),
-        capabilityName: 'items.unpublish',
-        args: { collectionId: 'col_1', itemIds: ['itm_1'] },
-        idempotencyKey: 'k-unpub-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

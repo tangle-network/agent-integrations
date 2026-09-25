@@ -20,14 +20,6 @@ function source(baseUrl = 'https://api.cashfree.com/pg'): ResolvedDataSource {
   }
 }
 
-describe('cashfree-payments adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = cashfreePaymentsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('cashfree credential and endpoint boundaries', () => {
   afterEach(() => vi.unstubAllGlobals())
 

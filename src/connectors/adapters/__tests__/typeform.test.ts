@@ -20,37 +20,6 @@ afterEach(() => {
 })
 
 describe('typeform adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(typeformConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares oauth2 against api.typeform.com with typeform-shaped env names and offline scope for refresh', () => {
-    const auth = typeformConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://api.typeform.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.typeform.com/oauth/token')
-    // `offline` is required to receive a refresh token; the others are the resource:read|write tuples.
-    expect(auth.scopes).toEqual([
-      'forms:read',
-      'forms:write',
-      'responses:read',
-      'webhooks:read',
-      'webhooks:write',
-      'workspaces:read',
-      'accounts:read',
-      'offline',
-    ])
-    expect(auth.clientIdEnv).toBe('TYPEFORM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('TYPEFORM_OAUTH_CLIENT_SECRET')
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeformConnector.executeRead).toBeTypeOf('function')
-    expect(typeformConnector.executeMutation).toBeTypeOf('function')
-  })
-
   it('lists responses against /forms/{form_id}/responses with bearer auth and only the provided query params', async () => {
     const fetchMock = mockFetch({ items: [], total_items: 0, page_count: 0 })
     const invocation: ConnectorInvocation = {

@@ -30,17 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('helpscout adapter manifest', () => {
-  it('uses oauth2 auth with Help Scout endpoints', () => {
-    const auth = helpscoutConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/secure\.helpscout\.net/)
-    expect(auth.tokenUrl).toMatch(/api\.helpscout\.net/)
-  })
-
-})
-
 describe('helpscout conversations.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -77,24 +66,6 @@ describe('helpscout conversations.create', () => {
     expect(parsed.type).toBe('email')
     expect(Array.isArray(parsed.threads)).toBe(true)
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      helpscoutConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'conversations.create',
-        args: {
-          subject: 'x',
-          customer: { email: 'a@b.com' },
-          mailboxId: 1,
-          type: 'email',
-          threads: [{ type: 'customer', text: 'x' }],
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

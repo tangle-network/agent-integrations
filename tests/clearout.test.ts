@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('clearout adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = clearoutConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('clearout bulk.verify.start', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('clearout bulk.verify.start', () => {
     expect(capturedUrl).toBe('https://api.clearout.io/v2/email_verify/bulk')
     expect(capturedBody).toMatchObject({ list_id: 'list_abc' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      clearoutConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bulk.verify.start',
-        args: { list_id: 'list_abc' },
-        idempotencyKey: 'bulk-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

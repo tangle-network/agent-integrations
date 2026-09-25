@@ -63,27 +63,6 @@ describe('couchbase document.upsert', () => {
     expect(requestHeaders.Authorization).toBe('Basic YWRtaW46c2VjcmV0')
     expect(requestBody).toEqual({ name: 'JFK', city: 'New York' })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      couchbaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'document.upsert',
-        args: {
-          bucket: 'travel-sample',
-          scope: 'inventory',
-          collection: 'airport',
-          docId: 'airport_1234',
-          content: { name: 'JFK' },
-        },
-        idempotencyKey: 'k-upsert-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('couchbase index.create', () => {

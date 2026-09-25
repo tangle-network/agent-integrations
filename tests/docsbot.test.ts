@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('docsbot adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = docsbotConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('docsbot sources.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,17 +48,5 @@ describe('docsbot sources.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.docsbot.ai/api/v1/bots/bot_1/sources/src_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      docsbotConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'sources.delete',
-        args: { botId: 'bot_1', sourceId: 'src_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

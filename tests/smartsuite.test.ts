@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smartsuite adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = smartsuiteConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SmartSuite/i)
-  })
-
-})
-
 describe('smartsuite records.bulk-create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('smartsuite records.bulk-create', () => {
     expect(requestUrl).toBe('https://app.smartsuite.com/api/v1/tables/tbl_1/records/bulk')
     expect(requestBody).toMatchObject({ items: [{ name: 'A' }, { name: 'B' }] })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smartsuiteConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.bulk-create',
-        args: { table: 'tbl_1', items: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

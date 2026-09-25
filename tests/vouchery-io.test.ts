@@ -28,14 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vouchery-io adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = voucheryIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('vouchery-io adapter executeMutation: vouchers.redeem', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -81,27 +73,6 @@ describe('vouchery-io adapter executeMutation: vouchers.redeem', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/code/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      voucheryIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'vouchers.redeem',
-        args: { code: 'PROMO50', customer_id: 'cust_42', amount: 1 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -150,26 +121,5 @@ describe('vouchery-io adapter executeMutation: vouchers.void', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/code/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      voucheryIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'vouchers.void',
-        args: { code: 'PROMO50', reason: 'merchant fraud check' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

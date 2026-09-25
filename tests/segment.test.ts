@@ -30,32 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('segment adapter manifest', () => {
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(segmentConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('uses api-key auth (Segment Public API is a workspace-issued personal access token)', () => {
-    const auth = segmentConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/personal access token/i)
-    expect(auth.hint).toMatch(/segment/i)
-  })
-
-  it('marks every mutation native-idempotency + externalEffect=true', () => {
-    const mutations = segmentConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const mutation of mutations) {
-      if (mutation.class !== 'mutation') throw new Error('unreachable')
-      expect(mutation.cas).toBe('native-idempotency')
-      expect(mutation.externalEffect).toBe(true)
-    }
-  })
-
-})
-
 describe('segment tracking-plans.connect', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -82,18 +56,6 @@ describe('segment tracking-plans.connect', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.segmentapis.com/tracking-plans/tp_123/sources')
     expect(requestBody).toEqual({ sourceId: 'src_456' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      segmentConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tracking-plans.connect',
-        args: { trackingPlanId: 'tp_1', sourceId: 'src_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

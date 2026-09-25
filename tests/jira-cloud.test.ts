@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   jiraCloudConnector,
-  validateConnectorManifest,
   type ConnectorInvocation,
-  type ResolvedDataSource,
-} from '../src/connectors/index.js'
+  type ResolvedDataSource } from '../src/connectors/index.js'
 import {
   getIntegrationSpec,
   resolveConnectorAuthSpec,
@@ -58,7 +56,6 @@ describe('jira-cloud adapter manifest', () => {
     })
     expect(getIntegrationSpec('jira-cloud')?.setup.credentialFields).toHaveLength(2)
   })
-
 })
 
 describe('jira-cloud OAuth execution', () => {

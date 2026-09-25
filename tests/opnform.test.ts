@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('opnform adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = opnformConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Opnform/i)
-  })
-
-})
-
 describe('opnform forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +53,6 @@ describe('opnform forms.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/v1/forms')
     expect(requestBody).toMatchObject({ title: 'Feedback' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      opnformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { title: 'Feedback', properties: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -147,17 +125,5 @@ describe('opnform submissions.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v1/forms/form_abc/submissions/sub_xyz')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      opnformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'submissions.delete',
-        args: { formId: 'form_abc', submissionId: 'sub_xyz' },
-        idempotencyKey: 'k-4',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

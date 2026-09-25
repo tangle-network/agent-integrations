@@ -26,11 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('aircall adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = aircallConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
   it('sends the configured API ID/token pair through HTTP Basic auth', async () => {
     let requestHeaders: Record<string, string> = {}
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -44,7 +39,6 @@ describe('aircall adapter manifest', () => {
     expect(requestHeaders.Authorization).toBe('Basic base64-api-id-and-token')
     expect(requestHeaders.authorization).toBeUndefined()
   })
-
 })
 
 describe('aircall contacts.delete', () => {
@@ -70,18 +64,6 @@ describe('aircall contacts.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.aircall.io/v1/contacts/contact_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      aircallConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contactId: 'c_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

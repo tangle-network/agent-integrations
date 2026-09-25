@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('doctly adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = doctlyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('doctly documents.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('doctly documents.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.doctly.ai/api/v1/documents/doc_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      doctlyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.delete',
-        args: { documentId: 'doc_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('cryptolens adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = cryptolensConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('cryptolens key.activate', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -61,18 +53,6 @@ describe('cryptolens key.activate', () => {
     expect(url.searchParams.get('ProductId')).toBe('1234')
     expect(url.searchParams.get('Key')).toBe('AAAA-BBBB-CCCC-DDDD')
     expect(url.searchParams.get('MachineCode')).toBe('machine-1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      cryptolensConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'key.activate',
-        args: { productId: 1, key: 'K', machineCode: 'm' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

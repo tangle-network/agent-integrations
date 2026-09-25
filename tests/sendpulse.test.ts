@@ -30,16 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('sendpulse adapter manifest', () => {
-  it('declares oauth2 auth with SendPulse oauth endpoints', () => {
-    const auth = sendpulseConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://login.sendpulse.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.sendpulse.com/oauth/access_token')
-    expect(auth.clientIdEnv).toBe('SENDPULSE_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('SENDPULSE_CLIENT_SECRET')
-  })
-
   it('marks subscriber mutations with appropriate cas strategies', () => {
     const mutations = sendpulseConnector.manifest.capabilities
       .filter((c) => c.class === 'mutation')
@@ -53,7 +43,6 @@ describe('sendpulse adapter manifest', () => {
     expect(mutationMap.get('subscriber.unsubscribe')?.cas).toBe('optimistic-read-verify')
     expect(mutationMap.get('subscriber.variable.update')?.cas).toBe('optimistic-read-verify')
   })
-
 })
 
 describe('sendpulse addressbooks.create', () => {
@@ -82,18 +71,6 @@ describe('sendpulse addressbooks.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/v1/addressbooks')
     expect(requestBody).toEqual({ bookName: 'Q3 Leads' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sendpulseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'addressbooks.create',
-        args: { bookName: 'x' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

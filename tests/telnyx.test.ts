@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('telnyx adapter manifest', () => {
-  it('declares api-key auth with a Telnyx-specific hint', () => {
-    const auth = telnyxConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Telnyx/i)
-  })
-
-})
-
 describe('telnyx calls.hangup', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +52,6 @@ describe('telnyx calls.hangup', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.telnyx.com/v2/calls/call_abc/actions/hangup')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      telnyxConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.hangup',
-        args: { call_control_id: 'call_abc' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

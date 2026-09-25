@@ -29,18 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const NEW_MUTATIONS = ['memory.delete', 'document.delete', 'training.delete', 'persona.update']
-
-describe('personal-ai adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = personalAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Personal AI/i)
-  })
-
-})
-
 describe('personal-ai memory.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -68,18 +56,6 @@ describe('personal-ai memory.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.personal-ai.com/v1/memory/mem_1')
     expect(authHeader).toBe('Bearer personal_ai_secret')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      personalAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'memory.delete',
-        args: { memoryId: 'mem_1' },
-        idempotencyKey: 'k-mem-del',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

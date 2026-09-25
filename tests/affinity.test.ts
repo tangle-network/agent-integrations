@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { affinityConnector } from '../src/connectors/adapters/affinity.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_affinity',

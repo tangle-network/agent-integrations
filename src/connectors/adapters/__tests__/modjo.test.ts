@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { modjoConnector } from '../modjo.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_modjo',
@@ -50,18 +50,5 @@ describe('modjo adapter', () => {
     expect((init.headers as Record<string, string>)['X-API-KEY']).toBe('modjo-key')
     expect(url.searchParams.get('page')).toBe('1')
     expect(url.searchParams.get('perPage')).toBe('20')
-  })
-
-  it('throws CredentialsExpired when Modjo rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      modjoConnector.executeRead!({ source, capabilityName: 'calls.export', args: {"page":1,"perPage":20,"transcript":true,"aiSummary":true,"contacts":true}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      modjoConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

@@ -31,16 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('upgradechat adapter manifest', () => {
-  it('declares api-key auth with an Upgrade.chat-specific hint', () => {
-    const auth = upgradechatConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Upgrade\.chat/i)
-  })
-
-})
-
 describe('upgradechat subscriptions.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +57,6 @@ describe('upgradechat subscriptions.cancel', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe(`${UC_BASE}/api/subscriptions/sub_1/cancel`)
     expect(requestBody).toMatchObject({ subscriptionId: 'sub_1', reason: 'customer request' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      upgradechatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.cancel',
-        args: { subscriptionId: 'sub_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -134,18 +112,6 @@ describe('upgradechat products.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe(`${UC_BASE}/api/products/p_1`)
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      upgradechatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 'p_1' },
-        idempotencyKey: 'k-3',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

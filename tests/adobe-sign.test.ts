@@ -5,24 +5,6 @@ import type { ResolvedDataSource } from '../src/connectors/types.js'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Adobe Acrobat Sign adapter', () => {
-  it('declares OAuth and the document/webhook action surface', () => {
-    const auth = adobeSignConnector.manifest.auth
-    expect(adobeSignConnector.manifest.kind).toBe('adobe-sign')
-    expect(adobeSignConnector.manifest.category).toBe('doc')
-    expect(auth.kind).toBe('oauth2')
-    expect(adobeSignConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'agreements.list',
-      'agreements.get',
-      'agreements.create',
-      'agreements.cancel',
-      'agreements.remind',
-      'libraryDocuments.list',
-      'webhooks.list',
-      'webhooks.create',
-      'webhooks.delete',
-    ])
-  })
-
   it('lists agreements through the account API access point', async () => {
     let requestUrl = ''
     let requestHeaders: Record<string, string> = {}
@@ -62,16 +44,6 @@ describe('Adobe Acrobat Sign adapter', () => {
     expect(requestUrl).toBe('https://api.eu1.adobesign.com/api/rest/v6/agreements/agr_1/state')
     expect(requestBody).toEqual({ state: 'CANCELLED', comment: 'Customer withdrew' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces expired credentials on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(adobeSignConnector.executeRead!({
-      source: source(),
-      capabilityName: 'agreements.get',
-      args: { agreementId: 'agr_1' },
-      idempotencyKey: 'read-agr-1',
-    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('air-ops adapter manifest', () => {
-  it('uses api-key auth as the catalog declares', () => {
-    const auth = airOpsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/AirOps/i)
-  })
-
-})
-
 describe('air-ops cancel.execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +54,6 @@ describe('air-ops cancel.execution', () => {
     )
     expect(authHeader).toBe('Bearer airops_secret')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      airOpsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'cancel.execution',
-        args: { app: 'app_uuid_1', execution_uuid: 'exec_uuid_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

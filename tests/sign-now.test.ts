@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sign-now adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = signNowConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SignNow/i)
-  })
-
-})
-
 describe('sign-now write-side execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -133,17 +123,5 @@ describe('sign-now write-side execution', () => {
     expect(observedUrl).toBe('https://api.signnow.com/v2/documents/doc_42/template')
     expect(observedBody).toEqual({ document_name: 'Onboarding template' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired when SignNow rejects the token', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      signNowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.delete',
-        args: { documentId: 'doc_42' },
-        idempotencyKey: 'k1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

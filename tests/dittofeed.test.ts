@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('dittofeed adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = dittofeedConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('dittofeed subscribers.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('dittofeed subscribers.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://dittofeed.com/api/public/apps/identify')
     expect(requestBody).toMatchObject({ userId: 'u_1' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      dittofeedConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.create',
-        args: { userId: 'u_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

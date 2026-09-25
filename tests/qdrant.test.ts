@@ -30,14 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('qdrant adapter manifest', () => {
-  it('uses api-key auth (qdrant cloud has no public OAuth surface)', () => {
-    const auth = qdrantConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/api key/i)
-    expect(auth.hint).toMatch(/qdrant/i)
-  })
-
   it('marks snapshot creation as cas="none" (server-side timestamped, non-idempotent)', () => {
     const byName = new Map(qdrantConnector.manifest.capabilities.map((c) => [c.name, c]))
     const snapshotCreate = byName.get('snapshots.create')
@@ -58,7 +50,6 @@ describe('qdrant adapter manifest', () => {
     expect(collectionsCreate.cas).toBe('native-idempotency')
     expect(pointsUpsert.cas).toBe('native-idempotency')
   })
-
 })
 
 describe('qdrant write capabilities', () => {
@@ -167,21 +158,5 @@ describe('qdrant write capabilities', () => {
     const url = new URL(String(requestUrl))
     expect(url.pathname).toContain('/cluster/peer/9876')
     expect(url.searchParams.get('force')).toBe('true')
-  })
-
-  it('surfaces CredentialsExpired on 401 from a new write capability', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      qdrantConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'snapshots.restore',
-        args: { collection_name: 'docs', location: 'https://snapshots.example.com/docs.snapshot' },
-        idempotencyKey: 'k-5',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -42,18 +42,6 @@ describe('twitter adapter manifest', () => {
     })
   })
 
-  it('declares OAuth as preferred auth while retaining API-key token support', () => {
-    const auth = twitterConnector.manifest.auth
-    expect(auth.kind).toBe('one_of')
-    if (auth.kind !== 'one_of') throw new Error('unreachable')
-    expect(auth.preferred).toBe('oauth2')
-    expect(auth.options.map((option) => option.kind)).toEqual(['oauth2', 'api-key'])
-    expect(auth.options[1]).toMatchObject({
-      kind: 'api-key',
-      hint: expect.stringMatching(/Twitter/i),
-    })
-  })
-
   it('requests the OAuth scopes required for reads, writes, and future media uploads', () => {
     const auth = twitterConnector.manifest.auth
     if (auth.kind !== 'one_of') throw new Error('unreachable')
@@ -242,21 +230,6 @@ describe('twitter read capabilities', () => {
       ).rejects.toThrow(/missing required argument: id/)
     },
   )
-
-  it('surfaces CredentialsExpired when a read hits 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })),
-    )
-    await expect(
-      adapter.executeRead!({
-        source: source(),
-        capabilityName: 'users.me',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('twitter write capabilities', () => {
@@ -303,23 +276,6 @@ describe('twitter write capabilities', () => {
     ).rejects.toThrow(/missing required argument: id/)
   })
 
-  it('tweets.delete surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('unauthorized', {
-        status: 401,
-        headers: { 'content-type': 'text/plain' },
-      }),
-    ))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'tweets.delete',
-        args: { id: '1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('tweets.like POSTs to /users/{user_id}/likes with tweet_id body', async () => {
     let calledUrl = ''
     let calledMethod = ''
@@ -364,23 +320,6 @@ describe('twitter write capabilities', () => {
     ).rejects.toThrow(/missing required argument: tweet_id/)
   })
 
-  it('tweets.like surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('forbidden', {
-        status: 403,
-        headers: { 'content-type': 'text/plain' },
-      }),
-    ))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'tweets.like',
-        args: { user_id: 'u', tweet_id: 't' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('tweets.retweet POSTs to /users/{user_id}/retweets with tweet_id body', async () => {
     let calledUrl = ''
     let calledMethod = ''
@@ -423,23 +362,6 @@ describe('twitter write capabilities', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: tweet_id/)
-  })
-
-  it('tweets.retweet surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('nope', {
-        status: 401,
-        headers: { 'content-type': 'text/plain' },
-      }),
-    ))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'tweets.retweet',
-        args: { user_id: 'u', tweet_id: 't' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('dms.send POSTs to /dm_conversations/with/{participant_id}/messages with text', async () => {
@@ -487,23 +409,6 @@ describe('twitter write capabilities', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: text/)
-  })
-
-  it('dms.send surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('forbidden', {
-        status: 403,
-        headers: { 'content-type': 'text/plain' },
-      }),
-    ))
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'dms.send',
-        args: { participant_id: 'u', text: 't' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

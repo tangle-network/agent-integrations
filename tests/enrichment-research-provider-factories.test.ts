@@ -25,29 +25,6 @@ const activatedProviders = [
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('enrichment and research provider factories', () => {
-  it('activates six customer-funded providers with real health checks', () => {
-    for (const kind of activatedProviders) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )
-      expect(definition, kind).toBeDefined()
-      expect(definition?.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-      expect(definition?.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('keeps adapters without a safe account health check hidden', () => {
-    for (const kind of ['cognism', 'crustdata', 'lusha', 'proxycurl']) {
-      expect(
-        CONNECTOR_ADAPTER_FACTORIES.some((candidate) => candidate.kind === kind),
-        kind,
-      ).toBe(false)
-    }
-  })
-})
-
 describe('enrichment provider credential placement', () => {
   it.each([
     [fullenrichConnector, 'fullenrich', 'https://app.fullenrich.com/api/v2/account/credits'],

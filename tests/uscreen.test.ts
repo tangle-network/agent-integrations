@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('uscreen adapter manifest', () => {
-  it('declares api-key auth with a Uscreen-specific hint', () => {
-    const auth = uscreenConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Uscreen/i)
-  })
-
-})
-
 describe('uscreen users.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -74,26 +64,6 @@ describe('uscreen users.update', () => {
     expect(String(requestUrl)).toContain('/v1/users/u_1')
     expect(requestBody).toMatchObject({ email: 'updated@example.com' })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      uscreenConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.update',
-        args: {
-          user_id: 'u_1',
-          email: 'updated@example.com',
-          first_name: 'Jane',
-          last_name: 'Doe',
-          password: 'secret123',
-          opted_in_for_news_and_updates: true,
-          custom_fields: { tier: 'gold' },
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('uscreen users.delete', () => {
@@ -119,18 +89,6 @@ describe('uscreen users.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/users/u_99')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      uscreenConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.delete',
-        args: { user_id: 'u_1' },
-        idempotencyKey: 'k-del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

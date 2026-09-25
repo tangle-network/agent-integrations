@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('formbricks adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = formbricksConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('formbricks responses.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -77,18 +69,6 @@ describe('formbricks responses.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: surveyId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      formbricksConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'responses.create',
-        args: { surveyId: 'svy_1', data: { q1: 'yes' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

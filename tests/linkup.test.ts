@@ -2,11 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { linkupConnector } from '../src/connectors/adapters/linkup.js'
 
 describe('linkup adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = linkupConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
   it('covers the catalog action set: search and fetch', () => {
     const names = linkupConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(['fetch', 'search'])

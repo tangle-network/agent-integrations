@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bookedin adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = bookedinConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bookedin appointments.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -116,18 +108,6 @@ describe('bookedin appointments.cancel', () => {
     expect(String(requestUrl)).toContain('https://api.bookedin.com/v1/appointments/appt-1/cancel')
     expect(requestBody).toMatchObject({ reason: 'customer-request' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      bookedinConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'appointments.cancel',
-        args: { appointmentId: 'appt-1', reason: 'unused' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

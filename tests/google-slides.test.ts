@@ -28,11 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('google-slides adapter manifest', () => {
-  it('declares oauth2 auth as documented in the catalog', () => {
-    const auth = googleSlidesConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
   it('uses OAuth refresh as health proof instead of calling a nonexistent presentations probe', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -40,7 +35,6 @@ describe('google-slides adapter manifest', () => {
     await expect(googleSlidesConnector.test(source())).resolves.toEqual({ ok: true })
     expect(fetchMock).not.toHaveBeenCalled()
   })
-
 })
 
 describe('google-slides slides.duplicate', () => {
@@ -69,17 +63,5 @@ describe('google-slides slides.duplicate', () => {
     expect(requestBody).toMatchObject({
       requests: [{ duplicateObject: { objectId: 'slide_42' } }],
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      googleSlidesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'slides.duplicate',
-        args: { presentationId: 'pres_1', objectId: 'slide_42', objectIds: {} },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

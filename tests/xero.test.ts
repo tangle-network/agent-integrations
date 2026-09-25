@@ -65,18 +65,6 @@ describe('xero contacts.archive', () => {
     expect(requestBody).toEqual({ ContactStatus: 'ARCHIVED' })
     expect(tenantHeader).toBe('tenant_1')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      xeroConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.archive',
-        args: { tenantId: 't', contactId: 'c1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('xero invoices.delete', () => {

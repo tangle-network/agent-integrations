@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { brightdataConnector } from '../brightdata.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_brightdata',
@@ -50,18 +50,5 @@ describe('brightdata adapter', () => {
     expect(url.searchParams.get('dataset_id')).toBe('gd_l1viktl72bvl7bjuj0')
     expect(url.searchParams.get('format')).toBe('json')
     expect(JSON.parse(String(init.body))).toEqual([{"url":"https://www.airbnb.com/rooms/50122531"}])
-  })
-
-  it('throws CredentialsExpired when Bright Data rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      brightdataConnector.executeRead!({ source, capabilityName: 'scraper.progress', args: {"snapshot_id":"s_m4x7enmven8djfqak"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      brightdataConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

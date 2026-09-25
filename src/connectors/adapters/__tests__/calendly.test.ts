@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('calendly adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(calendlyConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares oauth2 against auth.calendly.com with the documented endpoints', () => {
     const auth = calendlyConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')

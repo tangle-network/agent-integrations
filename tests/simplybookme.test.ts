@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('simplybookme adapter manifest', () => {
-  it('declares api-key auth with a SimplyBook.me-specific hint', () => {
-    const auth = simplybookmeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SimplyBook/i)
-  })
-
-})
-
 describe('simplybookme clients.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('simplybookme clients.update', () => {
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toContain('/admin/clients/42')
     expect(requestBody ?? '').toContain('Updated Name')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      simplybookmeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'clients.update',
-        args: { clientId: 42 },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

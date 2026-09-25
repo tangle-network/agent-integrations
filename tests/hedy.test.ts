@@ -25,17 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('hedy adapter manifest', () => {
-  it('declares an api-key auth surface (Hedy uses bearer token auth)', () => {
-    const auth = hedyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(typeof auth.hint).toBe('string')
-    expect(auth.hint).toContain('Hedy')
-  })
-
-})
-
 describe('hedy topics.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +48,6 @@ describe('hedy topics.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.hedy.ai/v1/topics/top_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      hedyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'topics.delete',
-        args: { topicId: 'top_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

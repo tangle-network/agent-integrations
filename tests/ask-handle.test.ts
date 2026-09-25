@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('ask-handle adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = askHandleConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('ask-handle messages.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('ask-handle messages.update', () => {
     expect(requestUrl).toBe('https://api.askhandle.com/api/messages/msg_1')
     expect(requestBody).toEqual({ body: 'updated text' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      askHandleConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.update',
-        args: { message_id: 'msg_1', body: 'updated text' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

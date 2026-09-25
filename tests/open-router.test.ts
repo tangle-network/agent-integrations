@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('open-router adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = openRouterConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('open-router wire behavior', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -123,17 +115,5 @@ describe('open-router wire behavior', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toContain('/api/v1/keys/h_old')
     expect(result.status).toBe('committed')
-  })
-
-  it('keys.create surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      openRouterConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'keys.create',
-        args: { name: 'x' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

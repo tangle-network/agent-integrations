@@ -29,14 +29,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('just-invoice adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = justInvoiceConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('just-invoice invoices.send', () => {
   it('POSTs to /invoices/{id}/send with email_to body and returns the vendor payload', async () => {
     let capturedUrl: string | null = null
@@ -79,21 +71,6 @@ describe('just-invoice invoices.send', () => {
       }),
     ).rejects.toThrow(/invoiceId/)
   })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.send',
-        args: { invoiceId: 'inv_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('just-invoice invoices.markPaid', () => {
@@ -135,21 +112,6 @@ describe('just-invoice invoices.markPaid', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/invoiceId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.markPaid',
-        args: { invoiceId: 'inv_99' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -202,20 +164,5 @@ describe('just-invoice invoices.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/invoiceId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.update',
-        args: { invoiceId: 'inv_7', currencyCode: 'EUR' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

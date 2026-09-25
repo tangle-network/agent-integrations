@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('quickzu adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = quickzuConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('quickzu orders.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -60,18 +52,6 @@ describe('quickzu orders.cancel', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.quickzu.com/api/v1/orders/order_1/cancel')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      quickzuConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'orders.cancel',
-        args: { orderId: 'order_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

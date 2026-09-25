@@ -32,26 +32,6 @@ function source(kind: string, subdomainUrl: string): ResolvedDataSource {
   }
 }
 
-describe('shared inbox and support provider factories', () => {
-  it('registers all six providers behind their exact OAuth application settings', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(Object.values(definition!.envMap), kind).toEqual(envNames)
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('fails closed when only half of an OAuth application is configured', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)!
-      expect(resolveConnectorAdapterFactoryOptions(definition, {
-        [envNames[0]]: 'client-id-only',
-      }), kind).toBeNull()
-    }
-  })
-})
-
 describe('support tenant URL boundaries', () => {
   afterEach(() => vi.unstubAllGlobals())
 

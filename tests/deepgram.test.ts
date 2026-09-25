@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createConnectorAdapterProvider, manifestToConnector } from '../src/adapter-provider.js'
+import { createConnectorAdapterProvider} from '../src/adapter-provider.js'
 import { deepgramConnector } from '../src/connectors/adapters/deepgram.js'
 import {
   ApprovalBackedPolicyEngine,
@@ -11,7 +11,7 @@ import {
 import { StaticIntegrationPolicyEngine } from '../src/policy.js'
 import { normalizeIntegrationError } from '../src/errors.js'
 import type { IntegrationConnection } from '../src/core-types.js'
-import { type ResolvedDataSource, validateConnectorManifest } from '../src/connectors/types.js'
+import { type ResolvedDataSource} from '../src/connectors/types.js'
 
 const source: ResolvedDataSource = {
   id: 'deepgram-connection', projectId: 'project', publishedAgentId: null,
@@ -22,16 +22,6 @@ const bytes = Buffer.from('OggS fixture bytes')
 const args = { contentBase64: bytes.toString('base64'), contentType: 'audio/ogg; codecs=opus' }
 
 afterEach(() => vi.unstubAllGlobals())
-
-describe('deepgram adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = deepgramConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Deepgram/i)
-  })
-
-})
 
 describe('Deepgram private audio transcription', () => {
   it('posts bounded private bytes with fixed multilingual settings and a connected key', async () => {

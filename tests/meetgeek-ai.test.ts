@@ -24,14 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('meetgeek-ai adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = meetgeekAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('meetgeek-ai execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

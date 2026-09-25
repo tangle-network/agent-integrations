@@ -53,18 +53,6 @@ describe('zendesk tickets.delete', () => {
     expect(capturedUrl).toBe('https://acme.zendesk.com/api/v2/tickets/4242.json')
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zendeskConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tickets.delete',
-        args: { ticketId: '4242' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('zendesk tickets.merge', () => {

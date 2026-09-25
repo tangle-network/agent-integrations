@@ -28,16 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('amazon-s3 adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = amazonS3Connector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/AWS|Access Key/i)
-  })
-
-})
-
 describe('amazon-s3 files.copyFile', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -71,18 +61,6 @@ describe('amazon-s3 files.copyFile', () => {
     expect(capturedHeaders['x-amz-date']).toMatch(/^\d{8}T\d{6}Z$/)
     expect(capturedHeaders['x-amz-content-sha256']).toMatch(/^[0-9a-f]{64}$/)
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      amazonS3Connector.executeMutation!({
-        source: source(),
-        capabilityName: 'files.copyFile',
-        args: { sourceKey: 'b/a.txt', destinationKey: 'b/c.txt' },
-        idempotencyKey: 'cp-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

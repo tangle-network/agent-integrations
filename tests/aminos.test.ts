@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('aminos adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = aminosConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('aminos users.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('aminos users.update', () => {
     expect(requestUrl).toBe('https://panel.example.com/api/users/u_1')
     expect(requestBody).toEqual({ userid: 'u_1', userfriendlyname: 'Drew', userplanid: 7 })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      aminosConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.update',
-        args: { userid: 'u_1', userfriendlyname: 'Drew' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

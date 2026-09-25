@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twenty adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = twentyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('twenty contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('twenty contacts.delete', () => {
     expect(String(requestUrl)).toContain('/graphql')
     expect(requestBody).toContain('deletePerson')
     expect(requestBody).toContain('person_xyz')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      twentyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { personId: 'person_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

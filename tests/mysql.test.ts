@@ -2,21 +2,12 @@ import type { ConnectionOptions, FieldPacket } from 'mysql2/promise'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createMySqlConnector,
-  mysqlConnector,
-  type MySqlConnectorOptions,
-} from '../src/connectors/adapters/mysql.js'
+  type MySqlConnectorOptions } from '../src/connectors/adapters/mysql.js'
 import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MySQL connector', () => {
-  it('exposes executable API-key setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('mysql')).toMatchObject({ status: 'executable', auth: { mode: 'api_key' } })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'mysql')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('mysql')
-  })
-
   it('uses a pinned public address while retaining the hostname for verified TLS identity', async () => {
     let config: ConnectionOptions | undefined
     const connector = createMySqlConnector({

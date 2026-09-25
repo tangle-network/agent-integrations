@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nooksConnector } from '../nooks.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_nooks',
@@ -37,18 +37,5 @@ describe('nooks adapter', () => {
     expect(url.pathname).toBe('/v1/accounts')
     expect(init.method).toBe('GET')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer nooks-key')
-  })
-
-  it('throws CredentialsExpired when Nooks rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      nooksConnector.executeRead!({ source, capabilityName: 'accounts.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      nooksConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

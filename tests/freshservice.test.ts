@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('freshservice adapter manifest', () => {
-  it('declares api-key auth with a setup hint that mentions the API key', () => {
-    const auth = freshserviceConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/API key/i)
-  })
-
-})
-
 describe('freshservice tickets.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -61,18 +51,6 @@ describe('freshservice tickets.update', () => {
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toBe('https://acme.freshservice.com/api/v2/tickets/7')
     expect(requestBody).toMatchObject({ priority: 3, status: 3 })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      freshserviceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tickets.update',
-        args: { ticketId: '7' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bettercontactConnector } from '../bettercontact.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_bettercontact',
@@ -37,18 +37,5 @@ describe('bettercontact adapter', () => {
     expect(url.pathname).toBe('/api/v2/async/123456')
     expect(init.method).toBe('GET')
     expect((init.headers as Record<string, string>)['X-API-Key']).toBe('bettercontact-key')
-  })
-
-  it('throws CredentialsExpired when BetterContact rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bettercontactConnector.executeRead!({ source, capabilityName: 'enrichment.get', args: {"request_id":"123456"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      bettercontactConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

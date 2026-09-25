@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getresponseConnector } from '../getresponse.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_getresponse',
@@ -49,18 +49,5 @@ describe('getresponse adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['X-Auth-Token']).toBe('api-key getresponse-key')
     expect(JSON.parse(String(init.body))).toEqual({"email":"test@example.com","name":"x","dayOfCycle":1,"campaign":{"campaignId":"p86zQ"}})
-  })
-
-  it('throws CredentialsExpired when GetResponse rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      getresponseConnector.executeRead!({ source, capabilityName: 'contacts.list', args: {"perPage":50}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      getresponseConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

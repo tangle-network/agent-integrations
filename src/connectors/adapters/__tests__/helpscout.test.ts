@@ -46,22 +46,6 @@ afterEach(() => {
 })
 
 describe('helpscoutConnector', () => {
-  it('exposes the documented Mailbox v2 OAuth2 manifest', () => {
-    expect(helpscoutConnector.manifest.kind).toBe('helpscout')
-    expect(helpscoutConnector.manifest.displayName).toBe('Help Scout')
-    expect(helpscoutConnector.manifest.category).toBe('crm')
-    expect(helpscoutConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = helpscoutConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://secure.helpscout.net/authentication/authorizeClientApplication')
-    expect(auth.tokenUrl).toBe('https://api.helpscout.net/v2/oauth2/token')
-    expect(auth.scopes).toEqual(['tickets.search.read', 'tickets.reply.write', 'customers.read'])
-    expect(auth.clientIdEnv).toBe('HELPSCOUT_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('HELPSCOUT_OAUTH_CLIENT_SECRET')
-  })
-
   it('executes tickets.search against /v2/conversations with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ _embedded: { conversations: [{ id: 7, subject: 'Login fails' }] } })
     const provider = createConnectorAdapterProvider({

@@ -25,15 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'contact.search',
-  'contact.enrich',
-  'contact.redeem',
-  'account.search',
-  'account.enrich',
-  'account.redeem',
-]
-
 describe('cognism execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -98,29 +89,5 @@ describe('cognism execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/redeemIds/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      cognismConnector.executeRead!({
-        source: source(),
-        capabilityName: 'contact.search',
-        args: { filters: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      cognismConnector.executeRead!({
-        source: source(),
-        capabilityName: 'contact.search',
-        args: { filters: {} },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

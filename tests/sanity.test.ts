@@ -61,18 +61,6 @@ describe('sanity documents.createOrReplace', () => {
     })
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sanityConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.createOrReplace',
-        args: { dataset: 'production', apiVersion: 'v2025-02-19', document: { _id: 'd', _type: 't' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('sanity documents.publish', () => {

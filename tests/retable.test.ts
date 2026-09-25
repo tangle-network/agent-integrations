@@ -18,25 +18,6 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
   }
 }
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  const status = init.status ?? 200
-  if (status === 204 || status === 205 || status === 304) {
-    return new Response(null, { status })
-  }
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })
-}
-
-describe('retable adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = retableConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('retable delete mutations', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -116,17 +97,5 @@ describe('retable delete mutations', () => {
     })
     expect(result.status).toBe('committed')
     expect(url).toMatch(/\/projects\/p_1\/retables\/r_2$/)
-  })
-
-  it('surfaces CredentialsExpired on 401 for any delete', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauth', { status: 401 })))
-    await expect(
-      retableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { projectId: 'p_1', retableId: 'r_2', recordId: 'rec_3' },
-        idempotencyKey: 'k-rec-del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

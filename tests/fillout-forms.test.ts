@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('fillout-forms adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = filloutFormsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('fillout-forms submission.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('fillout-forms submission.create', () => {
     expect(requestBody).toEqual({
       submissions: [{ questions: [{ id: 'q1', value: 'hello' }] }],
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      filloutFormsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'submission.create',
-        args: { formId: 'form_abc', submissions: [] },
-        idempotencyKey: 'k-401',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

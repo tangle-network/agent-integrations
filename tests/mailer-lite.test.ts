@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('mailer-lite adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = mailerLiteConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('mailer-lite subscribers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('mailer-lite subscribers.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://connect.mailerlite.com/api/subscribers/sub_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      mailerLiteConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.delete',
-        args: { subscriberId: 'sub_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -30,11 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('totalcms adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = totalcmsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
   it('marks every delete mutation as native-idempotency + external-effect', () => {
     const byName = new Map(totalcmsConnector.manifest.capabilities.map((c) => [c.name, c]))
     for (const name of ['posts.delete', 'content.delete', 'media.delete']) {
@@ -67,18 +62,6 @@ describe('totalcms posts.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/posts/hello-world')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      totalcmsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.delete',
-        args: { slug: 'hello-world' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

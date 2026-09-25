@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('open-phone adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = openPhoneConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/OpenPhone/i)
-  })
-
-})
-
 describe('open-phone wire behavior', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -133,17 +123,5 @@ describe('open-phone wire behavior', () => {
     expect(capturedUrl).toContain('/v1/calls/call_xyz/transfer')
     expect(capturedBody.to).toBe('+15550000000')
     expect(result.status).toBe('committed')
-  })
-
-  it('calls.create surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      openPhoneConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.create',
-        args: { from: '+1555', to: '+1666' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

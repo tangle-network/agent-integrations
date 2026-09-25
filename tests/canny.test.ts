@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('canny adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = cannyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('canny posts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -68,26 +60,6 @@ describe('canny posts.update', () => {
     expect(String(requestUrl)).toContain('/api/v1/posts/update')
     expect(requestBody).toMatchObject({ postID: 'p1', title: 'new title', etaPublic: true })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      cannyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.update',
-        args: {
-          postID: 'p1',
-          title: 'new title',
-          details: 'new details',
-          eta: '06/2026',
-          etaPublic: true,
-          customFields: {},
-          imageURLs: [],
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

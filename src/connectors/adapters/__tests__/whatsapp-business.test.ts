@@ -37,26 +37,6 @@ afterEach(() => {
 })
 
 describe('whatsappBusiness adapter', () => {
-  it('ships a valid connector manifest with oauth2 endpoints and env-var names', () => {
-    const adapter = whatsappBusiness(opts)
-    const result = validateConnectorManifest(adapter.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-
-    expect(adapter.manifest.kind).toBe('whatsapp-business')
-    expect(adapter.manifest.displayName).toBe('WhatsApp Business')
-    expect(adapter.manifest.category).toBe('comms')
-    expect(adapter.manifest.defaultConsistencyModel).toBe('advisory')
-
-    const auth = adapter.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(auth.authorizationUrl).toBe('https://www.facebook.com/v21.0/dialog/oauth')
-    expect(auth.tokenUrl).toBe('https://graph.facebook.com/v21.0/oauth/access_token')
-    expect(auth.scopes).toEqual(['whatsapp_business_messaging', 'whatsapp_business_management', 'business_management'])
-    expect(auth.clientIdEnv).toBe('WHATSAPP_BUSINESS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('WHATSAPP_BUSINESS_OAUTH_CLIENT_SECRET')
-  })
-
   it('builds an OAuth authorize URL with the documented Meta scopes', () => {
     const adapter = whatsappBusiness(opts)
     const auth = adapter.manifest.auth

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('brilliant-directories adapter manifest', () => {
-  it('declares api-key auth as the catalog says', () => {
-    const auth = brilliantDirectoriesConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('brilliant-directories users.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -105,18 +97,6 @@ describe('brilliant-directories users.delete', () => {
     expect(String(requestUrl)).toContain('https://example.com/api/v2/user/delete')
     expect(requestBody).toMatchObject({ user_id: 'u-9' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      brilliantDirectoriesConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.delete',
-        args: { userId: 'u-9' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

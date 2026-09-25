@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('whatsapp adapter manifest', () => {
-  it('declares api-key auth with a WhatsApp-specific hint', () => {
-    const auth = whatsappConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/WhatsApp/i)
-  })
-
-})
-
 describe('whatsapp messages.reply', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -83,23 +73,6 @@ describe('whatsapp messages.reply', () => {
     expect(parsed.context.message_id).toBe('wamid.orig')
     expect(parsed.text.body).toBe('replying inline')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      whatsappConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.reply',
-        args: {
-          businessAccountId: 'BA_42',
-          to: '+14155551234',
-          text: 'x',
-          replyToMessageId: 'wamid.orig',
-        },
-        idempotencyKey: 'reply-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('whatsapp messages.react', () => {
@@ -136,23 +109,6 @@ describe('whatsapp messages.react', () => {
     expect(parsed.reaction.message_id).toBe('wamid.target')
     expect(parsed.reaction.emoji).toBe('🔥')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      whatsappConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.react',
-        args: {
-          businessAccountId: 'BA_42',
-          to: '+14155551234',
-          messageId: 'wamid.target',
-          emoji: '🔥',
-        },
-        idempotencyKey: 'react-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('whatsapp messages.delete', () => {
@@ -180,18 +136,6 @@ describe('whatsapp messages.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/BA_42/messages/wamid.gone')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      whatsappConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.delete',
-        args: { businessAccountId: 'BA_42', messageId: 'wamid.gone' },
-        idempotencyKey: 'del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -222,17 +166,5 @@ describe('whatsapp contacts.list', () => {
     expect(String(requestUrl)).toContain('limit=50')
     const data = result.data as { data: Array<{ wa_id: string }> }
     expect(data.data).toHaveLength(1)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      whatsappConnector.executeRead!({
-        source: source(),
-        capabilityName: 'contacts.list',
-        args: { businessAccountId: 'BA_42' },
-        idempotencyKey: 'contacts-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

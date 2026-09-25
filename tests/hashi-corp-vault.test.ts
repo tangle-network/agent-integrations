@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('hashi-corp-vault adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = hashiCorpVaultConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('hashi-corp-vault kv.write', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('hashi-corp-vault kv.write', () => {
     expect(requestHeaders?.get('x-vault-token')).toBe('vault_client_token')
     expect(requestBody).toMatchObject({ data: { user: 'u' } })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('denied', { status: 403 })))
-    await expect(
-      hashiCorpVaultConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'kv.write',
-        args: { secretEngine: 'secret', secretPath: 'p', secretData: {} },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

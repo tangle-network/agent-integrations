@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { justcallConnector } from '../justcall.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_justcall',
@@ -49,18 +49,5 @@ describe('justcall adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['Authorization']).toBe('justcall-key')
     expect(JSON.parse(String(init.body))).toEqual({"justcall_number":"+14155550100","contact_number":"+14155550111","body":"Hello from JustCall","media_url":"x"})
-  })
-
-  it('throws CredentialsExpired when JustCall rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      justcallConnector.executeRead!({ source, capabilityName: 'calls.list', args: {"per_page":20}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      justcallConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

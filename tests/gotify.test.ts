@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('gotify adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = gotifyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('gotify message.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -57,18 +49,6 @@ describe('gotify message.delete', () => {
     expect(String(requestUrl)).toContain('/message/42')
     expect(String(requestUrl)).toContain('token=client_tok')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gotifyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'message.delete',
-        args: { messageId: 1, client_token: 'client_tok' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

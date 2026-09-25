@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sendinblue adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = sendinblueConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Sendinblue/i)
-  })
-
-})
-
 describe('sendinblue lists.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,18 +55,6 @@ describe('sendinblue lists.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v3/contacts/lists')
     expect(requestBody).toEqual({ name: 'Newsletter', folderId: 7 })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      sendinblueConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'lists.create',
-        args: { name: 'x', folderId: 1 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

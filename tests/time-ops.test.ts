@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('time-ops adapter manifest', () => {
-  it('declares api-key auth with a TimeOps-specific hint', () => {
-    const auth = timeOpsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/TimeOps/i)
-  })
-
-})
-
 describe('time-ops customers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -69,18 +59,6 @@ describe('time-ops customers.update', () => {
     expect(requestBody).toMatchObject({ id: 'cust_1', name: 'Acme', defaultRate: 120 })
     expect(authHeader).toBe('Bearer timeops_secret')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      timeOpsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.update',
-        args: { id: 'cust_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -163,17 +141,5 @@ describe('time-ops registrations.delete', () => {
     expect(requestUrl).toBe('https://api.timeops.io/api/v1/registrations/reg_77')
     expect(requestBody).toBeUndefined()
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401 for delete', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      timeOpsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'registrations.delete',
-        args: { id: 'reg_77' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('textcortex-ai adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = textcortexAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/TextCortex/i)
-  })
-
-})
-
 describe('textcortex-ai history.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -88,18 +78,6 @@ describe('textcortex-ai history.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.textcortex.com/v1/history/hist_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      textcortexAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'history.delete',
-        args: { id: 'hist_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vtiger adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = vtigerConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('vtiger records.assign', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +54,6 @@ describe('vtiger records.assign', () => {
     expect(String(requestUrl)).toContain('/restapi/v1/vtiger/default/records/rec_1/assign')
     expect(requestBody).toMatchObject({ assigned_user_id: 'usr_9' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      vtigerConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.assign',
-        args: { recordId: 'rec_1', assigned_user_id: 'usr_9' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

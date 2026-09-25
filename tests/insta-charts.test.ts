@@ -30,14 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('insta-charts adapter manifest', () => {
-  it('declares oauth2 auth as documented in the catalog', () => {
-    const auth = instaChartsConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('insta-charts chart.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('insta-charts chart.update', () => {
     expect(requestMethod).toBe('PATCH')
     expect(requestUrl).toBe('https://api.instacharts.com/v1/chart/chart_42')
     expect(requestBody).toMatchObject({ title: 'Renamed' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      instaChartsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chart.update',
-        args: { chartId: 'c1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

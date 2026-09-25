@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { figjamConnector } from '../src/connectors/adapters/figjam'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 describe('figjam adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -104,5 +104,4 @@ describe('figjam adapter', () => {
       }
     }
   })
-
 })

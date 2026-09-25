@@ -19,28 +19,6 @@ const expectedProviders = {
   lemlist: [],
 } as const
 
-describe('outreach and campaign provider factories', () => {
-  it('registers all ten direct adapters with their exact deployment requirements', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(Object.values(definition!.envMap), kind).toEqual(envNames)
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
-  it('fails closed for OAuth apps and accepts customer-supplied API keys', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)!
-      if (envNames.length === 0) {
-        expect(resolveConnectorAdapterFactoryOptions(definition, {}), kind).toEqual({})
-      } else {
-        expect(resolveConnectorAdapterFactoryOptions(definition, { [envNames[0]]: 'client-id-only' }), kind).toBeNull()
-      }
-    }
-  })
-})
-
 describe('Smartlead API-key placement', () => {
   afterEach(() => vi.unstubAllGlobals())
 

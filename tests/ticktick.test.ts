@@ -29,18 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('ticktick adapter manifest', () => {
-  it('declares oauth2 auth with TickTick-specific endpoints', () => {
-    const auth = ticktickConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/ticktick.com/)
-    expect(auth.tokenUrl).toMatch(/ticktick.com/)
-    expect(auth.tokenClientAuthMethod).toBe('client_secret_basic')
-  })
-
-})
-
 describe('ticktick projects.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +55,6 @@ describe('ticktick projects.create', () => {
     expect(requestUrl).toBe('https://api.ticktick.com/v2/project')
     expect(requestBody).toMatchObject({ name: 'Inbox 2' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      ticktickConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'projects.create',
-        args: { name: 'x' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

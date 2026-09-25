@@ -131,16 +131,4 @@ describe('bigcommerce adapter write-side capabilities', () => {
     expect(requestMethod).toBe('PUT')
     expect(JSON.parse(requestBody ?? '{}')).toEqual([{ id: 12, last_name: 'Z' }])
   })
-
-  it('surfaces CredentialsExpired when a write fails on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bigcommerceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 1 },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })

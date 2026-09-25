@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('appfollow adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = appfollowConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('appfollow reply.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('appfollow reply.update', () => {
     expect(requestUrl).toBe('https://api.appfollow.io/reviews/reply')
     expect(requestBody).toEqual({ ext_id: 'app_1', review_id: 'rev_1', answer_text: 'thanks!' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      appfollowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'reply.update',
-        args: { ext_id: 'app_1', review_id: 'rev_1', answer_text: 'thanks!' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

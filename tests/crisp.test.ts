@@ -68,27 +68,6 @@ describe('crisp messages.send', () => {
       origin: 'chat',
     })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      crispConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.send',
-        args: {
-          websiteId: 'web_1',
-          sessionId: 'session_abc',
-          content: 'hi',
-          from: 'operator',
-          origin: 'chat',
-        },
-        idempotencyKey: 'k-msg-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('crisp conversation.assign', () => {

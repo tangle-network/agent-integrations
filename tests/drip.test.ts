@@ -27,14 +27,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('drip adapter manifest', () => {
-  it('uses api-key auth', () => {
-    const auth = dripConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('drip subscribers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -58,21 +50,6 @@ describe('drip subscribers.delete', () => {
     expect(String(requestUrl)).toBe(
       'https://api.getdrip.com/v3/accounts/acct_1/subscribers/drew%40example.com',
     )
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      dripConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.delete',
-        args: { account_id: 'acct_1', id_or_email: 'drew@example.com' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

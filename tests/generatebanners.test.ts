@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('generatebanners adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = generatebannersConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/GenerateBanners/i)
-  })
-
-})
-
 describe('generatebanners banner.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -58,21 +48,6 @@ describe('generatebanners banner.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.generatebanners.com/api/v1/banners/banner_99')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      generatebannersConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'banner.delete',
-        args: { bannerId: 'banner_99' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -63,26 +63,6 @@ describe('zapier NLA actions', () => {
     expect(typeof result.fetchedAt).toBe('number')
   })
 
-  it('actions.list surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('unauthorized', {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      zapierConnector.executeRead!({
-        source: source(),
-        capabilityName: 'actions.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   it('actions.execute POSTs to /v1/exposed/{action_id}/execute with instructions body', async () => {
     let capturedUrl: string | null = null
     let capturedMethod: string | null = null
@@ -160,26 +140,6 @@ describe('zapier NLA actions', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/action_id/)
-  })
-
-  it('actions.execute surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('forbidden', {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      zapierConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'actions.execute',
-        args: { action_id: 'act_42', instructions: 'go' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

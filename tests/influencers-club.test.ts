@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('influencers-club adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = influencersClubConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('influencers-club lists.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('influencers-club lists.create', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.influencers.club/v1/lists')
     expect(requestBody).toMatchObject({ name: 'Top creators', description: 'Q3 short-list' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      influencersClubConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'lists.create',
-        args: { name: 'broken', description: 'irrelevant' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

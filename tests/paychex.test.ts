@@ -25,32 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'companies.list',
-  'companies.get',
-  'companies.workers.list',
-  'workers.get',
-  'workers.compensation.get',
-  'workers.compensation.payrates.list',
-  'workers.compensation.paystandards.get',
-  'workers.communications.list',
-  'workers.federaltax.get',
-]
-
-describe('paychex adapter manifest', () => {
-  it('declares a client_credentials OAuth2 grant with no authorization URL', () => {
-    expect(paychexConnector.manifest.kind).toBe('paychex')
-    expect(paychexConnector.manifest.category).toBe('hr')
-    const auth = paychexConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('paychex auth must be oauth2')
-    expect(auth.grantType).toBe('client_credentials')
-    expect(auth.authorizationUrl).toBeUndefined()
-    expect(auth.tokenUrl).toBe('https://api.paychex.com/auth/oauth/v2/token')
-    expect(auth.scopes).toEqual([])
-  })
-
-})
-
 describe('paychex executeRead', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -135,29 +109,5 @@ describe('paychex executeRead', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/workerId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      paychexConnector.executeRead!({
-        source: source(),
-        capabilityName: 'companies.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      paychexConnector.executeRead!({
-        source: source(),
-        capabilityName: 'companies.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

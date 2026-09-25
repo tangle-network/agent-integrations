@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twin-labs adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = twinLabsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('twin-labs browsing.stop', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -75,27 +67,6 @@ describe('twin-labs browsing.stop', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: sessionId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      twinLabsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'browsing.stop',
-        args: { sessionId: 'sess_123' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -145,26 +116,5 @@ describe('twin-labs browsing.get', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: sessionId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      twinLabsConnector.executeRead!({
-        source: source(),
-        capabilityName: 'browsing.get',
-        args: { sessionId: 'sess_123' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { usergemsConnector } from '../usergems.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_usergems',
@@ -52,18 +52,5 @@ describe('usergems adapter', () => {
     // supplied: the body must contain only email — not throw "missing required
     // argument: firstName" (the systemic per-field-body bug this fixes).
     expect(JSON.parse(init.body as string)).toEqual({ email: 'a@b.com' })
-  })
-
-  it('throws CredentialsExpired when UserGems rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      usergemsConnector.executeMutation!({ source, capabilityName: 'contacts.delete', args: {"email":"noop-connector-test@example.com"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      usergemsConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

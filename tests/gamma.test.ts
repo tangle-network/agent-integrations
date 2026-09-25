@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('gamma adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = gammaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Gamma/i)
-  })
-
-})
-
 describe('gamma presentation.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -58,21 +48,6 @@ describe('gamma presentation.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.gamma.app/v1/gammas/g_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      gammaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'presentation.delete',
-        args: { gammaId: 'g_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

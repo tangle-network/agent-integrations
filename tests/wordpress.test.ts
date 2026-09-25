@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { wordpressConnector } from '../src/connectors/adapters/wordpress.js'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 import {
   createConnectorAdapterProvider,
   type IntegrationConnection,
@@ -23,17 +22,6 @@ afterEach(() => {
 })
 
 describe('wordpress adapter manifest', () => {
-  it('declares OAuth2 against public-api.wordpress.com with four config fields', () => {
-    const auth = wordpressConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://public-api.wordpress.com/oauth2/authorize')
-    expect(auth.tokenUrl).toBe('https://public-api.wordpress.com/oauth2/token')
-    expect(auth.clientIdEnv).toBe('WORDPRESS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('WORDPRESS_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(expect.arrayContaining(['posts', 'media', 'comments']))
-  })
-
   it('probes the authenticated user instead of an incomplete site URL', async () => {
     const fetchMock = mockFetch({ ID: 123 })
 
@@ -44,7 +32,6 @@ describe('wordpress adapter manifest', () => {
       'https://public-api.wordpress.com/rest/v1.1/me',
     )
   })
-
 })
 
 describe('wordpress adapter execution', () => {

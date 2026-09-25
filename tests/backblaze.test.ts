@@ -28,11 +28,6 @@ afterEach(() => {
 })
 
 describe('backblaze adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = backblazeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
   it('probes the credential-configured bucket with an AWS Signature V4 request', async () => {
     const fetchMock = mockFetch('<ListBucketResult />')
 

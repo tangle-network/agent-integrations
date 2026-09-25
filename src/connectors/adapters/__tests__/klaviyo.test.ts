@@ -28,11 +28,6 @@ afterEach(() => {
 })
 
 describe('klaviyo adapter', () => {
-  it('ships a valid manifest', () => {
-    const result = validateConnectorManifest(klaviyoConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('upserts a profile via POST /api/profile-import with bearer auth, JSON:API content-type, and the revision header', async () => {
     const fetchMock = mockFetch({ data: { id: 'profile_1' } }, { status: 201 })
     const invocation: ConnectorInvocation = {

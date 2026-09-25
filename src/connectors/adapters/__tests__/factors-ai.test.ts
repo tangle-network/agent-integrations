@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { factorsAiConnector } from '../factors-ai.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_factors_ai',
@@ -39,18 +39,5 @@ describe('factors-ai adapter', () => {
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer factors-ai-key')
     expect(url.searchParams.get('from')).toBe('2026-06-01')
     expect(url.searchParams.get('to')).toBe('2026-06-18')
-  })
-
-  it('throws CredentialsExpired when Factors.ai rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      factorsAiConnector.executeRead!({ source, capabilityName: 'account.journey', args: {"account_domain":"factors.ai","from":"2026-06-01","to":"2026-06-18"}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      factorsAiConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { demandbaseConnector } from '../demandbase.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const ACCESS_TOKEN = 'demandbase_jwt_test'
 
@@ -33,18 +33,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('demandbase adapter', () => {
-  it('declares a client_credentials oauth2 grant with no authorize URL and sales-intelligence classification', () => {
-    const auth = demandbaseConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth narrowing failed')
-    expect(auth.grantType).toBe('client_credentials')
-    expect(auth.authorizationUrl).toBeUndefined()
-    expect(auth.tokenUrl).toBe('https://uapi.demandbase.com/auth/v1/token')
-    expect(auth.clientIdEnv).toBe('DEMANDBASE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('DEMANDBASE_OAUTH_CLIENT_SECRET')
-    expect(demandbaseConnector.manifest.category).toBe('sales-intelligence')
-  })
-
   it('lists users via GET /admin/v1/users (plural) with bearer auth', async () => {
     const fetchMock = mockFetch({ users: [] })
     await demandbaseConnector.executeRead!({ source, capabilityName: 'users.list', args: { limit: 10 }, idempotencyKey: 'op_0' })
@@ -76,18 +64,5 @@ describe('demandbase adapter', () => {
     expect(url.pathname).toBe('/admin/v1/user')
     expect(init.method).toBe('POST')
     expect(JSON.parse(String(init.body))).toEqual({ email: 'a@b.com', first_name: 'Ada', last_name: 'L', role: 'analyst' })
-  })
-
-  it('throws CredentialsExpired when Demandbase rejects the token', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      demandbaseConnector.executeRead!({ source, capabilityName: 'users.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      demandbaseConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

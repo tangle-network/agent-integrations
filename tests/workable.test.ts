@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('workable adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = workableConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('workable candidates.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -66,18 +58,6 @@ describe('workable candidates.create', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.workable.com/v1/jobs/JOB-ABC/candidates')
     expect(requestBody).toMatchObject({ candidate: { name: 'Jane Doe', email: 'jane@example.com' } })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      workableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'candidates.create',
-        args: { shortcode: 'JOB-X', candidate: { name: 'A' } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

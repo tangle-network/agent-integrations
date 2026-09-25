@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('heartbeat adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = heartbeatConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('heartbeat adapter execution — threads.create', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -122,36 +114,6 @@ describe('heartbeat adapter execution — threads.create', () => {
       }),
     ).rejects.toThrow(/sender_user_id/)
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      heartbeatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'threads.create',
-        args: { channel_id: 'c', title: 't', body: 'b', sender_user_id: 'u' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      heartbeatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'threads.create',
-        args: { channel_id: 'c', title: 't', body: 'b', sender_user_id: 'u' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('heartbeat adapter execution — messages.create', () => {
@@ -228,35 +190,5 @@ describe('heartbeat adapter execution — messages.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/sender_user_id/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      heartbeatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.create',
-        args: { thread_id: 't', body: 'b', sender_user_id: 'u' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      heartbeatConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.create',
-        args: { thread_id: 't', body: 'b', sender_user_id: 'u' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

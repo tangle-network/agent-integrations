@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chatsistant adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = chatsistantConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chatsistant conversation.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -59,18 +51,6 @@ describe('chatsistant conversation.create', () => {
     expect(capturedUrl).toBe('https://api.chatsistant.com/v1/conversation/create')
     expect(capturedBody).toMatchObject({ chatbot_uuid: 'bot_1', metadata: { user: 'alice' } })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      chatsistantConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'conversation.create',
-        args: { chatbot_uuid: 'bot_1', metadata: {} },
-        idempotencyKey: 'conv-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

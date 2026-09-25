@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('signrequest adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = signrequestConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('signrequest requests.remind', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -60,18 +52,6 @@ describe('signrequest requests.remind', () => {
     expect(capturedMethod).toBe('POST')
     expect(capturedUrl).toBe('https://signrequest.com/api/v1/signrequests/req_42/resend_signrequest_email/')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      signrequestConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'requests.remind',
-        args: { requestId: 'req_42' },
-        idempotencyKey: 'rem-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

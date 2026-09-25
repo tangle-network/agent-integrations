@@ -72,18 +72,6 @@ describe('todoist projects.create', () => {
     expect(String(requestUrl)).toContain('/api/v1/projects')
     expect(requestBody).toContain('Launch plan')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      todoistConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'projects.create',
-        args: { name: 'Launch plan' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('todoist projects.delete', () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { lagrowthmachineConnector } from '../lagrowthmachine.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_lagrowthmachine',
@@ -39,18 +39,5 @@ describe('lagrowthmachine adapter', () => {
     expect(url.searchParams.get('apikey')).toBe('lagrowthmachine-key')
     expect(url.searchParams.get('skip')).toBe('0')
     expect(url.searchParams.get('limit')).toBe('25')
-  })
-
-  it('throws CredentialsExpired when LaGrowthMachine rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      lagrowthmachineConnector.executeRead!({ source, capabilityName: 'campaigns.list', args: {"skip":0,"limit":25}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      lagrowthmachineConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

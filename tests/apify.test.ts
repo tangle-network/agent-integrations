@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('apify adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = apifyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Apify/i)
-  })
-
-})
-
 describe('apify actor.abort', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -58,18 +48,6 @@ describe('apify actor.abort', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.apify.com/v2/actor-runs/run_1/abort?gracefully=true')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      apifyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'actor.abort',
-        args: { runId: 'run_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('folk adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = folkConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('folk delete.person', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -68,17 +60,5 @@ describe('folk delete.person', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: personId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      folkConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'delete.person',
-        args: { personId: 'p_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

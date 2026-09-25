@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('typefully adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = typefullyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('typefully drafts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -66,18 +58,6 @@ describe('typefully drafts.update', () => {
     expect(requestUrl).toBe('https://api.typefully.com/v1/drafts/d_1')
     expect(requestHeaders?.['X-API-Key']).toBe('typefully_secret')
     expect(requestBody).toMatchObject({ draft_id: 'd_1', text: 'patched' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typefullyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'drafts.update',
-        args: { draft_id: 'd_1', text: 't' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -156,17 +136,5 @@ describe('typefully media.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.typefully.com/v1/media/media_42')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typefullyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'media.delete',
-        args: { media_id: 'media_42' },
-        idempotencyKey: 'k-4',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

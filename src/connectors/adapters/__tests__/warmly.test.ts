@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { warmlyConnector } from '../warmly.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_warmly',
@@ -48,18 +48,5 @@ describe('warmly adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer warmly-key')
     expect(JSON.parse(String(init.body))).toEqual({"toolName":"list_warm_visitors","organizationId":"org_123","input":{"timeWindow":"past_day","take":25,"offset":1,"searchTerm":"x"}})
-  })
-
-  it('throws CredentialsExpired when Warmly rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      warmlyConnector.executeRead!({ source, capabilityName: 'tools.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      warmlyConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

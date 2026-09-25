@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('short-io adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = shortIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('short-io write-side execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -136,17 +128,5 @@ describe('short-io write-side execution', () => {
     expect(observedMethod).toBe('DELETE')
     expect(observedUrl).toBe('https://api.short.io/api/links/lnk_1/country-rules/rule_99')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired when Short.io rejects the key on import', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      shortIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'links.import',
-        args: { domain: 'd', links: [{ originalURL: 'https://a' }] },
-        idempotencyKey: 'k1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

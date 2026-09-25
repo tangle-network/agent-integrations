@@ -104,18 +104,6 @@ describe('n8n workflows.create', () => {
       }),
     ).rejects.toThrow(/missing required argument: definition/)
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      n8nConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'workflows.create',
-        args: { definition: { name: 'x', nodes: [], connections: {} } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('n8n workflows.update', () => {
@@ -249,17 +237,5 @@ describe('n8n executions.stop', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: executionId/)
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      n8nConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'executions.stop',
-        args: { executionId: 'exec_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

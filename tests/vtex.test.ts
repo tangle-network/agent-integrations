@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vtex adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = vtexConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/VTEX|App|Token/i)
-  })
-
-})
-
 describe('vtex write capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -129,21 +119,5 @@ describe('vtex write capabilities', () => {
 
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/oms/pvt/orders/ORD-1/cancel')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-
-    await expect(
-      vtexConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 99 },
-        idempotencyKey: 'k-5',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

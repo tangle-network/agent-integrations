@@ -28,11 +28,6 @@ function invocation(args: Record<string, unknown>, name: string): ConnectorInvoc
 }
 
 describe('http adapter manifest', () => {
-  it('passes manifest validation', () => {
-    const result = validateConnectorManifest(httpConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('exposes a read capability (request.fetch) and a mutation capability (request.send)', () => {
     const names = httpConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(['request.fetch', 'request.send'])

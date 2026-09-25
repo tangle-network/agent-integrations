@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { miroConnector } from '../src/connectors/adapters/miro'
-import { validateConnectorManifest } from '../src/connectors/types'
 
 describe('miro adapter', () => {
   it('uses real Miro OAuth endpoints', () => {
@@ -23,5 +22,4 @@ describe('miro adapter', () => {
     expect(caps.some((c) => c.name.startsWith('organizations.'))).toBe(false)
     expect(caps.some((c) => c.name === 'teams.get')).toBe(false)
   })
-
 })

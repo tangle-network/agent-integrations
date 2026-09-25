@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bannerbear adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = bannerbearConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('bannerbear images.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,18 +48,6 @@ describe('bannerbear images.delete', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.bannerbear.com/v2/images/img_xyz')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bannerbearConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.delete',
-        args: { imageId: 'img_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

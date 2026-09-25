@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('marketo adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(marketoConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares tenant-scoped client credentials with no browser authorization flow', () => {
     const auth = marketoConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')

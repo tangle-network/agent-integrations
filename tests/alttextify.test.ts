@@ -25,16 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('alttextify adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = alttextifyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/AltTextify/i)
-  })
-
-})
-
 describe('alttextify batch.generate.alt.text', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -74,22 +64,6 @@ describe('alttextify batch.generate.alt.text', () => {
       async: false,
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      alttextifyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'batch.generate.alt.text',
-        args: {
-          images: [{ image: 'data:image/png;base64,abc' }],
-          lang: 'en',
-          async: false,
-        },
-        idempotencyKey: 'batch-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

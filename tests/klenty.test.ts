@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('klenty adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = klentyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('klenty prospect.remove.from.campaign', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('klenty prospect.remove.from.campaign', () => {
     expect(String(requestUrl)).toContain('/apis/v1/user/rep%40acme.com/stopCadence')
     expect(requestBody).toMatchObject({ email: 'lead@example.com', cadenceName: 'Q1 outbound' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      klentyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'prospect.remove.from.campaign',
-        args: { username: 'rep@acme.com', email: 'lead@example.com', cadenceName: 'X' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

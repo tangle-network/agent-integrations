@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pocketbase adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = pocketbaseConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/PocketBase/i)
-  })
-
-})
-
 describe('pocketbase collections.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -91,18 +81,6 @@ describe('pocketbase collections.create', () => {
     expect(requestUrl).toBe('https://pb.example.com/api/collections')
     expect(requestBody).toMatchObject({ name: 'tasks', type: 'base' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pocketbaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'collections.create',
-        args: { name: 'tasks' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

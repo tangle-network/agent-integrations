@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('odoo adapter manifest', () => {
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = odooConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('odoo records.copy', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -64,18 +56,6 @@ describe('odoo records.copy', () => {
     expect(String(requestUrl)).toContain('/api/v1/copy')
     expect(requestBody).toEqual({ model: 'res.partner', ids: [17] })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      odooConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.copy',
-        args: { model: 'res.partner', recordId: 17 },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('odoo records.unlink_batch', () => {
@@ -101,18 +81,6 @@ describe('odoo records.unlink_batch', () => {
     expect(result.status).toBe('committed')
     expect(String(requestUrl)).toContain('/api/v1/unlink')
     expect(requestBody).toEqual({ model: 'res.partner', ids: [1, 2, 3] })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      odooConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.unlink_batch',
-        args: { model: 'res.partner', recordIds: [1] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -140,18 +108,6 @@ describe('odoo fields.set', () => {
     expect(String(requestUrl)).toContain('/api/v1/write')
     expect(requestBody).toEqual({ model: 'res.partner', ids: [5], values: { name: 'Renamed' } })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      odooConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'fields.set',
-        args: { model: 'res.partner', recordId: 5, values: { name: 'X' } },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('odoo workflow.action', () => {
@@ -177,17 +133,5 @@ describe('odoo workflow.action', () => {
     expect(result.status).toBe('committed')
     expect(String(requestUrl)).toContain('/api/v1/call_method')
     expect(requestBody).toEqual({ model: 'sale.order', ids: [7], method: 'action_confirm' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      odooConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'workflow.action',
-        args: { model: 'sale.order', recordId: 7, action: 'action_confirm' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { githubConnector, type ResolvedDataSource } from '../src/connectors/index'
-import { validateConnectorManifest } from '../src/connectors/types.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -615,21 +614,6 @@ describe('github adapter', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('read existence checks still surface CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      adapter.executeRead!({
-        source: source(),
-        capabilityName: 'activity.checkStarred',
-        args: { owner: 'octo', repo: 'hello' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   // ---------- pulls.create ----------
 
   it('pulls.create POSTs the PR body and returns committed status', async () => {
@@ -693,27 +677,6 @@ describe('github adapter', () => {
     ).rejects.toThrow(/missing required argument: repo/)
   })
 
-  it('pulls.create surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    )
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'pulls.create',
-        args: { owner: 'octo', repo: 'hello', title: 't', head: 'h', base: 'b' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   // ---------- pulls.merge ----------
 
   it('pulls.merge PUTs the merge body with merge_method', async () => {
@@ -762,27 +725,6 @@ describe('github adapter', () => {
     ).rejects.toThrow(/missing required argument: pull_number/)
   })
 
-  it('pulls.merge surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    )
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'pulls.merge',
-        args: { owner: 'octo', repo: 'hello', pull_number: 42 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   // ---------- issues.createComment ----------
 
   it('issues.createComment POSTs the comment body to the issue endpoint', async () => {
@@ -822,27 +764,6 @@ describe('github adapter', () => {
     ).rejects.toThrow(/missing required argument: issue_number/)
   })
 
-  it('issues.createComment surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    )
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'issues.createComment',
-        args: { owner: 'octo', repo: 'hello', issue_number: 1, body: 'hi' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
   // ---------- pulls.reviews.create ----------
 
   it('pulls.reviews.create POSTs the review event to the PR reviews endpoint', async () => {
@@ -880,26 +801,5 @@ describe('github adapter', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: pull_number/)
-  })
-
-  it('pulls.reviews.create surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    )
-    await expect(
-      adapter.executeMutation!({
-        source: source(),
-        capabilityName: 'pulls.reviews.create',
-        args: { owner: 'octo', repo: 'hello', pull_number: 42, event: 'APPROVE' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

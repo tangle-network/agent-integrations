@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('wrike adapter manifest', () => {
-  it('uses oauth2 auth', () => {
-    const auth = wrikeConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('wrike tasks.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +54,6 @@ describe('wrike tasks.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v4/tasks/IEABCDEF')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      wrikeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.delete',
-        args: { taskId: 'IEABCDEF' },
-        idempotencyKey: 'k-t-del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

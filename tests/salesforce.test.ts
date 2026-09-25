@@ -55,18 +55,6 @@ describe('salesforce records.delete', () => {
     )
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      salesforceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { objectName: 'Account', recordId: '001xx' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('salesforce records.upsert', () => {

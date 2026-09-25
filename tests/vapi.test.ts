@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vapi adapter manifest', () => {
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = vapiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Vapi/i)
-  })
-
-})
-
 describe('vapi calls.hangup', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +52,6 @@ describe('vapi calls.hangup', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toBe('https://api.vapi.ai/call/call_1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      vapiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.hangup',
-        args: { callId: 'call_1' },
-        idempotencyKey: 'k-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

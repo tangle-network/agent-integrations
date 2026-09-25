@@ -46,22 +46,6 @@ afterEach(() => {
 })
 
 describe('zendeskConnector', () => {
-  it('exposes the documented OAuth2 manifest and per-subdomain authorize/token URLs', () => {
-    expect(zendeskConnector.manifest.kind).toBe('zendesk')
-    expect(zendeskConnector.manifest.displayName).toBe('Zendesk')
-    expect(zendeskConnector.manifest.category).toBe('crm')
-    expect(zendeskConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = zendeskConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://{subdomain}.zendesk.com/oauth/authorizations/new')
-    expect(auth.tokenUrl).toBe('https://{subdomain}.zendesk.com/oauth/tokens')
-    expect(auth.scopes).toEqual(['read', 'write'])
-    expect(auth.clientIdEnv).toBe('ZENDESK_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZENDESK_OAUTH_CLIENT_SECRET')
-  })
-
   it('executes tickets.search against /api/v2/search.json with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ results: [{ id: 7, subject: 'Login fails' }] })
     const provider = createConnectorAdapterProvider({

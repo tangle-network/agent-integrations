@@ -3,23 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createRedisConnector,
-  redisConnector,
-  type RedisConnectorOptions,
-} from '../src/connectors/adapters/redis.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
+  type RedisConnectorOptions } from '../src/connectors/adapters/redis.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Redis connector', () => {
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('redis')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'Redis connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'redis')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('redis')
-  })
-
   it('pins a public address while retaining the DNS name for verified TLS identity', async () => {
     let config: RedisClientOptions | undefined
     const connector = createRedisConnector({

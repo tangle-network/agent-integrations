@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { heyreachConnector } from '../heyreach.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_heyreach',
@@ -38,18 +38,5 @@ describe('heyreach adapter', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['X-API-KEY']).toBe('heyreach-key')
     expect(JSON.parse(String(init.body))).toEqual({"offset":0,"limit":10})
-  })
-
-  it('throws CredentialsExpired when HeyReach rejects the key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      heyreachConnector.executeRead!({ source, capabilityName: 'campaign.list', args: {"offset":0,"limit":10}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      heyreachConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

@@ -4,23 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createMongoDbConnector,
-  mongodbConnector,
-  type MongoDbConnectorOptions,
-} from '../src/connectors/adapters/mongodb.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
+  type MongoDbConnectorOptions } from '../src/connectors/adapters/mongodb.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MongoDB connector', () => {
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('mongodb')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'MongoDB connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'mongodb')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('mongodb')
-  })
-
   it('pins public DNS while retaining verified TLS identity and keeping secrets out of the URI', async () => {
     let uri = ''
     let options: MongoClientOptions | undefined

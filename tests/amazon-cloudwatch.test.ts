@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { amazonCloudWatchConnector } from '../src/connectors/adapters/amazon-cloudwatch.js'
 import {
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/types.js'
+  type ResolvedDataSource } from '../src/connectors/types.js'
 
 function source(): ResolvedDataSource {
   return {

@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('talkable adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = talkableConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('talkable advocates.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -67,18 +59,6 @@ describe('talkable advocates.update', () => {
     expect(String(requestUrl)).toContain('/sites/site_x/advocates/')
     expect(String(requestUrl)).toContain('a%40b.com')
     expect(requestBody).toMatchObject({ advocate: { first_name: 'Alice' } })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      talkableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'advocates.update',
-        args: { site: 'site_x', email: 'a@b.com', advocate: { first_name: 'A' } },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

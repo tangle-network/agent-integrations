@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chargebee adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = chargebeeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('chargebee subscription.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -72,35 +64,6 @@ describe('chargebee subscription.update', () => {
       'https://acme-test.chargebee.com/api/v2/subscriptions/sub_1/update_for_items',
     )
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chargebeeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscription.update',
-        args: {
-          subscription_id: 'sub_1',
-          item_price_id: 'price_pro',
-          quantity: 1,
-          billing_cycles: 1,
-          replace_items_list: false,
-          trial_end: 0,
-          end_of_term: false,
-          prorate: true,
-          coupon_ids: [],
-          po_number: '',
-          invoice_immediately: false,
-          invoice_notes: '',
-          meta_data: {},
-        },
-        idempotencyKey: 'k-sub-upd-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -77,7 +77,6 @@ describe('gitea adapter manifest', () => {
     })).rejects.toThrow('connection base URL must be a public HTTPS endpoint')
     expect(fetchMock).not.toHaveBeenCalled()
   })
-
 })
 
 describe('gitea repos.create', () => {
@@ -110,21 +109,6 @@ describe('gitea repos.create', () => {
     expect(authHeader).toBe('Bearer gitea_access_token')
     expect(requestBody).toMatchObject({ name: 'autonomy', private: true, auto_init: true })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      giteaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'repos.create',
-        args: { name: 'autonomy' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

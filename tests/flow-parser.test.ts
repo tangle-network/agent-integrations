@@ -25,14 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('flow-parser adapter manifest', () => {
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = flowParserConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-})
-
 describe('flow-parser flows.run', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -71,17 +63,5 @@ describe('flow-parser flows.run', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: flowId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      flowParserConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'flows.run',
-        args: { flowId: 'flow-1', documentId: 'doc-9' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

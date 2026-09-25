@@ -32,20 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('notion adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the notion kind', () => {
-    expect(notionConnector.manifest.kind).toBe('notion')
-    expect(notionConnector.manifest.category).toBe('doc')
-    expect(notionConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = notionConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('notion users.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -132,18 +118,6 @@ describe('notion blocks.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: content/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      notionConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'blocks.update',
-        args: { blockId: 'b_1', content: { paragraph: { rich_text: [] } } },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

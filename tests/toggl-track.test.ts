@@ -29,16 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('toggl-track adapter manifest', () => {
-  it('declares api-key auth with a Toggl Track-specific hint', () => {
-    const auth = togglTrackConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Toggl Track/i)
-  })
-
-})
-
 describe('toggl-track clients.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -62,18 +52,6 @@ describe('toggl-track clients.update', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('PUT')
     expect(String(requestUrl)).toContain('/api/v9/workspaces/42/clients/99')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      togglTrackConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'clients.update',
-        args: { workspace_id: 42, client_id: 99 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

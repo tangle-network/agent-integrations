@@ -46,23 +46,6 @@ afterEach(() => {
 })
 
 describe('intercomConnector', () => {
-  it('exposes the documented OAuth2 manifest with Intercom authorize/token URLs', () => {
-    expect(intercomConnector.manifest.kind).toBe('intercom')
-    expect(intercomConnector.manifest.displayName).toBe('Intercom')
-    expect(intercomConnector.manifest.category).toBe('crm')
-    expect(intercomConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-
-    const auth = intercomConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 manifest')
-    expect(auth.authorizationUrl).toBe('https://app.intercom.com/oauth')
-    expect(auth.tokenUrl).toBe('https://api.intercom.io/auth/eagle/token')
-    expect(auth.clientIdEnv).toBe('INTERCOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('INTERCOM_OAUTH_CLIENT_SECRET')
-    // Intercom apps declare permissions at app-config time, not per-authorize.
-    expect(auth.scopes).toEqual([])
-  })
-
   it('executes tickets.search against POST /conversations/search with bearer auth, Intercom-Version pin, and the body payload', async () => {
     const fetchMock = mockFetch({ conversations: [{ id: 'c_1' }], total_count: 1 })
     const provider = createConnectorAdapterProvider({

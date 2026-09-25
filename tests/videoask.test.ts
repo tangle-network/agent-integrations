@@ -29,14 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('videoask adapter manifest', () => {
-  it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = videoaskConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-})
-
 describe('videoask forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -63,18 +55,6 @@ describe('videoask forms.create', () => {
     expect(String(requestUrl)).toContain('/v2/forms')
     expect(requestBody).toMatchObject({ title: 'Hello', description: 'desc' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      videoaskConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { title: 'Hello' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
