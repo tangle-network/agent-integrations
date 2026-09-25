@@ -61,6 +61,7 @@ import {
   type CapabilityMutationResult,
   CredentialsExpired,
 } from '../types.js'
+import { VoiceClient, VoiceApiException } from '@ph0ny/sdk'
 
 const API = 'https://api.ph0ny.com'
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -647,16 +648,20 @@ async function getJson<T>(
   url: string,
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  const target = new URL(url)
+  try {
+    return await new VoiceClient({ apiKey: token }).request<T>(
+      'GET',
+      `${target.pathname}${target.search}`,
+      { timeout: 10_000 },
+    )
+  } catch (error) {
+    if (error instanceof VoiceApiException && error.statusCode === 401) {
+      throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+    }
+    if (error instanceof VoiceApiException) throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
+    throw error
   }
-  return (await res.json()) as T
 }
 
 async function postJson<T>(
@@ -666,21 +671,20 @@ async function postJson<T>(
   payload: Record<string, unknown>,
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  const target = new URL(url)
+  try {
+    return await new VoiceClient({ apiKey: token }).request<T>(
+      'POST',
+      `${target.pathname}${target.search}`,
+      { body: payload, timeout: 20_000 },
+    )
+  } catch (error) {
+    if (error instanceof VoiceApiException && error.statusCode === 401) {
+      throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+    }
+    if (error instanceof VoiceApiException) throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
+    throw error
   }
-  return (await res.json()) as T
 }
 
 /** Copy only the declared keys that are present (not undefined) into a fresh
