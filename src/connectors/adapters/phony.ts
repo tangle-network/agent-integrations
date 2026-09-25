@@ -61,6 +61,7 @@ import {
   type CapabilityMutationResult,
   CredentialsExpired,
 } from '../types.js'
+import { Ph0nyClient, Ph0nyHttpError } from '../../phony-client.js'
 
 const API = 'https://api.ph0ny.com'
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -647,16 +648,20 @@ async function getJson<T>(
   url: string,
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  const target = new URL(url)
+  try {
+    return await new Ph0nyClient({ apiKey: token }).request<T>({
+      path: `${target.pathname}${target.search}`,
+    })
+  } catch (error) {
+    if (error instanceof Ph0nyHttpError && error.status === 401) {
+      throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+    }
+    if (error instanceof Ph0nyHttpError) {
+      throw new Error(`phony ${label} ${error.status}: ${error.responseBody.slice(0, 200)}`)
+    }
+    throw error
   }
-  return (await res.json()) as T
 }
 
 async function postJson<T>(
@@ -666,21 +671,23 @@ async function postJson<T>(
   payload: Record<string, unknown>,
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  const target = new URL(url)
+  try {
+    return await new Ph0nyClient({ apiKey: token }).request<T>({
+      method: 'POST',
+      path: `${target.pathname}${target.search}`,
+      body: payload,
+      timeoutMs: 20_000,
+    })
+  } catch (error) {
+    if (error instanceof Ph0nyHttpError && error.status === 401) {
+      throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
+    }
+    if (error instanceof Ph0nyHttpError) {
+      throw new Error(`phony ${label} ${error.status}: ${error.responseBody.slice(0, 200)}`)
+    }
+    throw error
   }
-  return (await res.json()) as T
 }
 
 /** Copy only the declared keys that are present (not undefined) into a fresh
