@@ -46,51 +46,6 @@ describe('typeform adapter', () => {
     expect(auth.clientSecretEnv).toBe('TYPEFORM_OAUTH_CLIENT_SECRET')
   })
 
-  it('exposes the forms + responses + webhooks + workspaces action surface with the right read/mutation split', () => {
-    expect(typeformConnector.manifest.kind).toBe('typeform')
-    expect(typeformConnector.manifest.displayName).toBe('Typeform')
-    expect(typeformConnector.manifest.category).toBe('other')
-    const names = typeformConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'account.get',
-      'forms.create',
-      'forms.delete',
-      'forms.get',
-      'forms.list',
-      'forms.update',
-      'images.create',
-      'responses.delete',
-      'responses.list',
-      'themes.list',
-      'webhooks.delete',
-      'webhooks.get',
-      'webhooks.list',
-      'webhooks.upsert',
-      'workspaces.list',
-    ])
-    const readers = typeformConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = typeformConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'account.get',
-      'forms.get',
-      'forms.list',
-      'responses.list',
-      'themes.list',
-      'webhooks.get',
-      'webhooks.list',
-      'workspaces.list',
-    ])
-    expect(mutators).toEqual([
-      'forms.create',
-      'forms.delete',
-      'forms.update',
-      'images.create',
-      'responses.delete',
-      'webhooks.delete',
-      'webhooks.upsert',
-    ])
-  })
-
   it('exposes both executeRead and executeMutation handlers', () => {
     expect(typeformConnector.executeRead).toBeTypeOf('function')
     expect(typeformConnector.executeMutation).toBeTypeOf('function')

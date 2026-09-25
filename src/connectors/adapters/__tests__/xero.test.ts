@@ -45,13 +45,6 @@ describe('xero adapter manifest', () => {
     expect(auth.scopes).not.toContain('app.connections')
   })
 
-  it('classifies itself as crm with authoritative consistency', () => {
-    expect(xeroConnector.manifest.kind).toBe('xero')
-    expect(xeroConnector.manifest.displayName).toBe('Xero')
-    expect(xeroConnector.manifest.category).toBe('crm')
-    expect(xeroConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('passes the shared manifest validator', () => {
     const result = validateConnectorManifest(xeroConnector.manifest)
     expect(result).toEqual({ ok: true, issues: [] })

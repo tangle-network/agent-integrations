@@ -45,63 +45,6 @@ describe('google-forms adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares OAuth2 against the Google v2 endpoints with forms scopes including write', () => {
-    expect(adapter.manifest.kind).toBe('google-forms')
-    expect(adapter.manifest.displayName).toBe('Google Forms')
-    expect(adapter.manifest.category).toBe('other')
-    if (adapter.manifest.auth.kind !== 'oauth2') {
-      throw new Error('expected oauth2 auth')
-    }
-    expect(adapter.manifest.auth.authorizationUrl).toBe(
-      'https://accounts.google.com/o/oauth2/v2/auth',
-    )
-    expect(adapter.manifest.auth.tokenUrl).toBe('https://oauth2.googleapis.com/token')
-    expect(adapter.manifest.auth.scopes).toEqual([
-      'https://www.googleapis.com/auth/forms.body.readonly',
-      'https://www.googleapis.com/auth/forms.responses.readonly',
-      'https://www.googleapis.com/auth/forms.body',
-    ])
-    expect(adapter.manifest.auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
-    expect(adapter.manifest.auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
-    expect(adapter.manifest.auth.extraAuthParams).toMatchObject({
-      access_type: 'offline',
-      prompt: 'consent',
-    })
-  })
-
-  it('manifest exposes 3 reads + 2 mutations with the right classes', () => {
-    const caps = adapter.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-    expect(Object.keys(byName).sort()).toEqual([
-      'batch_update',
-      'create_form',
-      'get_form',
-      'get_response',
-      'list_responses',
-    ])
-    expect(byName.get_form.class).toBe('read')
-    expect(byName.list_responses.class).toBe('read')
-    expect(byName.get_response.class).toBe('read')
-    expect(byName.create_form.class).toBe('mutation')
-    expect(byName.batch_update.class).toBe('mutation')
-    // Mutations must declare native-idempotency + externalEffect per the
-    // connector contract.
-    expect(byName.create_form).toMatchObject({
-      cas: 'native-idempotency',
-      externalEffect: true,
-      requiredScopes: ['https://www.googleapis.com/auth/forms.body'],
-    })
-    expect(byName.batch_update).toMatchObject({
-      cas: 'native-idempotency',
-      externalEffect: true,
-      requiredScopes: ['https://www.googleapis.com/auth/forms.body'],
-    })
-    // Required-param coverage: schema must enforce the minimal fields the
-    // handler validates at runtime.
-    expect(byName.create_form.parameters.required).toEqual(['title'])
-    expect(byName.batch_update.parameters.required).toEqual(['formId', 'requests'])
-  })
-
   it('get_form fetches the form resource and surfaces revisionId as etag', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)

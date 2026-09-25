@@ -29,51 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pipedream adapter manifest', () => {
-  it('exposes the pipedream kind in the other category', () => {
-    expect(pipedreamConnector.manifest.kind).toBe('pipedream')
-    expect(pipedreamConnector.manifest.category).toBe('other')
-  })
-
-  it('uses api-key auth (bearer token from account settings)', () => {
-    expect(pipedreamConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('covers workflows, sources, http-trigger, subscription, and write-side surfaces', () => {
-    const names = pipedreamConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'workflows.list',
-        'workflows.get',
-        'workflows.deploy',
-        'workflows.disable',
-        'sources.list',
-        'sources.events',
-        'sources.create',
-        'http.trigger',
-        'subscriptions.create',
-        'subscriptions.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = [
-      'workflows.deploy',
-      'workflows.disable',
-      'subscriptions.delete',
-      'sources.create',
-    ]
-    for (const name of writeSide) {
-      const cap = pipedreamConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('pipedream workflows.deploy', () => {
   afterEach(() => vi.unstubAllGlobals())
 

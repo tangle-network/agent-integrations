@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('buttondown adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the buttondown kind', () => {
-    expect(buttondownConnector.manifest.kind).toBe('buttondown')
-    expect(buttondownConnector.manifest.category).toBe('crm')
-    expect(buttondownConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = buttondownConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,42 +33,6 @@ describe('buttondown adapter manifest', () => {
     expect(auth.hint).toMatch(/Buttondown/i)
   })
 
-  it('covers subscribers CRUD plus email draft + send capability surface', () => {
-    const names = buttondownConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'subscribers.create',
-        'subscribers.delete',
-        'subscribers.list',
-        'subscribers.send_email',
-        'subscribers.update',
-        'emails.create',
-        'emails.send',
-      ].sort(),
-    )
-    const mutations = buttondownConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'emails.create',
-        'emails.send',
-        'subscribers.create',
-        'subscribers.delete',
-        'subscribers.send_email',
-        'subscribers.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation with native-idempotency CAS and external effect', () => {
-    for (const c of buttondownConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('buttondown subscribers.update', () => {

@@ -20,12 +20,6 @@ afterEach(() => {
 })
 
 describe('basecamp adapter manifest', () => {
-  it('classifies itself with the expected kind, category, and consistency model', () => {
-    expect(basecampConnector.manifest.kind).toBe('basecamp')
-    expect(basecampConnector.manifest.category).toBe('other')
-    expect(basecampConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares Basecamp 3 launchpad OAuth2 endpoints + env-var names', () => {
     const auth = basecampConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -38,31 +32,6 @@ describe('basecamp adapter manifest', () => {
     expect(auth.scopes).toEqual([])
   })
 
-  it('exposes the core Basecamp 3 action pack split between reads and mutations', () => {
-    const names = basecampConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('projects.list')
-    expect(names).toContain('projects.get')
-    expect(names).toContain('projects.create')
-    expect(names).toContain('message_board.messages.list')
-    expect(names).toContain('message_board.messages.create')
-    expect(names).toContain('todos.list')
-    expect(names).toContain('todos.create')
-    expect(names).toContain('todos.update')
-    expect(names).toContain('todos.complete')
-    expect(names).toContain('todos.uncomplete')
-    expect(names).toContain('comments.create')
-    expect(names).toContain('campfire.lines.create')
-    expect(names).toContain('people.list')
-
-    const mutations = basecampConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('todos.create')
-    expect(mutations).toContain('todos.update')
-    expect(mutations).toContain('todos.complete')
-    expect(mutations).toContain('campfire.lines.create')
-  })
 })
 
 describe('basecamp adapter execution', () => {

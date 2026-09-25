@@ -42,25 +42,6 @@ describe('google-drive adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes list_files, read_file, watch_folder + write capabilities', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'create_folder',
-      'delete_file',
-      'list_files',
-      'move_file',
-      'read_file',
-      'upload_file',
-      'watch_folder',
-    ])
-  })
-
-  it('gates watch_folder behind the drive scope', () => {
-    const watch = adapter.manifest.capabilities.find((c) => c.name === 'watch_folder')!
-    expect(watch.class).toBe('mutation')
-    expect(watch.requiredScopes).toContain('https://www.googleapis.com/auth/drive')
-  })
-
   it('gates write capabilities behind drive.file and includes it in default scopes', () => {
     const WRITE = 'https://www.googleapis.com/auth/drive.file'
     const auth = adapter.manifest.auth

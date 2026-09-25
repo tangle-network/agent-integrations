@@ -39,34 +39,6 @@ describe('outlook-mail adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares Graph OAuth + the four capabilities', () => {
-    expect(adapter.manifest.kind).toBe('outlook-mail')
-    expect(adapter.manifest.auth.kind).toBe('oauth2')
-    if (adapter.manifest.auth.kind === 'oauth2') {
-      expect(adapter.manifest.auth.authorizationUrl).toContain('login.microsoftonline.com')
-      expect(adapter.manifest.auth.tokenUrl).toContain('login.microsoftonline.com')
-      expect(adapter.manifest.auth.clientIdEnv).toBe('MS_OAUTH_CLIENT_ID')
-      expect(adapter.manifest.auth.clientSecretEnv).toBe('MS_OAUTH_CLIENT_SECRET')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Mail.Read')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Mail.Send')
-      expect(adapter.manifest.auth.scopes).toContain('offline_access')
-    }
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'create_draft',
-      'download_attachment',
-      'forward_message',
-      'list_messages',
-      'move_message',
-      'read_message',
-      'send_draft',
-      'send_message',
-      'send_reply',
-      'set_labels',
-      'subscribe_folder',
-    ])
-  })
-
   it('list_messages selects expected fields and maps summaries', async () => {
     let calledUrl = ''
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {

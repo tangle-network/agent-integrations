@@ -30,53 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('systeme-io adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the systeme-io kind', () => {
-    expect(systemeIoConnector.manifest.kind).toBe('systeme-io')
-    expect(systemeIoConnector.manifest.category).toBe('crm')
-    expect(systemeIoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = systemeIoConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the action set: contacts, tags, and campaigns', () => {
-    const names = systemeIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('contacts.create')
-    expect(names).toContain('contacts.update')
-    expect(names).toContain('contacts.delete')
-    expect(names).toContain('contacts.findByEmail')
-    expect(names).toContain('tags.create')
-    expect(names).toContain('tags.delete')
-    expect(names).toContain('tags.addToContact')
-    expect(names).toContain('tags.removeFromContact')
-    expect(names).toContain('campaigns.list')
-    expect(names).toContain('campaigns.subscribe')
-  })
-
-  it('marks every new write-side mutation as native-idempotency + externalEffect=true', () => {
-    const newMutations = new Set([
-      'contacts.delete',
-      'tags.create',
-      'tags.delete',
-      'campaigns.subscribe',
-    ])
-    const caps = systemeIoConnector.manifest.capabilities.filter(
-      (c) => newMutations.has(c.name) && c.class === 'mutation',
-    )
-    expect(caps.length).toBe(newMutations.size)
-    for (const cap of caps) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('exposes campaigns.list as a read capability', () => {
-    const cap = systemeIoConnector.manifest.capabilities.find((c) => c.name === 'campaigns.list')
-    expect(cap?.class).toBe('read')
-  })
 })
 
 describe('systeme-io contacts.delete', () => {

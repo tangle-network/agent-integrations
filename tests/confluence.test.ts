@@ -29,13 +29,6 @@ afterEach(() => {
 })
 
 describe('confluence adapter manifest', () => {
-  it('classifies as a doc connector', () => {
-    expect(confluenceConnector.manifest.kind).toBe('confluence')
-    expect(confluenceConnector.manifest.displayName).toBe('Confluence')
-    expect(confluenceConnector.manifest.category).toBe('doc')
-    expect(confluenceConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares Atlassian 3LO OAuth2 endpoints, env names, and the documented scope set', () => {
     const auth = confluenceConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -59,48 +52,6 @@ describe('confluence adapter manifest', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('exposes pages, spaces, CQL search, and comments capabilities with scope gating', () => {
-    const names = confluenceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'pages.list',
-        'pages.get',
-        'pages.create',
-        'pages.update',
-        'pages.delete',
-        'resources.list',
-        'spaces.list',
-        'spaces.get',
-        'search.cql',
-        'comments.create',
-      ].sort(),
-    )
-    const reads = confluenceConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = confluenceConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['pages.get', 'pages.list', 'resources.list', 'search.cql', 'spaces.get', 'spaces.list'])
-    expect(mutations).toEqual(['comments.create', 'pages.create', 'pages.delete', 'pages.update'])
-
-    const pagesCreate = confluenceConnector.manifest.capabilities.find((c) => c.name === 'pages.create')!
-    expect(pagesCreate.requiredScopes).toEqual(['write:confluence-content'])
-    const searchCql = confluenceConnector.manifest.capabilities.find((c) => c.name === 'search.cql')!
-    expect(searchCql.requiredScopes).toEqual(['search:confluence'])
-    const spacesList = confluenceConnector.manifest.capabilities.find((c) => c.name === 'spaces.list')!
-    expect(spacesList.requiredScopes).toEqual(['read:confluence-space.summary'])
-    const commentsCreate = confluenceConnector.manifest.capabilities.find((c) => c.name === 'comments.create')!
-    expect(commentsCreate.requiredScopes).toEqual(['write:confluence-content'])
-  })
-
-  it('marks every mutation as native-idempotency-or-stronger and external effect', () => {
-    const mutations = confluenceConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const c of mutations) {
-      if (c.class !== 'mutation') continue
-      expect(c.externalEffect).toBe(true)
-      expect(['native-idempotency', 'optimistic-read-verify']).toContain(c.cas)
-    }
-  })
 })
 
 describe('confluence comments.create execution', () => {

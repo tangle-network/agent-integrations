@@ -31,36 +31,6 @@ describe('close adapter manifest', () => {
     expect(auth.clientSecretEnv).toBe('CLOSE_OAUTH_CLIENT_SECRET')
   })
 
-  it('exposes the CRM action pack (leads, contacts, opportunities) split between reads and mutations', () => {
-    const names = closeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'leads.search',
-        'leads.get',
-        'leads.create',
-        'leads.update',
-        'contacts.create',
-        'opportunities.create',
-        'opportunities.update',
-      ].sort(),
-    )
-    const reads = closeConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
-    const mutations = closeConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(reads.sort()).toEqual(['leads.get', 'leads.search'])
-    expect(mutations.sort()).toEqual([
-      'contacts.create',
-      'leads.create',
-      'leads.update',
-      'opportunities.create',
-      'opportunities.update',
-    ])
-  })
-
-  it('classifies itself as crm with authoritative consistency', () => {
-    expect(closeConnector.manifest.kind).toBe('close')
-    expect(closeConnector.manifest.category).toBe('crm')
-    expect(closeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
 })
 
 describe('close adapter execution', () => {

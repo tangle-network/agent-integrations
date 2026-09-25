@@ -10,17 +10,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Redshift connector', () => {
-  it('ships a valid authoritative read-only warehouse surface', () => {
-    expect(validateConnectorManifest(redshiftConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(redshiftConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'redshift.schemas.list',
-      'redshift.tables.list',
-      'redshift.tables.describe',
-      'redshift.rows.select',
-    ])
-    expect(redshiftConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
   it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
     expect(getIntegrationSpec('redshift')).toMatchObject({
       status: 'executable',

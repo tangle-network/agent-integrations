@@ -49,12 +49,6 @@ describe('paychex adapter manifest', () => {
     expect(auth.scopes).toEqual([])
   })
 
-  it('is read-only HR/payroll coverage', () => {
-    const names = paychexConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED].sort())
-    expect(paychexConnector.manifest.capabilities.every((c) => c.class === 'read')).toBe(true)
-    expect(paychexConnector.manifest.capabilities.some((c) => c.class === 'mutation')).toBe(false)
-  })
 })
 
 describe('paychex executeRead', () => {

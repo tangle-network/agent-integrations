@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('polytomic adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(polytomicConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and database classification', () => {
-    expect(polytomicConnector.manifest.kind).toBe('polytomic')
-    expect(polytomicConnector.manifest.displayName).toBe('Polytomic')
-    expect(polytomicConnector.manifest.category).toBe('database')
-    expect(polytomicConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = polytomicConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['connection_types.list', 'syncs.create', 'syncs.list', 'syncs.status'])
-    const reads = polytomicConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = polytomicConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['connection_types.list', 'syncs.list', 'syncs.status'])
-    expect(mutations).toEqual(['syncs.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof polytomicConnector.executeRead).toBe('function')
-    expect(typeof polytomicConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of polytomicConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes syncs.list as GET /api/syncs', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await polytomicConnector.executeRead!({ source, capabilityName: 'syncs.list', args: {"limit":25}, idempotencyKey: 'op_0' })

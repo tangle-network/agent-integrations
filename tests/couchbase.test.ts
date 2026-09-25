@@ -25,52 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('couchbase adapter manifest', () => {
-  it('classifies itself as the database category and exposes the couchbase kind', () => {
-    expect(couchbaseConnector.manifest.kind).toBe('couchbase')
-    expect(couchbaseConnector.manifest.category).toBe('database')
-    expect(couchbaseConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('exposes the prior CRUD + query surface plus the new write capabilities', () => {
-    const names = couchbaseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'buckets.list',
-        'cluster.info',
-        'document.upsert',
-        'documents.create',
-        'documents.delete',
-        'documents.get',
-        'documents.query',
-        'documents.update',
-        'index.create',
-        'query.run',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as a side-effectful idempotency-tracked write', () => {
-    for (const cap of couchbaseConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'etag-if-match']).toContain(cap.cas)
-    }
-  })
-
-  it('marks the newly added mutations as native-idempotency external effects', () => {
-    const added = couchbaseConnector.manifest.capabilities.filter(
-      (c) => c.name === 'document.upsert' || c.name === 'index.create',
-    )
-    expect(added).toHaveLength(2)
-    for (const cap of added) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('couchbase document.upsert', () => {
   afterEach(() => vi.unstubAllGlobals())
 

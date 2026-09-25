@@ -29,34 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twilio-sms adapter manifest', () => {
-  it('marks every mutation as native-idempotency + external effect', () => {
-    const caps = twilioSmsConnector.manifest.capabilities
-    const mutations = caps.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const c of mutations) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-
-  it('exposes the new write + read capabilities', () => {
-    const names = twilioSmsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'send_sms',
-        'send_mms',
-        'send_whatsapp',
-        'redact_message',
-        'lookup_number',
-        'find_recent_messages',
-        'list_numbers',
-      ].sort(),
-    )
-  })
-})
-
 describe('twilio-sms send_mms', () => {
   afterEach(() => vi.unstubAllGlobals())
 

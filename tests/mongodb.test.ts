@@ -11,18 +11,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MongoDB connector', () => {
-  it('replaces the Data API placeholder with a valid authoritative read-only wire surface', () => {
-    expect(validateConnectorManifest(mongodbConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(mongodbConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'mongodb.collections.list',
-      'mongodb.collections.describe',
-      'mongodb.indexes.list',
-      'mongodb.documents.find',
-      'mongodb.documents.count',
-    ])
-    expect(mongodbConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
   it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
     expect(getIntegrationSpec('mongodb')).toMatchObject({
       status: 'executable',

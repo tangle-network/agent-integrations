@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('contactout adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(contactoutConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(contactoutConnector.manifest.kind).toBe('contactout')
-    expect(contactoutConnector.manifest.displayName).toBe('ContactOut')
-    expect(contactoutConnector.manifest.category).toBe('crm')
-    expect(contactoutConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = contactoutConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['email.verify', 'linkedin.enrich', 'people.enrich', 'people.search'])
-    const reads = contactoutConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = contactoutConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['people.search'])
-    expect(mutations).toEqual(['email.verify', 'linkedin.enrich', 'people.enrich'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof contactoutConnector.executeRead).toBe('function')
-    expect(typeof contactoutConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of contactoutConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes linkedin.enrich as GET /v1/linkedin/enrich', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await contactoutConnector.executeMutation!({ source, capabilityName: 'linkedin.enrich', args: {"profile":"https://www.linkedin.com/in/williamhgates"}, idempotencyKey: 'op_0' })

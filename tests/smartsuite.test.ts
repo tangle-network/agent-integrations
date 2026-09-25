@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('smartsuite adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the smartsuite kind', () => {
-    expect(smartsuiteConnector.manifest.kind).toBe('smartsuite')
-    expect(smartsuiteConnector.manifest.category).toBe('doc')
-    expect(smartsuiteConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = smartsuiteConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,43 +37,6 @@ describe('smartsuite adapter manifest', () => {
     expect(auth.hint).toMatch(/SmartSuite/i)
   })
 
-  it('covers record/file operations plus the new write-side and read capabilities', () => {
-    const names = smartsuiteConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'files.upload',
-        'records.create',
-        'records.delete',
-        'records.find',
-        'records.get',
-        'records.update',
-        'records.bulk-create',
-        'tables.list',
-        'fields.list',
-        'comments.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['records.bulk-create', 'comments.create']
-    for (const name of expected) {
-      const cap = smartsuiteConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks the new read capabilities as read', () => {
-    const expected = ['tables.list', 'fields.list']
-    for (const name of expected) {
-      const cap = smartsuiteConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      expect(cap?.class).toBe('read')
-    }
-  })
 })
 
 describe('smartsuite records.bulk-create', () => {

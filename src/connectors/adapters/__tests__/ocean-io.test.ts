@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('ocean-io adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(oceanIoConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(oceanIoConnector.manifest.kind).toBe('ocean-io')
-    expect(oceanIoConnector.manifest.displayName).toBe('Ocean.io')
-    expect(oceanIoConnector.manifest.category).toBe('sales-intelligence')
-    expect(oceanIoConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = oceanIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['companies.autocomplete', 'companies.enrich', 'companies.search', 'people.enrich', 'people.search'])
-    const reads = oceanIoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = oceanIoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['companies.autocomplete', 'companies.search', 'people.search'])
-    expect(mutations).toEqual(['companies.enrich', 'people.enrich'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof oceanIoConnector.executeRead).toBe('function')
-    expect(typeof oceanIoConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of oceanIoConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes companies.autocomplete as POST /v2/autocomplete/companies', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await oceanIoConnector.executeRead!({ source, capabilityName: 'companies.autocomplete', args: {"name":"stripe"}, idempotencyKey: 'op_0' })

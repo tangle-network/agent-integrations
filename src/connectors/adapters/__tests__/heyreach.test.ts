@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('heyreach adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(heyreachConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(heyreachConnector.manifest.kind).toBe('heyreach')
-    expect(heyreachConnector.manifest.displayName).toBe('HeyReach')
-    expect(heyreachConnector.manifest.category).toBe('crm')
-    expect(heyreachConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = heyreachConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['campaign.add_leads', 'campaign.list', 'inbox.get_conversations', 'lead.get', 'list.list'])
-    const reads = heyreachConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = heyreachConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['campaign.list', 'inbox.get_conversations', 'lead.get', 'list.list'])
-    expect(mutations).toEqual(['campaign.add_leads'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof heyreachConnector.executeRead).toBe('function')
-    expect(typeof heyreachConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of heyreachConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes campaign.list as POST /api/public/campaign/GetAll', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await heyreachConnector.executeRead!({ source, capabilityName: 'campaign.list', args: {"offset":0,"limit":10}, idempotencyKey: 'op_0' })

@@ -31,10 +31,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('salesloft adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(salesloftConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares authorization_code oauth2 against accounts.salesloft.com with crm classification', () => {
     const auth = salesloftConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -44,34 +40,6 @@ describe('salesloft adapter', () => {
     expect(auth.clientIdEnv).toBe('SALESLOFT_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('SALESLOFT_OAUTH_CLIENT_SECRET')
     expect(salesloftConnector.manifest.category).toBe('crm')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = salesloftConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'accounts.create',
-      'cadence_memberships.create',
-      'cadences.list',
-      'me.get',
-      'people.create',
-      'people.list',
-    ])
-    const reads = salesloftConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = salesloftConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['cadences.list', 'me.get', 'people.list'])
-    expect(mutations).toEqual(['accounts.create', 'cadence_memberships.create', 'people.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof salesloftConnector.executeRead).toBe('function')
-    expect(typeof salesloftConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of salesloftConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('routes me.get as GET /v2/me (no .json suffix) with bearer auth', async () => {

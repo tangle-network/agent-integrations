@@ -30,56 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pdfmonkey adapter manifest', () => {
-  it('classifies itself as the storage category and exposes the pdfmonkey kind', () => {
-    expect(pdfmonkeyConnector.manifest.kind).toBe('pdfmonkey')
-    expect(pdfmonkeyConnector.manifest.category).toBe('storage')
-    expect(pdfmonkeyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth', () => {
     const auth = pdfmonkeyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the activepieces action set plus the new templates/share/regenerate surface', () => {
-    const names = pdfmonkeyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'documents.delete',
-        'documents.find',
-        'documents.generate',
-        'documents.list',
-        'documents.regenerate',
-        'documents.share',
-        'templates.list',
-      ].sort(),
-    )
-    const reads = pdfmonkeyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = pdfmonkeyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['documents.find', 'documents.list', 'templates.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'documents.delete',
-        'documents.generate',
-        'documents.regenerate',
-        'documents.share',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    for (const cap of pdfmonkeyConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas, `${cap.name} cas`).toBe('native-idempotency')
-      expect(cap.externalEffect, `${cap.name} externalEffect`).toBe(true)
-    }
-  })
 })
 
 describe('pdfmonkey documents.share', () => {

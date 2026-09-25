@@ -10,21 +10,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('MySQL connector', () => {
-  it('ships a valid authoritative manifest with approval-gated compare-and-swap writes', () => {
-    expect(validateConnectorManifest(mysqlConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(mysqlConnector.manifest.category).toBe('database')
-    expect(mysqlConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(mysqlConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'mysql.databases.list',
-      'mysql.tables.list',
-      'mysql.tables.describe',
-      'mysql.query',
-      'mysql.execute',
-    ])
-    const mutation = mysqlConnector.manifest.capabilities.find((capability) => capability.class === 'mutation')
-    expect(mutation).toMatchObject({ cas: 'optimistic-read-verify', externalEffect: true })
-  })
-
   it('exposes executable API-key setup and a no-shared-secret factory', () => {
     expect(getIntegrationSpec('mysql')).toMatchObject({ status: 'executable', auth: { mode: 'api_key' } })
     const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'mysql')

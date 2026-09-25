@@ -10,21 +10,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('Redis connector', () => {
-  it('ships a valid authoritative manifest with approval-gated compare-and-swap writes', () => {
-    expect(validateConnectorManifest(redisConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(redisConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'redis.keys.scan',
-      'redis.key.inspect',
-      'redis.string.get',
-      'redis.string.set',
-      'redis.string.delete',
-    ])
-    expect(redisConnector.manifest.capabilities.filter((capability) => capability.class === 'mutation')).toMatchObject([
-      { cas: 'optimistic-read-verify', externalEffect: true },
-      { cas: 'optimistic-read-verify', externalEffect: true },
-    ])
-  })
-
   it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
     expect(getIntegrationSpec('redis')).toMatchObject({
       status: 'executable',

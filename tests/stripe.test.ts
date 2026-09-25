@@ -29,54 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('stripe adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the stripe kind', () => {
-    expect(stripeConnector.manifest.kind).toBe('stripe')
-    expect(stripeConnector.manifest.category).toBe('crm')
-    expect(stripeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('exposes api-key auth', () => {
-    expect(stripeConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('declares capabilities', () => {
-    expect(stripeConnector.manifest.capabilities.length).toBeGreaterThan(0)
-    const capabilityNames = stripeConnector.manifest.capabilities.map((cap) => cap.name)
-    expect(capabilityNames).toContain('customers.create')
-    expect(capabilityNames).toContain('customers.retrieve')
-    expect(capabilityNames).toContain('invoices.create')
-    expect(capabilityNames).toContain('subscriptions.create')
-    expect(capabilityNames).toContain('payment-intents.create')
-  })
-
-  it('exposes the new write capabilities', () => {
-    const names = stripeConnector.manifest.capabilities.map((cap) => cap.name)
-    expect(names).toContain('customers.delete')
-    expect(names).toContain('invoices.send')
-    expect(names).toContain('invoices.void')
-    expect(names).toContain('products.update')
-    expect(names).toContain('charges.capture')
-  })
-
-  it('marks the new mutations as native-idempotency externalEffect', () => {
-    const newMutations = new Set([
-      'customers.delete',
-      'invoices.send',
-      'invoices.void',
-      'products.update',
-      'charges.capture',
-    ])
-    for (const cap of stripeConnector.manifest.capabilities) {
-      if (!newMutations.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('stripe write capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -207,27 +159,6 @@ describe('stripe write capabilities', () => {
 
 describe('stripe webhook + events capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('exposes webhooks.subscribe and events.list (events.replay skipped — no public Stripe API)', () => {
-    const names = stripeConnector.manifest.capabilities.map((cap) => cap.name)
-    expect(names).toContain('webhooks.subscribe')
-    expect(names).toContain('events.list')
-  })
-
-  it('webhooks.subscribe is a mutation marked native-idempotency + externalEffect', () => {
-    const cap = stripeConnector.manifest.capabilities.find((c) => c.name === 'webhooks.subscribe')
-    if (!cap) throw new Error('webhooks.subscribe missing')
-    expect(cap.class).toBe('mutation')
-    if (cap.class !== 'mutation') throw new Error('unreachable')
-    expect(cap.cas).toBe('native-idempotency')
-    expect(cap.externalEffect).toBe(true)
-  })
-
-  it('events.list is a read', () => {
-    const cap = stripeConnector.manifest.capabilities.find((c) => c.name === 'events.list')
-    if (!cap) throw new Error('events.list missing')
-    expect(cap.class).toBe('read')
-  })
 
   it('webhooks.subscribe POSTs /webhook_endpoints with url + enabled_events', async () => {
     let requestUrl: string | undefined

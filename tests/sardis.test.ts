@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('sardis adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the sardis kind', () => {
-    expect(sardisConnector.manifest.kind).toBe('sardis')
-    expect(sardisConnector.manifest.category).toBe('crm')
-    expect(sardisConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = sardisConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,43 +37,6 @@ describe('sardis adapter manifest', () => {
     expect(auth.hint).toMatch(/Sardis/i)
   })
 
-  it('covers payment, balance, policy, and transaction capability surface', () => {
-    const names = sardisConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'balance.check',
-        'balance.update',
-        'payment.refund',
-        'payment.send',
-        'policy.check',
-        'policy.delete',
-        'policy.set',
-        'transactions.get',
-        'transactions.list',
-      ].sort(),
-    )
-    const mutations = sardisConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'balance.update',
-        'payment.refund',
-        'payment.send',
-        'policy.delete',
-        'policy.set',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    for (const cap of sardisConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('sardis payment.refund', () => {

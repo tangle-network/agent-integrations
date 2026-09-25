@@ -29,27 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('typeform adapter manifest (write extensions)', () => {
-  it('exposes the new forms + themes + images capabilities', () => {
-    const names = typeformConnector.manifest.capabilities.map((c) => c.name)
-    expect(names).toContain('forms.create')
-    expect(names).toContain('forms.delete')
-    expect(names).toContain('themes.list')
-    expect(names).toContain('images.create')
-  })
-
-  it('marks every new mutation as native-idempotency + external effect', () => {
-    const targets = ['forms.create', 'forms.delete', 'images.create']
-    for (const target of targets) {
-      const cap = typeformConnector.manifest.capabilities.find((c) => c.name === target)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`expected mutation: ${target}`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('typeform forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 

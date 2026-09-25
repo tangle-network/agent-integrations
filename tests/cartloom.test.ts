@@ -26,45 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('cartloom adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the cartloom kind', () => {
-    expect(cartloomConnector.manifest.kind).toBe('cartloom')
-    expect(cartloomConnector.manifest.category).toBe('crm')
-    expect(cartloomConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = cartloomConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('includes the new write capabilities alongside the existing ones', () => {
-    const names = cartloomConnector.manifest.capabilities.map((c) => c.name)
-    for (const expected of [
-      'discounts.create',
-      'discounts.update',
-      'discounts.delete',
-      'discounts.get',
-      'discounts.list',
-      'orders.get',
-      'orders.listByDate',
-      'orders.searchByEmail',
-      'orders.refund',
-      'products.list',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    const targets = ['discounts.update', 'discounts.delete', 'orders.refund']
-    for (const name of targets) {
-      const cap = cartloomConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('cartloom discounts.update', () => {

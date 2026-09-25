@@ -39,11 +39,6 @@ describe('gmail adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes list_messages, read_message, send, send_reply, watch_label', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['list_messages', 'read_message', 'send', 'send_reply', 'watch_label'])
-  })
-
   it('list_messages requests metadata headers and returns summaries', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)

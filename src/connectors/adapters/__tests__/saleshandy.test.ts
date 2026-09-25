@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('saleshandy adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(saleshandyConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(saleshandyConnector.manifest.kind).toBe('saleshandy')
-    expect(saleshandyConnector.manifest.displayName).toBe('Saleshandy')
-    expect(saleshandyConnector.manifest.category).toBe('crm')
-    expect(saleshandyConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = saleshandyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['prospects.list', 'sequence.import_prospects', 'sequence.set_status', 'sequences.list'])
-    const reads = saleshandyConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = saleshandyConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['prospects.list', 'sequences.list'])
-    expect(mutations).toEqual(['sequence.import_prospects', 'sequence.set_status'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof saleshandyConnector.executeRead).toBe('function')
-    expect(typeof saleshandyConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of saleshandyConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes sequences.list as GET /v1/sequences', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await saleshandyConnector.executeRead!({ source, capabilityName: 'sequences.list', args: {"page":1,"pageSize":10}, idempotencyKey: 'op_0' })

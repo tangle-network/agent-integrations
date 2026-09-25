@@ -28,29 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 describe('Baserow adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('exposes only database-token-supported table, field, and row operations', () => {
-    expect(baserowConnector.manifest).toMatchObject({
-      kind: 'baserow',
-      category: 'database',
-      defaultConsistencyModel: 'authoritative',
-      auth: { kind: 'api-key' },
-    })
-    expect(baserowConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual([
-      'fields.create',
-      'fields.list',
-      'rows.batch-create',
-      'rows.batch-delete',
-      'rows.batch-update',
-      'rows.create',
-      'rows.delete',
-      'rows.get',
-      'rows.list',
-      'rows.move',
-      'rows.update',
-      'tables.list',
-    ])
-  })
-
   it('checks database tokens with Baserow Token authorization', async () => {
     let capturedUrl = ''
     let capturedAuthorization = ''

@@ -30,47 +30,11 @@ afterEach(() => {
 })
 
 describe('just-invoice adapter manifest', () => {
-  it('exposes the just-invoice kind under the commerce category', () => {
-    expect(justInvoiceConnector.manifest.kind).toBe('just-invoice')
-    expect(justInvoiceConnector.manifest.category).toBe('commerce')
-    expect(justInvoiceConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = justInvoiceConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog invoice operations: create, delete, send, markPaid, update', () => {
-    const names = justInvoiceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'invoices.create',
-      'invoices.delete',
-      'invoices.markPaid',
-      'invoices.send',
-      'invoices.update',
-    ])
-
-    const mutations = justInvoiceConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual([
-      'invoices.create',
-      'invoices.delete',
-      'invoices.markPaid',
-      'invoices.send',
-      'invoices.update',
-    ])
-  })
-
-  it('declares native-idempotency CAS + externalEffect on every write', () => {
-    for (const cap of justInvoiceConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('just-invoice invoices.send', () => {

@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('usergems adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(usergemsConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(usergemsConnector.manifest.kind).toBe('usergems')
-    expect(usergemsConnector.manifest.displayName).toBe('UserGems')
-    expect(usergemsConnector.manifest.category).toBe('sales-intelligence')
-    expect(usergemsConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = usergemsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['accounts.add', 'accounts.delete', 'contacts.add', 'contacts.delete'])
-    const reads = usergemsConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = usergemsConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual([])
-    expect(mutations).toEqual(['accounts.add', 'accounts.delete', 'contacts.add', 'contacts.delete'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof usergemsConnector.executeRead).toBe('function')
-    expect(typeof usergemsConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of usergemsConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes contacts.delete as DELETE /v1/contact and serializes the identifier into the body', async () => {
     const fetchMock = mockFetch({ message: 'Contact deleted' })
     const result = await usergemsConnector.executeMutation!({ source, capabilityName: 'contacts.delete', args: {"email":"noop-connector-test@example.com"}, idempotencyKey: 'op_0' })

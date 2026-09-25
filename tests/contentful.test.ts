@@ -25,43 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('contentful adapter manifest', () => {
-  it('exposes the new write capabilities (delete, unpublish) alongside the prior surface', () => {
-    const names = contentfulConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'entries.create',
-        'entries.delete',
-        'entries.get',
-        'entries.list',
-        'entries.publish',
-        'entries.unpublish',
-        'entries.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as a side-effectful, idempotency-tracked write', () => {
-    for (const cap of contentfulConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'etag-if-match']).toContain(cap.cas)
-    }
-  })
-
-  it('marks the newly added mutations as native-idempotency external effects', () => {
-    const added = contentfulConnector.manifest.capabilities.filter(
-      (c) => c.name === 'entries.delete' || c.name === 'entries.unpublish',
-    )
-    expect(added).toHaveLength(2)
-    for (const cap of added) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('contentful entries.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 

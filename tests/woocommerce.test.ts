@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('woocommerce adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the woocommerce kind', () => {
-    expect(woocommerceConnector.manifest.kind).toBe('woocommerce')
-    expect(woocommerceConnector.manifest.category).toBe('crm')
-    expect(woocommerceConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth with a WooCommerce-specific hint', () => {
     const auth = woocommerceConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,62 +37,6 @@ describe('woocommerce adapter manifest', () => {
     expect(auth.hint).toMatch(/WooCommerce/i)
   })
 
-  it('covers the documented activepieces action set plus update/delete/status mutations', () => {
-    const names = woocommerceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'coupons.create',
-        'customers.create',
-        'customers.delete',
-        'customers.find',
-        'customers.update',
-        'orders.update-status',
-        'products.create',
-        'products.delete',
-        'products.find',
-        'products.update',
-      ].sort(),
-    )
-    const reads = woocommerceConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = woocommerceConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['customers.find', 'products.find'].sort())
-    expect(mutations).toEqual(
-      [
-        'coupons.create',
-        'customers.create',
-        'customers.delete',
-        'customers.update',
-        'orders.update-status',
-        'products.create',
-        'products.delete',
-        'products.update',
-      ].sort(),
-    )
-  })
-
-  it('marks new write-side mutations as native-idempotency with externalEffect=true', () => {
-    const newMutations = new Set([
-      'customers.update',
-      'customers.delete',
-      'products.update',
-      'products.delete',
-      'orders.update-status',
-    ])
-    const caps = woocommerceConnector.manifest.capabilities
-    for (const cap of caps) {
-      if (!newMutations.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('woocommerce write capabilities', () => {

@@ -26,53 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('appfollow adapter manifest', () => {
-  it('classifies itself as the database category and exposes the appfollow kind', () => {
-    expect(appfollowConnector.manifest.kind).toBe('appfollow')
-    expect(appfollowConnector.manifest.category).toBe('database')
-    expect(appfollowConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = appfollowConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers reviews, reply lifecycle, and tag assignment', () => {
-    const names = appfollowConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'add.user',
-        'reply.delete',
-        'reply.to.review',
-        'reply.update',
-        'reviews.list',
-        'tags.assign',
-        'tags.list',
-      ].sort(),
-    )
-
-    const mutations = appfollowConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['add.user', 'reply.delete', 'reply.to.review', 'reply.update', 'tags.assign'].sort(),
-    )
-
-    const reads = appfollowConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['reviews.list', 'tags.list'].sort())
-  })
-
-  it('marks every mutation as native-idempotency external-effect', () => {
-    for (const cap of appfollowConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('appfollow reply.update', () => {

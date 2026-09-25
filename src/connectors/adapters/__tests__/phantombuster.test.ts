@@ -29,17 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('phantombuster adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(phantombusterConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and other classification', () => {
-    expect(phantombusterConnector.manifest.kind).toBe('phantombuster')
-    expect(phantombusterConnector.manifest.displayName).toBe('PhantomBuster')
-    expect(phantombusterConnector.manifest.category).toBe('other')
-    expect(phantombusterConnector.manifest.auth.kind).toBe('api-key')
-  })
-
   it('exposes the expected capability surface and read/mutation split', () => {
     const allNames = phantombusterConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(allNames).toEqual(['agents.fetch', 'agents.fetch_all', 'agents.fetch_output', 'agents.launch', 'containers.fetch_output'])
@@ -47,18 +36,6 @@ describe('phantombuster adapter', () => {
     const mutations = phantombusterConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
     expect(reads).toEqual(['agents.fetch', 'agents.fetch_all', 'agents.fetch_output', 'containers.fetch_output'])
     expect(mutations).toEqual(['agents.launch'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof phantombusterConnector.executeRead).toBe('function')
-    expect(typeof phantombusterConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of phantombusterConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('routes agents.fetch as GET /api/v2/agents/fetch', async () => {

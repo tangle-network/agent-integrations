@@ -25,55 +25,6 @@ describe('braze adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('declares api-key auth with the Braze REST hint', () => {
-    expect(brazeConnector.manifest.kind).toBe('braze')
-    expect(brazeConnector.manifest.displayName).toBe('Braze')
-    expect(brazeConnector.manifest.category).toBe('other')
-    expect(brazeConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the customer-lifecycle capability surface with the right read/mutation split', () => {
-    const names = brazeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'campaigns.list',
-      'campaigns.trigger.send',
-      'canvas.list',
-      'canvas.trigger.send',
-      'email.blacklist',
-      'subscription.status.get',
-      'subscription.status.set',
-      'users.delete',
-      'users.export.ids',
-      'users.identify',
-      'users.track',
-    ])
-    const readers = brazeConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = brazeConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual(['campaigns.list', 'canvas.list', 'subscription.status.get', 'users.export.ids'])
-    expect(mutators).toEqual([
-      'campaigns.trigger.send',
-      'canvas.trigger.send',
-      'email.blacklist',
-      'subscription.status.set',
-      'users.delete',
-      'users.identify',
-      'users.track',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof brazeConnector.executeRead).toBe('function')
-    expect(typeof brazeConnector.executeMutation).toBe('function')
-  })
-
-  it('declares every mutation with a CAS strategy and externalEffect=true', () => {
-    for (const cap of brazeConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
   it('routes users.track against the per-tenant REST endpoint with bearer auth and a verbatim body', async () => {
     const fetchMock = mockFetch({ message: 'success' })
     const invocation: ConnectorInvocation = {

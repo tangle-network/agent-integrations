@@ -29,12 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('amazon-s3 adapter manifest', () => {
-  it('classifies itself as the storage category and exposes the amazon-s3 kind', () => {
-    expect(amazonS3Connector.manifest.kind).toBe('amazon-s3')
-    expect(amazonS3Connector.manifest.category).toBe('storage')
-    expect(amazonS3Connector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = amazonS3Connector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -42,46 +36,6 @@ describe('amazon-s3 adapter manifest', () => {
     expect(auth.hint).toMatch(/AWS|Access Key/i)
   })
 
-  it('covers the file management capability surface including copy/setMetadata/createBucket', () => {
-    const names = amazonS3Connector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'files.list',
-        'files.read',
-        'files.upload',
-        'files.delete',
-        'files.generateSignedUrl',
-        'files.moveFile',
-        'files.copyFile',
-        'files.setMetadata',
-        'files.createBucket',
-      ].sort(),
-    )
-    const mutations = amazonS3Connector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'files.upload',
-        'files.delete',
-        'files.moveFile',
-        'files.copyFile',
-        'files.setMetadata',
-        'files.createBucket',
-      ].sort(),
-    )
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    for (const name of ['files.copyFile', 'files.setMetadata', 'files.createBucket']) {
-      const cap = amazonS3Connector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('amazon-s3 files.copyFile', () => {

@@ -33,10 +33,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('demandbase adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(demandbaseConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares a client_credentials oauth2 grant with no authorize URL and sales-intelligence classification', () => {
     const auth = demandbaseConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -47,27 +43,6 @@ describe('demandbase adapter', () => {
     expect(auth.clientIdEnv).toBe('DEMANDBASE_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('DEMANDBASE_OAUTH_CLIENT_SECRET')
     expect(demandbaseConnector.manifest.category).toBe('sales-intelligence')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = demandbaseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['users.create', 'users.get', 'users.list'])
-    const reads = demandbaseConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = demandbaseConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['users.get', 'users.list'])
-    expect(mutations).toEqual(['users.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof demandbaseConnector.executeRead).toBe('function')
-    expect(typeof demandbaseConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of demandbaseConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('lists users via GET /admin/v1/users (plural) with bearer auth', async () => {

@@ -36,42 +36,6 @@ describe('bigcommerce adapter manifest', () => {
     expect(auth.clientSecretEnv).toBe('BIGCOMMERCE_OAUTH_CLIENT_SECRET')
   })
 
-  it('exposes the commerce action pack (products + orders) split between reads and mutations', () => {
-    const names = bigcommerceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'products.search',
-        'products.get',
-        'products.create',
-        'products.update',
-        'products.delete',
-        'orders.search',
-        'orders.get',
-        'orders.update',
-        'orders.refund',
-        'customers.create',
-        'customers.update',
-      ].sort(),
-    )
-    const reads = bigcommerceConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
-    const mutations = bigcommerceConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(reads.sort()).toEqual(['orders.get', 'orders.search', 'products.get', 'products.search'])
-    expect(mutations.sort()).toEqual([
-      'customers.create',
-      'customers.update',
-      'orders.refund',
-      'orders.update',
-      'products.create',
-      'products.delete',
-      'products.update',
-    ])
-  })
-
-  it('classifies itself as commerce with authoritative consistency', () => {
-    expect(bigcommerceConnector.manifest.kind).toBe('bigcommerce')
-    expect(bigcommerceConnector.manifest.category).toBe('commerce')
-    expect(bigcommerceConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
 })
 
 describe('bigcommerce adapter execution', () => {

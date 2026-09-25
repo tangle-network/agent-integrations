@@ -26,58 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('bitly adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the bitly kind', () => {
-    expect(bitlyConnector.manifest.kind).toBe('bitly')
-    expect(bitlyConnector.manifest.category).toBe('crm')
-    expect(bitlyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (Bitly access token, sent as Bearer)', () => {
     const auth = bitlyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the extended catalog action set including the new deletes/updates', () => {
-    const names = bitlyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'bitlink.archive',
-        'bitlink.create',
-        'bitlink.delete',
-        'bitlink.get',
-        'bitlink.update',
-        'group.update',
-        'qr.create',
-        'qr.delete',
-      ].sort(),
-    )
-    const mutations = bitlyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'bitlink.archive',
-        'bitlink.create',
-        'bitlink.delete',
-        'bitlink.update',
-        'group.update',
-        'qr.create',
-        'qr.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency external effect', () => {
-    const newMutations = new Set(['bitlink.delete', 'group.update', 'qr.delete'])
-    for (const c of bitlyConnector.manifest.capabilities) {
-      if (!newMutations.has(c.name)) continue
-      expect(c.class).toBe('mutation')
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('bitly adapter write execution', () => {

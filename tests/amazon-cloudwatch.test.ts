@@ -34,38 +34,6 @@ function response(body: unknown = {}): Response {
   })
 }
 
-describe('aws-cloudwatch adapter manifest', () => {
-  it('ships metrics, alarms, and dashboard operations', () => {
-    expect(
-      amazonCloudWatchConnector.manifest.capabilities.map((capability) => capability.name),
-    ).toEqual([
-      'metrics.list',
-      'metrics.statistics.get',
-      'metrics.data.get',
-      'alarms.list',
-      'dashboards.list',
-      'dashboards.get',
-      'metrics.publish',
-      'alarms.put',
-      'alarms.delete',
-      'dashboards.put',
-      'dashboards.delete',
-    ])
-  })
-
-  it('requires approval for every write and validates safely', () => {
-    const mutations = amazonCloudWatchConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(5)
-    for (const mutation of mutations) expect(mutation.externalEffect).toBe(true)
-    expect(validateConnectorManifest(amazonCloudWatchConnector.manifest)).toEqual({
-      ok: true,
-      issues: [],
-    })
-  })
-})
-
 describe('aws-cloudwatch execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

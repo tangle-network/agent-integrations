@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('orimon adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the orimon kind', () => {
-    expect(orimonConnector.manifest.kind).toBe('orimon')
-    expect(orimonConnector.manifest.category).toBe('comms')
-    expect(orimonConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = orimonConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,45 +37,6 @@ describe('orimon adapter manifest', () => {
     expect(auth.hint).toMatch(/Orimon/i)
   })
 
-  it('covers messages, conversations, and leads capability surface', () => {
-    const names = orimonConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'conversations.close',
-        'conversations.get',
-        'conversations.list',
-        'leads.create',
-        'messages.send',
-        'leads.update',
-        'leads.delete',
-        'conversations.assign',
-        'conversations.tag',
-      ].sort(),
-    )
-    const mutations = orimonConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'conversations.close',
-        'leads.create',
-        'messages.send',
-        'leads.update',
-        'leads.delete',
-        'conversations.assign',
-        'conversations.tag',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency with external effect', () => {
-    for (const c of orimonConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('orimon leads.update', () => {

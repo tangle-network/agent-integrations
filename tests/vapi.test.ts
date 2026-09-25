@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('vapi adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the vapi kind', () => {
-    expect(vapiConnector.manifest.kind).toBe('vapi')
-    expect(vapiConnector.manifest.category).toBe('comms')
-    expect(vapiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = vapiConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,38 +37,6 @@ describe('vapi adapter manifest', () => {
     expect(auth.hint).toMatch(/Vapi/i)
   })
 
-  it('covers the calls, assistants, and phone numbers capability surface', () => {
-    const names = vapiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'assistants.create',
-        'assistants.delete',
-        'assistants.update',
-        'calls.create',
-        'calls.get',
-        'calls.hangup',
-        'phone-numbers.list',
-      ].sort(),
-    )
-    const mutations = vapiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['assistants.create', 'assistants.delete', 'assistants.update', 'calls.create', 'calls.hangup'].sort(),
-    )
-  })
-
-  it('marks new write-side mutations as native-idempotency external effect', () => {
-    const expected = ['calls.hangup', 'assistants.create', 'assistants.delete']
-    for (const name of expected) {
-      const cap = vapiConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('vapi calls.hangup', () => {

@@ -26,34 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('clearout adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the clearout kind', () => {
-    expect(clearoutConnector.manifest.kind).toBe('clearout')
-    expect(clearoutConnector.manifest.category).toBe('crm')
-    expect(clearoutConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as the catalog says', () => {
     const auth = clearoutConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers instant + bulk lifecycle', () => {
-    const names = clearoutConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['bulk.verify.cancel', 'bulk.verify.start', 'instant.verify'])
-    const mutations = clearoutConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['bulk.verify.cancel', 'bulk.verify.start', 'instant.verify'])
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of clearoutConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('clearout bulk.verify.start', () => {

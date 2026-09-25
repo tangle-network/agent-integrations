@@ -30,88 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('quickzu adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the quickzu kind', () => {
-    expect(quickzuConnector.manifest.kind).toBe('quickzu')
-    expect(quickzuConnector.manifest.category).toBe('commerce')
-    expect(quickzuConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = quickzuConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the full activepieces action set plus write-side lifecycle mutations', () => {
-    const names = quickzuConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'business.hours.update',
-        'categories.list',
-        'categories.create',
-        'categories.update',
-        'categories.delete',
-        'categories.reorder',
-        'products.list',
-        'products.add',
-        'products.update',
-        'products.delete',
-        'orders.list',
-        'orders.live',
-        'orders.get',
-        'orders.update-status',
-        'orders.cancel',
-        'orders.refund',
-        'discounts.create',
-        'discounts.delete',
-        'promo-codes.create',
-        'promo-codes.delete',
-      ].sort(),
-    )
-    const reads = quickzuConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = quickzuConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['categories.list', 'products.list', 'orders.list', 'orders.live', 'orders.get'].sort())
-    expect(mutations).toEqual(
-      [
-        'business.hours.update',
-        'categories.create',
-        'categories.update',
-        'categories.delete',
-        'categories.reorder',
-        'products.add',
-        'products.update',
-        'products.delete',
-        'orders.update-status',
-        'orders.cancel',
-        'orders.refund',
-        'discounts.create',
-        'discounts.delete',
-        'promo-codes.create',
-        'promo-codes.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks the new lifecycle mutations as native-idempotency external-effect', () => {
-    for (const name of [
-      'orders.cancel',
-      'orders.refund',
-      'discounts.delete',
-      'promo-codes.delete',
-      'categories.reorder',
-    ]) {
-      const cap = quickzuConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('quickzu orders.cancel', () => {

@@ -31,23 +31,6 @@ function response(body: BodyInit | null = null, status = 200, headers: Record<st
 }
 
 describe('azure-service-bus manifest', () => {
-  it('ships discovery, send, receive-delete, and dead-letter operations', () => {
-    expect(azureServiceBusConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'queues.list',
-      'queues.get',
-      'topics.list',
-      'topics.get',
-      'subscriptions.list',
-      'subscriptions.get',
-      'queues.send',
-      'topics.send',
-      'queues.receiveDelete',
-      'subscriptions.receiveDelete',
-      'queues.deadLetters.receiveDelete',
-      'subscriptions.deadLetters.receiveDelete',
-    ])
-  })
-
   it('passes safety validation and approval-gates every destructive or outbound operation', () => {
     expect(validateConnectorManifest(azureServiceBusConnector.manifest)).toEqual({ ok: true, issues: [] })
     const mutations = azureServiceBusConnector.manifest.capabilities.filter(

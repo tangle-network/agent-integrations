@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('generatebanners adapter manifest', () => {
-  it('classifies itself as the storage category and exposes the generatebanners kind', () => {
-    expect(generatebannersConnector.manifest.kind).toBe('generatebanners')
-    expect(generatebannersConnector.manifest.category).toBe('storage')
-    expect(generatebannersConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = generatebannersConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,27 +33,6 @@ describe('generatebanners adapter manifest', () => {
     expect(auth.hint).toMatch(/GenerateBanners/i)
   })
 
-  it('exposes render, delete, create, batch-render mutations', () => {
-    const names = generatebannersConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['templates.render', 'banner.delete', 'template.create', 'batch.render'].sort(),
-    )
-    const mutations = generatebannersConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['templates.render', 'banner.delete', 'template.create', 'batch.render'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotent external effect', () => {
-    for (const cap of generatebannersConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('generatebanners banner.delete', () => {

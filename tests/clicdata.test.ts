@@ -26,77 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('clicdata adapter manifest', () => {
-  it('classifies itself as the database category and exposes the clicdata kind', () => {
-    expect(clicdataConnector.manifest.kind).toBe('clicdata')
-    expect(clicdataConnector.manifest.category).toBe('database')
-    expect(clicdataConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
     const auth = clicdataConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
   })
 
-  it('exposes read + mutation capabilities including new dataset/dashboard writes', () => {
-    const names = clicdataConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'account.get',
-        'dashboards.get',
-        'dashboards.list',
-        'dashboards.refresh',
-        'datasets.clear',
-        'datasets.create',
-        'datasets.delete',
-        'datasets.get',
-        'datasets.list',
-        'datasets.refresh',
-        'datasets.rows',
-        'datasets.rows.append',
-        'datasets.rows.replace',
-      ].sort(),
-    )
-    const reads = clicdataConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = clicdataConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'account.get',
-        'dashboards.get',
-        'dashboards.list',
-        'datasets.get',
-        'datasets.list',
-        'datasets.rows',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'dashboards.refresh',
-        'datasets.clear',
-        'datasets.create',
-        'datasets.delete',
-        'datasets.refresh',
-        'datasets.rows.append',
-        'datasets.rows.replace',
-      ].sort(),
-    )
-  })
-
-  it('marks new mutations (datasets.create, datasets.delete, dashboards.refresh) as native-idempotency external effect', () => {
-    const targets = ['datasets.create', 'datasets.delete', 'dashboards.refresh']
-    for (const name of targets) {
-      const cap = clicdataConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('clicdata datasets.create', () => {

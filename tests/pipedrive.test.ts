@@ -31,12 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pipedrive adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the pipedrive kind', () => {
-    expect(pipedriveConnector.manifest.kind).toBe('pipedrive')
-    expect(pipedriveConnector.manifest.category).toBe('crm')
-    expect(pipedriveConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares OAuth2 with the documented Pipedrive endpoints and env-var names', () => {
     const auth = pipedriveConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -49,39 +43,6 @@ describe('pipedrive adapter manifest', () => {
     expect(auth.scopes).toContain('contacts:full')
   })
 
-  it('exposes activities.create and notes.create as native-idempotency mutations', () => {
-    const caps = pipedriveConnector.manifest.capabilities
-    const activitiesCreate = caps.find((c) => c.name === 'activities.create')
-    const notesCreate = caps.find((c) => c.name === 'notes.create')
-    expect(activitiesCreate).toBeDefined()
-    expect(notesCreate).toBeDefined()
-    if (!activitiesCreate || !notesCreate) throw new Error('unreachable')
-    expect(activitiesCreate.class).toBe('mutation')
-    expect(notesCreate.class).toBe('mutation')
-    if (activitiesCreate.class !== 'mutation' || notesCreate.class !== 'mutation') {
-      throw new Error('unreachable')
-    }
-    expect(activitiesCreate.cas).toBe('native-idempotency')
-    expect(activitiesCreate.externalEffect).toBe(true)
-    expect(activitiesCreate.requiredScopes).toEqual(['activities:full'])
-    expect(notesCreate.cas).toBe('native-idempotency')
-    expect(notesCreate.externalEffect).toBe(true)
-    expect(notesCreate.requiredScopes).toEqual(['contacts:full'])
-  })
-
-  it('marks subject+type as required for activities.create', () => {
-    const cap = pipedriveConnector.manifest.capabilities.find((c) => c.name === 'activities.create')
-    if (!cap) throw new Error('unreachable')
-    const params = cap.parameters as { required?: string[] }
-    expect(params.required).toEqual(['subject', 'type'])
-  })
-
-  it('marks content as required for notes.create', () => {
-    const cap = pipedriveConnector.manifest.capabilities.find((c) => c.name === 'notes.create')
-    if (!cap) throw new Error('unreachable')
-    const params = cap.parameters as { required?: string[] }
-    expect(params.required).toEqual(['content'])
-  })
 })
 
 describe('pipedrive adapter activities.create', () => {

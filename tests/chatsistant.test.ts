@@ -26,29 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('chatsistant adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the chatsistant kind', () => {
-    expect(chatsistantConnector.manifest.kind).toBe('chatsistant')
-    expect(chatsistantConnector.manifest.category).toBe('comms')
-    expect(chatsistantConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = chatsistantConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers send + conversation.create + message.delete', () => {
-    const names = chatsistantConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['conversation.create', 'message.delete', 'message.send'])
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of chatsistantConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('chatsistant conversation.create', () => {

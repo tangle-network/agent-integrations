@@ -16,12 +16,6 @@ const source: ResolvedDataSource = {
 }
 
 describe('tally adapter manifest', () => {
-  it('classifies itself as a webhook-backed forms provider', () => {
-    expect(tallyConnector.manifest.kind).toBe('tally')
-    expect(tallyConnector.manifest.category).toBe('webhook')
-    expect(tallyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = tallyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')

@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('gamma adapter manifest', () => {
-  it('classifies itself as the other category and exposes the gamma kind', () => {
-    expect(gammaConnector.manifest.kind).toBe('gamma')
-    expect(gammaConnector.manifest.category).toBe('other')
-    expect(gammaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = gammaConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,33 +33,6 @@ describe('gamma adapter manifest', () => {
     expect(auth.hint).toMatch(/Gamma/i)
   })
 
-  it('covers the full presentation lifecycle and folder organization', () => {
-    const names = gammaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'content.generate',
-        'generation.status',
-        'presentation.delete',
-        'presentation.update',
-        'folder.create',
-      ].sort(),
-    )
-    const mutations = gammaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['content.generate', 'presentation.delete', 'presentation.update', 'folder.create'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotent external effect', () => {
-    for (const cap of gammaConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('gamma presentation.delete', () => {

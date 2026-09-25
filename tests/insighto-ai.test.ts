@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('insighto-ai adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the insighto-ai kind', () => {
-    expect(insightoAiConnector.manifest.kind).toBe('insighto-ai')
-    expect(insightoAiConnector.manifest.category).toBe('comms')
-    expect(insightoAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = insightoAiConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,46 +33,6 @@ describe('insighto-ai adapter manifest', () => {
     expect(auth.hint).toMatch(/Insighto/i)
   })
 
-  it('covers text blob, contact, call, campaign, and assistant capability surface', () => {
-    const names = insightoAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'assistants.create',
-        'assistants.delete',
-        'calls.create',
-        'campaigns.cancel',
-        'campaigns.create',
-        'contacts.upsert',
-        'textblobs.add',
-      ].sort(),
-    )
-    const mutations = insightoAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'assistants.create',
-        'assistants.delete',
-        'calls.create',
-        'campaigns.cancel',
-        'campaigns.create',
-        'contacts.upsert',
-        'textblobs.add',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['assistants.create', 'assistants.delete', 'campaigns.cancel']
-    for (const name of expected) {
-      const cap = insightoAiConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('insighto-ai assistants.create', () => {

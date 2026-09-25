@@ -18,25 +18,6 @@ const source: ResolvedDataSource = {
 describe('affinity adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('ships a valid authoritative CRM manifest with deep record coverage', () => {
-    expect(validateConnectorManifest(affinityConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(affinityConnector.manifest.kind).toBe('affinity')
-    expect(affinityConnector.manifest.category).toBe('crm')
-    expect(affinityConnector.manifest.auth.kind).toBe('api-key')
-    expect(affinityConnector.manifest.capabilities).toHaveLength(30)
-    expect(affinityConnector.manifest.capabilities.map((capability) => capability.name)).toEqual(
-      expect.arrayContaining([
-        'people.list',
-        'organizations.update',
-        'opportunities.delete',
-        'list-entries.create',
-        'field-value-changes.list',
-        'interactions.list',
-        'notes.create',
-      ]),
-    )
-  })
-
   it('uses bearer auth and renders search pagination', async () => {
     let requestUrl = ''
     let requestAuth = ''

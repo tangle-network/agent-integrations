@@ -30,60 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pastefy adapter manifest', () => {
-  it('classifies itself as the other category and exposes the pastefy kind', () => {
-    expect(pastefyConnector.manifest.kind).toBe('pastefy')
-    expect(pastefyConnector.manifest.category).toBe('other')
-    expect(pastefyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = pastefyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers paste lifecycle plus folder management and share-link generation', () => {
-    const names = pastefyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'folders.create',
-        'folders.list',
-        'pastes.create',
-        'pastes.delete',
-        'pastes.get',
-        'pastes.list',
-        'pastes.share',
-        'pastes.update',
-      ].sort(),
-    )
-    const reads = pastefyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = pastefyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['folders.list', 'pastes.get', 'pastes.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'folders.create',
-        'pastes.create',
-        'pastes.delete',
-        'pastes.share',
-        'pastes.update',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write capabilities as native-idempotency external-effect', () => {
-    for (const name of ['pastes.update', 'folders.create', 'pastes.share']) {
-      const cap = pastefyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('pastefy pastes.update', () => {

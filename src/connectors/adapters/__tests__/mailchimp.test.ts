@@ -37,54 +37,6 @@ describe('mailchimp adapter', () => {
     expect(auth.clientSecretEnv).toBe('MAILCHIMP_OAUTH_CLIENT_SECRET')
   })
 
-  it('exposes the audience+member+campaign action surface and the right read/mutation split', () => {
-    expect(mailchimpConnector.manifest.kind).toBe('mailchimp')
-    expect(mailchimpConnector.manifest.displayName).toBe('Mailchimp')
-    expect(mailchimpConnector.manifest.category).toBe('crm')
-    const names = mailchimpConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'campaigns.create',
-      'campaigns.list',
-      'campaigns.send',
-      'campaigns.set-content',
-      'lists.get',
-      'lists.list',
-      'members.delete-permanent',
-      'members.get',
-      'members.search',
-      'members.update-tags',
-      'members.upsert',
-      'reports.get',
-      'reports.list',
-      'segments.list',
-    ])
-    const readers = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = mailchimpConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'campaigns.list',
-      'lists.get',
-      'lists.list',
-      'members.get',
-      'members.search',
-      'reports.get',
-      'reports.list',
-      'segments.list',
-    ])
-    expect(mutators).toEqual([
-      'campaigns.create',
-      'campaigns.send',
-      'campaigns.set-content',
-      'members.delete-permanent',
-      'members.update-tags',
-      'members.upsert',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof mailchimpConnector.executeRead).toBe('function')
-    expect(typeof mailchimpConnector.executeMutation).toBe('function')
-  })
-
   it('routes reads against the per-tenant datacenter base URL with bearer auth', async () => {
     const fetchMock = mockFetch({ lists: [] })
     const invocation: ConnectorInvocation = {

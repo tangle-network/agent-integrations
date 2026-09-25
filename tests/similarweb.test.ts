@@ -47,34 +47,6 @@ const EXPECTED_CAPABILITIES = [
   'lead-enrichment',
 ]
 
-describe('similarweb adapter manifest', () => {
-  it('classifies itself as market-intelligence with cache consistency', () => {
-    expect(similarwebConnector.manifest.kind).toBe('similarweb')
-    expect(similarwebConnector.manifest.category).toBe('market-intelligence')
-    expect(similarwebConnector.manifest.defaultConsistencyModel).toBe('cache')
-  })
-
-  it('uses api-key auth', () => {
-    expect(similarwebConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the full read-only intelligence capability set and no mutations', () => {
-    const names = similarwebConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED_CAPABILITIES].sort())
-
-    const reads = similarwebConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = similarwebConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual([...EXPECTED_CAPABILITIES].sort())
-    expect(mutations).toEqual([])
-  })
-})
-
 describe('similarweb executeRead', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

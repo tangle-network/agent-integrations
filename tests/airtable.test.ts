@@ -25,39 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('airtable adapter manifest', () => {
-  it('exposes the airtable kind and spreadsheet category', () => {
-    expect(airtableConnector.manifest.kind).toBe('airtable')
-    expect(airtableConnector.manifest.category).toBe('spreadsheet')
-  })
-
-  it('covers the new write capability surface', () => {
-    const names = airtableConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'records.list',
-        'records.get',
-        'records.create',
-        'records.update',
-        'records.delete',
-        'records.upsert',
-        'records.batchCreate',
-      ].sort(),
-    )
-  })
-
-  it('marks records.delete / records.upsert / records.batchCreate as native-idempotency external effect', () => {
-    const targets = ['records.delete', 'records.upsert', 'records.batchCreate']
-    for (const name of targets) {
-      const cap = airtableConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('airtable records.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 

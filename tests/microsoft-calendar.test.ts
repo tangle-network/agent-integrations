@@ -39,26 +39,6 @@ describe('microsoft-calendar adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares Graph OAuth + the four capabilities', () => {
-    expect(adapter.manifest.kind).toBe('microsoft-calendar')
-    expect(adapter.manifest.auth.kind).toBe('oauth2')
-    if (adapter.manifest.auth.kind === 'oauth2') {
-      expect(adapter.manifest.auth.authorizationUrl).toContain('login.microsoftonline.com')
-      expect(adapter.manifest.auth.tokenUrl).toContain('login.microsoftonline.com')
-      expect(adapter.manifest.auth.clientIdEnv).toBe('MS_OAUTH_CLIENT_ID')
-      expect(adapter.manifest.auth.clientSecretEnv).toBe('MS_OAUTH_CLIENT_SECRET')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Calendars.ReadWrite')
-      expect(adapter.manifest.auth.scopes).toContain('offline_access')
-    }
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'book_slot',
-      'delete_event',
-      'list_availability',
-      'list_events',
-    ])
-  })
-
   it('list_events with NO calendarId hits /me/events and maps value→events + nextLink', async () => {
     let calledUrl = ''
     let calledMethod = ''

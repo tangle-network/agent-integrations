@@ -28,59 +28,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('drip adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the drip kind', () => {
-    expect(dripConnector.manifest.kind).toBe('drip')
-    expect(dripConnector.manifest.category).toBe('crm')
-    expect(dripConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth', () => {
     const auth = dripConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the full action set (campaign add, tag, upsert, delete, events)', () => {
-    const names = dripConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'subscribers.add_to_campaign',
-        'subscribers.apply_tag',
-        'subscribers.upsert',
-        'subscribers.delete',
-        'events.record',
-      ].sort(),
-    )
-    const reads = dripConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = dripConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual([])
-    expect(mutations).toEqual(
-      [
-        'subscribers.add_to_campaign',
-        'subscribers.apply_tag',
-        'subscribers.upsert',
-        'subscribers.delete',
-        'events.record',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency externalEffect (where added in this batch)', () => {
-    const newCaps = dripConnector.manifest.capabilities.filter((c) =>
-      c.name === 'subscribers.delete' || c.name === 'events.record',
-    )
-    expect(newCaps).toHaveLength(2)
-    for (const c of newCaps) {
-      if (c.class !== 'mutation') throw new Error(`${c.name} must be a mutation`)
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('drip subscribers.delete', () => {

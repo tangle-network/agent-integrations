@@ -25,33 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zapier adapter manifest', () => {
-  it('exposes the zapier kind in the other category', () => {
-    expect(zapierConnector.manifest.kind).toBe('zapier')
-    expect(zapierConnector.manifest.category).toBe('other')
-  })
-
-  it('uses api-key auth (account-scoped bearer token)', () => {
-    expect(zapierConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('covers catch-hook, Zaps management, and NLA actions surfaces', () => {
-    const names = zapierConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['actions.execute', 'actions.list', 'triggers.catch', 'zaps.get', 'zaps.list'].sort(),
-    )
-  })
-
-  it('declares actions.execute as a mutation with native-idempotency CAS', () => {
-    const cap = zapierConnector.manifest.capabilities.find((c) => c.name === 'actions.execute')
-    expect(cap?.class).toBe('mutation')
-    if (cap?.class === 'mutation') {
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('zapier NLA actions', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

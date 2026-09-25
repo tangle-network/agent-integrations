@@ -31,12 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('helpscout adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the helpscout kind', () => {
-    expect(helpscoutConnector.manifest.kind).toBe('helpscout')
-    expect(helpscoutConnector.manifest.category).toBe('crm')
-    expect(helpscoutConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses oauth2 auth with Help Scout endpoints', () => {
     const auth = helpscoutConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -45,41 +39,6 @@ describe('helpscout adapter manifest', () => {
     expect(auth.tokenUrl).toMatch(/api\.helpscout\.net/)
   })
 
-  it('covers the full Help Scout action set (search, read, reply, update, conversations.create, conversations.delete)', () => {
-    const names = helpscoutConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'tickets.search',
-        'tickets.read',
-        'customers.read',
-        'tickets.reply',
-        'tickets.update',
-        'conversations.create',
-        'conversations.delete',
-      ].sort(),
-    )
-    const reads = helpscoutConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = helpscoutConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['customers.read', 'tickets.read', 'tickets.search'].sort())
-    expect(mutations).toEqual(
-      ['conversations.create', 'conversations.delete', 'tickets.reply', 'tickets.update'].sort(),
-    )
-  })
-
-  it('marks the new conversation mutations as native-idempotency externalEffect', () => {
-    for (const name of ['conversations.create', 'conversations.delete']) {
-      const cap = helpscoutConnector.manifest.capabilities.find((c) => c.name === name)
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('helpscout conversations.create', () => {

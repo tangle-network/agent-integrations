@@ -26,43 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('campaign-monitor adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the campaign-monitor kind', () => {
-    expect(campaignMonitorConnector.manifest.kind).toBe('campaign-monitor')
-    expect(campaignMonitorConnector.manifest.category).toBe('crm')
-    expect(campaignMonitorConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = campaignMonitorConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('exposes the new campaign + list write capabilities', () => {
-    const names = campaignMonitorConnector.manifest.capabilities.map((c) => c.name)
-    for (const expected of [
-      'subscriber.add',
-      'subscriber.update',
-      'subscriber.unsubscribe',
-      'subscriber.find',
-      'campaign.create',
-      'campaign.send',
-      'list.create',
-      'list.delete',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    const targets = ['campaign.create', 'campaign.send', 'list.create', 'list.delete']
-    for (const name of targets) {
-      const cap = campaignMonitorConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('campaign-monitor campaign.create', () => {

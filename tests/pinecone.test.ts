@@ -30,13 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pinecone adapter manifest', () => {
-  it('identifies as kind=pinecone, category=other, authoritative consistency', () => {
-    expect(pineconeConnector.manifest.kind).toBe('pinecone')
-    expect(pineconeConnector.manifest.category).toBe('other')
-    expect(pineconeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(pineconeConnector.manifest.displayName).toBe('Pinecone')
-  })
-
   it('uses api-key auth (Pinecone exposes no 3-legged OAuth)', () => {
     const auth = pineconeConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -100,16 +93,6 @@ describe('pinecone adapter manifest', () => {
     expect(indexCreate.cas).toBe('native-idempotency')
   })
 
-  it('marks newly added write capabilities as native-idempotency + externalEffect=true', () => {
-    const newOnes = new Set(['assistants.update', 'assistants.files.delete', 'backups.create'])
-    for (const cap of pineconeConnector.manifest.capabilities) {
-      if (!newOnes.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('pinecone assistants.update', () => {

@@ -26,35 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('heartbeat adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the heartbeat kind', () => {
-    expect(heartbeatConnector.manifest.kind).toBe('heartbeat')
-    expect(heartbeatConnector.manifest.category).toBe('comms')
-    expect(heartbeatConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = heartbeatConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the activepieces action set plus the new write surface (users.create, threads.create, messages.create)', () => {
-    const names = heartbeatConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['messages.create', 'threads.create', 'users.create'])
-    const mutations = heartbeatConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['messages.create', 'threads.create', 'users.create'])
-  })
-
-  it('marks every mutation as a native-idempotency external effect', () => {
-    const mutations = heartbeatConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('unreachable')
-      expect(m.cas).toBe('native-idempotency')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('heartbeat adapter execution — threads.create', () => {

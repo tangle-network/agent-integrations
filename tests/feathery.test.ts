@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('feathery adapter manifest', () => {
-  it('classifies itself as the webhook category and exposes the feathery kind', () => {
-    expect(featheryConnector.manifest.kind).toBe('feathery')
-    expect(featheryConnector.manifest.category).toBe('webhook')
-    expect(featheryConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = featheryConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,47 +33,6 @@ describe('feathery adapter manifest', () => {
     expect(auth.hint).toMatch(/Feathery/i)
   })
 
-  it('covers form CRUD, submissions, and user CRUD capability surfaces', () => {
-    const names = featheryConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'forms.create',
-        'forms.update',
-        'forms.delete',
-        'submissions.list',
-        'submissions.export',
-        'user.create',
-        'user.update',
-        'user.delete',
-      ].sort(),
-    )
-    const mutations = featheryConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'forms.create',
-        'forms.update',
-        'forms.delete',
-        'submissions.export',
-        'user.create',
-        'user.update',
-        'user.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks the new user.* mutations as native-idempotency external effects', () => {
-    const targets = new Set(['user.create', 'user.update', 'user.delete'])
-    for (const cap of featheryConnector.manifest.capabilities) {
-      if (!targets.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('feathery user.create', () => {

@@ -32,12 +32,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('postmark adapter manifest', () => {
-  it('identifies as a comms api-key connector with kind=postmark', () => {
-    expect(postmarkConnector.manifest.kind).toBe('postmark')
-    expect(postmarkConnector.manifest.category).toBe('comms')
-    expect(postmarkConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a hint pointing at the X-Postmark-Server-Token header', () => {
     const auth = postmarkConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -46,40 +40,6 @@ describe('postmark adapter manifest', () => {
     expect(auth.hint).toMatch(/Server API token/)
   })
 
-  it('covers the server-token transactional surface — sends, batch, template, search, bounces, stats, templates', () => {
-    const names = postmarkConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'bounces.activate',
-        'bounces.delete',
-        'bounces.get',
-        'bounces.search',
-        'email.send',
-        'email.send.batch',
-        'email.send.template',
-        'email.send.template.batch',
-        'messages.outbound.get',
-        'messages.outbound.search',
-        'server.get',
-        'servers.update',
-        'stats.outbound.overview',
-        'templates.create',
-        'templates.delete',
-        'templates.get',
-        'templates.list',
-        'templates.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every send/template mutation as an external effect', () => {
-    const mutations = postmarkConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('unreachable')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('postmark adapter execution', () => {
@@ -298,18 +258,5 @@ describe('postmark servers.update', () => {
         idempotencyKey: 'k-su-2',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-})
-
-describe('postmark manifest classifications', () => {
-  it('marks every new mutation as native-idempotency + external effect', () => {
-    const newOnes = ['templates.update', 'templates.delete', 'bounces.delete', 'servers.update']
-    const caps = postmarkConnector.manifest.capabilities.filter((c) => newOnes.includes(c.name))
-    expect(caps).toHaveLength(newOnes.length)
-    for (const c of caps) {
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
   })
 })

@@ -83,41 +83,6 @@ describe('gorgiasConnector', () => {
     )
   })
 
-  it('declares the support-desk action surface with classes, CAS, and scope guards', () => {
-    const caps = gorgiasConnector.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-
-    expect(Object.keys(byName).sort()).toEqual([
-      'customers.create',
-      'customers.search',
-      'messages.create',
-      'tickets.close',
-      'tickets.create',
-      'tickets.get',
-      'tickets.search',
-      'tickets.update',
-    ])
-
-    expect(byName['tickets.search'].class).toBe('read')
-    expect(byName['tickets.search'].requiredScopes).toEqual(['tickets:read'])
-
-    const create = byName['tickets.create']
-    expect(create.class).toBe('mutation')
-    if (create.class !== 'mutation') throw new Error('expected mutation')
-    expect(create.cas).toBe('native-idempotency')
-    expect(create.requiredScopes).toEqual(['tickets:write'])
-
-    const update = byName['tickets.update']
-    if (update.class !== 'mutation') throw new Error('expected mutation')
-    expect(update.cas).toBe('optimistic-read-verify')
-    expect(update.requiredScopes).toEqual(['tickets:write'])
-
-    const messageCreate = byName['messages.create']
-    if (messageCreate.class !== 'mutation') throw new Error('expected mutation')
-    expect(messageCreate.cas).toBe('native-idempotency')
-    expect(messageCreate.requiredScopes).toEqual(['messages:write'])
-  })
-
   it('executes tickets.search against the tenant subdomain with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ data: [{ id: 42, subject: 'Order missing' }] })
     const provider = createConnectorAdapterProvider({

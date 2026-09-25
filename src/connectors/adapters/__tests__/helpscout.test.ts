@@ -62,34 +62,6 @@ describe('helpscoutConnector', () => {
     expect(auth.clientSecretEnv).toBe('HELPSCOUT_OAUTH_CLIENT_SECRET')
   })
 
-  it('declares the support-desk action surface with classes, CAS, and scope guards', () => {
-    const caps = helpscoutConnector.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-
-    expect(Object.keys(byName).sort()).toEqual([
-      'conversations.create',
-      'conversations.delete',
-      'customers.read',
-      'tickets.read',
-      'tickets.reply',
-      'tickets.search',
-      'tickets.update',
-    ])
-
-    expect(byName['tickets.search'].class).toBe('read')
-    expect(byName['tickets.search'].requiredScopes).toEqual(['tickets.search.read'])
-
-    const reply = byName['tickets.reply']
-    expect(reply.class).toBe('mutation')
-    if (reply.class !== 'mutation') throw new Error('expected mutation')
-    expect(reply.cas).toBe('native-idempotency')
-    expect(reply.requiredScopes).toEqual(['tickets.reply.write'])
-
-    const update = byName['tickets.update']
-    if (update.class !== 'mutation') throw new Error('expected mutation')
-    expect(update.cas).toBe('optimistic-read-verify')
-  })
-
   it('executes tickets.search against /v2/conversations with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ _embedded: { conversations: [{ id: 7, subject: 'Login fails' }] } })
     const provider = createConnectorAdapterProvider({

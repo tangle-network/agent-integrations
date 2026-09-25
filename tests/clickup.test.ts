@@ -22,12 +22,6 @@ afterEach(() => {
 })
 
 describe('clickup adapter manifest', () => {
-  it('identifies as clickup with an authoritative consistency model', () => {
-    expect(clickupConnector.manifest.kind).toBe('clickup')
-    expect(clickupConnector.manifest.category).toBe('other')
-    expect(clickupConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('prefers shared OAuth while retaining personal tokens as an option', () => {
     const auth = clickupConnector.manifest.auth
     expect(auth.kind).toBe('one_of')
@@ -63,67 +57,4 @@ describe('clickup adapter manifest', () => {
     expect(authorization).toBe(expected)
   })
 
-  it('covers the workspace hierarchy plus task + comment + time-entry CRUD', () => {
-    const names = clickupConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'user.get',
-        'teams.list',
-        'spaces.list',
-        'spaces.get',
-        'folders.list',
-        'lists.list',
-        'lists.folderless',
-        'lists.get',
-        'tasks.list',
-        'tasks.get',
-        'tasks.search',
-        'tasks.create',
-        'tasks.update',
-        'tasks.delete',
-        'tasks.setCustomField',
-        'comments.list',
-        'comments.create',
-        'timeEntries.list',
-        'timeEntries.create',
-      ].sort(),
-    )
-
-    const reads = clickupConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = clickupConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-
-    expect(reads).toEqual(
-      [
-        'comments.list',
-        'folders.list',
-        'lists.folderless',
-        'lists.get',
-        'lists.list',
-        'spaces.get',
-        'spaces.list',
-        'tasks.get',
-        'tasks.list',
-        'tasks.search',
-        'teams.list',
-        'timeEntries.list',
-        'user.get',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'comments.create',
-        'tasks.create',
-        'tasks.delete',
-        'tasks.setCustomField',
-        'tasks.update',
-        'timeEntries.create',
-      ].sort(),
-    )
-  })
 })

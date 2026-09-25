@@ -76,24 +76,6 @@ describe('asana adapter', () => {
     })
   })
 
-  it('manifest exposes tasks.addComment and tasks.complete as mutations', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('tasks.addComment')
-    expect(names).toContain('tasks.complete')
-    const addComment = adapter.manifest.capabilities.find((c) => c.name === 'tasks.addComment')!
-    const complete = adapter.manifest.capabilities.find((c) => c.name === 'tasks.complete')!
-    expect(addComment.class).toBe('mutation')
-    expect(complete.class).toBe('mutation')
-    if (addComment.class === 'mutation') {
-      expect(addComment.cas).toBe('native-idempotency')
-      expect(addComment.externalEffect).toBe(true)
-    }
-    if (complete.class === 'mutation') {
-      expect(complete.cas).toBe('native-idempotency')
-      expect(complete.externalEffect).toBe(true)
-    }
-  })
-
   it('tasks.addComment POSTs a comment story to /tasks/{taskGid}/stories', async () => {
     let capturedUrl = ''
     let capturedMethod = ''

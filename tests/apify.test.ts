@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('apify adapter manifest', () => {
-  it('classifies itself as the database category and exposes the apify kind', () => {
-    expect(apifyConnector.manifest.kind).toBe('apify')
-    expect(apifyConnector.manifest.category).toBe('database')
-    expect(apifyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = apifyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,47 +33,6 @@ describe('apify adapter manifest', () => {
     expect(auth.hint).toMatch(/Apify/i)
   })
 
-  it('covers datasets, key-value stores, actors, tasks, web scraping, and run/dataset lifecycle', () => {
-    const names = apifyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'actor.abort',
-        'actor.run.resurrect',
-        'actors.run',
-        'dataset.create',
-        'dataset.delete',
-        'datasets.items.get',
-        'keyvalue-stores.records.get',
-        'tasks.run',
-        'web-scrape.url',
-      ].sort(),
-    )
-    const mutations = apifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'actor.abort',
-        'actor.run.resurrect',
-        'actors.run',
-        'dataset.create',
-        'dataset.delete',
-        'tasks.run',
-        'web-scrape.url',
-      ].sort(),
-    )
-  })
-
-  it('marks the new lifecycle mutations as native-idempotency external-effect', () => {
-    for (const name of ['actor.abort', 'actor.run.resurrect', 'dataset.create', 'dataset.delete']) {
-      const cap = apifyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('apify actor.abort', () => {

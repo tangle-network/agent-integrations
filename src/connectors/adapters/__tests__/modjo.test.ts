@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('modjo adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(modjoConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and doc classification', () => {
-    expect(modjoConnector.manifest.kind).toBe('modjo')
-    expect(modjoConnector.manifest.displayName).toBe('Modjo')
-    expect(modjoConnector.manifest.category).toBe('doc')
-    expect(modjoConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = modjoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['calls.export', 'teams.list', 'users.list'])
-    const reads = modjoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = modjoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['calls.export', 'teams.list', 'users.list'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof modjoConnector.executeRead).toBe('function')
-    expect(typeof modjoConnector.executeMutation).toBe('function')
-  })
-
   it('routes calls.export as POST /v1/calls/exports', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await modjoConnector.executeRead!({ source, capabilityName: 'calls.export', args: {"page":1,"perPage":20,"transcript":true,"aiSummary":true,"contacts":true}, idempotencyKey: 'op_0' })

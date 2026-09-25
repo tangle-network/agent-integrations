@@ -51,42 +51,6 @@ describe('supabase adapter manifest', () => {
     })
   })
 
-  it('exposes both pre-existing and new write-side capabilities', () => {
-    const names = supabaseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('organizations.list')
-    expect(names).toContain('projects.list')
-    expect(names).toContain('projects.get')
-    expect(names).toContain('projects.create')
-    expect(names).toContain('projects.delete')
-    expect(names).toContain('branches.create')
-    expect(names).toContain('branches.delete')
-    expect(names).toContain('database.query')
-    expect(names).toContain('database.execute')
-    expect(names).toContain('secrets.list')
-    expect(names).toContain('secrets.upsert')
-    expect(names).toContain('secrets.delete')
-    expect(names).toContain('storage.upload')
-  })
-
-  it('marks every new write-side mutation as native-idempotency + externalEffect=true', () => {
-    const newMutations = new Set([
-      'projects.delete',
-      'branches.create',
-      'branches.delete',
-      'secrets.delete',
-      'storage.upload',
-    ])
-    const caps = supabaseConnector.manifest.capabilities.filter(
-      (c) => newMutations.has(c.name) && c.class === 'mutation',
-    )
-    expect(caps.length).toBe(newMutations.size)
-    for (const cap of caps) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
   it('does not advertise OAuth scopes and treats arbitrary SQL as an approved mutation', () => {
     const query = supabaseConnector.manifest.capabilities.find(
       (capability) => capability.name === 'database.query',

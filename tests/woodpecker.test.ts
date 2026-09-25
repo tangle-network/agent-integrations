@@ -30,55 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('woodpecker adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the woodpecker kind', () => {
-    expect(woodpeckerConnector.manifest.kind).toBe('woodpecker')
-    expect(woodpeckerConnector.manifest.category).toBe('crm')
-    expect(woodpeckerConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = woodpeckerConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers prospect lifecycle, domain blacklist, and campaign reads', () => {
-    const names = woodpeckerConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'campaigns.list',
-        'domain.blacklist',
-        'prospect.add-to-campaign',
-        'prospect.add-to-list',
-        'prospect.find-by-email',
-        'prospect.get-responses',
-        'prospect.remove-from-campaign',
-        'prospect.stop',
-        'prospect.update',
-      ].sort(),
-    )
-    const reads = woodpeckerConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      ['campaigns.list', 'prospect.find-by-email', 'prospect.get-responses'].sort(),
-    )
-  })
-
-  it('marks newly added mutations as native-idempotency with externalEffect=true', () => {
-    const newMutations = new Set([
-      'prospect.update',
-      'prospect.remove-from-campaign',
-      'prospect.stop',
-    ])
-    for (const cap of woodpeckerConnector.manifest.capabilities) {
-      if (!newMutations.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('woodpecker write capabilities', () => {

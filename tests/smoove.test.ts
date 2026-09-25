@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('smoove adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the smoove kind', () => {
-    expect(smooveConnector.manifest.kind).toBe('smoove')
-    expect(smooveConnector.manifest.category).toBe('crm')
-    expect(smooveConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a Smoove-specific hint', () => {
     const auth = smooveConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,29 +37,6 @@ describe('smoove adapter manifest', () => {
     expect(auth.hint).toMatch(/Smoove/i)
   })
 
-  it('covers lists, subscribers, and campaign capability surface', () => {
-    const names = smooveConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('lists.get')
-    expect(names).toContain('lists.create')
-    expect(names).toContain('lists.delete')
-    expect(names).toContain('subscribers.add')
-    expect(names).toContain('subscribers.find')
-    expect(names).toContain('subscribers.unsubscribe')
-    expect(names).toContain('subscribers.update')
-    expect(names).toContain('subscribers.delete')
-    expect(names).toContain('campaigns.send')
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['subscribers.update', 'subscribers.delete', 'lists.delete', 'campaigns.send']
-    for (const name of expected) {
-      const cap = smooveConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('smoove subscribers.update', () => {

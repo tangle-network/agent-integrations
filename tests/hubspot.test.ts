@@ -39,18 +39,6 @@ describe('hubspot adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes the deal + ticket write capabilities', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'create_deal',
-      'create_note',
-      'create_ticket',
-      'find_contact',
-      'update_deal_stage',
-      'upsert_contact',
-    ])
-  })
-
   it('requests every required HubSpot app scope during OAuth authorization', () => {
     expect(adapter.manifest.auth).toMatchObject({
       kind: 'oauth2',

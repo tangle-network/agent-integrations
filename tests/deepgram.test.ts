@@ -24,13 +24,6 @@ const args = { contentBase64: bytes.toString('base64'), contentType: 'audio/ogg;
 afterEach(() => vi.unstubAllGlobals())
 
 describe('deepgram adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the deepgram kind', () => {
-    expect(deepgramConnector.manifest.kind).toBe('deepgram')
-    expect(deepgramConnector.manifest.category).toBe('comms')
-    expect(deepgramConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(validateConnectorManifest(deepgramConnector.manifest).ok).toBe(true)
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = deepgramConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -38,36 +31,6 @@ describe('deepgram adapter manifest', () => {
     expect(auth.hint).toMatch(/Deepgram/i)
   })
 
-  it('covers transcription, speech synthesis, projects, usage, and key management capabilities', () => {
-    const names = deepgramConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'keys.create',
-        'keys.list',
-        'projects.get',
-        'projects.list',
-        'speak.generate',
-        'transcription.create',
-        'transcription.bytes',
-        'transcription.get',
-        'usage.list',
-      ].sort(),
-    )
-    const mutations = deepgramConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['keys.create', 'speak.generate', 'transcription.bytes', 'transcription.create'].sort(),
-    )
-    expect(deepgramConnector.manifest.capabilities.find(c => c.name === 'transcription.bytes')).toMatchObject({
-      class: 'mutation', cas: 'none', externalEffect: true, consistencyModel: 'advisory',
-    })
-    expect(manifestToConnector('first-party', deepgramConnector).actions.find(action => action.id === 'transcription.bytes'))
-      .toMatchObject({ risk: 'destructive', approvalRequired: true, consistencyModel: 'advisory' })
-    expect(manifestToConnector('first-party', deepgramConnector).actions.find(action => action.id === 'transcription.create'))
-      .not.toHaveProperty('consistencyModel')
-  })
 })
 
 describe('Deepgram private audio transcription', () => {

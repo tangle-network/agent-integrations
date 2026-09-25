@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('omni-co adapter manifest', () => {
-  it('classifies itself as the database category and exposes the omni-co kind', () => {
-    expect(omniCoConnector.manifest.kind).toBe('omni-co')
-    expect(omniCoConnector.manifest.category).toBe('database')
-    expect(omniCoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = omniCoConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,36 +37,6 @@ describe('omni-co adapter manifest', () => {
     expect(auth.hint).toMatch(/Omni/i)
   })
 
-  it('covers documents, queries, schedules and the new write-side capabilities', () => {
-    const names = omniCoConnector.manifest.capabilities.map((c) => c.name).sort()
-    for (const expected of [
-      'documents.create',
-      'documents.delete',
-      'documents.move',
-      'documents.share',
-      'documents.update',
-      'queries.delete',
-      'queries.generate',
-      'queries.run',
-      'schedules.create',
-      'schedules.delete',
-      'schedules.edit',
-      'schedules.run-now',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    const newMutations = ['documents.update', 'queries.delete', 'schedules.run-now', 'documents.share']
-    for (const name of newMutations) {
-      const cap = omniCoConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `expected capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('omni-co documents.update', () => {

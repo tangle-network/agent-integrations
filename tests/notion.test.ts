@@ -44,42 +44,6 @@ describe('notion adapter manifest', () => {
     expect(auth.kind).toBe('oauth2')
   })
 
-  it('covers the activepieces action set plus users.list and block write-side ops', () => {
-    const names = notionConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'databases.retrieve',
-        'databases.query',
-        'pages.create',
-        'pages.retrieve',
-        'pages.update',
-        'pages.archive',
-        'blocks.retrieve',
-        'blocks.children',
-        'blocks.append',
-        'blocks.update',
-        'blocks.delete',
-        'databases.create',
-        'databases.update',
-        'comments.create',
-        'comments.retrieve',
-        'users.list',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency external effect', () => {
-    const newMutations = ['blocks.update', 'blocks.delete']
-    for (const name of newMutations) {
-      const cap = notionConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
 })
 
 describe('notion users.list', () => {

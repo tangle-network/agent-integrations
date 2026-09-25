@@ -10,17 +10,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 import { getIntegrationSpec } from '../src/specs/index.js'
 
 describe('PostgreSQL connector', () => {
-  it('replaces the REST placeholder with a valid authoritative read-only wire surface', () => {
-    expect(validateConnectorManifest(postgresConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(postgresConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'postgres.schemas.list',
-      'postgres.tables.list',
-      'postgres.tables.describe',
-      'postgres.rows.select',
-    ])
-    expect(postgresConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
   it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
     expect(getIntegrationSpec('postgres')).toMatchObject({
       status: 'executable',

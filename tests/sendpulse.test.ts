@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('sendpulse adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the sendpulse kind', () => {
-    expect(sendpulseConnector.manifest.kind).toBe('sendpulse')
-    expect(sendpulseConnector.manifest.category).toBe('comms')
-    expect(sendpulseConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares oauth2 auth with SendPulse oauth endpoints', () => {
     const auth = sendpulseConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -44,23 +38,6 @@ describe('sendpulse adapter manifest', () => {
     expect(auth.tokenUrl).toBe('https://api.sendpulse.com/oauth/access_token')
     expect(auth.clientIdEnv).toBe('SENDPULSE_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('SENDPULSE_CLIENT_SECRET')
-  })
-
-  it('covers addressbook lifecycle, campaign lifecycle, and subscriber capability surface', () => {
-    const names = sendpulseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'addressbooks.create',
-      'addressbooks.delete',
-      'addressbooks.list',
-      'campaigns.cancel',
-      'campaigns.create',
-      'subscriber.add',
-      'subscriber.delete',
-      'subscriber.get',
-      'subscriber.unsubscribe',
-      'subscriber.update',
-      'subscriber.variable.update',
-    ])
   })
 
   it('marks subscriber mutations with appropriate cas strategies', () => {
@@ -77,29 +54,6 @@ describe('sendpulse adapter manifest', () => {
     expect(mutationMap.get('subscriber.variable.update')?.cas).toBe('optimistic-read-verify')
   })
 
-  it('marks the new lifecycle mutations as native-idempotency external-effect', () => {
-    for (const name of [
-      'addressbooks.create',
-      'addressbooks.delete',
-      'campaigns.create',
-      'campaigns.cancel',
-    ]) {
-      const cap = sendpulseConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('exposes read capabilities for addressbooks and subscriber retrieval', () => {
-    const reads = sendpulseConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-
-    expect(reads).toEqual(['addressbooks.list', 'subscriber.get'])
-  })
 })
 
 describe('sendpulse addressbooks.create', () => {

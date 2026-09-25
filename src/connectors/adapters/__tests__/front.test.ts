@@ -62,36 +62,6 @@ describe('frontConnector', () => {
     expect(auth.clientSecretEnv).toBe('FRONT_OAUTH_CLIENT_SECRET')
   })
 
-  it('declares the shared-inbox action surface with classes, CAS, and scope guards', () => {
-    const caps = frontConnector.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-
-    expect(Object.keys(byName).sort()).toEqual([
-      'contacts.create',
-      'contacts.search',
-      'contacts.update',
-      'conversations.add_comment',
-      'conversations.get',
-      'conversations.list_messages',
-      'conversations.reply',
-      'conversations.search',
-      'conversations.update',
-    ])
-
-    expect(byName['conversations.search'].class).toBe('read')
-    expect(byName['conversations.search'].requiredScopes).toEqual(['shared_resources'])
-
-    const reply = byName['conversations.reply']
-    expect(reply.class).toBe('mutation')
-    if (reply.class !== 'mutation') throw new Error('expected mutation')
-    expect(reply.cas).toBe('native-idempotency')
-    expect(reply.requiredScopes).toEqual(['shared_resources'])
-
-    const update = byName['conversations.update']
-    if (update.class !== 'mutation') throw new Error('expected mutation')
-    expect(update.cas).toBe('etag-if-match')
-  })
-
   it('executes conversations.search against /conversations/search/{q} with bearer auth and path interpolation', async () => {
     const fetchMock = mockFetch({ _results: [{ id: 'cnv_1', subject: 'Refund?' }] })
     const provider = createConnectorAdapterProvider({

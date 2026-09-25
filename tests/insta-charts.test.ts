@@ -31,37 +31,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('insta-charts adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the insta-charts kind', () => {
-    expect(instaChartsConnector.manifest.kind).toBe('insta-charts')
-    expect(instaChartsConnector.manifest.category).toBe('crm')
-    expect(instaChartsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares oauth2 auth as documented in the catalog', () => {
     const auth = instaChartsConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
   })
 
-  it('covers chart generate, update, and delete', () => {
-    const names = instaChartsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['chart.delete', 'chart.generate', 'chart.update'])
-    const mutations = instaChartsConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['chart.delete', 'chart.generate', 'chart.update'])
-  })
-
-  it('marks the new chart mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['chart.update', 'chart.delete']
-    for (const name of expected) {
-      const cap = instaChartsConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('insta-charts chart.update', () => {

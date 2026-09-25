@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('airparser adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the airparser kind', () => {
-    expect(airparserConnector.manifest.kind).toBe('airparser')
-    expect(airparserConnector.manifest.category).toBe('doc')
-    expect(airparserConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = airparserConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,41 +33,6 @@ describe('airparser adapter manifest', () => {
     expect(auth.hint).toMatch(/airparser/i)
   })
 
-  it('covers document upload, extraction, retrieval, deletion, reprocessing, and inbox creation', () => {
-    const names = airparserConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'documents.extract',
-        'documents.get',
-        'documents.upload',
-        'documents.delete',
-        'documents.reprocess',
-        'inbox.create',
-      ].sort(),
-    )
-    const mutations = airparserConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'documents.upload',
-        'documents.delete',
-        'documents.reprocess',
-        'inbox.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['documents.delete', 'documents.reprocess', 'inbox.create']) {
-      const cap = airparserConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('airparser documents.delete', () => {

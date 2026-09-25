@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('sendgrid adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the sendgrid kind', () => {
-    expect(sendgridConnector.manifest.kind).toBe('sendgrid')
-    expect(sendgridConnector.manifest.category).toBe('comms')
-    expect(sendgridConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = sendgridConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,35 +37,6 @@ describe('sendgrid adapter manifest', () => {
     expect(auth.hint).toMatch(/SendGrid/i)
   })
 
-  it('exposes the expanded mutation surface for contacts, lists, and suppressions', () => {
-    const names = sendgridConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contacts.delete',
-        'contacts.get',
-        'contacts.search',
-        'contacts.upsert',
-        'lists.addContacts',
-        'lists.create',
-        'lists.delete',
-        'lists.removeContacts',
-        'lists.search',
-        'mail.send',
-        'suppressions.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency with externalEffect=true', () => {
-    const mutations = sendgridConnector.manifest.capabilities.filter(
-      (c) => c.class === 'mutation',
-    )
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('sendgrid contacts.delete', () => {

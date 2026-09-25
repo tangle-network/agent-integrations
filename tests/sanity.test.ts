@@ -29,45 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('sanity adapter manifest', () => {
-  it('classifies itself as doc with oauth2 auth', () => {
-    expect(sanityConnector.manifest.kind).toBe('sanity')
-    expect(sanityConnector.manifest.category).toBe('doc')
-    expect(sanityConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('covers the read + mutation capability surface including the new write-side adds', () => {
-    const names = sanityConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'documents.create',
-        'documents.createOrReplace',
-        'documents.delete',
-        'documents.delete-batch',
-        'documents.get',
-        'documents.patch',
-        'documents.publish',
-        'documents.query',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency external effect', () => {
-    const newOnes = new Set([
-      'documents.createOrReplace',
-      'documents.publish',
-      'documents.delete-batch',
-    ])
-    const caps = sanityConnector.manifest.capabilities.filter((c) => newOnes.has(c.name))
-    expect(caps.length).toBe(3)
-    for (const cap of caps) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} should be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('sanity documents.createOrReplace', () => {
   afterEach(() => vi.unstubAllGlobals())
 

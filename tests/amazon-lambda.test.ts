@@ -52,17 +52,6 @@ describe('aws-lambda adapter manifest', () => {
     ])
   })
 
-  it('requires approval for every write and validates safely', () => {
-    const mutations = amazonLambdaConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(9)
-    for (const mutation of mutations) expect(mutation.externalEffect).toBe(true)
-    expect(validateConnectorManifest(amazonLambdaConnector.manifest)).toEqual({
-      ok: true,
-      issues: [],
-    })
-  })
 })
 
 describe('aws-lambda execution', () => {

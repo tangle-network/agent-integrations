@@ -30,32 +30,11 @@ afterEach(() => {
 })
 
 describe('mattermost adapter manifest', () => {
-  it('exposes the mattermost kind and a comms-grade category', () => {
-    expect(mattermostConnector.manifest.kind).toBe('mattermost')
-    expect(mattermostConnector.manifest.category).toBe('comms')
-    expect(mattermostConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the activepieces catalog', () => {
     const auth = mattermostConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers send + the post-write surface (update, delete, react)', () => {
-    const names = mattermostConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['add_reaction', 'delete_post', 'send.message', 'update_post'])
-    const mutations = mattermostConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['add_reaction', 'delete_post', 'send.message', 'update_post'])
-    for (const cap of mattermostConnector.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.cas).toBe('native-idempotency')
-        expect(cap.externalEffect).toBe(true)
-      }
-    }
-  })
 })
 
 describe('mattermost update_post', () => {

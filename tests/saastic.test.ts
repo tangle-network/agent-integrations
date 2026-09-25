@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('saastic adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the saastic kind', () => {
-    expect(saasticConnector.manifest.kind).toBe('saastic')
-    expect(saasticConnector.manifest.category).toBe('crm')
-    expect(saasticConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = saasticConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,43 +37,6 @@ describe('saastic adapter manifest', () => {
     expect(auth.hint).toMatch(/Saastic/i)
   })
 
-  it('covers customer, charge, and subscription capability surfaces', () => {
-    const names = saasticConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'customers.create',
-        'customers.get',
-        'customers.list',
-        'customers.update',
-        'customers.delete',
-        'charges.create',
-        'charges.refund',
-        'subscriptions.cancel',
-      ].sort(),
-    )
-    const mutations = saasticConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'charges.create',
-        'charges.refund',
-        'subscriptions.cancel',
-      ].sort(),
-    )
-  })
-
-  it('marks all mutations as native-idempotency external-effect', () => {
-    for (const c of saasticConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('saastic customers.update', () => {

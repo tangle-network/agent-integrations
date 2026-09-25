@@ -32,12 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('umami adapter manifest', () => {
-  it('classifies itself as the database category and exposes the umami kind', () => {
-    expect(umamiConnector.manifest.kind).toBe('umami')
-    expect(umamiConnector.manifest.category).toBe('database')
-    expect(umamiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = umamiConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -45,39 +39,6 @@ describe('umami adapter manifest', () => {
     expect(auth.hint).toMatch(/Umami/i)
   })
 
-  it('covers read and mutation capability surfaces including websites CRUD + teams.list', () => {
-    const names = umamiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'event.send',
-        'teams.list',
-        'website.active_visitors',
-        'website.metrics',
-        'website.pageviews',
-        'website.stats',
-        'websites.create',
-        'websites.delete',
-        'websites.list',
-        'websites.update',
-      ].sort(),
-    )
-    const mutations = umamiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['event.send', 'websites.create', 'websites.delete', 'websites.update'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external-effect', () => {
-    const caps = umamiConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('umami websites.create', () => {

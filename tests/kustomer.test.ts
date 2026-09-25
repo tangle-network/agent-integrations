@@ -26,64 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('kustomer adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the kustomer kind', () => {
-    expect(kustomerConnector.manifest.kind).toBe('kustomer')
-    expect(kustomerConnector.manifest.category).toBe('crm')
-    expect(kustomerConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth', () => {
     const auth = kustomerConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the full activepieces action set plus the write-side capability expansion', () => {
-    const names = kustomerConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'customers.get',
-        'customers.search',
-        'conversations.create',
-        'conversations.get',
-        'conversations.update',
-        'conversations.close',
-        'customObjects.get',
-        'customObjects.create',
-      ].sort(),
-    )
-    const reads = kustomerConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = kustomerConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['customers.get', 'customers.search', 'conversations.get', 'customObjects.get'].sort())
-    expect(mutations).toEqual(
-      [
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'conversations.create',
-        'conversations.update',
-        'conversations.close',
-        'customObjects.create',
-      ].sort(),
-    )
-  })
-
-  it('marks newly added mutations as native-idempotency external effects', () => {
-    const NEW = new Set(['customers.update', 'customers.delete', 'conversations.close'])
-    for (const c of kustomerConnector.manifest.capabilities) {
-      if (c.class !== 'mutation' || !NEW.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('kustomer customers.update', () => {

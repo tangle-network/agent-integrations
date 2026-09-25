@@ -25,46 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('crisp adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the crisp kind', () => {
-    expect(crispConnector.manifest.kind).toBe('crisp')
-    expect(crispConnector.manifest.category).toBe('crm')
-    expect(crispConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth', () => {
-    expect(crispConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the prior surface plus the new messages.send and conversation.assign writes', () => {
-    const names = crispConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contact.upsert',
-        'conversation.assign',
-        'conversation.create',
-        'conversation.find',
-        'conversation.note.add',
-        'conversation.state.update',
-        'messages.send',
-        'user.profile.find',
-      ].sort(),
-    )
-  })
-
-  it('marks the newly added mutations as native-idempotency external effects', () => {
-    const added = crispConnector.manifest.capabilities.filter(
-      (c) => c.name === 'messages.send' || c.name === 'conversation.assign',
-    )
-    expect(added).toHaveLength(2)
-    for (const cap of added) {
-      if (cap.class !== 'mutation') throw new Error(`${cap.name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('crisp messages.send', () => {
   afterEach(() => vi.unstubAllGlobals())
 

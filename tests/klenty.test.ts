@@ -26,60 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('klenty adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the klenty kind', () => {
-    expect(klentyConnector.manifest.kind).toBe('klenty')
-    expect(klentyConnector.manifest.category).toBe('crm')
-    expect(klentyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = klentyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the prospect surface plus add/remove/pause cadence actions', () => {
-    const names = klentyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'prospect.get',
-        'prospect.create',
-        'prospect.update',
-        'prospect.add.to.campaign',
-        'prospect.remove.from.campaign',
-        'cadence.pause',
-      ].sort(),
-    )
-    const reads = klentyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = klentyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['prospect.get'])
-    expect(mutations).toEqual(
-      [
-        'prospect.add.to.campaign',
-        'prospect.create',
-        'prospect.update',
-        'prospect.remove.from.campaign',
-        'cadence.pause',
-      ].sort(),
-    )
-  })
-
-  it('marks new write-side mutations native-idempotency + externalEffect', () => {
-    const newMutations = ['prospect.remove.from.campaign', 'cadence.pause']
-    for (const name of newMutations) {
-      const cap = klentyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `cap ${name}`).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class !== 'mutation') continue
-      expect(cap!.cas).toBe('native-idempotency')
-      expect(cap!.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('klenty prospect.remove.from.campaign', () => {

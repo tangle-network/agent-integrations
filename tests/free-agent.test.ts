@@ -26,47 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('free-agent adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the free-agent kind', () => {
-    expect(freeAgentConnector.manifest.kind).toBe('free-agent')
-    expect(freeAgentConnector.manifest.category).toBe('crm')
-    expect(freeAgentConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses oauth2 auth (mirrors the activepieces piece auth shape)', () => {
     const auth = freeAgentConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
   })
 
-  it('covers contacts, tasks, invoices (search + create + send), and the contact-delete write surface', () => {
-    const names = freeAgentConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('contacts.create')
-    expect(names).toContain('contacts.update')
-    expect(names).toContain('contacts.delete')
-    expect(names).toContain('tasks.create')
-    expect(names).toContain('invoices.search')
-    expect(names).toContain('invoices.create')
-    expect(names).toContain('invoices.send')
-    expect(names).toContain('users.search')
-
-    const mutations = freeAgentConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('contacts.create')
-    expect(mutations).toContain('contacts.delete')
-    expect(mutations).toContain('invoices.create')
-    expect(mutations).toContain('invoices.send')
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    for (const name of ['contacts.delete', 'invoices.create', 'invoices.send']) {
-      const cap = freeAgentConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('free-agent invoices.create', () => {

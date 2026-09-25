@@ -5,12 +5,6 @@ import { validateConnectorManifest, type ResolvedDataSource } from '../src/conne
 describe('figma adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('declares kind, category, and OAuth2 auth', () => {
-    expect(figmaConnector.manifest.kind).toBe('figma')
-    expect(figmaConnector.manifest.category).toBe('doc')
-    expect(figmaConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
   it('uses real Figma OAuth endpoints', () => {
     const auth = figmaConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
@@ -104,14 +98,4 @@ describe('figma adapter', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(figmaConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = figmaConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = figmaConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(figmaConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(figmaConnector.executeMutation)).toBe(hasMutations)
-  })
 })

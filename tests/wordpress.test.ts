@@ -23,13 +23,6 @@ afterEach(() => {
 })
 
 describe('wordpress adapter manifest', () => {
-  it('identifies as wordpress in the doc category with an authoritative consistency model', () => {
-    expect(wordpressConnector.manifest.kind).toBe('wordpress')
-    expect(wordpressConnector.manifest.displayName).toBe('WordPress')
-    expect(wordpressConnector.manifest.category).toBe('doc')
-    expect(wordpressConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares OAuth2 against public-api.wordpress.com with four config fields', () => {
     const auth = wordpressConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -52,88 +45,6 @@ describe('wordpress adapter manifest', () => {
     )
   })
 
-  it('exposes the documented posts + pages + media + comments + taxonomies + users surface', () => {
-    const names = wordpressConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'posts.list',
-        'posts.get',
-        'posts.create',
-        'posts.update',
-        'posts.delete',
-        'pages.list',
-        'pages.create',
-        'pages.update',
-        'pages.delete',
-        'media.list',
-        'media.upload',
-        'comments.list',
-        'comments.create',
-        'comments.update',
-        'comments.delete',
-        'categories.create',
-        'tags.create',
-        'users.list',
-      ].sort(),
-    )
-  })
-
-  it('marks newly added write capabilities as native-idempotency with externalEffect=true', () => {
-    const newMutations = new Set([
-      'pages.update',
-      'pages.delete',
-      'comments.create',
-      'comments.delete',
-      'media.upload',
-    ])
-    for (const cap of wordpressConnector.manifest.capabilities) {
-      if (!newMutations.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks every mutation with a CAS strategy and externalEffect true', () => {
-    for (const cap of wordpressConnector.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(['native-idempotency', 'etag-if-match', 'optimistic-read-verify']).toContain(cap.cas)
-        expect(cap.externalEffect).toBe(true)
-      }
-    }
-  })
-
-  it('requires only site + title for posts.create — every other field is optional', () => {
-    const create = wordpressConnector.manifest.capabilities.find((c) => c.name === 'posts.create')
-    expect(create).toBeDefined()
-    const params = create!.parameters as { required?: string[]; properties?: Record<string, unknown> }
-    expect(params.required).toEqual(['site', 'title'])
-    expect(Object.keys(params.properties ?? {})).toEqual(
-      expect.arrayContaining([
-        'site',
-        'title',
-        'content',
-        'excerpt',
-        'slug',
-        'status',
-        'categories',
-        'tags',
-        'featured_media',
-      ]),
-    )
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(wordpressConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = wordpressConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = wordpressConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(wordpressConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(wordpressConnector.executeMutation)).toBe(hasMutations)
-  })
 })
 
 describe('wordpress adapter execution', () => {

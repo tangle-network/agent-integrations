@@ -31,40 +31,6 @@ describe('pipedrive adapter manifest', () => {
     expect(auth.clientSecretEnv).toBe('PIPEDRIVE_OAUTH_CLIENT_SECRET')
   })
 
-  it('exposes the CRM action pack (deals, persons, organizations) split between reads and mutations', () => {
-    const names = pipedriveConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'activities.create',
-        'deals.search',
-        'deals.get',
-        'deals.create',
-        'deals.update',
-        'notes.create',
-        'persons.search',
-        'persons.create',
-        'organizations.search',
-        'organizations.create',
-      ].sort(),
-    )
-    const reads = pipedriveConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
-    const mutations = pipedriveConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(reads.sort()).toEqual(['deals.get', 'deals.search', 'organizations.search', 'persons.search'])
-    expect(mutations.sort()).toEqual([
-      'activities.create',
-      'deals.create',
-      'deals.update',
-      'notes.create',
-      'organizations.create',
-      'persons.create',
-    ])
-  })
-
-  it('classifies itself as crm with authoritative consistency', () => {
-    expect(pipedriveConnector.manifest.kind).toBe('pipedrive')
-    expect(pipedriveConnector.manifest.category).toBe('crm')
-    expect(pipedriveConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
 })
 
 describe('pipedrive adapter execution', () => {

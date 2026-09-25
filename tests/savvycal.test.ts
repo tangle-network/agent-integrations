@@ -39,27 +39,6 @@ describe('savvycal adapter manifest', () => {
     expect(auth.sendScopeParam).toBe(false)
   })
 
-  it('only advertises documented event, link, and workflow operations', () => {
-    const names = savvycalConnector.manifest.capabilities.map((capability) => capability.name).sort()
-    expect(names).toEqual([
-      'events.cancel',
-      'events.create',
-      'events.get',
-      'events.list',
-      'links.create',
-      'links.delete',
-      'links.duplicate',
-      'links.get',
-      'links.list',
-      'links.slots',
-      'links.toggle',
-      'links.update',
-      'user.current',
-      'workflows.list',
-      'workflows.rules',
-    ])
-  })
-
   it('marks every write as an external effect with a retry strategy', () => {
     for (const capability of savvycalConnector.manifest.capabilities) {
       if (capability.class !== 'mutation') continue

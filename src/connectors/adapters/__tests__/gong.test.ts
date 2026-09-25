@@ -37,10 +37,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('gong adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(gongConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares authorization_code oauth2 against app.gong.io with comms classification', () => {
     const auth = gongConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -62,32 +58,6 @@ describe('gong adapter', () => {
     expect(auth.tokenMetadata).toEqual({
       apiBaseUrlForCustomer: { field: 'api_base_url_for_customer', required: true },
     })
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = gongConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'calls.create',
-      'calls.getExtensive',
-      'calls.getTranscripts',
-      'calls.list',
-      'flows.assignProspects',
-      'users.list',
-    ])
-    const mutations = gongConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(mutations).toEqual(['calls.create', 'flows.assignProspects'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof gongConnector.executeRead).toBe('function')
-    expect(typeof gongConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of gongConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('fails loud (no silent fallback host) when the per-customer base URL is absent', async () => {

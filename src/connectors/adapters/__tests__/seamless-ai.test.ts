@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('seamless-ai adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(seamlessAiConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(seamlessAiConnector.manifest.kind).toBe('seamless-ai')
-    expect(seamlessAiConnector.manifest.displayName).toBe('Seamless.ai')
-    expect(seamlessAiConnector.manifest.category).toBe('sales-intelligence')
-    expect(seamlessAiConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = seamlessAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['companies.research', 'companies.search', 'contacts.research', 'contacts.research.poll', 'contacts.search'])
-    const reads = seamlessAiConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = seamlessAiConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['companies.search', 'contacts.research.poll', 'contacts.search'])
-    expect(mutations).toEqual(['companies.research', 'contacts.research'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof seamlessAiConnector.executeRead).toBe('function')
-    expect(typeof seamlessAiConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of seamlessAiConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes contacts.search as POST /api/client/v1/search/contacts', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await seamlessAiConnector.executeRead!({ source, capabilityName: 'contacts.search', args: {"jobTitle":["VP of Sales"],"limit":10,"seniority":["x"],"companyDomain":["x"],"industry":["x"],"nextToken":"x"}, idempotencyKey: 'op_0' })

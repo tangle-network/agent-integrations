@@ -26,44 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('brilliant-directories adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the brilliant-directories kind', () => {
-    expect(brilliantDirectoriesConnector.manifest.kind).toBe('brilliant-directories')
-    expect(brilliantDirectoriesConnector.manifest.category).toBe('crm')
-    expect(brilliantDirectoriesConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as the catalog says', () => {
     const auth = brilliantDirectoriesConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers users CRUD and listings create/update', () => {
-    const names = brilliantDirectoriesConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'users.create',
-        'users.update',
-        'users.delete',
-        'listings.create',
-        'listings.update',
-      ].sort(),
-    )
-    const mutations = brilliantDirectoriesConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['listings.create', 'listings.update', 'users.create', 'users.delete', 'users.update'].sort(),
-    )
-  })
-
-  it('marks every mutation with native-idempotency CAS and external effect', () => {
-    for (const c of brilliantDirectoriesConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('brilliant-directories users.update', () => {

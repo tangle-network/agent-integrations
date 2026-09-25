@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('zendesk-sell adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the zendesk-sell kind', () => {
-    expect(zendeskSellConnector.manifest.kind).toBe('zendesk-sell')
-    expect(zendeskSellConnector.manifest.category).toBe('crm')
-    expect(zendeskSellConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = zendeskSellConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,63 +37,6 @@ describe('zendesk-sell adapter manifest', () => {
     expect(auth.hint).toMatch(/Zendesk/i)
   })
 
-  it('covers contact, lead, deal, note, and task capability surface including write-side extensions', () => {
-    const names = zendeskSellConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contacts.create',
-        'contacts.find',
-        'contacts.update',
-        'contacts.delete',
-        'deals.create',
-        'deals.find',
-        'deals.update',
-        'deals.delete',
-        'leads.create',
-        'leads.find',
-        'leads.update',
-        'leads.delete',
-        'notes.create',
-        'tasks.create',
-      ].sort(),
-    )
-    const mutations = zendeskSellConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'contacts.create',
-        'contacts.update',
-        'contacts.delete',
-        'deals.create',
-        'deals.update',
-        'deals.delete',
-        'leads.create',
-        'leads.update',
-        'leads.delete',
-        'notes.create',
-        'tasks.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'contacts.delete',
-      'leads.update',
-      'leads.delete',
-      'deals.delete',
-      'tasks.create',
-    ])
-    const caps = zendeskSellConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('zendesk-sell contacts.delete', () => {

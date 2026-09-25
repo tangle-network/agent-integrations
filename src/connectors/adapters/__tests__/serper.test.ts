@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('serper adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(serperConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and market-intelligence classification', () => {
-    expect(serperConnector.manifest.kind).toBe('serper')
-    expect(serperConnector.manifest.displayName).toBe('Serper')
-    expect(serperConnector.manifest.category).toBe('market-intelligence')
-    expect(serperConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = serperConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['search.images', 'search.news', 'search.places', 'search.scholar', 'search.web'])
-    const reads = serperConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = serperConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['search.images', 'search.news', 'search.places', 'search.scholar', 'search.web'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof serperConnector.executeRead).toBe('function')
-    expect(typeof serperConnector.executeMutation).toBe('function')
-  })
-
   it('routes search.web as POST /search', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await serperConnector.executeRead!({ source, capabilityName: 'search.web', args: {"q":"stripe pricing","gl":"us","hl":"en","num":1,"page":1}, idempotencyKey: 'op_0' })

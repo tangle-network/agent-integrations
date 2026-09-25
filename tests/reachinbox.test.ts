@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('reachinbox adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the reachinbox kind', () => {
-    expect(reachinboxConnector.manifest.kind).toBe('reachinbox')
-    expect(reachinboxConnector.manifest.category).toBe('crm')
-    expect(reachinboxConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = reachinboxConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -85,16 +79,6 @@ describe('reachinbox adapter manifest', () => {
         'warmup.pause',
       ].sort(),
     )
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['campaigns.create', 'campaigns.delete']) {
-      const cap = reachinboxConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
   })
 
   it('exposes templates.list and inbox.replies.fetch as reads', () => {

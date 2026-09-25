@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('theirstack adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(theirstackConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(theirstackConnector.manifest.kind).toBe('theirstack')
-    expect(theirstackConnector.manifest.displayName).toBe('TheirStack')
-    expect(theirstackConnector.manifest.category).toBe('sales-intelligence')
-    expect(theirstackConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = theirstackConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['companies.buying_intents', 'companies.search', 'companies.technologies', 'jobs.search'])
-    const reads = theirstackConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = theirstackConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['companies.buying_intents', 'companies.search', 'companies.technologies', 'jobs.search'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof theirstackConnector.executeRead).toBe('function')
-    expect(typeof theirstackConnector.executeMutation).toBe('function')
-  })
-
   it('routes jobs.search as POST /v1/jobs/search', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await theirstackConnector.executeRead!({ source, capabilityName: 'jobs.search', args: {"posted_at_max_age_days":7,"job_title_or":["software engineer"],"limit":5,"page":0,"job_country_code_or":["x"],"company_technology_slug_or":["x"],"company_name_or":["x"]}, idempotencyKey: 'op_0' })

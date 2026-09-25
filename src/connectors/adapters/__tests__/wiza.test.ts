@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('wiza adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(wizaConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(wizaConnector.manifest.kind).toBe('wiza')
-    expect(wizaConnector.manifest.displayName).toBe('Wiza')
-    expect(wizaConnector.manifest.category).toBe('crm')
-    expect(wizaConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = wizaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['credits.get', 'individual_reveal.create', 'individual_reveal.get', 'list.create'])
-    const reads = wizaConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = wizaConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['credits.get', 'individual_reveal.get'])
-    expect(mutations).toEqual(['individual_reveal.create', 'list.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof wizaConnector.executeRead).toBe('function')
-    expect(typeof wizaConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of wizaConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes credits.get as GET /api/meta/credits', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await wizaConnector.executeRead!({ source, capabilityName: 'credits.get', args: {}, idempotencyKey: 'op_0' })

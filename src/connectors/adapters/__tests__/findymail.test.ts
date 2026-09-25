@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('findymail adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(findymailConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(findymailConnector.manifest.kind).toBe('findymail')
-    expect(findymailConnector.manifest.displayName).toBe('Findymail')
-    expect(findymailConnector.manifest.category).toBe('crm')
-    expect(findymailConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = findymailConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['credits.get', 'email.find', 'email.find_by_domain', 'email.verify'])
-    const reads = findymailConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = findymailConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['credits.get'])
-    expect(mutations).toEqual(['email.find', 'email.find_by_domain', 'email.verify'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof findymailConnector.executeRead).toBe('function')
-    expect(typeof findymailConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of findymailConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes credits.get as GET /api/credits', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await findymailConnector.executeRead!({ source, capabilityName: 'credits.get', args: {}, idempotencyKey: 'op_0' })

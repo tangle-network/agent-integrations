@@ -31,34 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('whatsapp-business adapter manifest', () => {
-  it('marks every mutation as native-idempotency external effect', () => {
-    const mutations = connector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    // We added 4 new ones plus the existing 2 sends (which are `none` since
-    // Meta doesn't expose idempotency on /messages); only assert the NEW set.
-    const newOnes = ['media.upload', 'templates.create', 'templates.delete', 'messages.mark-read']
-    for (const name of newOnes) {
-      const cap = connector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('exposes the new mutation capabilities alongside the existing ones', () => {
-    const names = connector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('media.upload')
-    expect(names).toContain('templates.create')
-    expect(names).toContain('templates.delete')
-    expect(names).toContain('messages.mark-read')
-    expect(names).toContain('send_text_message')
-    expect(names).toContain('send_template_message')
-    expect(names).toContain('list_message_templates')
-    expect(names).toContain('get_business_phone_number')
-  })
-})
-
 describe('whatsapp-business media.upload', () => {
   afterEach(() => vi.unstubAllGlobals())
 

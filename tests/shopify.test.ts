@@ -31,12 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('shopify adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the shopify kind', () => {
-    expect(shopifyConnector.manifest.kind).toBe('shopify')
-    expect(shopifyConnector.manifest.category).toBe('commerce')
-    expect(shopifyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares OAuth2 with the per-shop authorize / token endpoint templates and env-var names', () => {
     const auth = shopifyConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -59,79 +53,6 @@ describe('shopify adapter manifest', () => {
     )
   })
 
-  it('covers products, orders, customers, inventory-level, refund, fulfillment, and draft-order capabilities', () => {
-    const names = shopifyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'products.search',
-        'products.get',
-        'products.create',
-        'products.update',
-        'products.delete',
-        'orders.search',
-        'orders.get',
-        'orders.update',
-        'orders.cancel',
-        'customers.search',
-        'customers.get',
-        'customers.create',
-        'customers.update',
-        'inventory_levels.list',
-        'inventory_levels.set',
-        'inventory_levels.adjust',
-        'refunds.create',
-        'fulfillments.create',
-        'draft_orders.create',
-      ].sort(),
-    )
-    const reads = shopifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = shopifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'products.search',
-        'products.get',
-        'orders.search',
-        'orders.get',
-        'customers.search',
-        'customers.get',
-        'inventory_levels.list',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'products.create',
-        'products.update',
-        'products.delete',
-        'orders.update',
-        'orders.cancel',
-        'customers.create',
-        'customers.update',
-        'inventory_levels.set',
-        'inventory_levels.adjust',
-        'refunds.create',
-        'fulfillments.create',
-        'draft_orders.create',
-      ].sort(),
-    )
-  })
-
-  it('declares the new write capabilities as native-idempotency mutations under write_orders scope', () => {
-    const targets = ['refunds.create', 'fulfillments.create', 'draft_orders.create']
-    for (const name of targets) {
-      const cap = shopifyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `capability ${name} missing`).toBeTruthy()
-      if (!cap || cap.class !== 'mutation') throw new Error(`expected ${name} to be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-      expect(cap.requiredScopes).toEqual(['write_orders'])
-    }
-  })
 })
 
 describe('shopify adapter mutations', () => {

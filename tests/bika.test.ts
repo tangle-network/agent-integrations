@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('bika adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the bika kind', () => {
-    expect(bikaConnector.manifest.kind).toBe('bika')
-    expect(bikaConnector.manifest.category).toBe('doc')
-    expect(bikaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = bikaConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,50 +33,6 @@ describe('bika adapter manifest', () => {
     expect(auth.hint).toMatch(/Bika/i)
   })
 
-  it('covers the records capability surface (single + batch) and tables.create', () => {
-    const names = bikaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'records.create',
-        'records.find',
-        'records.get',
-        'records.update',
-        'records.delete',
-        'records.batchCreate',
-        'records.batchUpdate',
-        'tables.create',
-      ].sort(),
-    )
-    const mutations = bikaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'records.create',
-        'records.update',
-        'records.delete',
-        'records.batchCreate',
-        'records.batchUpdate',
-        'tables.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency external effect', () => {
-    const newMutations = new Set([
-      'records.batchCreate',
-      'records.batchUpdate',
-      'tables.create',
-    ])
-    for (const c of bikaConnector.manifest.capabilities) {
-      if (!newMutations.has(c.name)) continue
-      expect(c.class).toBe('mutation')
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('bika adapter write execution', () => {

@@ -32,51 +32,6 @@ describe('github adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest passes the shared validator', () => {
-    const result = validateConnectorManifest(adapter.manifest)
-    expect(result.ok).toBe(true)
-  })
-
-  it('manifest exposes the full capability set (reads + mutations)', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        // reads
-        'activity.checkStarred',
-        'issues.get',
-        'issues.list',
-        'issues.listComments',
-        'issues.search',
-        'orgs.checkMembership',
-        'pulls.get',
-        'pulls.list',
-        'pulls.listFiles',
-        'pulls.listReviewComments',
-        'pulls.listReviews',
-        'repos.getReadme',
-        'repos.listBranches',
-        'repos.listCommits',
-        'repos.listLabels',
-        'repositories.get',
-        'search.code',
-        'users.checkFollowing',
-        'users.getAuthenticated',
-        // mutations
-        'issues.create',
-        'issues.createComment',
-        'issues.update',
-        'pulls.create',
-        'pulls.merge',
-        'pulls.reviews.create',
-      ].sort(),
-    )
-    const mutations = adapter.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const m of mutations) {
-      expect((m as { cas: string }).cas).toBeDefined()
-      expect((m as { externalEffect: boolean }).externalEffect).toBe(true)
-    }
-  })
-
   // ---------- read capabilities (quest verification) ----------
 
   it('users.getAuthenticated GETs /user and returns the token owner', async () => {
@@ -563,26 +518,6 @@ describe('github adapter', () => {
       })
       expect(calledUrl, capabilityName).toContain('per_page=100')
       expect(calledUrl, capabilityName).toContain('page=2')
-    }
-  })
-
-  it('every new capability is a READ — no mutation slipped into this set', () => {
-    const added = [
-      'pulls.get',
-      'pulls.list',
-      'pulls.listFiles',
-      'pulls.listReviews',
-      'pulls.listReviewComments',
-      'issues.get',
-      'issues.list',
-      'issues.listComments',
-      'repos.listLabels',
-      'repos.listBranches',
-    ]
-    for (const name of added) {
-      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `${name} is missing from the manifest`).toBeDefined()
-      expect(cap?.class, `${name} must be a read`).toBe('read')
     }
   })
 

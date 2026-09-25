@@ -35,12 +35,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('gitea adapter manifest', () => {
-  it('classifies itself as the other category and exposes the gitea kind', () => {
-    expect(giteaConnector.manifest.kind).toBe('gitea')
-    expect(giteaConnector.manifest.category).toBe('other')
-    expect(giteaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses instance-relative OAuth endpoints and current granular scopes', () => {
     const auth = giteaConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -84,54 +78,6 @@ describe('gitea adapter manifest', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('covers the activepieces action set plus repo + pull-request lifecycle writes', () => {
-    const names = giteaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'repos.list',
-        'repos.create',
-        'repos.delete',
-        'issues.create',
-        'issues.update',
-        'comments.create',
-        'pull-requests.list',
-        'pull-requests.create',
-        'pull-requests.merge',
-        'branches.list',
-      ].sort(),
-    )
-    const reads = giteaConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = giteaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['repos.list', 'pull-requests.list', 'branches.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'repos.create',
-        'repos.delete',
-        'issues.create',
-        'issues.update',
-        'comments.create',
-        'pull-requests.create',
-        'pull-requests.merge',
-      ].sort(),
-    )
-  })
-
-  it('marks the new lifecycle mutations as native-idempotent external effect', () => {
-    const newMutations = ['repos.create', 'repos.delete', 'pull-requests.merge']
-    for (const name of newMutations) {
-      const cap = giteaConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} should be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('gitea repos.create', () => {

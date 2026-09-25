@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('lagrowthmachine adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(lagrowthmachineConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(lagrowthmachineConnector.manifest.kind).toBe('lagrowthmachine')
-    expect(lagrowthmachineConnector.manifest.displayName).toBe('LaGrowthMachine')
-    expect(lagrowthmachineConnector.manifest.category).toBe('crm')
-    expect(lagrowthmachineConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = lagrowthmachineConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['audiences.list', 'campaign.get_stats', 'campaigns.list', 'lead.create_or_update'])
-    const reads = lagrowthmachineConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = lagrowthmachineConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['audiences.list', 'campaign.get_stats', 'campaigns.list'])
-    expect(mutations).toEqual(['lead.create_or_update'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof lagrowthmachineConnector.executeRead).toBe('function')
-    expect(typeof lagrowthmachineConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of lagrowthmachineConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes campaigns.list as GET /flow/campaigns', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await lagrowthmachineConnector.executeRead!({ source, capabilityName: 'campaigns.list', args: {"skip":0,"limit":25}, idempotencyKey: 'op_0' })

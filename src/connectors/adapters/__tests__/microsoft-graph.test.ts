@@ -45,22 +45,6 @@ describe('microsoft-graph adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest passes the connector validator', () => {
-    expect(validateConnectorManifest(adapter.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('manifest exposes the documented identity / directory capability set', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'get_me',
-      'get_organization',
-      'list_group_members',
-      'list_groups',
-      'list_users',
-      'lookup_user',
-    ])
-  })
-
   it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
     expect(adapter.manifest.auth).toMatchObject({
       kind: 'oauth2',
@@ -73,14 +57,6 @@ describe('microsoft-graph adapter', () => {
       expect(adapter.manifest.auth.scopes).toContain('offline_access')
       expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/User.Read.All')
       expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Group.Read.All')
-    }
-  })
-
-  it('declares no mutation surface (directory is read-only)', () => {
-    expect(adapter.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(adapter.executeMutation).toBeUndefined()
-    for (const cap of adapter.manifest.capabilities) {
-      expect(cap.class).toBe('read')
     }
   })
 

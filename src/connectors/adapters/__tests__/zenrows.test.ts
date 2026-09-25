@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('zenrows adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(zenrowsConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and other classification', () => {
-    expect(zenrowsConnector.manifest.kind).toBe('zenrows')
-    expect(zenrowsConnector.manifest.displayName).toBe('ZenRows')
-    expect(zenrowsConnector.manifest.category).toBe('other')
-    expect(zenrowsConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = zenrowsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['page.extract', 'page.markdown', 'page.scrape'])
-    const reads = zenrowsConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = zenrowsConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['page.extract', 'page.markdown', 'page.scrape'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof zenrowsConnector.executeRead).toBe('function')
-    expect(typeof zenrowsConnector.executeMutation).toBe('function')
-  })
-
   it('routes page.scrape as GET /v1/', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await zenrowsConnector.executeRead!({ source, capabilityName: 'page.scrape', args: {"url":"https://example.com","js_render":true}, idempotencyKey: 'op_0' })

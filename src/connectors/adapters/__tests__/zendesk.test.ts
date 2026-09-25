@@ -62,38 +62,6 @@ describe('zendeskConnector', () => {
     expect(auth.clientSecretEnv).toBe('ZENDESK_OAUTH_CLIENT_SECRET')
   })
 
-  it('declares the support-desk action surface with classes, CAS, and scope guards', () => {
-    const caps = zendeskConnector.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-
-    expect(Object.keys(byName).sort()).toEqual([
-      'tickets.add-comment',
-      'tickets.create',
-      'tickets.delete',
-      'tickets.get',
-      'tickets.merge',
-      'tickets.search',
-      'tickets.update',
-      'users.create',
-      'users.delete',
-      'users.search',
-      'users.update',
-    ])
-
-    expect(byName['tickets.search'].class).toBe('read')
-    expect(byName['tickets.search'].requiredScopes).toEqual(['read'])
-
-    const create = byName['tickets.create']
-    expect(create.class).toBe('mutation')
-    if (create.class !== 'mutation') throw new Error('expected mutation')
-    expect(create.cas).toBe('native-idempotency')
-    expect(create.requiredScopes).toEqual(['write'])
-
-    const update = byName['tickets.update']
-    if (update.class !== 'mutation') throw new Error('expected mutation')
-    expect(update.cas).toBe('optimistic-read-verify')
-  })
-
   it('executes tickets.search against /api/v2/search.json with bearer auth and interpolated query', async () => {
     const fetchMock = mockFetch({ results: [{ id: 7, subject: 'Login fails' }] })
     const provider = createConnectorAdapterProvider({

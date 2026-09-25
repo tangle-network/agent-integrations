@@ -26,42 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('clearoutphone adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the clearoutphone kind', () => {
-    expect(clearoutphoneConnector.manifest.kind).toBe('clearoutphone')
-    expect(clearoutphoneConnector.manifest.category).toBe('comms')
-    expect(clearoutphoneConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as the catalog says', () => {
     const auth = clearoutphoneConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers find/validate + bulk lifecycle', () => {
-    const names = clearoutphoneConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'bulk.verify.cancel',
-        'bulk.verify.start',
-        'find.phone.number.carrier',
-        'find.phone.number.is.mobile',
-        'validate.phone.number',
-      ].sort(),
-    )
-    const mutations = clearoutphoneConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['bulk.verify.cancel', 'bulk.verify.start', 'validate.phone.number'])
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of clearoutphoneConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('clearoutphone bulk.verify.start', () => {

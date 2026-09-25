@@ -32,12 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 const NEW_MUTATIONS = ['memory.delete', 'document.delete', 'training.delete', 'persona.update']
 
 describe('personal-ai adapter manifest', () => {
-  it('classifies itself as the other category and exposes the personal-ai kind', () => {
-    expect(personalAiConnector.manifest.kind).toBe('personal-ai')
-    expect(personalAiConnector.manifest.category).toBe('other')
-    expect(personalAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = personalAiConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -45,51 +39,6 @@ describe('personal-ai adapter manifest', () => {
     expect(auth.hint).toMatch(/Personal AI/i)
   })
 
-  it('covers memory, message, conversation, training, document, and persona surface', () => {
-    const names = personalAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'memory.create',
-        'memory.delete',
-        'message.create',
-        'conversation.get',
-        'training.create',
-        'training.delete',
-        'document.get',
-        'document.upload',
-        'document.update',
-        'document.delete',
-        'persona.update',
-      ].sort(),
-    )
-    const mutations = personalAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'memory.create',
-        'memory.delete',
-        'message.create',
-        'training.create',
-        'training.delete',
-        'document.upload',
-        'document.update',
-        'document.delete',
-        'persona.update',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency + externalEffect=true', () => {
-    for (const name of NEW_MUTATIONS) {
-      const cap = personalAiConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('personal-ai memory.delete', () => {

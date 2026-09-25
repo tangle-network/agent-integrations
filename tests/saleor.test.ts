@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('saleor adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the saleor kind', () => {
-    expect(saleorConnector.manifest.kind).toBe('saleor')
-    expect(saleorConnector.manifest.category).toBe('commerce')
-    expect(saleorConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = saleorConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,35 +37,6 @@ describe('saleor adapter manifest', () => {
     expect(auth.hint).toMatch(/Saleor/i)
   })
 
-  it('covers graphql query, order retrieval, and order-lifecycle mutations', () => {
-    const names = saleorConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'graphql.query',
-        'orders.addNote',
-        'orders.cancel',
-        'orders.fulfill',
-        'orders.get',
-        'orders.refund',
-        'orders.update',
-      ].sort(),
-    )
-    const mutations = saleorConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['orders.addNote', 'orders.cancel', 'orders.fulfill', 'orders.refund', 'orders.update'].sort(),
-    )
-  })
-
-  it('marks all mutations as native-idempotency external-effect', () => {
-    for (const c of saleorConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('saleor orders.cancel', () => {

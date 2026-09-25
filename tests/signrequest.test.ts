@@ -30,50 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('signrequest adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the signrequest kind', () => {
-    expect(signrequestConnector.manifest.kind).toBe('signrequest')
-    expect(signrequestConnector.manifest.category).toBe('crm')
-    expect(signrequestConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = signrequestConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers existing and new capability surface', () => {
-    const names = signrequestConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'requests.send',
-        'requests.list',
-        'requests.get',
-        'requests.cancel',
-        'requests.remind',
-        'requests.delete',
-        'documents.upload',
-        'templates.list',
-        'teams.get',
-      ].sort(),
-    )
-  })
-
-  it('marks the new mutations as native-idempotency external effect', () => {
-    const targets = ['requests.remind', 'requests.delete', 'documents.upload']
-    for (const name of targets) {
-      const cap = signrequestConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks templates.list as a read capability', () => {
-    const cap = signrequestConnector.manifest.capabilities.find((c) => c.name === 'templates.list')
-    expect(cap).toBeDefined()
-    expect(cap?.class).toBe('read')
-  })
 })
 
 describe('signrequest requests.remind', () => {

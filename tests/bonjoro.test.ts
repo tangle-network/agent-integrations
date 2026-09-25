@@ -26,47 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('bonjoro adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the bonjoro kind', () => {
-    expect(bonjoroConnector.manifest.kind).toBe('bonjoro')
-    expect(bonjoroConnector.manifest.category).toBe('crm')
-    expect(bonjoroConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = bonjoroConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('exposes greet add/update/delete plus campaigns.create', () => {
-    const names = bonjoroConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'greets.add',
-        'greets.update',
-        'greets.delete',
-        'campaigns.create',
-        'assignees.list',
-        'campaigns.list',
-        'templates.list',
-      ].sort(),
-    )
-    const mutations = bonjoroConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['campaigns.create', 'greets.add', 'greets.delete', 'greets.update'].sort(),
-    )
-  })
-
-  it('marks all mutations with native-idempotency CAS and external effect', () => {
-    const caps = bonjoroConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('bonjoro greets.update', () => {

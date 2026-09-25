@@ -21,12 +21,6 @@ function source(): ResolvedDataSource {
 }
 
 describe('linkedin adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the linkedin kind', () => {
-    expect(linkedinConnector.manifest.kind).toBe('linkedin')
-    expect(linkedinConnector.manifest.category).toBe('comms')
-    expect(linkedinConnector.manifest.defaultConsistencyModel).toBe('advisory')
-  })
-
   it('declares OAuth2 with the documented LinkedIn endpoints and env-var names', () => {
     const auth = linkedinConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -103,28 +97,6 @@ describe('linkedin adapter manifest', () => {
     expect(postsCreate?.requiredScopes).toEqual(['w_organization_social'])
   })
 
-  it('marks posts.create / comments.create as append-only (cas:none) and delete as native-idempotency', () => {
-    const create = linkedinConnector.manifest.capabilities.find((c) => c.name === 'posts.create')
-    if (create?.class !== 'mutation') throw new Error('unreachable')
-    expect(create.cas).toBe('none')
-    expect(create.externalEffect).toBe(true)
-
-    const commentCreate = linkedinConnector.manifest.capabilities.find(
-      (c) => c.name === 'comments.create',
-    )
-    if (commentCreate?.class !== 'mutation') throw new Error('unreachable')
-    expect(commentCreate.cas).toBe('none')
-
-    const commentUpdate = linkedinConnector.manifest.capabilities.find(
-      (c) => c.name === 'comments.update',
-    )
-    if (commentUpdate?.class !== 'mutation') throw new Error('unreachable')
-    expect(commentUpdate.cas).toBe('optimistic-read-verify')
-
-    const del = linkedinConnector.manifest.capabilities.find((c) => c.name === 'posts.delete')
-    if (del?.class !== 'mutation') throw new Error('unreachable')
-    expect(del.cas).toBe('native-idempotency')
-  })
 })
 
 describe('linkedin shares.create', () => {

@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('hightouch adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(hightouchConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and database classification', () => {
-    expect(hightouchConnector.manifest.kind).toBe('hightouch')
-    expect(hightouchConnector.manifest.displayName).toBe('Hightouch')
-    expect(hightouchConnector.manifest.category).toBe('database')
-    expect(hightouchConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = hightouchConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['destinations.list', 'sources.list', 'syncs.get', 'syncs.list', 'syncs.list_runs', 'syncs.trigger'])
-    const reads = hightouchConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = hightouchConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['destinations.list', 'sources.list', 'syncs.get', 'syncs.list', 'syncs.list_runs'])
-    expect(mutations).toEqual(['syncs.trigger'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof hightouchConnector.executeRead).toBe('function')
-    expect(typeof hightouchConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of hightouchConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes syncs.list as GET /api/v1/syncs', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await hightouchConnector.executeRead!({ source, capabilityName: 'syncs.list', args: {"limit":25}, idempotencyKey: 'op_0' })

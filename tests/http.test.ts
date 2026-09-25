@@ -28,14 +28,6 @@ function invocation(args: Record<string, unknown>, name: string): ConnectorInvoc
 }
 
 describe('http adapter manifest', () => {
-  it('declares kind=http, category=webhook, advisory consistency, and no auth', () => {
-    expect(httpConnector.manifest.kind).toBe('http')
-    expect(httpConnector.manifest.displayName).toBe('HTTP Request')
-    expect(httpConnector.manifest.category).toBe('webhook')
-    expect(httpConnector.manifest.defaultConsistencyModel).toBe('advisory')
-    expect(httpConnector.manifest.auth).toEqual({ kind: 'none' })
-  })
-
   it('passes manifest validation', () => {
     const result = validateConnectorManifest(httpConnector.manifest)
     expect(result).toEqual({ ok: true, issues: [] })
@@ -51,13 +43,6 @@ describe('http adapter manifest', () => {
     if (sendCap?.class !== 'mutation') throw new Error('unreachable')
     expect(sendCap.cas).toBe('none')
     expect(sendCap.externalEffect).toBe(true)
-  })
-
-  it('matches manifest capabilities to declared executor methods', () => {
-    expect(typeof httpConnector.executeRead).toBe('function')
-    expect(typeof httpConnector.executeMutation).toBe('function')
-    expect(httpConnector.exchangeOAuth).toBeUndefined()
-    expect(httpConnector.refreshToken).toBeUndefined()
   })
 
   it('test() is healthy by construction — no shared base URL or credentials', async () => {

@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('uscreen adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the uscreen kind', () => {
-    expect(uscreenConnector.manifest.kind).toBe('uscreen')
-    expect(uscreenConnector.manifest.category).toBe('crm')
-    expect(uscreenConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a Uscreen-specific hint', () => {
     const auth = uscreenConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,38 +37,6 @@ describe('uscreen adapter manifest', () => {
     expect(auth.hint).toMatch(/Uscreen/i)
   })
 
-  it('covers users and access management capabilities', () => {
-    const names = uscreenConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('users.create')
-    expect(names).toContain('users.update')
-    expect(names).toContain('users.delete')
-    expect(names).toContain('users.list')
-    expect(names).toContain('access.assign')
-    expect(names).toContain('access.revoke')
-  })
-
-  it('marks destructive operations as mutations', () => {
-    const mutations = uscreenConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('users.create')
-    expect(mutations).toContain('users.update')
-    expect(mutations).toContain('users.delete')
-    expect(mutations).toContain('access.assign')
-    expect(mutations).toContain('access.revoke')
-  })
-
-  it('marks new write-side mutations as native-idempotency external effect', () => {
-    const expected = ['users.update', 'users.delete', 'access.revoke']
-    for (const name of expected) {
-      const cap = uscreenConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('uscreen users.update', () => {

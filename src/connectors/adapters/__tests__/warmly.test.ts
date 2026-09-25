@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('warmly adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(warmlyConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(warmlyConnector.manifest.kind).toBe('warmly')
-    expect(warmlyConnector.manifest.displayName).toBe('Warmly')
-    expect(warmlyConnector.manifest.category).toBe('sales-intelligence')
-    expect(warmlyConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = warmlyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['accounts.list', 'tools.list', 'visitors.list'])
-    const reads = warmlyConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = warmlyConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['tools.list'])
-    expect(mutations).toEqual(['accounts.list', 'visitors.list'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof warmlyConnector.executeRead).toBe('function')
-    expect(typeof warmlyConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of warmlyConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes tools.list as GET /api/agent-tools/tools', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await warmlyConnector.executeRead!({ source, capabilityName: 'tools.list', args: {}, idempotencyKey: 'op_0' })

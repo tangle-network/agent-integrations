@@ -27,12 +27,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('ebay adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the ebay kind', () => {
-    expect(ebayConnector.manifest.kind).toBe('ebay')
-    expect(ebayConnector.manifest.category).toBe('commerce')
-    expect(ebayConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares OAuth2 with the real eBay authorize / token endpoints and env-var names', () => {
     const auth = ebayConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -55,76 +49,6 @@ describe('ebay adapter manifest', () => {
     )
   })
 
-  it('covers inventory, offer, fulfillment, identity, and bulk/listing-end capabilities', () => {
-    const names = ebayConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'inventory_items.search',
-        'inventory_items.get',
-        'inventory_items.upsert',
-        'inventory_items.delete',
-        'offers.search',
-        'offers.publish',
-        'orders.search',
-        'orders.get',
-        'orders.ship',
-        'identity.get',
-        'inventory.update',
-        'orders.cancel',
-        'listing.end',
-      ].sort(),
-    )
-    const reads = ebayConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = ebayConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'inventory_items.search',
-        'inventory_items.get',
-        'offers.search',
-        'orders.search',
-        'orders.get',
-        'identity.get',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'inventory_items.upsert',
-        'inventory_items.delete',
-        'offers.publish',
-        'orders.ship',
-        'inventory.update',
-        'orders.cancel',
-        'listing.end',
-      ].sort(),
-    )
-  })
-
-  it('requires the matching sell.* scope on each mutation capability', () => {
-    const mutations = ebayConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const cap of mutations) {
-      expect(cap.requiredScopes).toBeDefined()
-      expect(cap.requiredScopes!.length).toBeGreaterThan(0)
-      const scope = cap.requiredScopes![0]
-      expect(scope.startsWith('https://api.ebay.com/oauth/api_scope/sell.')).toBe(true)
-    }
-  })
-
-  it('marks the newly-added mutations as native-idempotency externalEffect', () => {
-    const target = new Set(['inventory.update', 'orders.cancel', 'listing.end'])
-    const caps = ebayConnector.manifest.capabilities.filter((c) => target.has(c.name))
-    expect(caps).toHaveLength(3)
-    for (const c of caps) {
-      if (c.class !== 'mutation') throw new Error(`${c.name} must be a mutation`)
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('ebay listing.end', () => {

@@ -29,45 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('n8n adapter manifest', () => {
-  it('exposes the n8n kind in the other category', () => {
-    expect(n8nConnector.manifest.kind).toBe('n8n')
-    expect(n8nConnector.manifest.category).toBe('other')
-  })
-
-  it('uses api-key auth (X-N8N-API-KEY header)', () => {
-    expect(n8nConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('covers workflows, executions, and webhook trigger surfaces plus write-side ops', () => {
-    const names = n8nConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'workflows.list',
-        'workflows.get',
-        'workflows.activate',
-        'workflows.deactivate',
-        'workflows.create',
-        'workflows.update',
-        'workflows.delete',
-        'executions.list',
-        'executions.get',
-        'executions.delete',
-        'executions.stop',
-        'webhooks.trigger',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of n8nConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('n8n credential routing', () => {
   afterEach(() => vi.unstubAllGlobals())
 

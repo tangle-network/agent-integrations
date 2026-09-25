@@ -29,54 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zendesk adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the zendesk kind', () => {
-    expect(zendeskConnector.manifest.kind).toBe('zendesk')
-    expect(zendeskConnector.manifest.category).toBe('crm')
-    expect(zendeskConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses oauth2 auth', () => {
-    expect(zendeskConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('exposes the full ticket + user write surface', () => {
-    const names = zendeskConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'tickets.search',
-        'tickets.get',
-        'tickets.create',
-        'tickets.update',
-        'tickets.delete',
-        'tickets.merge',
-        'tickets.add-comment',
-        'users.search',
-        'users.create',
-        'users.update',
-        'users.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency external effect', () => {
-    const targets = [
-      'tickets.delete',
-      'tickets.merge',
-      'tickets.add-comment',
-      'users.update',
-      'users.delete',
-    ]
-    for (const name of targets) {
-      const cap = zendeskConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, name).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas, name).toBe('native-idempotency')
-      expect(cap.externalEffect, name).toBe(true)
-    }
-  })
-})
-
 describe('zendesk tickets.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 

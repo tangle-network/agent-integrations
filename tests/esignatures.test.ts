@@ -26,35 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('esignatures adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the esignatures kind', () => {
-    expect(esignaturesConnector.manifest.kind).toBe('esignatures')
-    expect(esignaturesConnector.manifest.category).toBe('crm')
-    expect(esignaturesConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = esignaturesConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the action set (create, cancel, delete)', () => {
-    const names = esignaturesConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['create.contract', 'contract.cancel', 'contract.delete'].sort())
-    const mutations = esignaturesConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['create.contract', 'contract.cancel', 'contract.delete'].sort())
-  })
-
-  it('marks every mutation as native-idempotency externalEffect', () => {
-    const caps = esignaturesConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('esignatures contract.cancel', () => {

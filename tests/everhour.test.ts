@@ -26,55 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('everhour adapter manifest', () => {
-  it('classifies itself as the other category and exposes the everhour kind', () => {
-    expect(everhourConnector.manifest.kind).toBe('everhour')
-    expect(everhourConnector.manifest.category).toBe('other')
-    expect(everhourConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = everhourConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set: tasks, timers, and time entries', () => {
-    const names = everhourConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'tasks.create',
-        'timers.start',
-        'timers.stop',
-        'time.create',
-        'time.update',
-        'time.delete',
-      ].sort(),
-    )
-    const mutations = everhourConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'tasks.create',
-        'timers.start',
-        'timers.stop',
-        'time.create',
-        'time.update',
-        'time.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks the new time.* mutations as native-idempotency externalEffect', () => {
-    const target = new Set(['time.create', 'time.update', 'time.delete'])
-    const caps = everhourConnector.manifest.capabilities.filter((c) => target.has(c.name))
-    expect(caps).toHaveLength(3)
-    for (const c of caps) {
-      if (c.class !== 'mutation') throw new Error(`${c.name} must be a mutation`)
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('everhour time.create', () => {

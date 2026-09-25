@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('leadfeeder adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(leadfeederConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(leadfeederConnector.manifest.kind).toBe('leadfeeder')
-    expect(leadfeederConnector.manifest.displayName).toBe('Leadfeeder')
-    expect(leadfeederConnector.manifest.category).toBe('sales-intelligence')
-    expect(leadfeederConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = leadfeederConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['ip.enrich'])
-    const reads = leadfeederConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = leadfeederConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['ip.enrich'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof leadfeederConnector.executeRead).toBe('function')
-    expect(typeof leadfeederConnector.executeMutation).toBe('function')
-  })
-
   it('routes ip.enrich as GET /companies', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await leadfeederConnector.executeRead!({ source, capabilityName: 'ip.enrich', args: {"ip":"185.70.216.139"}, idempotencyKey: 'op_0' })

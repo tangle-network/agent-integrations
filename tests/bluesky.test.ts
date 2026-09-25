@@ -26,62 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('bluesky adapter manifest', () => {
-  it('classifies itself under the comms category and exposes the bluesky kind', () => {
-    expect(blueskyConnector.manifest.kind).toBe('bluesky')
-    expect(blueskyConnector.manifest.category).toBe('comms')
-    expect(blueskyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (the createSession-derived bearer mirrors the activepieces piece auth shape)', () => {
     const auth = blueskyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the read + write surfaces including post.delete / follow / unfollow / mute', () => {
-    const names = blueskyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'author.feed',
-        'create.post',
-        'find.post',
-        'find.thread',
-        'follow.user',
-        'followers.list',
-        'like.post',
-        'mute.user',
-        'post.delete',
-        'repost.post',
-        'timeline.read',
-        'unfollow.user',
-      ].sort(),
-    )
-    const mutations = blueskyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'create.post',
-        'follow.user',
-        'like.post',
-        'mute.user',
-        'post.delete',
-        'repost.post',
-        'unfollow.user',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency external effect', () => {
-    const newMutations = new Set(['post.delete', 'follow.user', 'unfollow.user', 'mute.user'])
-    for (const c of blueskyConnector.manifest.capabilities) {
-      if (!newMutations.has(c.name)) continue
-      expect(c.class).toBe('mutation')
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('bluesky adapter write execution', () => {

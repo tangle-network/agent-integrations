@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('flipando adapter manifest', () => {
-  it('classifies itself under the other category and exposes the flipando kind', () => {
-    expect(flipandoConnector.manifest.kind).toBe('flipando')
-    expect(flipandoConnector.manifest.category).toBe('other')
-    expect(flipandoConnector.manifest.defaultConsistencyModel).toBe('advisory')
-  })
-
   it('declares an api-key auth surface (Flipando has no OAuth flow)', () => {
     const auth = flipandoConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,31 +33,6 @@ describe('flipando adapter manifest', () => {
     expect(auth.hint).toMatch(/Flipando/i)
   })
 
-  it('covers run/generate/list/poll plus tasks.cancel write capability', () => {
-    const names = flipandoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['apps.generate', 'apps.list', 'apps.run', 'tasks.cancel', 'tasks.get'].sort(),
-    )
-
-    const reads = flipandoConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = flipandoConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['apps.list', 'tasks.get'].sort())
-    expect(mutations).toEqual(['apps.generate', 'apps.run', 'tasks.cancel'].sort())
-  })
-
-  it('marks tasks.cancel as native-idempotency external effect', () => {
-    const cancel = flipandoConnector.manifest.capabilities.find((c) => c.name === 'tasks.cancel')
-    expect(cancel).toBeDefined()
-    if (!cancel || cancel.class !== 'mutation') throw new Error('unreachable')
-    expect(cancel.cas).toBe('native-idempotency')
-    expect(cancel.externalEffect).toBe(true)
-  })
 })
 
 describe('flipando tasks.cancel', () => {

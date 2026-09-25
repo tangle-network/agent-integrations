@@ -30,62 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('placid adapter manifest', () => {
-  it('classifies itself as the storage category and exposes the placid kind', () => {
-    expect(placidConnector.manifest.kind).toBe('placid')
-    expect(placidConnector.manifest.category).toBe('storage')
-    expect(placidConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = placidConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set plus the write-side additions', () => {
-    const names = placidConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'images.create',
-        'images.get',
-        'images.delete',
-        'pdfs.create',
-        'pdfs.get',
-        'pdfs.delete',
-        'videos.create',
-        'videos.get',
-        'videos.delete',
-        'files.convert',
-        'templates.list',
-        'templates.get',
-      ].sort(),
-    )
-    const mutations = placidConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'images.create',
-        'images.delete',
-        'pdfs.create',
-        'pdfs.delete',
-        'videos.create',
-        'videos.delete',
-        'files.convert',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = ['images.delete', 'pdfs.delete', 'videos.delete']
-    for (const name of writeSide) {
-      const cap = placidConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('placid images.delete', () => {

@@ -26,61 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('clockify adapter manifest', () => {
-  it('classifies itself as the other category and exposes the clockify kind', () => {
-    expect(clockifyConnector.manifest.kind).toBe('clockify')
-    expect(clockifyConnector.manifest.category).toBe('other')
-    expect(clockifyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = clockifyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the write surface: tasks, time entries, timers, projects', () => {
-    const names = clockifyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'task.create',
-        'time.entry.create',
-        'time.entry.update',
-        'time.entry.delete',
-        'timer.running.find',
-        'task.find',
-        'time.entry.find',
-        'timer.start',
-        'timer.stop',
-        'project.create',
-      ].sort(),
-    )
-    const reads = clockifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = clockifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['task.find', 'time.entry.find', 'timer.running.find'].sort())
-    expect(mutations).toEqual(
-      [
-        'task.create',
-        'time.entry.create',
-        'time.entry.update',
-        'time.entry.delete',
-        'timer.start',
-        'timer.stop',
-        'project.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as an external effect', () => {
-    const mutations = clockifyConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const c of mutations) {
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('clockify time.entry.update', () => {

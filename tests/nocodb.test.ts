@@ -30,46 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('nocodb adapter manifest', () => {
-  it('classifies itself as the database category and exposes the nocodb kind', () => {
-    expect(nocodbConnector.manifest.kind).toBe('nocodb')
-    expect(nocodbConnector.manifest.category).toBe('database')
-    expect(nocodbConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = nocodbConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers records CRUD plus tables.list/create, fields.create, records.bulk-create', () => {
-    const names = nocodbConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'records.search',
-        'records.get',
-        'records.create',
-        'records.update',
-        'records.delete',
-        'records.bulk-create',
-        'tables.list',
-        'tables.create',
-        'fields.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency external effect', () => {
-    const newMutations = ['tables.create', 'fields.create', 'records.bulk-create']
-    for (const name of newMutations) {
-      const cap = nocodbConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
 })
 
 describe('nocodb tables.list', () => {

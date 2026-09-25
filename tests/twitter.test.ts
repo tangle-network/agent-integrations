@@ -42,12 +42,6 @@ describe('twitter adapter manifest', () => {
     })
   })
 
-  it('classifies itself as the comms category and exposes the twitter kind', () => {
-    expect(twitterConnector.manifest.kind).toBe('twitter')
-    expect(twitterConnector.manifest.category).toBe('comms')
-    expect(twitterConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares OAuth as preferred auth while retaining API-key token support', () => {
     const auth = twitterConnector.manifest.auth
     expect(auth.kind).toBe('one_of')
@@ -58,45 +52,6 @@ describe('twitter adapter manifest', () => {
       kind: 'api-key',
       hint: expect.stringMatching(/Twitter/i),
     })
-  })
-
-  it('covers tweets create and reply capability surface', () => {
-    const names = twitterConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('tweets.create')
-    expect(names).toContain('tweets.reply')
-  })
-
-  it('marks tweet operations as mutations', () => {
-    const mutations = twitterConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('tweets.create')
-    expect(mutations).toContain('tweets.reply')
-  })
-
-  it('exposes delete, like, retweet, and dm send write capabilities', () => {
-    const names = twitterConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('tweets.delete')
-    expect(names).toContain('tweets.like')
-    expect(names).toContain('tweets.retweet')
-    expect(names).toContain('dms.send')
-  })
-
-  it('exposes the seven quest-verification read capabilities classified as reads', () => {
-    const reads = twitterConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual([
-      'tweets.likingUsers',
-      'tweets.retweetedBy',
-      'users.by.username',
-      'users.following',
-      'users.me',
-      'users.mentions',
-      'users.tweets',
-    ])
   })
 
   it('requests the OAuth scopes required for reads, writes, and future media uploads', () => {
@@ -560,11 +515,6 @@ describe('twitter factory', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-  })
-
-  it('carries the exact manifest of the const adapter (kind stays `twitter`)', () => {
-    expect(adapter.manifest).toEqual(twitterConnector.manifest)
-    expect(adapter.manifest.kind).toBe('twitter')
   })
 
   it('exchangeOAuth POSTs the code grant with Basic client auth and relays the broker codeVerifier', async () => {

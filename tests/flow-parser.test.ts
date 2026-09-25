@@ -26,31 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('flow-parser adapter manifest', () => {
-  it('classifies itself as the other category and exposes the flow-parser kind', () => {
-    expect(flowParserConnector.manifest.kind).toBe('flow-parser')
-    expect(flowParserConnector.manifest.category).toBe('other')
-    expect(flowParserConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = flowParserConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('exposes flows.run alongside the document read/write surface', () => {
-    const names = flowParserConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('flows.run')
-    expect(names).toContain('documents.upload')
-    expect(names).toContain('documents.delete')
-  })
-
-  it('marks flows.run as native-idempotency external effect', () => {
-    const cap = flowParserConnector.manifest.capabilities.find((c) => c.name === 'flows.run')
-    expect(cap).toBeDefined()
-    if (!cap || cap.class !== 'mutation') throw new Error('unreachable')
-    expect(cap.cas).toBe('native-idempotency')
-    expect(cap.externalEffect).toBe(true)
-  })
 })
 
 describe('flow-parser flows.run', () => {

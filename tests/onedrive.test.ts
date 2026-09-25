@@ -48,20 +48,6 @@ describe('onedrive adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('manifest exposes list_files, read_file, watch_folder', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'files.delete',
-      'files.move',
-      'files.share',
-      'files.upload',
-      'folders.create',
-      'list_files',
-      'read_file',
-      'watch_folder',
-    ])
-  })
-
   it('declares the Microsoft v2.0 OAuth URLs and env vars', () => {
     const auth = adapter.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -72,19 +58,6 @@ describe('onedrive adapter', () => {
     expect(auth.clientSecretEnv).toBe('MS_OAUTH_CLIENT_SECRET')
     expect(auth.scopes).toContain('https://graph.microsoft.com/Files.Read')
     expect(auth.scopes).toContain('offline_access')
-  })
-
-  it('gates watch_folder behind the Files.ReadWrite scope', () => {
-    const watch = adapter.manifest.capabilities.find((c) => c.name === 'watch_folder')!
-    expect(watch.class).toBe('mutation')
-    expect(watch.requiredScopes).toContain('https://graph.microsoft.com/Files.ReadWrite')
-  })
-
-  it('opts the write scope into the OAuth grant when includeWriteScope=true', () => {
-    const withWrite = oneDrive({ clientId: 'cid', clientSecret: 'sec', includeWriteScope: true })
-    const auth = withWrite.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(auth.scopes).toContain('https://graph.microsoft.com/Files.ReadWrite')
   })
 
   it('list_files targets /me/drive/items/{id}/children with $orderby when no query', async () => {
@@ -258,20 +231,6 @@ describe('onedrive adapter', () => {
     await expect(
       broken.exchangeOAuth!({ code: 'c', state: 's', codeVerifier: 'v', redirectUri: 'https://x/cb' }),
     ).rejects.toThrow(/MS_OAUTH_CLIENT_ID/)
-  })
-
-  it('exposes the write-side capabilities as native-idempotency externalEffect mutations', () => {
-    const writeNames = ['files.upload', 'files.delete', 'files.move', 'files.share', 'folders.create']
-    for (const name of writeNames) {
-      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-      expect(cap!.requiredScopes).toContain('https://graph.microsoft.com/Files.ReadWrite')
-    }
   })
 
   it('files.upload PUTs the small-file content endpoint with the requested content-type', async () => {

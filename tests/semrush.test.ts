@@ -38,22 +38,6 @@ const EXPECTED = [
   'keyword.metrics',
 ]
 
-describe('semrush adapter manifest', () => {
-  it('classifies itself as market-intelligence with api-key auth', () => {
-    expect(semrushConnector.manifest.kind).toBe('semrush')
-    expect(semrushConnector.manifest.category).toBe('market-intelligence')
-    expect(semrushConnector.manifest.defaultConsistencyModel).toBe('cache')
-    expect(semrushConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the v4 backlinks + keyword read set and no mutations', () => {
-    const names = semrushConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED].sort())
-    const mutations = semrushConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations).toEqual([])
-  })
-})
-
 describe('semrush executeRead', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

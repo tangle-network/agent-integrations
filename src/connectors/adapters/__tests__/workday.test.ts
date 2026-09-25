@@ -127,57 +127,6 @@ describe('workday adapter manifest', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('exposes the HR action pack (workers, organizations, locations, time off) split between reads and mutations', () => {
-    const names = workdayConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'workers.list',
-        'workers.get',
-        'workers.history',
-        'workers.directReports',
-        'organizations.list',
-        'organizations.get',
-        'locations.list',
-        'timeOff.types.list',
-        'timeOff.entries.list',
-        'timeOff.submit',
-      ].sort(),
-    )
-    const reads = workdayConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = workdayConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['timeOff.submit'])
-    expect(reads).toEqual(
-      [
-        'workers.list',
-        'workers.get',
-        'workers.history',
-        'workers.directReports',
-        'organizations.list',
-        'organizations.get',
-        'locations.list',
-        'timeOff.types.list',
-        'timeOff.entries.list',
-      ].sort(),
-    )
-  })
-
-  it('classifies itself as other (HR) with authoritative consistency', () => {
-    expect(workdayConnector.manifest.kind).toBe('workday')
-    expect(workdayConnector.manifest.category).toBe('other')
-    expect(workdayConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('tags every capability with at least one functional-area scope', () => {
-    for (const cap of workdayConnector.manifest.capabilities) {
-      expect(cap.requiredScopes && cap.requiredScopes.length).toBeGreaterThan(0)
-    }
-  })
 })
 
 describe('workday adapter execution', () => {

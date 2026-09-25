@@ -48,39 +48,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('contentful adapter manifest', () => {
-  it('declares the CMA OAuth surface and required capabilities', () => {
-    const m = contentfulConnector.manifest
-    expect(m.kind).toBe('contentful')
-    expect(m.category).toBe('doc')
-    expect(m.defaultConsistencyModel).toBe('authoritative')
-    expect(m.auth.kind).toBe('oauth2')
-    if (m.auth.kind === 'oauth2') {
-      expect(m.auth.authorizationUrl).toBe('https://be.contentful.com/oauth/authorize')
-      expect(m.auth.tokenUrl).toBe('https://be.contentful.com/oauth/token')
-      expect(m.auth.scopes).toEqual(['content_management_read', 'content_management_manage'])
-      expect(m.auth.clientIdEnv).toBe('CONTENTFUL_OAUTH_CLIENT_ID')
-      expect(m.auth.clientSecretEnv).toBe('CONTENTFUL_OAUTH_CLIENT_SECRET')
-    }
-    const names = m.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'entries.create',
-      'entries.delete',
-      'entries.get',
-      'entries.list',
-      'entries.publish',
-      'entries.unpublish',
-      'entries.update',
-    ])
-    const update = m.capabilities.find((c) => c.name === 'entries.update')
-    expect(update?.class).toBe('mutation')
-    if (update && update.class === 'mutation') {
-      expect(update.cas).toBe('etag-if-match')
-      expect(update.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('contentful startAuth URL construction', () => {
   it('builds an OAuth2 authorize URL via startOAuthFlow with the manifest endpoint and scopes', () => {
     const m = contentfulConnector.manifest

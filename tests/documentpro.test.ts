@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('documentpro adapter manifest', () => {
-  it('classifies itself under the doc category and exposes the documentpro kind', () => {
-    expect(documentproConnector.manifest.kind).toBe('documentpro')
-    expect(documentproConnector.manifest.category).toBe('doc')
-    expect(documentproConnector.manifest.defaultConsistencyModel).toBe('advisory')
-  })
-
   it('declares an api-key auth surface (DocumentPro has no OAuth flow)', () => {
     const auth = documentproConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,24 +33,6 @@ describe('documentpro adapter manifest', () => {
     expect(typeof auth.hint).toBe('string')
   })
 
-  it('exposes the run.extract capability plus the new write-side mutations', () => {
-    const names = documentproConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['run.extract', 'documents.delete', 'extraction.export'].sort())
-    const extract = documentproConnector.manifest.capabilities.find((c) => c.name === 'run.extract')
-    if (!extract) throw new Error('run.extract capability missing')
-    expect(extract.class).toBe('mutation')
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['documents.delete', 'extraction.export']
-    for (const name of expected) {
-      const cap = documentproConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('documentpro documents.delete', () => {

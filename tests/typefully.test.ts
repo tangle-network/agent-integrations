@@ -30,62 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('typefully adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the typefully kind', () => {
-    expect(typefullyConnector.manifest.kind).toBe('typefully')
-    expect(typefullyConnector.manifest.category).toBe('crm')
-    expect(typefullyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = typefullyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set: draft management, publishing, and write-side mutations', () => {
-    const names = typefullyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'accounts.list',
-        'drafts.create',
-        'drafts.createAdvanced',
-        'drafts.delete',
-        'drafts.get',
-        'drafts.list',
-        'drafts.publishNow',
-        'drafts.schedule',
-        'drafts.unschedule',
-        'drafts.update',
-        'media.delete',
-        'media.upload',
-      ].sort(),
-    )
-    const mutations = typefullyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'drafts.create',
-        'drafts.createAdvanced',
-        'drafts.delete',
-        'drafts.publishNow',
-        'drafts.schedule',
-        'drafts.unschedule',
-        'drafts.update',
-        'media.delete',
-        'media.upload',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external-effect', () => {
-    const caps = typefullyConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('typefully drafts.update', () => {

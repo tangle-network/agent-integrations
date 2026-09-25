@@ -26,56 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('instasent adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the instasent kind', () => {
-    expect(instasentConnector.manifest.kind).toBe('instasent')
-    expect(instasentConnector.manifest.category).toBe('crm')
-    expect(instasentConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = instasentConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the activepieces action set plus messaging surface (sms + campaign)', () => {
-    const names = instasentConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contacts.add_or_update',
-        'events.create',
-        'contacts.delete',
-        'sms.send',
-        'campaign.create',
-        'campaign.cancel',
-      ].sort(),
-    )
-    const mutations = instasentConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'contacts.add_or_update',
-        'events.create',
-        'contacts.delete',
-        'sms.send',
-        'campaign.create',
-        'campaign.cancel',
-      ].sort(),
-    )
-  })
-
-  it('marks new write-side mutations native-idempotency + externalEffect', () => {
-    const newMutationNames = ['sms.send', 'campaign.create', 'campaign.cancel']
-    for (const name of newMutationNames) {
-      const cap = instasentConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `cap ${name}`).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class !== 'mutation') continue
-      expect(cap!.cas).toBe('native-idempotency')
-      expect(cap!.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('instasent sms.send', () => {

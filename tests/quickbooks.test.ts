@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('quickbooks adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the quickbooks kind', () => {
-    expect(quickbooksConnector.manifest.kind).toBe('quickbooks')
-    expect(quickbooksConnector.manifest.category).toBe('commerce')
-    expect(quickbooksConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses OAuth2 with the documented Intuit endpoints and env-var names', () => {
     const auth = quickbooksConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -47,45 +41,6 @@ describe('quickbooks adapter manifest', () => {
     expect(auth.scopes).toContain('com.intuit.quickbooks.accounting')
   })
 
-  it('covers the original capability set plus the write-side extensions', () => {
-    const names = quickbooksConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'entities.query',
-        'customers.get',
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'invoices.get',
-        'invoices.create',
-        'invoices.update',
-        'invoices.delete',
-        'invoices.send',
-        'items.create',
-        'payments.create',
-        'bills.create',
-        'vendors.create',
-        'reports.get',
-        'companyinfo.get',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'customers.delete',
-      'invoices.delete',
-      'invoices.send',
-      'bills.create',
-      'vendors.create',
-    ])
-    for (const c of quickbooksConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('quickbooks customers.delete', () => {

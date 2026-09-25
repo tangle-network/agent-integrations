@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('whatsapp adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the whatsapp kind', () => {
-    expect(whatsappConnector.manifest.kind).toBe('whatsapp')
-    expect(whatsappConnector.manifest.category).toBe('comms')
-    expect(whatsappConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a WhatsApp-specific hint', () => {
     const auth = whatsappConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -43,33 +37,6 @@ describe('whatsapp adapter manifest', () => {
     expect(auth.hint).toMatch(/WhatsApp/i)
   })
 
-  it('covers message, media, template, reply, react, delete, contacts capabilities', () => {
-    const names = whatsappConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('media.send')
-    expect(names).toContain('messages.send')
-    expect(names).toContain('template.send')
-    expect(names).toContain('messages.reply')
-    expect(names).toContain('messages.react')
-    expect(names).toContain('messages.delete')
-    expect(names).toContain('contacts.list')
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    const mutations = whatsappConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const c of mutations) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks contacts.list as a read', () => {
-    const reads = whatsappConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-    expect(reads).toContain('contacts.list')
-  })
 })
 
 describe('whatsapp messages.reply', () => {

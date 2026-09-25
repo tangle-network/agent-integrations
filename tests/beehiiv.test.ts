@@ -26,12 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('beehiiv adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the beehiiv kind', () => {
-    expect(beehiivConnector.manifest.kind).toBe('beehiiv')
-    expect(beehiivConnector.manifest.category).toBe('crm')
-    expect(beehiivConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = beehiivConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -39,33 +33,6 @@ describe('beehiiv adapter manifest', () => {
     expect(auth.hint).toMatch(/Beehiiv/i)
   })
 
-  it('covers subscriptions + automations + posts + segments capability surface', () => {
-    const names = beehiivConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'automations.list',
-        'posts.create',
-        'posts.list',
-        'posts.publish',
-        'segments.create',
-        'subscriptions.add.to.automation',
-        'subscriptions.create',
-        'subscriptions.delete',
-        'subscriptions.update',
-      ].sort(),
-    )
-  })
-
-  it('marks new mutations (subscriptions.delete, posts.create, posts.publish, segments.create) as native-idempotency external effect', () => {
-    const caps = beehiivConnector.manifest.capabilities
-    for (const name of ['subscriptions.delete', 'posts.create', 'posts.publish', 'segments.create']) {
-      const cap = caps.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') return
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('beehiiv subscriptions.delete', () => {

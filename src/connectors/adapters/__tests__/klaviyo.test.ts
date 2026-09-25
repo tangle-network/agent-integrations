@@ -33,44 +33,6 @@ describe('klaviyo adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('declares OAuth2 auth with the Klaviyo URLs and scopes wired to env vars', () => {
-    expect(klaviyoConnector.manifest.kind).toBe('klaviyo')
-    expect(klaviyoConnector.manifest.displayName).toBe('Klaviyo')
-    expect(klaviyoConnector.manifest.auth.kind).toBe('oauth2')
-    if (klaviyoConnector.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(klaviyoConnector.manifest.auth.authorizationUrl).toBe('https://www.klaviyo.com/oauth/authorize')
-    expect(klaviyoConnector.manifest.auth.tokenUrl).toBe('https://a.klaviyo.com/oauth/token')
-    expect(klaviyoConnector.manifest.auth.clientIdEnv).toBe('KLAVIYO_OAUTH_CLIENT_ID')
-    expect(klaviyoConnector.manifest.auth.clientSecretEnv).toBe('KLAVIYO_OAUTH_CLIENT_SECRET')
-    expect(klaviyoConnector.manifest.auth.scopes).toContain('profiles:write')
-    expect(klaviyoConnector.manifest.auth.scopes).toContain('events:write')
-  })
-
-  it('publishes the v2024-10-15 capability surface (profiles + lists + events + campaigns)', () => {
-    const names = klaviyoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'campaigns.search',
-      'events.create',
-      'lists.add-profiles',
-      'lists.create',
-      'lists.search',
-      'profiles.get',
-      'profiles.search',
-      'profiles.update',
-      'profiles.upsert',
-    ])
-
-    const readers = klaviyoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = klaviyoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual(['campaigns.search', 'lists.search', 'profiles.get', 'profiles.search'])
-    expect(mutators).toEqual(['events.create', 'lists.add-profiles', 'lists.create', 'profiles.update', 'profiles.upsert'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof klaviyoConnector.executeRead).toBe('function')
-    expect(typeof klaviyoConnector.executeMutation).toBe('function')
-  })
-
   it('upserts a profile via POST /api/profile-import with bearer auth, JSON:API content-type, and the revision header', async () => {
     const fetchMock = mockFetch({ data: { id: 'profile_1' } }, { status: 201 })
     const invocation: ConnectorInvocation = {

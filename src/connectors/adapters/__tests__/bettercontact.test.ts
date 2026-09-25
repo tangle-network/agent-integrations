@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('bettercontact adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(bettercontactConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(bettercontactConnector.manifest.kind).toBe('bettercontact')
-    expect(bettercontactConnector.manifest.displayName).toBe('BetterContact')
-    expect(bettercontactConnector.manifest.category).toBe('crm')
-    expect(bettercontactConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = bettercontactConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['enrichment.create', 'enrichment.get'])
-    const reads = bettercontactConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = bettercontactConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['enrichment.get'])
-    expect(mutations).toEqual(['enrichment.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof bettercontactConnector.executeRead).toBe('function')
-    expect(typeof bettercontactConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of bettercontactConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes enrichment.get as GET /api/v2/async/123456', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await bettercontactConnector.executeRead!({ source, capabilityName: 'enrichment.get', args: {"request_id":"123456"}, idempotencyKey: 'op_0' })

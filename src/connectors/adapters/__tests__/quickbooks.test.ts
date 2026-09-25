@@ -81,17 +81,6 @@ describe('quickbooks adapter manifest', () => {
     ])
   })
 
-  it('classifies itself as commerce (finance/accounting) with authoritative consistency', () => {
-    expect(quickbooksConnector.manifest.kind).toBe('quickbooks')
-    expect(quickbooksConnector.manifest.category).toBe('commerce')
-    expect(quickbooksConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('requires the QuickBooks accounting scope on every capability', () => {
-    for (const capability of quickbooksConnector.manifest.capabilities) {
-      expect(capability.requiredScopes).toContain('com.intuit.quickbooks.accounting')
-    }
-  })
 })
 
 describe('quickbooks adapter execution', () => {

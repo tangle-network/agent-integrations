@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('amplemarket adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(amplemarketConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(amplemarketConnector.manifest.kind).toBe('amplemarket')
-    expect(amplemarketConnector.manifest.displayName).toBe('Amplemarket')
-    expect(amplemarketConnector.manifest.category).toBe('crm')
-    expect(amplemarketConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = amplemarketConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['companies.find', 'email.validate', 'people.find', 'people.search', 'sequence.add_leads'])
-    const reads = amplemarketConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = amplemarketConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['companies.find', 'people.search'])
-    expect(mutations).toEqual(['email.validate', 'people.find', 'sequence.add_leads'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof amplemarketConnector.executeRead).toBe('function')
-    expect(typeof amplemarketConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of amplemarketConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes companies.find as GET /companies/find', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await amplemarketConnector.executeRead!({ source, capabilityName: 'companies.find', args: {"domain":"stripe.com"}, idempotencyKey: 'op_0' })

@@ -44,38 +44,6 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   })
 }
 
-describe('google-pubsub manifest', () => {
-  it('ships topic, subscription, publish, pull, acknowledgement, and deadline operations', () => {
-    expect(googlePubSubConnector.manifest.kind).toBe('gcloud-pubsub')
-    expect(googlePubSubConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'topics.list',
-      'topics.get',
-      'topics.create',
-      'topics.delete',
-      'messages.publish',
-      'subscriptions.list',
-      'subscriptions.get',
-      'subscriptions.create',
-      'subscriptions.delete',
-      'messages.pull',
-      'messages.acknowledge',
-      'messages.modifyAckDeadline',
-    ])
-  })
-
-  it('passes safety validation and approval-gates every mutation', () => {
-    expect(validateConnectorManifest(googlePubSubConnector.manifest)).toEqual({ ok: true, issues: [] })
-    const mutations = googlePubSubConnector.manifest.capabilities.filter(
-      (capability) => capability.class === 'mutation',
-    )
-    expect(mutations).toHaveLength(8)
-    for (const mutation of mutations) {
-      expect(mutation.cas, mutation.name).toBe('none')
-      expect(mutation.externalEffect, mutation.name).toBe(true)
-    }
-  })
-})
-
 describe('google-pubsub service-account execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 

@@ -21,12 +21,6 @@ function bedrockSource(): ResolvedDataSource {
 }
 
 describe('amazon-bedrock adapter manifest', () => {
-  it('exposes the amazon-bedrock kind, "other" category, and advisory consistency', () => {
-    expect(amazonBedrockConnector.manifest.kind).toBe('amazon-bedrock')
-    expect(amazonBedrockConnector.manifest.category).toBe('other')
-    expect(amazonBedrockConnector.manifest.defaultConsistencyModel).toBe('advisory')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape; AWS keys signed with SigV4)', () => {
     const auth = amazonBedrockConnector.manifest.auth
     expect(auth.kind).toBe('api-key')

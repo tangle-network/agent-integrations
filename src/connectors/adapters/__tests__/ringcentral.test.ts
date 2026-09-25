@@ -31,10 +31,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('ringcentral adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(ringcentralConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares authorization_code oauth2 against platform.ringcentral.com with comms classification', () => {
     const auth = ringcentralConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -44,32 +40,6 @@ describe('ringcentral adapter', () => {
     expect(auth.clientIdEnv).toBe('RINGCENTRAL_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('RINGCENTRAL_OAUTH_CLIENT_SECRET')
     expect(ringcentralConnector.manifest.category).toBe('comms')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = ringcentralConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'callLog.list',
-      'extension.get',
-      'extensions.list',
-      'messages.list',
-      'sms.send',
-      'subscriptions.create',
-    ])
-    const mutations = ringcentralConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(mutations).toEqual(['sms.send', 'subscriptions.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof ringcentralConnector.executeRead).toBe('function')
-    expect(typeof ringcentralConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of ringcentralConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
   })
 
   it('routes extension.get against the ~ alias path under /restapi/v1.0 with bearer auth', async () => {

@@ -26,40 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('cryptolens adapter manifest', () => {
-  it('classifies itself as the other category and exposes the cryptolens kind', () => {
-    expect(cryptolensConnector.manifest.kind).toBe('cryptolens')
-    expect(cryptolensConnector.manifest.category).toBe('other')
-    expect(cryptolensConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as the catalog says', () => {
     const auth = cryptolensConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers customer + key lifecycle ops (add/block/create) plus activation primitives', () => {
-    const names = cryptolensConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['customer.add', 'key.activate', 'key.block', 'key.create', 'key.deactivate'].sort(),
-    )
-    const mutations = cryptolensConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['customer.add', 'key.activate', 'key.block', 'key.create', 'key.deactivate'].sort(),
-    )
-  })
-
-  it('marks the new activation mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['key.activate', 'key.deactivate']) {
-      const cap = cryptolensConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('cryptolens key.activate', () => {

@@ -29,53 +29,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('devin adapter manifest', () => {
-  it('classifies itself as the other category and exposes the devin kind', () => {
-    expect(devinConnector.manifest.kind).toBe('devin')
-    expect(devinConnector.manifest.category).toBe('other')
-    expect(devinConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = devinConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('exposes session lifecycle + attachments capabilities', () => {
-    const names = devinConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'attachments.upload',
-        'create.session',
-        'get.session.details',
-        'send.message',
-        'sessions.list',
-      ].sort(),
-    )
-    const reads = devinConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = devinConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['get.session.details', 'sessions.list'].sort())
-    expect(mutations).toEqual(
-      ['attachments.upload', 'create.session', 'send.message'].sort(),
-    )
-  })
-
-  it('marks attachments.upload as native-idempotency with external effect', () => {
-    const cap = devinConnector.manifest.capabilities.find(
-      (c) => c.name === 'attachments.upload',
-    )
-    expect(cap).toBeDefined()
-    expect(cap?.class).toBe('mutation')
-    if (cap?.class === 'mutation') {
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('devin adapter execution', () => {

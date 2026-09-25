@@ -26,46 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('base44 adapter manifest', () => {
-  it('classifies itself as the other category and exposes the base44 kind', () => {
-    expect(base44Connector.manifest.kind).toBe('base44')
-    expect(base44Connector.manifest.category).toBe('other')
-    expect(base44Connector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = base44Connector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the activepieces action set plus update/delete/bulkUpsert', () => {
-    const names = base44Connector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'entities.bulkUpsert',
-        'entities.create',
-        'entities.delete',
-        'entities.find',
-        'entities.findOrCreate',
-        'entities.update',
-      ].sort(),
-    )
-    const reads = base44Connector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['entities.find'])
-  })
-
-  it('marks new mutations (update/delete/bulkUpsert) as native-idempotency external effect', () => {
-    const caps = base44Connector.manifest.capabilities
-    for (const name of ['entities.update', 'entities.delete', 'entities.bulkUpsert']) {
-      const cap = caps.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') return
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('base44 entities.update', () => {

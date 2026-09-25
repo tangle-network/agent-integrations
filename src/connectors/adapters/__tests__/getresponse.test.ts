@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('getresponse adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(getresponseConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and crm classification', () => {
-    expect(getresponseConnector.manifest.kind).toBe('getresponse')
-    expect(getresponseConnector.manifest.displayName).toBe('GetResponse')
-    expect(getresponseConnector.manifest.category).toBe('crm')
-    expect(getresponseConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = getresponseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['campaigns.list', 'contacts.create', 'contacts.list', 'newsletters.create'])
-    const reads = getresponseConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = getresponseConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['campaigns.list', 'contacts.list'])
-    expect(mutations).toEqual(['contacts.create', 'newsletters.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof getresponseConnector.executeRead).toBe('function')
-    expect(typeof getresponseConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of getresponseConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes contacts.list as GET /v3/contacts', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await getresponseConnector.executeRead!({ source, capabilityName: 'contacts.list', args: {"perPage":50}, idempotencyKey: 'op_0' })

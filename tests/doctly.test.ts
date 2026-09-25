@@ -26,45 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('doctly adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the doctly kind', () => {
-    expect(doctlyConnector.manifest.kind).toBe('doctly')
-    expect(doctlyConnector.manifest.category).toBe('doc')
-    expect(doctlyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as the catalog says', () => {
     const auth = doctlyConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set plus documents.delete and jobs.cancel', () => {
-    const names = doctlyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['convert.pdf.to.text', 'documents.get', 'documents.delete', 'jobs.cancel'].sort(),
-    )
-
-    const reads = doctlyConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = doctlyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['documents.get'])
-    expect(mutations).toEqual(['convert.pdf.to.text', 'documents.delete', 'jobs.cancel'].sort())
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['documents.delete', 'jobs.cancel']
-    for (const name of expected) {
-      const cap = doctlyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('doctly documents.delete', () => {

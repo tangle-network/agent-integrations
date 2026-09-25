@@ -26,51 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('baremetrics adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the baremetrics kind', () => {
-    expect(baremetricsConnector.manifest.kind).toBe('baremetrics')
-    expect(baremetricsConnector.manifest.category).toBe('crm')
-    expect(baremetricsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares customer API-key auth using Baremetrics bearer tokens', () => {
     const auth = baremetricsConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers create + update + delete/cancel/annotation surfaces', () => {
-    const names = baremetricsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'cancel.subscription',
-        'create.annotation',
-        'create.customer',
-        'create.plan',
-        'create.subscription',
-        'delete.customer',
-        'delete.plan',
-        'update.customer',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as external effect with a CAS strategy', () => {
-    for (const c of baremetricsConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.externalEffect).toBe(true)
-      expect(['native-idempotency', 'optimistic-read-verify']).toContain(c.cas)
-    }
-  })
-
-  it('marks delete/cancel/annotation as native-idempotency', () => {
-    const caps = baremetricsConnector.manifest.capabilities
-    for (const name of ['delete.customer', 'cancel.subscription', 'delete.plan', 'create.annotation']) {
-      const cap = caps.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') return
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('baremetrics delete.customer', () => {

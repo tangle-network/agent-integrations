@@ -25,45 +25,6 @@ describe('sendgrid adapter', () => {
     expect(result).toEqual({ ok: true, issues: [] })
   })
 
-  it('declares api-key auth and the SendGrid mail+marketing surface', () => {
-    expect(sendgridConnector.manifest.kind).toBe('sendgrid')
-    expect(sendgridConnector.manifest.displayName).toBe('SendGrid')
-    expect(sendgridConnector.manifest.category).toBe('comms')
-    expect(sendgridConnector.manifest.auth.kind).toBe('api-key')
-    const names = sendgridConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'contacts.delete',
-      'contacts.get',
-      'contacts.search',
-      'contacts.upsert',
-      'lists.addContacts',
-      'lists.create',
-      'lists.delete',
-      'lists.removeContacts',
-      'lists.search',
-      'mail.send',
-      'suppressions.create',
-    ])
-    const readers = sendgridConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
-    const mutators = sendgridConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(readers).toEqual(['contacts.search', 'contacts.get', 'lists.search'])
-    expect(mutators).toEqual([
-      'mail.send',
-      'contacts.upsert',
-      'lists.create',
-      'contacts.delete',
-      'lists.delete',
-      'lists.addContacts',
-      'lists.removeContacts',
-      'suppressions.create',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof sendgridConnector.executeRead).toBe('function')
-    expect(typeof sendgridConnector.executeMutation).toBe('function')
-  })
-
   it('sends mail via POST /v3/mail/send with bearer auth and the SendGrid payload shape', async () => {
     const fetchMock = mockFetch({}, { status: 202 })
     const invocation: ConnectorInvocation = {

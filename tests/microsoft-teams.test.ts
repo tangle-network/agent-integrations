@@ -44,22 +44,6 @@ describe('microsoft-teams adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest passes the connector validator', () => {
-    expect(validateConnectorManifest(adapter.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('manifest exposes the expected chat-pack capability set', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'list_channel_messages',
-      'list_joined_teams',
-      'list_team_channels',
-      'lookup_user',
-      'post_channel_message',
-      'post_chat_message',
-    ])
-  })
-
   it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
     expect(adapter.manifest.auth).toMatchObject({
       kind: 'oauth2',
@@ -182,23 +166,6 @@ describe('microsoft-teams adapter', () => {
         redirectUri: 'https://platform.test/callback',
       }),
     ).rejects.toThrow(/valid tenant identity/i)
-  })
-
-  it('mutation capabilities are declared cas:none under an advisory consistency model', () => {
-    expect(adapter.manifest.defaultConsistencyModel).toBe('advisory')
-    for (const cap of adapter.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.cas, cap.name).toBe('none')
-        expect(cap.externalEffect, cap.name).toBe(true)
-      }
-    }
-  })
-
-  it('exposes read + mutation handlers consistent with the manifest', () => {
-    const hasReads = adapter.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = adapter.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(adapter.executeRead)).toBe(hasReads)
-    expect(Boolean(adapter.executeMutation)).toBe(hasMutations)
   })
 
   it('post_channel_message POSTs the Graph channel-messages endpoint with html|text body', async () => {

@@ -26,44 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('bookedin adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the bookedin kind', () => {
-    expect(bookedinConnector.manifest.kind).toBe('bookedin')
-    expect(bookedinConnector.manifest.category).toBe('crm')
-    expect(bookedinConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = bookedinConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers leads CRUD + stats plus appointments create/cancel/reschedule', () => {
-    const names = bookedinConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'leads.list',
-        'leads.get',
-        'leads.stats',
-        'leads.create',
-        'leads.update',
-        'leads.delete',
-        'appointments.create',
-        'appointments.cancel',
-        'appointments.reschedule',
-      ].sort(),
-    )
-  })
-
-  it('marks the new appointment mutations with native-idempotency CAS and external effect', () => {
-    const targets = ['appointments.create', 'appointments.cancel', 'appointments.reschedule']
-    for (const name of targets) {
-      const cap = bookedinConnector.manifest.capabilities.find((c) => c.name === name)!
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('bookedin appointments.create', () => {

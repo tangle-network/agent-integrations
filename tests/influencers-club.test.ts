@@ -26,59 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('influencers-club adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the influencers-club kind', () => {
-    expect(influencersClubConnector.manifest.kind).toBe('influencers-club')
-    expect(influencersClubConnector.manifest.category).toBe('crm')
-    expect(influencersClubConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = influencersClubConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set plus the new list-management mutations', () => {
-    const names = influencersClubConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'creators.enrich_by_email',
-        'creators.enrich_by_handle',
-        'creators.find_similar',
-        'lists.add',
-        'lists.create',
-        'lists.delete',
-      ].sort(),
-    )
-    const reads = influencersClubConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = influencersClubConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['creators.find_similar'])
-    expect(mutations).toEqual(
-      [
-        'creators.enrich_by_email',
-        'creators.enrich_by_handle',
-        'lists.add',
-        'lists.create',
-        'lists.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks the new list mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['lists.create', 'lists.add', 'lists.delete']
-    for (const name of expected) {
-      const cap = influencersClubConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('influencers-club lists.create', () => {

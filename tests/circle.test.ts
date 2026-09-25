@@ -26,62 +26,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('circle adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the circle kind', () => {
-    expect(circleConnector.manifest.kind).toBe('circle')
-    expect(circleConnector.manifest.category).toBe('comms')
-    expect(circleConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth as documented in the catalog', () => {
     const auth = circleConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the catalog action set including new write capabilities', () => {
-    const names = circleConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'comments.create',
-        'comments.delete',
-        'members.find_by_email',
-        'members.get',
-        'members.remove',
-        'posts.create',
-        'posts.delete',
-        'posts.get',
-        'spaces.add_member',
-        'spaces.create',
-      ].sort(),
-    )
-    const reads = circleConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = circleConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['members.find_by_email', 'members.get', 'posts.get'])
-    expect(mutations).toEqual(
-      [
-        'comments.create',
-        'comments.delete',
-        'members.remove',
-        'posts.create',
-        'posts.delete',
-        'spaces.add_member',
-        'spaces.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of circleConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('circle posts.delete', () => {

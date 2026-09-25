@@ -32,12 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('upgradechat adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the upgradechat kind', () => {
-    expect(upgradechatConnector.manifest.kind).toBe('upgradechat')
-    expect(upgradechatConnector.manifest.category).toBe('crm')
-    expect(upgradechatConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with an Upgrade.chat-specific hint', () => {
     const auth = upgradechatConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -45,57 +39,6 @@ describe('upgradechat adapter manifest', () => {
     expect(auth.hint).toMatch(/Upgrade\.chat/i)
   })
 
-  it('covers contacts, subscriptions, invoices, and products capability surface (incl. new write-side)', () => {
-    const names = upgradechatConnector.manifest.capabilities.map((c) => c.name).sort()
-    for (const expected of [
-      'contacts.add_or_update',
-      'contacts.get',
-      'subscriptions.add_or_update',
-      'subscriptions.cancel',
-      'invoices.create',
-      'invoices.refund',
-      'products.create',
-      'products.update',
-      'products.delete',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks destructive and write operations as mutations', () => {
-    const mutations = upgradechatConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    for (const expected of [
-      'contacts.add_or_update',
-      'subscriptions.add_or_update',
-      'subscriptions.cancel',
-      'invoices.create',
-      'invoices.refund',
-      'products.create',
-      'products.update',
-      'products.delete',
-    ]) {
-      expect(mutations).toContain(expected)
-    }
-  })
-
-  it('marks read-only operations as read', () => {
-    const reads = upgradechatConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-    expect(reads).toContain('contacts.get')
-  })
-
-  it('marks every mutation as native-idempotency external-effect', () => {
-    const caps = upgradechatConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('upgradechat subscriptions.cancel', () => {

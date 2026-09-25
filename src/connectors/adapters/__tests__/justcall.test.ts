@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('justcall adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(justcallConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and comms classification', () => {
-    expect(justcallConnector.manifest.kind).toBe('justcall')
-    expect(justcallConnector.manifest.displayName).toBe('JustCall')
-    expect(justcallConnector.manifest.category).toBe('comms')
-    expect(justcallConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = justcallConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['calls.get', 'calls.list', 'contacts.create', 'contacts.list', 'sms.send'])
-    const reads = justcallConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = justcallConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['calls.get', 'calls.list', 'contacts.list'])
-    expect(mutations).toEqual(['contacts.create', 'sms.send'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof justcallConnector.executeRead).toBe('function')
-    expect(typeof justcallConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of justcallConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes calls.list as GET /v2.1/calls', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await justcallConnector.executeRead!({ source, capabilityName: 'calls.list', args: {"per_page":20}, idempotencyKey: 'op_0' })

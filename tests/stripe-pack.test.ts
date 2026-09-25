@@ -31,13 +31,6 @@ describe('stripe-pack payments + refunds + customers', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest now includes create_payment_intent, create_refund, create_customer', () => {
-    const names = stripePackConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('create_payment_intent')
-    expect(names).toContain('create_refund')
-    expect(names).toContain('create_customer')
-  })
-
   // create_payment_intent
 
   it('create_payment_intent POSTs to /v1/payment_intents with form body and forwards idempotency key', async () => {

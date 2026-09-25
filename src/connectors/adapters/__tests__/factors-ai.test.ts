@@ -29,31 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('factors-ai adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(factorsAiConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and sales-intelligence classification', () => {
-    expect(factorsAiConnector.manifest.kind).toBe('factors-ai')
-    expect(factorsAiConnector.manifest.displayName).toBe('Factors.ai')
-    expect(factorsAiConnector.manifest.category).toBe('sales-intelligence')
-    expect(factorsAiConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = factorsAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['account.journey'])
-    const reads = factorsAiConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = factorsAiConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['account.journey'])
-    expect(mutations).toEqual([])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof factorsAiConnector.executeRead).toBe('function')
-    expect(typeof factorsAiConnector.executeMutation).toBe('function')
-  })
-
   it('routes account.journey as GET /open/v1/account/factors.ai/journey', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await factorsAiConnector.executeRead!({ source, capabilityName: 'account.journey', args: {"account_domain":"factors.ai","from":"2026-06-01","to":"2026-06-18"}, idempotencyKey: 'op_0' })

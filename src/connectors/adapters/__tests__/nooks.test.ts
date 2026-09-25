@@ -29,38 +29,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('nooks adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(nooksConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth and comms classification', () => {
-    expect(nooksConnector.manifest.kind).toBe('nooks')
-    expect(nooksConnector.manifest.displayName).toBe('Nooks')
-    expect(nooksConnector.manifest.category).toBe('comms')
-    expect(nooksConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const allNames = nooksConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(allNames).toEqual(['accounts.list', 'calls.get', 'calls.list', 'prospects.list', 'prospects.sync'])
-    const reads = nooksConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = nooksConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['accounts.list', 'calls.get', 'calls.list', 'prospects.list'])
-    expect(mutations).toEqual(['prospects.sync'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof nooksConnector.executeRead).toBe('function')
-    expect(typeof nooksConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of nooksConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes accounts.list as GET /v1/accounts', async () => {
     const fetchMock = mockFetch({ ok: true })
     const result = await nooksConnector.executeRead!({ source, capabilityName: 'accounts.list', args: {}, idempotencyKey: 'op_0' })

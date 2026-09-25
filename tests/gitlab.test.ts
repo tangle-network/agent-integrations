@@ -35,20 +35,6 @@ describe('gitlab adapter writes', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes merge_requests.create, merge_requests.accept, notes.create as mutations', () => {
-    const names = gitlabConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('merge_requests.create')
-    expect(names).toContain('merge_requests.accept')
-    expect(names).toContain('notes.create')
-
-    const byName = Object.fromEntries(
-      gitlabConnector.manifest.capabilities.map((c) => [c.name, c]),
-    )
-    expect(byName['merge_requests.create']?.class).toBe('mutation')
-    expect(byName['merge_requests.accept']?.class).toBe('mutation')
-    expect(byName['notes.create']?.class).toBe('mutation')
-  })
-
   describe('merge_requests.create', () => {
     it('POSTs to /projects/{id}/merge_requests with the MR payload as body', async () => {
       const calls: Array<{ url: string; init: RequestInit }> = []

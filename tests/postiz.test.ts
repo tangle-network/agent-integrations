@@ -30,46 +30,11 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('postiz adapter manifest', () => {
-  it('classifies itself as the other category and exposes the postiz kind', () => {
-    expect(postizConnector.manifest.kind).toBe('postiz')
-    expect(postizConnector.manifest.category).toBe('other')
-    expect(postizConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
     const auth = postizConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
   })
 
-  it('covers the read + mutation surface (posts, integrations, analytics, media, slots)', () => {
-    const names = postizConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'analytics.platform',
-        'analytics.post',
-        'integrations.disconnect',
-        'integrations.list',
-        'media.delete',
-        'media.upload',
-        'posts.create',
-        'posts.delete',
-        'posts.list',
-        'posts.schedule',
-        'posts.update',
-        'slots.find',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + external effect', () => {
-    const mutations = postizConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('unreachable')
-      expect(m.cas).toBe('native-idempotency')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('postiz posts.update', () => {

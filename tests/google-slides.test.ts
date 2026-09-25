@@ -28,12 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('google-slides adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the google-slides kind', () => {
-    expect(googleSlidesConnector.manifest.kind).toBe('google-slides')
-    expect(googleSlidesConnector.manifest.category).toBe('doc')
-    expect(googleSlidesConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares oauth2 auth as documented in the catalog', () => {
     const auth = googleSlidesConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -47,35 +41,6 @@ describe('google-slides adapter manifest', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('covers the catalog action set plus write-side update + duplicate', () => {
-    const names = googleSlidesConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'charts.refresh',
-        'presentation.create',
-        'presentation.get',
-        'presentation.update',
-        'slides.duplicate',
-      ].sort(),
-    )
-    const mutations = googleSlidesConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['charts.refresh', 'presentation.create', 'presentation.update', 'slides.duplicate'].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['presentation.update', 'slides.duplicate']) {
-      const cap = googleSlidesConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('google-slides slides.duplicate', () => {

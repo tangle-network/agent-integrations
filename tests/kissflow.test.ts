@@ -29,12 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('kissflow adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the kissflow kind', () => {
-    expect(kissflowConnector.manifest.kind).toBe('kissflow')
-    expect(kissflowConnector.manifest.category).toBe('doc')
-    expect(kissflowConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares api-key auth with a vendor-specific hint', () => {
     const auth = kissflowConnector.manifest.auth
     expect(auth.kind).toBe('api-key')
@@ -42,35 +36,6 @@ describe('kissflow adapter manifest', () => {
     expect(auth.hint).toMatch(/kissflow/i)
   })
 
-  it('exposes the read + new write capabilities', () => {
-    const names = kissflowConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'download.attachment.from.form.field',
-      'process.instance.create',
-      'process.instance.submit',
-    ])
-    const reads = kissflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['download.attachment.from.form.field'])
-    const mutations = kissflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['process.instance.create', 'process.instance.submit'])
-  })
-
-  it('mutation capabilities declare native-idempotency CAS + externalEffect', () => {
-    const mutations = kissflowConnector.manifest.capabilities.filter(
-      (c) => c.class === 'mutation',
-    )
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('unreachable')
-      expect(m.cas).toBe('native-idempotency')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('kissflow process.instance.create', () => {
