@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
+import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { FileSystemAtomicIdempotencyStore } from '../src/idempotency'
 import {
@@ -9,8 +10,11 @@ import {
   type SubscriptionRecord,
 } from '../src/stripe/subscription-state'
 
-const idempotencyModule = pathToFileURL(resolve('dist/idempotency.js')).href
-const subscriptionModule = pathToFileURL(resolve('dist/stripe/index.js')).href
+// The workers load a private bundle. Building the shared dist/ here raced the
+// packed-subpath test, whose prepack build cleans the same directory.
+const bundleDirectory = resolve('node_modules/.cache/filesystem-cross-process')
+const idempotencyModule = pathToFileURL(resolve(bundleDirectory, 'idempotency.js')).href
+const subscriptionModule = pathToFileURL(resolve(bundleDirectory, 'subscription-state.js')).href
 const testRoots: string[] = []
 
 const idempotencyWorker = `
@@ -82,12 +86,20 @@ process.once('message', async (message) => {
 })
 `
 
-// The workers import the built dist, so the bundle must exist before they run.
-// The budget tracks the whole package's build, which grows with the connector
-// catalog — it is not a per-test latency assertion.
 beforeAll(async () => {
-  await runCommand('pnpm', ['build'])
-}, 300_000)
+  await build({
+    entryPoints: {
+      idempotency: 'src/idempotency.ts',
+      'subscription-state': 'src/stripe/subscription-state.ts',
+    },
+    outdir: bundleDirectory,
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    packages: 'external',
+    logLevel: 'silent',
+  })
+}, 120_000)
 
 afterAll(async () => {
   const { rm } = await import('node:fs/promises')
@@ -286,15 +298,3 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms))
 }
 
-function runCommand(command: string, args: string[]): Promise<void> {
-  return new Promise((resolveCommand, rejectCommand) => {
-    const child = spawn(command, args, { cwd: process.cwd(), stdio: 'pipe' })
-    let stderr = ''
-    child.stderr.on('data', (chunk) => { stderr += String(chunk) })
-    child.once('error', rejectCommand)
-    child.once('exit', (code) => {
-      if (code === 0) resolveCommand()
-      else rejectCommand(new Error(`${command} exited ${code}: ${stderr}`))
-    })
-  })
-}
