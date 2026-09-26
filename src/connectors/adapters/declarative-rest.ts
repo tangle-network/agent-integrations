@@ -108,6 +108,8 @@ export interface RestRequestSpec {
   /** Build the successful result from one response header. Some create APIs
    *  return an empty body and put the new resource id in a header instead. */
   resultFromHeader?: { header: string; field: string }
+  /** Return a successful binary response as base64 instead of decoding it as UTF-8 text. */
+  responseBody?: 'json-or-text' | 'base64'
 }
 
 export interface RestTestSpec extends RestRequestSpec {
@@ -508,6 +510,10 @@ export async function executeRestRequest(
       [getHeaderCI(headers, 'authorization')],
     )
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
+  }
+  if (request.responseBody === 'base64') {
+    const bytes = Buffer.from(await res.arrayBuffer())
+    return { data: { base64: bytes.toString('base64'), contentType: res.headers.get('content-type') ?? undefined } }
   }
   const text = await res.text()
   // Most upstreams return JSON, but some return raw payloads — scrapers
