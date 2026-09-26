@@ -161,6 +161,7 @@
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.2",
+    "@ph0ny/sdk": "0.1.1",
     "amqplib": "2.0.1",
     "csv-parse": "7.0.2",
     "csv-stringify": "6.8.1",
@@ -175,7 +176,6 @@
     "read-excel-file": "9.3.5",
     "redis": "6.1.0",
     "ssh2-sftp-client": "12.1.1",
-    "write-excel-file": "4.1.1",
-    "@ph0ny/sdk": "0.1.1"
+    "write-excel-file": "4.1.1"
   }
 }
