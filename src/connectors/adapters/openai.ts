@@ -69,7 +69,8 @@ export const openaiConnector = declarativeRestConnector({
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://api.openai.com',
+  baseUrl: { metadataKey: 'baseUrl', fallback: 'https://api.openai.com' },
+  allowedBaseUrls: ['https://api.openai.com', 'https://router.tangle.tools'],
   // Bearer placement — declarative-rest renders `Authorization: Bearer <apiKey>`.
   credentialPlacement: { kind: 'bearer' },
   // GET /v1/models is the canonical reachability probe — it always returns the
@@ -271,7 +272,7 @@ export const openaiConnector = declarativeRestConnector({
         },
         required: ['model', 'input', 'voice'],
       },
-      request: { method: 'POST', path: '/v1/audio/speech', body: 'args' },
+      request: { method: 'POST', path: '/v1/audio/speech', body: 'args', responseBody: 'base64' },
       cas: 'native-idempotency',
     },
 
