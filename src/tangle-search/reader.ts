@@ -39,13 +39,15 @@ export function buildTangleReadRequest(input: TangleReadInput) {
   return { url: input.url, max_bytes: max }
 }
 export function parseTangleReadResult(raw: unknown, request: ReturnType<typeof buildTangleReadRequest>): TangleReadResult {
+  // Router counts raw page bytes but decodes them as UTF-8; each undecodable
+  // byte becomes U+FFFD (3 bytes), so decoded text can reach 3x max_bytes.
   const bad = (): never => { throw new ProviderProtocolError('Invalid or uncorrelated Router read response', 'invalid_read_response') }
   if (!record(raw) || raw.object !== 'web.read' || typeof raw.id !== 'string' || !raw.id ||
       raw.requested_url !== request.url || !publicHttps(raw.url) || typeof raw.content !== 'string' ||
       typeof raw.content_type !== 'string' || typeof raw.fetched_at !== 'string' ||
       !Number.isFinite(Date.parse(raw.fetched_at)) || typeof raw.truncated !== 'boolean' ||
       typeof raw.bytes !== 'number' || !Number.isSafeInteger(raw.bytes) || raw.bytes < 0 || raw.bytes > request.max_bytes ||
-      new TextEncoder().encode(raw.content).byteLength > request.max_bytes + 3) return bad()
+      new TextEncoder().encode(raw.content).byteLength > request.max_bytes * 3) return bad()
   const billed = record(raw.usage) ? raw.usage.billed_cost : undefined
   return { id: raw.id, object: 'web.read', requestedUrl: request.url, url: raw.url,
     contentType: raw.content_type, content: raw.content, bytes: raw.bytes, truncated: raw.truncated,
