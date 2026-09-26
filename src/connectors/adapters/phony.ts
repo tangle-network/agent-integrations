@@ -61,8 +61,8 @@ import {
   type CapabilityMutationResult,
   CredentialsExpired,
 } from '../types.js'
+import { VoiceClient, VoiceApiException } from '@ph0ny/sdk'
 
-const API = 'https://api.ph0ny.com'
 const E164 = /^\+[1-9]\d{7,14}$/
 
 export const phonyConnector: ConnectorAdapter = {
@@ -336,10 +336,10 @@ export const phonyConnector: ConnectorAdapter = {
       const params = new URLSearchParams()
       params.set('limit', String(Math.min(Math.max(1, limit ?? 20), 100)))
       if (cursor) params.set('cursor', cursor)
-      const json = await getJson<{ data?: unknown[]; nextCursor?: string; hasMore?: boolean }>(
-        inv,
+      const json = await ph0ny<{ data?: unknown[]; nextCursor?: string; hasMore?: boolean }>(
+        inv.source.id,
         token,
-        `${API}/v1/agents?${params.toString()}`,
+        { method: 'GET', path: `/v1/agents?${params.toString()}`, timeout: 10_000 },
         'list_agents',
       )
       return {
@@ -349,10 +349,10 @@ export const phonyConnector: ConnectorAdapter = {
     }
     if (inv.capabilityName === 'get_call') {
       const { id } = inv.args as { id: string }
-      const json = await getJson<{ call?: unknown }>(
-        inv,
+      const json = await ph0ny<{ call?: unknown }>(
+        inv.source.id,
         token,
-        `${API}/v1/outbound/${encodeURIComponent(id)}`,
+        { method: 'GET', path: `/v1/outbound/${encodeURIComponent(id)}`, timeout: 10_000 },
         'get_call',
       )
       return { data: { call: json.call ?? null }, fetchedAt: Date.now() }
@@ -362,10 +362,10 @@ export const phonyConnector: ConnectorAdapter = {
       const params = new URLSearchParams()
       params.set('limit', String(Math.min(Math.max(1, limit ?? 20), 50)))
       if (agentId) params.set('agentId', agentId)
-      const json = await getJson<{ calls?: unknown[] }>(
-        inv,
+      const json = await ph0ny<{ calls?: unknown[] }>(
+        inv.source.id,
         token,
-        `${API}/v1/outbound?${params.toString()}`,
+        { method: 'GET', path: `/v1/outbound?${params.toString()}`, timeout: 10_000 },
         'list_calls',
       )
       return { data: { calls: json.calls ?? [] }, fetchedAt: Date.now() }
@@ -382,21 +382,17 @@ export const phonyConnector: ConnectorAdapter = {
       if (limit !== undefined) payload.limit = limit
       if (threshold !== undefined) payload.threshold = threshold
       if (includeMetadata !== undefined) payload.includeMetadata = includeMetadata
-      const res = await fetch(`${API}/v1/collections/${encodeURIComponent(collectionId)}/search`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
+      const json = await ph0ny<{ results?: unknown[]; queryTokens?: number; graphContext?: unknown }>(
+        inv.source.id,
+        token,
+        {
+          method: 'POST',
+          path: `/v1/collections/${encodeURIComponent(collectionId)}/search`,
+          body: payload,
+          timeout: 15_000,
         },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15_000),
-      })
-      if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`phony kb_search ${res.status}: ${text.slice(0, 200)}`)
-      }
-      const json = (await res.json()) as { results?: unknown[]; queryTokens?: number; graphContext?: unknown }
+        'kb_search',
+      )
       return {
         data: {
           results: json.results ?? [],
@@ -425,27 +421,13 @@ export const phonyConnector: ConnectorAdapter = {
       if (args.voiceCloneId !== undefined) payload.voiceCloneId = args.voiceCloneId
       if (args.dryRun !== undefined) payload.dryRun = args.dryRun
 
-      const res = await fetch(`${API}/v1/outbound/start`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20_000),
-      })
-      if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`phony start_outbound_call ${res.status}: ${text.slice(0, 200)}`)
-      }
-      const json = (await res.json()) as {
+      const json = await ph0ny<{
         callSid: string | null
         callId: string | null
         status: string
         dryRun?: boolean
         dryRunReport?: unknown
-      }
+      }>(inv.source.id, token, { method: 'POST', path: '/v1/outbound/start', body: payload, timeout: 20_000 }, 'start_outbound_call')
       return {
         status: 'committed',
         data: {
@@ -461,7 +443,12 @@ export const phonyConnector: ConnectorAdapter = {
     }
     if (inv.capabilityName === 'create_agent') {
       const payload = pick(inv.args as Record<string, unknown>, AGENT_FIELDS)
-      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/agents`, payload, 'create_agent')
+      const json = await ph0ny<Record<string, unknown>>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: `/v1/agents`, body: payload, timeout: 20_000 },
+        'create_agent',
+      )
       return {
         status: 'committed',
         data: { agent: json },
@@ -474,11 +461,10 @@ export const phonyConnector: ConnectorAdapter = {
       const payload = pick(args, AGENT_FIELDS)
       if (args.collection !== undefined) payload.collection = args.collection
       if (args.initialContent !== undefined) payload.initialContent = args.initialContent
-      const json = await postJson<{ agent?: unknown; collection?: unknown; ingested?: unknown }>(
-        inv,
+      const json = await ph0ny<{ agent?: unknown; collection?: unknown; ingested?: unknown }>(
+        inv.source.id,
         token,
-        `${API}/v1/agents/provision`,
-        payload,
+        { method: 'POST', path: `/v1/agents/provision`, body: payload, timeout: 20_000 },
         'provision_agent',
       )
       return {
@@ -501,7 +487,12 @@ export const phonyConnector: ConnectorAdapter = {
       const payload: Record<string, unknown> = { name }
       if (description !== undefined) payload.description = description
       if (metadata !== undefined) payload.metadata = metadata
-      const json = await postJson<Record<string, unknown>>(inv, token, `${API}/v1/collections`, payload, 'kb_create_collection')
+      const json = await ph0ny<Record<string, unknown>>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: `/v1/collections`, body: payload, timeout: 20_000 },
+        'kb_create_collection',
+      )
       return {
         status: 'committed',
         data: { collection: json },
@@ -512,11 +503,10 @@ export const phonyConnector: ConnectorAdapter = {
     if (inv.capabilityName === 'kb_ingest') {
       const { collectionId, ...rest } = inv.args as { collectionId: string } & Record<string, unknown>
       const payload = pick(rest, INGEST_FIELDS)
-      const json = await postJson<{ documentId?: string; chunksCreated?: number; tokensUsed?: number }>(
-        inv,
+      const json = await ph0ny<{ documentId?: string; chunksCreated?: number; tokensUsed?: number }>(
+        inv.source.id,
         token,
-        `${API}/v1/collections/${encodeURIComponent(collectionId)}/ingest`,
-        payload,
+        { method: 'POST', path: `/v1/collections/${encodeURIComponent(collectionId)}/ingest`, body: payload, timeout: 20_000 },
         'kb_ingest',
       )
       return {
@@ -538,14 +528,18 @@ export const phonyConnector: ConnectorAdapter = {
       const token = bearerToken(source.credentials)
       // GET /v1/outbound?limit=1 is the cheapest authed read that proves the
       // key is valid.
-      const res = await fetch(`${API}/v1/outbound?limit=1`, {
-        headers: { authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(8_000),
-      })
-      if (res.status === 401) return { ok: false, reason: 'ph0ny rejected credentials (401) — reconnect required' }
-      if (!res.ok) return { ok: false, reason: `ph0ny returned ${res.status}` }
+      await new VoiceClient({ apiKey: token }).request('GET', '/v1/outbound?limit=1', { timeout: 8_000 })
       return { ok: true }
     } catch (err) {
+      if (err instanceof VoiceApiException) {
+        return {
+          ok: false,
+          reason:
+            err.statusCode === 401
+              ? 'ph0ny rejected credentials (401) — reconnect required'
+              : `ph0ny returned ${err.statusCode}`,
+        }
+      }
       return { ok: false, reason: err instanceof Error ? err.message : String(err) }
     }
   },
@@ -641,46 +635,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-async function getJson<T>(
-  inv: ConnectorInvocation,
+/** One ph0ny API call through the SDK client; 401 surfaces as CredentialsExpired
+ *  so the platform prompts a reconnect. */
+async function ph0ny<T>(
+  sourceId: string,
   token: string,
-  url: string,
+  request: { method: 'GET' | 'POST'; path: string; body?: Record<string, unknown>; timeout: number },
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
+  try {
+    return await new VoiceClient({ apiKey: token }).request<T>(request.method, request.path, {
+      body: request.body,
+      timeout: request.timeout,
+    })
+  } catch (error) {
+    if (!(error instanceof VoiceApiException)) throw error
+    if (error.statusCode === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', sourceId)
+    throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
   }
-  return (await res.json()) as T
-}
-
-async function postJson<T>(
-  inv: ConnectorInvocation,
-  token: string,
-  url: string,
-  payload: Record<string, unknown>,
-  label: string,
-): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
-  })
-  if (res.status === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', inv.source.id)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`phony ${label} ${res.status}: ${text.slice(0, 200)}`)
-  }
-  return (await res.json()) as T
 }
 
 /** Copy only the declared keys that are present (not undefined) into a fresh
