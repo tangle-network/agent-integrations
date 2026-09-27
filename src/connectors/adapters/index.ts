@@ -754,5 +754,8 @@ export { linqConnector } from './linq.js'
 
 export { linqWhatsappConnector } from './linq-whatsapp.js'
 
+export { resendConnector } from './resend.js'
+export { sendblueConnector } from './sendblue.js'
+
 export { cloudbedsConnector } from './cloudbeds.js'
 export { pricelabsConnector } from './pricelabs.js'

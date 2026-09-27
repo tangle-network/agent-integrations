@@ -22,7 +22,7 @@ git -C "$PROOF_ROOT/ph0ny" rev-parse HEAD > "$PROOF_ROOT/sdk-source.txt"
   corepack pnpm --filter @ph0ny/sdk build
   corepack pnpm --dir packages/sdk pack --pack-destination "$PROOF_ROOT/packages"
 ) 2>&1 | tee "$PROOF_ROOT/sdk-build.log"
-export SDK_TGZ="$PROOF_ROOT/packages/ph0ny-sdk-0.1.1.tgz"
+export SDK_TGZ="$PROOF_ROOT/packages/ph0ny-sdk-0.1.2.tgz"
 test -s "$SDK_TGZ"
 
 gh repo clone tangle-network/agent-integrations "$PROOF_ROOT/integrations"
@@ -76,13 +76,13 @@ On a write timeout, inspect `call-intent.json` and provider history using its `m
 
 ## Published installation gate
 
-After the owner merges and publishes the exact SDK archive, and this release is published as `0.55.1`, verify a fresh disposable install without local substitutions:
+After the owner merges and publishes the exact SDK archive, and this release is published as `0.57.0`, verify a fresh disposable install without local substitutions:
 
 ```bash
 mkdir "$PROOF_ROOT/registry-consumer"
 cd "$PROOF_ROOT/registry-consumer"
 printf '{"private":true,"type":"module"}\n' > package.json
-npm install --ignore-scripts @ph0ny/sdk@0.1.1 @tangle-network/agent-integrations@0.55.1
+npm install --ignore-scripts @ph0ny/sdk@0.1.2 @tangle-network/agent-integrations@0.57.0
 node --input-type=module <<'JS'
 import { VoiceClient } from '@ph0ny/sdk';
 import { createPhonyConnector } from '@tangle-network/agent-integrations/connectors/adapters';
