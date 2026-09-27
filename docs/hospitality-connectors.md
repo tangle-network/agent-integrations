@@ -67,3 +67,18 @@ Linq retains incoming bytes for 30 days; an inbound `media_id` is a different id
 Pending capture returns a distinct error for a bounded retry.
 
 Source: [Linq WhatsApp attachments](https://docs.linqapp.com/channel/whatsapp/guides/messaging/attachments/) and [served OpenAPI contract](https://whatsapp.messages.api.linqapp.com/v1/openapi.yaml).
+
+## Linq WhatsApp presence
+
+`messages.react` sends a reaction part in the existing chat.
+It targets Linq's `Message.id`, not the inbound channel message ID.
+The caller supplies a stable operation key, and the connector sends it as `Idempotency-Key`.
+The customer window must be open.
+Provider acceptance is not delivery; a reaction normally ends at `sent`.
+
+`chats.read_receipt` marks the newest readable, unread inbound message in the chat read.
+A 409 `nothing_unread` or `nothing_readable` response is a no-op that the host must handle.
+The catalog does not expose a WhatsApp typing action.
+Linq couples its typing indicator to this read command, so repeated typing pulses cannot refresh it after the message is read.
+
+Source: [Linq WhatsApp sending guide](https://docs.linqapp.com/channel/whatsapp/guides/messaging/sending-messages/).

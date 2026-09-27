@@ -39,7 +39,7 @@ export function buildMessagingReply(
   if (!normalized.ok) return normalized
   const event = normalized.event
   if (typeof text !== 'string' || !text.trim() || text.length > 10000 || text.includes('\0')) return fail('Reply text is empty or exceeds its limit')
-  if (typeof operationId !== 'string' || !operationId || operationId.length > 256 || /[\u0000-\u001f]/.test(operationId)) return fail('A stable operation id is required')
+  if (typeof operationId !== 'string' || !operationId || operationId.length > 255 || !/^[\x21-\x7e]+$/.test(operationId)) return fail('A stable operation id is required')
   if (event.historyOnly || event.isGroup) return fail('This event requires review or complete input before a reply')
   const data = object(object(input.payload).data)
   if (event.provider === 'inkbox') {
@@ -69,6 +69,21 @@ export function buildMessagingReply(
   }
   if (event.provider === 'linq') {
     return { ok: true, reply: { idempotencyKey: operationId, action: 'linq.messages.reply', input: { chat_id: event.conversationId, text, message_key: operationId } } }
+  }
+  if (event.provider === 'resend') {
+    const received = object(object(input.payload).received)
+    if (!event.sender.address || !event.destinations[0]?.address) {
+      return fail('Resend reply requires the authenticated mailbox and sender')
+    }
+    const subject = event.subject ?? 'Message'
+    if (/[\u0000-\u001f\u007f]/.test(subject)) return fail('Email subject contains unsafe control characters')
+    const parent = rfcMessageId(received.message_id)
+    if (!parent) return fail('Resend reply requires a valid parent Message-ID')
+    return { ok: true, reply: { idempotencyKey: operationId, action: 'resend.emails.reply', input: {
+      from: event.destinations[0].address, to: [event.sender.address],
+      subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`.slice(0, 998), text,
+      message_key: operationId, in_reply_to: parent,
+    } } }
   }
   if (event.provider === 'contiguity') {
     return { ok: true, reply: { idempotencyKey: operationId, action: event.eventType === 'contiguity.imessage.incoming' ? 'contiguity.messages.send_imessage' : 'contiguity.sms.send',

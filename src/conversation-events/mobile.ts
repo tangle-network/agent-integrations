@@ -26,6 +26,7 @@ function finish(input: ProviderConversationEvent, data: {
   destinationAddress?: unknown; text: unknown; time: unknown; media?: unknown; parent?: unknown;
   subject?: unknown; destinationKind?: 'chat' | 'mailbox'; isGroup?: boolean; historyOnly?: boolean;
   senderVerificationStatus?: 'unverified';
+  transport?: ConversationEvent['transport'];
 }): ConversationEventNormalizationResult {
   const id = string(data.id), conversation = string(data.conversation), sender = string(data.sender), destination = string(data.destination)
   if (!id || !conversation || !sender || !destination) return invalid('Message identity, conversation, sender and destination are required')
@@ -46,6 +47,7 @@ function finish(input: ProviderConversationEvent, data: {
     subject: string(data.subject, 998), text: (data.text as string | null | undefined) ?? null, html: null,
     attachments: attachments as ConversationAttachment[], occurredAt: time,
     isGroup: data.isGroup === true, historyOnly: data.historyOnly === true,
+    ...(data.transport ? { transport: data.transport } : {}),
   }
   return { ok: true, event }
 }
@@ -61,14 +63,14 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
       const m = data.message
       if (!record(m) || m.direction !== 'inbound') return invalid('Expected an inbound iMessage')
       return finish(input, { id: m.id, conversation: m.conversation_id, sender: m.sender_number ?? m.remote_number,
-        destination: m.conversation_id, text: m.content, time: m.created_at ?? p.timestamp, media: m.media, isGroup: m.is_group === true })
+        destination: m.conversation_id, text: m.content, time: m.created_at ?? p.timestamp, media: m.media, isGroup: m.is_group === true, transport: 'imessage' })
     }
     if (p.event_type === 'text.received') {
       const m = data.text_message
       if (!record(m) || m.direction !== 'inbound') return invalid('Expected an inbound phone text')
       return finish(input, { id: m.id, conversation: m.conversation_id, sender: m.sender_phone_number ?? m.remote_phone_number,
         destination: m.local_phone_number, destinationAddress: m.local_phone_number, text: m.text, time: m.created_at ?? p.timestamp,
-        media: m.media, isGroup: m.is_group === true })
+        media: m.media, isGroup: m.is_group === true, transport: 'sms' })
     }
     if (p.event_type === 'message.received') {
       const m = data.message
@@ -77,7 +79,7 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
         destination: m.email_address, destinationAddress: m.email_address, destinationKind: 'mailbox', text: m.body,
         time: m.created_at ?? p.timestamp, subject: m.subject,
         senderVerificationStatus: 'unverified',
-        historyOnly: m.body_state !== 'complete' || m.body_truncated === true })
+        historyOnly: m.body_state !== 'complete' || m.body_truncated === true, transport: 'email' })
     }
     return unsupported()
   }
@@ -88,6 +90,9 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
       || !record(data.sender_handle) || !record(data.chat.owner_handle) || data.chat.owner_handle.is_me !== true || data.sender_handle.is_me === true) {
       return invalid('Linq requires v2026-02-03 incoming payloads with explicit sender and owner handles')
     }
+    const transport = data.service === 'iMessage' ? 'imessage'
+      : data.service === 'SMS' ? 'sms' : data.service === 'RCS' ? 'rcs' : null
+    if (!transport) return invalid('Linq incoming message requires its actual service')
     if (!Array.isArray(data.parts) || data.parts.length > 50) return invalid('Invalid Linq parts')
     const texts: string[] = [], media: RecordValue[] = []
     for (const part of data.parts) {
@@ -102,7 +107,8 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
       destination: data.chat.id, destinationAddress: data.chat.owner_handle.handle,
       text: texts.join('\n'), time: data.sent_at ?? p.created_at, media,
       parent: record(data.reply_to) ? data.reply_to.message_id : undefined,
-      isGroup: data.chat.is_group === true, historyOnly: data.reconciled_at != null || data.zero_retention === true })
+      isGroup: data.chat.is_group === true, historyOnly: data.reconciled_at != null || data.zero_retention === true,
+      transport })
   }
   if (input.provider === 'contiguity') {
     if (input.type !== `contiguity.${p.type}`) return invalid('Event type does not match the provider envelope')
@@ -111,7 +117,8 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
     // No native chat id in v2: use a collision-free tuple, not a bare sender across channels.
     return finish(input, { id: p.id, conversation: JSON.stringify([p.type === 'imessage.incoming' ? 'imessage' : 'text', data.to, data.from]),
       sender: data.from, destination: data.to, destinationAddress: data.to, text: data.body,
-      time: data.timestamp ?? p.timestamp, media: data.attachments })
+      time: data.timestamp ?? p.timestamp, media: data.attachments,
+      transport: p.type === 'imessage.incoming' ? 'imessage' : 'sms' })
   }
   return { ok: false, code: 'unsupported_provider', message: 'Unsupported mobile provider' }
 }

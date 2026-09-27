@@ -25,11 +25,11 @@ export function verifyInkboxWebhook(rawBody: string, headers: WebhookHeaders, se
     && verifyHmacSignature(`${id}.${timestamp}.${rawBody}`, signature, secret, { signaturePrefix: 'sha256=' }))
 }
 
-/** Both Linq services use Standard Webhooks with a base64-decoded signing key. */
-export function verifyLinqWebhook(rawBody: string, headers: WebhookHeaders, secret: string, now = Date.now() / 1000): boolean {
-  const id = header(headers, 'webhook-id')
-  const timestamp = header(headers, 'webhook-timestamp')
-  const signature = header(headers, 'webhook-signature')
+/** Standard Webhooks signs the exact request bytes and three bounded headers. */
+function verifyStandardWebhook(rawBody: string, headers: WebhookHeaders, secret: string, prefix: 'webhook' | 'svix', now: number): boolean {
+  const id = header(headers, `${prefix}-id`)
+  const timestamp = header(headers, `${prefix}-timestamp`)
+  const signature = header(headers, `${prefix}-signature`)
   if (!id || !signature || !fresh(timestamp, now) || !secret.startsWith('whsec_')) return false
   const encoded = secret.slice(6)
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) return false
@@ -39,6 +39,16 @@ export function verifyLinqWebhook(rawBody: string, headers: WebhookHeaders, secr
   return signature.split(' ').some((part) => part.startsWith('v1,')
     && part.slice(3).length === expected.length
     && timingSafeEqual(Buffer.from(part.slice(3)), Buffer.from(expected)))
+}
+
+/** Both Linq services use Standard Webhooks with a base64-decoded signing key. */
+export function verifyLinqWebhook(rawBody: string, headers: WebhookHeaders, secret: string, now = Date.now() / 1000): boolean {
+  return verifyStandardWebhook(rawBody, headers, secret, 'webhook', now)
+}
+
+/** Resend uses the Svix header names for the same signed-body protocol. */
+export function verifyResendWebhook(rawBody: string, headers: WebhookHeaders, secret: string, now = Date.now() / 1000): boolean {
+  return verifyStandardWebhook(rawBody, headers, secret, 'svix', now)
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -104,4 +114,23 @@ export const linqWhatsappWebhookProvider: WebhookProvider = {
     return events
   },
   eventCatalog: { namespace: 'linq-whatsapp.', closed: false, events: [{ id: 'linq-whatsapp.message.received' }] },
+}
+
+export const resendWebhookProvider: WebhookProvider = {
+  id: 'resend',
+  verifySignature: ({ rawBody, headers, secret }) => verifyResendWebhook(rawBody, headers, secret)
+    ? { valid: true } : { valid: false, reason: 'invalid_signature' },
+  parse: (input) => {
+    if (Buffer.byteLength(input.rawBody, 'utf8') > 1_048_576) throw new Error('Webhook exceeds 1 MiB')
+    const value: unknown = JSON.parse(input.rawBody)
+    if (!object(value) || value.type !== 'email.received' || !object(value.data)
+      || typeof value.data.email_id !== 'string' || !/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(value.data.email_id)) {
+      throw new Error('Resend event requires a received email id')
+    }
+    const signedId = header(input.headers, 'svix-id')
+    if (!signedId) throw new Error('Missing signed event identity')
+    return [{ provider: 'resend', eventType: 'resend.email.received', providerEventId: signedId,
+      receivedAt: input.now ?? Date.now(), payload: value, headers: {} }]
+  },
+  eventCatalog: { namespace: 'resend.', closed: true, events: [{ id: 'resend.email.received' }] },
 }
