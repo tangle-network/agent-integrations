@@ -25,7 +25,8 @@ const channels: readonly ConversationChannel[] = [
   { providerId: 'linq', eventType: 'linq.message.received', label: 'SMS / RCS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
   { providerId: 'contiguity', eventType: 'contiguity.imessage.incoming', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'contiguity.messages.send_imessage' },
   { providerId: 'contiguity', eventType: 'contiguity.text.incoming.sms', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, replyAction: 'contiguity.sms.send' },
-  { providerId: 'linq-whatsapp', eventType: 'linq-whatsapp.message.received', label: 'WhatsApp', transport: 'whatsapp', sourceKind: 'connection', replies: true, inventoryAction: 'linq-whatsapp.numbers.list', replyAction: 'linq-whatsapp.messages.reply' },
+  { providerId: 'linq-whatsapp', eventType: 'linq-whatsapp.message.received', label: 'WhatsApp', transport: 'whatsapp', sourceKind: 'connection', replies: true, inventoryAction: 'linq-whatsapp.numbers.list', replyAction: 'linq-whatsapp.messages.reply',
+    reactionAction: 'linq-whatsapp.messages.react', readReceiptAction: 'linq-whatsapp.chats.read_receipt' },
   { providerId: 'resend', eventType: 'resend.email.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true, replyAction: 'resend.emails.reply' },
 ]
 

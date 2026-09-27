@@ -84,6 +84,17 @@ const base = declarativeRestConnector({
       parameters: { type: 'object', properties: { chat_id: id, text: { type: 'string', minLength: 1, maxLength: 4096 } }, required: ['chat_id', 'text'] },
       request: { method: 'POST', path: '/chats/{chat_id}/messages', headers: { 'Idempotency-Key': '{requestKey}' },
         body: { parts: [{ type: 'text', body: '{text}' }] } } },
+    { name: 'messages.react', class: 'mutation', cas: 'native-idempotency', externalEffect: true,
+      description: 'React to this API’s Message.id in the same chat. Requires an open customer window; acceptance is not delivery, and a reaction ends at sent.',
+      parameters: { type: 'object', properties: { chat_id: id, message_id: id,
+        emoji: { type: 'string', enum: ['❤️', '👍', '😂', '‼️', '❓', '👎'] } },
+        required: ['chat_id', 'message_id', 'emoji'] },
+      request: { method: 'POST', path: '/chats/{chat_id}/messages', headers: { 'Idempotency-Key': '{requestKey}' },
+        body: { parts: [{ type: 'reaction', message_id: '{message_id}', emoji: '{emoji}' }] } } },
+    { name: 'chats.read_receipt', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Mark the newest readable, unread inbound message in this chat read. A 409 nothing_unread or nothing_readable is a no-op.',
+      parameters: { type: 'object', properties: { chat_id: id }, required: ['chat_id'] },
+      request: { method: 'POST', path: '/chats/{chat_id}/read' } },
   ],
 })
 

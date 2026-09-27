@@ -2,11 +2,13 @@ import { declarativeRestConnector } from './declarative-rest.js'
 
 const email = { type: 'string', minLength: 3, maxLength: 320, format: 'email' }
 const id = { type: 'string', minLength: 1, maxLength: 256 }
+const headerKey = { type: 'string', minLength: 1, maxLength: 256, pattern: '^[^\\x00-\\x20\\x7f]+$' }
+const messageId = { type: 'string', minLength: 3, maxLength: 256, pattern: '^<[^<>\\x00-\\x1f\\x7f]+>$' }
 const recipients = { type: 'array', minItems: 1, maxItems: 50, items: email }
 const message = { type: 'string', minLength: 1, maxLength: 1_000_000 }
 const send = {
-  from: email, to: recipients, subject: { type: 'string', minLength: 1, maxLength: 998 },
-  text: message, message_key: id,
+  from: email, to: recipients, subject: { type: 'string', minLength: 1, maxLength: 998, pattern: '^[^\\x00-\\x1f\\x7f]*$' },
+  text: message, message_key: headerKey,
 }
 
 /** Resend stores received mail and deduplicates sends by Idempotency-Key for 24 hours. */
@@ -32,7 +34,7 @@ export const resendConnector = declarativeRestConnector({
         body: { from: '{from}', to: '{to}', subject: '{subject}', text: '{text}' } } },
     { name: 'emails.reply', class: 'mutation', cas: 'native-idempotency', externalEffect: true,
       description: 'Reply to a received email from a verified domain with an exact parent Message-ID.',
-      parameters: { type: 'object', properties: { ...send, in_reply_to: id },
+      parameters: { type: 'object', properties: { ...send, in_reply_to: messageId },
         required: ['from', 'to', 'subject', 'text', 'message_key', 'in_reply_to'] },
       request: { method: 'POST', path: '/emails', headers: { 'Idempotency-Key': '{message_key}' },
         body: { from: '{from}', to: '{to}', subject: '{subject}', text: '{text}',

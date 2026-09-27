@@ -2,6 +2,9 @@ import { normalizeConversationEvent, type ConversationEventNormalizationResult, 
 import { listConversationChannels } from './channels.js'
 
 export type ConversationReaction = 'like' | 'love' | 'laugh' | 'emphasize' | 'question' | 'dislike'
+const whatsappEmoji: Record<ConversationReaction, string> = {
+  like: '👍', love: '❤️', laugh: '😂', emphasize: '‼️', question: '❓', dislike: '👎',
+}
 
 export interface ConversationPresenceCapabilities {
   reaction: boolean
@@ -34,7 +37,7 @@ function eligible(input: ProviderConversationEvent) {
 }
 
 function operation(value: string): boolean {
-  return typeof value === 'string' && value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value)
+  return typeof value === 'string' && value.length > 0 && value.length <= 255 && /^[\x21-\x7e]+$/.test(value)
 }
 function target(value: string | null): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value)
@@ -62,11 +65,16 @@ function plan(input: ProviderConversationEvent, operationId: string, kind: 'reac
   const id = kind === 'reaction' ? event.eventId : event.conversationId
   if (!target(id)) return invalid('Provider message or conversation id is missing or invalid')
   const args: Record<string, unknown> = { [inputKey]: id }
+  if (kind === 'reaction' && event.provider === 'linq-whatsapp') {
+    if (!target(event.conversationId)) return invalid('WhatsApp chat id is missing or invalid')
+    args.chat_id = event.conversationId
+  }
   if (kind === 'reaction') {
     if (!reaction || !(['like', 'love', 'laugh', 'emphasize', 'question', 'dislike'] as string[]).includes(reaction)) {
       return invalid('Unsupported reaction')
     }
-    args.reaction = reaction
+    if (event.provider === 'linq-whatsapp') args.emoji = whatsappEmoji[reaction]
+    else args.reaction = reaction
   }
   return { ok: true, plan: { action, input: args, idempotencyKey: operationId } }
 }
