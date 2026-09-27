@@ -70,6 +70,18 @@ export function buildMessagingReply(
   if (event.provider === 'linq') {
     return { ok: true, reply: { idempotencyKey: operationId, action: 'linq.messages.reply', input: { chat_id: event.conversationId, text, message_key: operationId } } }
   }
+  if (event.provider === 'resend') {
+    const received = object(object(input.payload).received)
+    if (typeof received.message_id !== 'string' || !received.message_id || !event.sender.address || !event.destinations[0]?.address) {
+      return fail('Resend reply requires the authenticated mailbox, sender and parent Message-ID')
+    }
+    const subject = event.subject ?? 'Message'
+    return { ok: true, reply: { idempotencyKey: operationId, action: 'resend.emails.reply', input: {
+      from: event.destinations[0].address, to: [event.sender.address],
+      subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`.slice(0, 998), text,
+      message_key: operationId, in_reply_to: received.message_id,
+    } } }
+  }
   if (event.provider === 'contiguity') {
     return { ok: true, reply: { idempotencyKey: operationId, action: event.eventType === 'contiguity.imessage.incoming' ? 'contiguity.messages.send_imessage' : 'contiguity.sms.send',
       input: { to: event.sender.address, from: event.destinations[0]?.address, message: text } } }

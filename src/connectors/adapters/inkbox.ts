@@ -3,6 +3,7 @@ import { declarativeRestConnector, executeRestRequest, mutationResultFromTranspo
 
 const id = { type: 'string', minLength: 1, maxLength: 256 }
 const text = { type: 'string', minLength: 1, maxLength: 18000 }
+const mediaUrl = { type: 'string', format: 'uri', pattern: '^https://', maxLength: 2048 }
 const page = { offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: 100 } }
 const mailPage = { cursor: id, limit: page.limit }
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -20,6 +21,8 @@ const spec: RestConnectorSpec = {
   capabilities: [
     { name: 'identity.status', class: 'read', description: 'Read the connected identity and channel readiness.',
       parameters: { type: 'object', properties: {} }, request: { method: 'GET', path: '/identities/self/channel-status' } },
+    { name: 'phone.numbers.list', class: 'read', description: 'List numbers visible to this credential and their SMS readiness.',
+      parameters: { type: 'object', properties: {} }, request: { method: 'GET', path: '/phone/numbers' } },
     { name: 'imessage.conversations', class: 'read', description: 'List iMessage conversations with offset pagination.',
       parameters: { type: 'object', properties: page },
       request: { method: 'GET', path: '/imessage/conversations', query: { offset: '{offset}', limit: '{limit}' } } },
@@ -28,8 +31,23 @@ const spec: RestConnectorSpec = {
       request: { method: 'GET', path: '/imessage/messages', query: { conversation_id: '{conversation_id}', offset: '{offset}', limit: '{limit}' } } },
     { name: 'imessage.reply', class: 'mutation', cas: 'none', externalEffect: true,
       description: 'Reply to an existing iMessage conversation. Do not blindly retry an uncertain send.',
-      parameters: { type: 'object', properties: { conversation_id: id, text }, required: ['conversation_id', 'text'] },
-      request: { method: 'POST', path: '/imessage/messages', body: { conversation_id: '{conversation_id}', text: '{text}' } } },
+      parameters: { type: 'object', properties: { conversation_id: id, text,
+        media_urls: { type: 'array', minItems: 1, maxItems: 1, items: mediaUrl } }, required: ['conversation_id', 'text'] },
+      request: { method: 'POST', path: '/imessage/messages', body: { conversation_id: '{conversation_id}', text: '{text}', media_urls: '{media_urls}' } } },
+    { name: 'imessage.react', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Send one named tapback to an inbound iMessage. Read the target before retrying an uncertain outcome.',
+      parameters: { type: 'object', properties: { message_id: id,
+        reaction: { type: 'string', enum: ['love', 'like', 'dislike', 'laugh', 'emphasize', 'question', 'eyes'] } },
+        required: ['message_id', 'reaction'] },
+      request: { method: 'POST', path: '/imessage/reactions', body: { message_id: '{message_id}', reaction: '{reaction}' } } },
+    { name: 'imessage.typing', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Show a typing indicator in an existing one-to-one iMessage conversation.',
+      parameters: { type: 'object', properties: { conversation_id: id }, required: ['conversation_id'] },
+      request: { method: 'POST', path: '/imessage/typing', body: { conversation_id: '{conversation_id}' } } },
+    { name: 'imessage.read_receipt', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Mark an existing one-to-one iMessage conversation read and send its read receipt.',
+      parameters: { type: 'object', properties: { conversation_id: id }, required: ['conversation_id'] },
+      request: { method: 'POST', path: '/imessage/mark-read', body: { conversation_id: '{conversation_id}' } } },
     { name: 'email.list', class: 'read', description: 'List messages in the connected identity mailbox.',
       parameters: { type: 'object', properties: { email_address: id, ...mailPage }, required: ['email_address'] },
       request: { method: 'GET', path: '/mail/mailboxes/{email_address}/messages', query: { cursor: '{cursor}', limit: '{limit}' } } },
@@ -44,8 +62,9 @@ const spec: RestConnectorSpec = {
         body: { recipients: { to: '{to}' }, subject: '{subject}', body_text: '{text}', in_reply_to_message_id: '{in_reply_to_message_id}' } } },
     { name: 'sms.reply', class: 'mutation', cas: 'none', externalEffect: true,
       description: 'Reply in an existing SMS/MMS conversation from an owned phone number. Provider opt-in rules still apply.',
-      parameters: { type: 'object', properties: { phone_number_id: id, conversation_id: id, text: { ...text, maxLength: 1600 } }, required: ['phone_number_id', 'conversation_id', 'text'] },
-      request: { method: 'POST', path: '/phone/numbers/{phone_number_id}/texts', body: { conversation_id: '{conversation_id}', text: '{text}' } } },
+      parameters: { type: 'object', properties: { phone_number_id: id, conversation_id: id, text: { ...text, maxLength: 1600 },
+        media_urls: { type: 'array', minItems: 1, maxItems: 10, items: mediaUrl } }, required: ['phone_number_id', 'conversation_id', 'text'] },
+      request: { method: 'POST', path: '/phone/numbers/{phone_number_id}/texts', body: { conversation_id: '{conversation_id}', text: '{text}', media_urls: '{media_urls}' } } },
     { name: 'sms.list', class: 'read', description: 'List phone messages for reconciliation after a missed webhook.',
       parameters: { type: 'object', properties: { phone_number_id: id, ...page }, required: ['phone_number_id'] },
       request: { method: 'GET', path: '/phone/numbers/{phone_number_id}/texts', query: { offset: '{offset}', limit: '{limit}' } } },
