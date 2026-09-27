@@ -83644,6 +83644,30 @@
     ]
   },
   {
+    "id": "sendblue",
+    "title": "sendblue",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "sender",
     "title": "Sender",
     "category": "crm",
@@ -98833,7 +98857,7 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": 7,
+    "actionCount": 8,
     "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",

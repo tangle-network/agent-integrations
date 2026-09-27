@@ -9,6 +9,9 @@ function timestamp(value: unknown): number | null {
   const n = typeof value === 'number' ? value * 1000 : typeof value === 'string' ? Date.parse(value) : NaN
   return Number.isSafeInteger(n) && n >= 0 ? n : null
 }
+function phone(value: unknown): value is string {
+  return typeof value === 'string' && /^\+[1-9]\d{6,14}$/.test(value)
+}
 const invalid = (message: string): ConversationEventNormalizationResult => ({ ok: false, code: 'invalid_payload', message })
 const unsupported = (): ConversationEventNormalizationResult => ({ ok: false, code: 'unsupported_event', message: 'Not a supported incoming conversation message' })
 
@@ -37,7 +40,7 @@ function finish(input: ProviderConversationEvent, data: {
   if (attachments.some((a) => !a)) return invalid('Attachments require HTTPS references; bytes must be resolved through the authorized file boundary')
   const time = timestamp(data.time)
   if (time === null) return invalid('A valid provider timestamp is required')
-  const provider = input.provider as 'inkbox' | 'linq' | 'contiguity'
+  const provider = input.provider as 'inkbox' | 'linq' | 'contiguity' | 'sendblue' | 'twilio-sms'
   const event: ConversationEvent = {
     version: 1, provider, eventType: input.type, operation: 'created', eventId: id,
     conversationId: conversation, parentEventIds: string(data.parent) ? [String(data.parent)] : [],
@@ -55,7 +58,56 @@ function finish(input: ProviderConversationEvent, data: {
 /** Called after the host verifies signatures and resolves the owning connection. */
 export function normalizeMobileConversation(input: ProviderConversationEvent): ConversationEventNormalizationResult {
   const p = input.payload
-  if (!record(p) || !record(p.data)) return invalid('Provider payload requires a data object')
+  if (!record(p)) return invalid('Provider payload requires an object')
+  if (input.provider === 'sendblue') {
+    if (input.type !== 'sendblue.message.received') return unsupported()
+    if (p.is_outbound !== false || String(p.status).toUpperCase() !== 'RECEIVED' || !phone(p.from_number)
+      || !phone(p.sendblue_number) || (p.to_number !== undefined && p.to_number !== p.sendblue_number)
+      || (p.number !== undefined && p.number !== p.from_number)) {
+      return invalid('Sendblue requires an inbound received message with exact line and contact routing')
+    }
+    const service = typeof p.service === 'string' ? p.service.toLowerCase() : null
+    const transport = service === 'imessage' ? 'imessage'
+      : service === 'sms' ? 'sms' : service === 'rcs' ? 'rcs' : null
+    const messageType = typeof p.message_type === 'string' ? p.message_type.toLowerCase() : null
+    if (!transport || (messageType !== 'message' && messageType !== 'group')) return unsupported()
+    const group = messageType === 'group' || Boolean(p.group_id)
+    if (group && !string(p.group_id, 256)) return invalid('Group messages require a group id')
+    if (p.media_url !== undefined && p.media_url !== null && typeof p.media_url !== 'string') return invalid('Invalid Sendblue media URL')
+    return finish(input, { id: p.message_handle,
+      conversation: group ? p.group_id : JSON.stringify(['sendblue', p.sendblue_number, p.from_number]),
+      sender: p.from_number, destination: p.sendblue_number, destinationAddress: p.sendblue_number,
+      text: p.content, time: p.date_sent, media: p.media_url ? [{ url: p.media_url }] : [],
+      parent: record(p.reply_to) ? p.reply_to.message_handle : undefined,
+      isGroup: group, historyOnly: p.opted_out === true, transport })
+  }
+  if (input.provider === 'twilio-sms') {
+    if (input.type !== 'twilio-sms.message.received') return unsupported()
+    if (!/^AC[a-f\d]{32}$/i.test(String(p.AccountSid ?? '')) || !phone(p.From) || !phone(p.To)
+      || !/^(SM|MM)[a-f\d]{32}$/i.test(String(p.MessageSid ?? ''))) {
+      return invalid('Twilio message requires its signed account, SID, and phone routing')
+    }
+    const count = Number(p.NumMedia ?? 0)
+    if (!Number.isSafeInteger(count) || count < 0 || count > 10) return invalid('Invalid Twilio media count')
+    const media: RecordValue[] = []
+    for (let index = 0; index < count; index++) {
+      const rawUrl = string(p[`MediaUrl${index}`], 8192)
+      if (!rawUrl) return invalid('Missing Twilio media URL')
+      let url: URL
+      try { url = new URL(rawUrl) } catch { return invalid('Invalid Twilio media URL') }
+      const parts = /^\/2010-04-01\/Accounts\/(AC[a-f\d]{32})\/Messages\/((?:SM|MM)[a-f\d]{32})\/Media\/(ME[a-f\d]{32})$/i.exec(url.pathname)
+      if (url.origin !== 'https://api.twilio.com' || url.username || url.password || url.search || !parts
+        || parts[1]!.toLowerCase() !== String(p.AccountSid).toLowerCase()
+        || parts[2]!.toLowerCase() !== String(p.MessageSid).toLowerCase()) {
+        return invalid('Twilio media URL must belong to the signed message and account')
+      }
+      media.push({ id: parts[3], url: rawUrl, mime_type: p[`MediaContentType${index}`] })
+    }
+    return finish(input, { id: p.MessageSid, conversation: JSON.stringify(['twilio-sms', p.To, p.From]),
+      sender: p.From, destination: p.To, destinationAddress: p.To, text: p.Body,
+      time: p.__receivedAt, media, transport: 'sms' })
+  }
+  if (!record(p.data)) return invalid('Provider payload requires a data object')
   const data = p.data
   if (input.provider === 'inkbox') {
     if (input.type !== `inkbox.${p.event_type}`) return invalid('Event type does not match the provider envelope')

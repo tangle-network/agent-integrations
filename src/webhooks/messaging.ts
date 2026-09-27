@@ -134,3 +134,31 @@ export const resendWebhookProvider: WebhookProvider = {
   },
   eventCatalog: { namespace: 'resend.', closed: true, events: [{ id: 'resend.email.received' }] },
 }
+
+/** Sendblue sends a shared secret verbatim, with no signed timestamp. Deduplicate by message_handle. */
+export const sendblueWebhookProvider: WebhookProvider = {
+  id: 'sendblue',
+  verifySignature: ({ headers, secret }) => {
+    const supplied = header(headers, 'sb-signing-secret')
+    if (!secret || !supplied) return { valid: false, reason: 'invalid_signature' }
+    const actual = Buffer.from(supplied), expected = Buffer.from(secret)
+    if (actual.length !== expected.length) return { valid: false, reason: 'invalid_signature' }
+    return timingSafeEqual(actual, expected)
+      ? { valid: true } : { valid: false, reason: 'invalid_signature' }
+  },
+  parse: (input) => {
+    if (Buffer.byteLength(input.rawBody, 'utf8') > 1_048_576) throw new Error('Webhook exceeds 1 MiB')
+    const value: unknown = JSON.parse(input.rawBody)
+    if (!object(value)) throw new Error('Sendblue webhook requires an object')
+    const messageType = typeof value.message_type === 'string' ? value.message_type.toLowerCase() : null
+    if (messageType !== 'message' && messageType !== 'group') return []
+    if (typeof value.message_handle !== 'string' || !value.message_handle
+      || value.message_handle.length > 256 || typeof value.is_outbound !== 'boolean') {
+      throw new Error('Sendblue event requires a stable message handle and direction')
+    }
+    if (value.is_outbound) return []
+    return [{ provider: 'sendblue', eventType: 'sendblue.message.received',
+      providerEventId: value.message_handle, receivedAt: input.now ?? Date.now(), payload: value, headers: {} }]
+  },
+  eventCatalog: { namespace: 'sendblue.', closed: true, events: [{ id: 'sendblue.message.received' }] },
+}

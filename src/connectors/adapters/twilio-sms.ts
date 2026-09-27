@@ -8,11 +8,8 @@
  * `accountSid:keySid:secret`) — the connector parses it at call time.
  *
  *   send_sms(to, body)
- *     Mutation. CAS = native-idempotency. Twilio added the
- *     `Idempotency-Key` HTTP header to POST /Messages in 2024 — same
- *     key + same args within 24h returns the original Message resource
- *     instead of sending a second SMS. MutationGuard's record short-
- *     circuits before us; Twilio's own dedup is defense-in-depth.
+ *     Mutation. The Messages API does not document a native idempotency
+ *     contract. Reconcile an uncertain result before any retry.
  *
  *   lookup_number(phoneNumber)
  *     Read. Hits /v1/PhoneNumbers/{e164} on Lookup API. Confirms the
@@ -30,7 +27,6 @@ import {
   type ConnectorInvocation,
   type CapabilityReadResult,
   type CapabilityMutationResult,
-  ResourceContention,
   CredentialsExpired,
 } from '../types.js'
 
@@ -42,19 +38,19 @@ export const twilioSmsConnector: ConnectorAdapter = {
     kind: 'twilio-sms',
     displayName: 'Twilio SMS',
     description:
-      "Send outbound SMS, look up phone numbers, and audit recent messages. Twilio's native Idempotency-Key prevents duplicate sends on retry.",
+      'Send outbound SMS, look up phone numbers, and audit recent messages. Reconcile uncertain sends before retrying.',
     auth: {
       kind: 'api-key',
       hint: 'Paste your Twilio credentials as "AccountSid:AuthToken" (e.g. "AC123…:abc…"). API-key style "AccountSid:KeySid:Secret" is also accepted.',
     },
     category: 'comms',
-    defaultConsistencyModel: 'authoritative',
+    defaultConsistencyModel: 'advisory',
     capabilities: [
       {
         name: 'send_sms',
         class: 'mutation',
         description: 'Send an SMS from the configured Twilio number to the supplied destination.',
-        cas: 'native-idempotency',
+        cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
@@ -96,7 +92,7 @@ export const twilioSmsConnector: ConnectorAdapter = {
         name: 'send_mms',
         class: 'mutation',
         description: 'Send an MMS message with one or more media URLs attached.',
-        cas: 'native-idempotency',
+        cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
@@ -119,7 +115,7 @@ export const twilioSmsConnector: ConnectorAdapter = {
         name: 'send_whatsapp',
         class: 'mutation',
         description: 'Send a WhatsApp message via Twilio (To/From use the whatsapp: prefix).',
-        cas: 'native-idempotency',
+        cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
@@ -135,7 +131,7 @@ export const twilioSmsConnector: ConnectorAdapter = {
         name: 'redact_message',
         class: 'mutation',
         description: 'Redact the body of an already-delivered SMS by SID. Sets Body="" on the Message resource.',
-        cas: 'native-idempotency',
+        cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
@@ -155,6 +151,19 @@ export const twilioSmsConnector: ConnectorAdapter = {
             phoneNumber: { type: 'string', description: 'Optional exact-match filter on the E.164 number.' },
             limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
           },
+        },
+      },
+      {
+        name: 'get_media',
+        class: 'read',
+        description: 'Read one inbound MMS attachment through Twilio authentication; returns bounded base64 bytes.',
+        parameters: {
+          type: 'object',
+          properties: {
+            messageSid: { type: 'string', pattern: '^(SM|MM)[a-fA-F0-9]{32}$' },
+            mediaSid: { type: 'string', pattern: '^ME[a-fA-F0-9]{32}$' },
+          },
+          required: ['messageSid', 'mediaSid'],
         },
       },
     ],
@@ -229,11 +238,55 @@ export const twilioSmsConnector: ConnectorAdapter = {
       }
       const json = (await res.json()) as {
         incoming_phone_numbers?: Array<{ sid: string; phone_number: string; friendly_name?: string; capabilities?: unknown }>
+        next_page_uri?: string | null
       }
       return {
-        data: { numbers: json.incoming_phone_numbers ?? [] },
+        data: { numbers: json.incoming_phone_numbers ?? [], nextPageUri: json.next_page_uri ?? null },
         fetchedAt: Date.now(),
       }
+    }
+    if (inv.capabilityName === 'get_media') {
+      const { messageSid, mediaSid } = inv.args as { messageSid: string; mediaSid: string }
+      if (!/^(SM|MM)[a-f\d]{32}$/i.test(messageSid) || !/^ME[a-f\d]{32}$/i.test(mediaSid)) {
+        throw new Error('twilio-sms get_media requires exact message and media SIDs')
+      }
+      const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/Messages/${messageSid}/Media/${mediaSid}`
+      const signal = AbortSignal.timeout(20_000)
+      let res = await fetch(url, {
+        headers: { authorization: basicAuth(auth) }, redirect: 'manual', signal,
+      })
+      if (res.status === 401) throw new CredentialsExpired('Twilio rejected media credentials', inv.source.id)
+      if ([301, 302, 303, 307, 308].includes(res.status)) {
+        const location = res.headers.get('location')
+        if (!location) throw new Error('twilio-sms get_media redirect omitted Location')
+        const destination = new URL(location, url)
+        // Twilio redirects media to a short-lived CDN URL. Never send API credentials there.
+        if (destination.protocol !== 'https:' ||
+          !['mms.twiliocdn.com', 's3-external-1.amazonaws.com'].includes(destination.hostname) ||
+          destination.port || destination.username || destination.password) {
+          throw new Error('twilio-sms get_media rejected media redirect destination')
+        }
+        await res.body?.cancel()
+        res = await fetch(destination, { redirect: 'error', signal })
+      }
+      if (!res.ok || !res.body) throw new Error(`twilio-sms get_media HTTP ${res.status}`)
+      const chunks: Buffer[] = []
+      let size = 0
+      const reader = res.body.getReader()
+      try {
+        while (true) {
+          const next = await reader.read()
+          if (next.done) break
+          size += next.value.byteLength
+          if (size > 20 * 1024 * 1024) throw new Error('Twilio media exceeds 20 MiB')
+          chunks.push(Buffer.from(next.value))
+        }
+      } finally {
+        await reader.cancel().catch(() => {})
+        reader.releaseLock()
+      }
+      return { data: { base64: Buffer.concat(chunks, size).toString('base64'),
+        contentType: res.headers.get('content-type') }, fetchedAt: Date.now() }
     }
     throw new Error(`twilio-sms: unknown read capability ${inv.capabilityName}`)
   },
@@ -282,15 +335,11 @@ export const twilioSmsConnector: ConnectorAdapter = {
         headers: {
           authorization: basicAuth(auth),
           'content-type': 'application/x-www-form-urlencoded',
-          'idempotency-key': inv.idempotencyKey,
         },
         body: formBody,
         signal: AbortSignal.timeout(15_000),
       })
       if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
-      if (res.status === 409) {
-        throw new ResourceContention('Twilio idempotency-key conflict — different args under same key')
-      }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
         throw new Error(`twilio-sms redact_message ${res.status}: ${text.slice(0, 200)}`)
@@ -385,15 +434,11 @@ async function postMessages(
     headers: {
       authorization: basicAuth(auth),
       'content-type': 'application/x-www-form-urlencoded',
-      'idempotency-key': inv.idempotencyKey,
     },
     body: formBody,
     signal: AbortSignal.timeout(15_000),
   })
   if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
-  if (res.status === 409) {
-    throw new ResourceContention('Twilio idempotency-key conflict — different args under same key')
-  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`twilio-sms ${label} ${res.status}: ${text.slice(0, 200)}`)

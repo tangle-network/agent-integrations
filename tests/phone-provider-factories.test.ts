@@ -62,6 +62,7 @@ describe('phone provider factory pack', () => {
         envNames: [],
         actions: [
           'find_recent_messages',
+          'get_media',
           'list_numbers',
           'lookup_number',
           'redact_message',
