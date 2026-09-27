@@ -30,13 +30,13 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('twilio-sms adapter manifest', () => {
-  it('marks every mutation as native-idempotency + external effect', () => {
+  it('marks every mutation as an external effect without claimed provider idempotency', () => {
     const caps = twilioSmsConnector.manifest.capabilities
     const mutations = caps.filter((c) => c.class === 'mutation')
     expect(mutations.length).toBeGreaterThan(0)
     for (const c of mutations) {
       if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
+      expect(c.cas).toBe('none')
       expect(c.externalEffect).toBe(true)
     }
   })
@@ -52,6 +52,7 @@ describe('twilio-sms adapter manifest', () => {
         'lookup_number',
         'find_recent_messages',
         'list_numbers',
+        'get_media',
       ].sort(),
     )
   })
@@ -60,7 +61,7 @@ describe('twilio-sms adapter manifest', () => {
 describe('twilio-sms send_mms', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('posts MediaUrl entries and includes the idempotency-key header', async () => {
+  it('posts MediaUrl entries without claiming an undocumented idempotency header', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let requestBody: string | undefined
@@ -88,7 +89,7 @@ describe('twilio-sms send_mms', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/Accounts/AC123456789abcdef/Messages.json')
-    expect(requestHeaders?.['idempotency-key']).toBe('mms-1')
+    expect(requestHeaders?.['idempotency-key']).toBeUndefined()
     expect(requestBody).toContain('MediaUrl=https%3A%2F%2Fcdn.example.com%2Fa.jpg')
     expect(requestBody).toContain('MediaUrl=https%3A%2F%2Fcdn.example.com%2Fb.jpg')
     expect(requestBody).toContain('Body=pic')

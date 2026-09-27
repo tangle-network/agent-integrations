@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 517 |
-| Native adapter surfaces shipped | 633 |
+| Native adapter surfaces shipped | 634 |
 | Package-runtime backends | 152 |
 | Runtime manifest dependencies for catalog-only connectors | 161 |
 | Catalog-only connectors exposable behind runtime | 152 |
@@ -149,7 +149,7 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `bitly`
 - `bland-ai`
 
-...and 553 more native adapter surfaces.
+...and 554 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -401,7 +401,7 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 633 reviewed native adapter surfaces ship from this package; 517 overlap the 669 catalog contracts. |
+| Native adapter execution | Done for listed native backends | 634 reviewed native adapter surfaces ship from this package; 517 overlap the 669 catalog contracts. |
 | OAuth/API-key setup metadata | Partial | 253 setup specs exist; 241 are executable setup specs and 12 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 152 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
@@ -481,7 +481,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 633 native adapter surfaces. 517 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 634 native adapter surfaces. 517 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 

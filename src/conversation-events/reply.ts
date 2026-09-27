@@ -89,5 +89,17 @@ export function buildMessagingReply(
     return { ok: true, reply: { idempotencyKey: operationId, action: event.eventType === 'contiguity.imessage.incoming' ? 'contiguity.messages.send_imessage' : 'contiguity.sms.send',
       input: { to: event.sender.address, from: event.destinations[0]?.address, message: text } } }
   }
+  if (event.provider === 'sendblue') {
+    if (!event.sender.address || !event.destinations[0]?.address) return fail('Sendblue reply requires the contact and owned line')
+    return { ok: true, reply: { idempotencyKey: operationId, action: 'sendblue.messages.send',
+      input: { from_number: event.destinations[0].address, number: event.sender.address, content: text } } }
+  }
+  if (event.provider === 'twilio-sms') {
+    if (text.length > 1600 || !event.sender.address || !event.destinations[0]?.address) {
+      return fail('Twilio SMS reply requires two phone numbers and at most 1600 characters')
+    }
+    return { ok: true, reply: { idempotencyKey: operationId, action: 'twilio-sms.send_sms',
+      input: { from: event.destinations[0].address, to: event.sender.address, body: text } } }
+  }
   return { ok: false, code: 'unsupported_provider', message: 'Use the existing channel-specific reply tool for this provider' }
 }

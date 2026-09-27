@@ -15,7 +15,7 @@ export { conversationPresenceCapabilities, buildConversationReaction, buildConve
 
 /** Additive provider vocabulary. Neither sender identity nor group membership is authority. */
 export interface ConversationEvent extends Omit<ExistingConversationEvent, 'provider'> {
-  provider: ExistingConversationEvent['provider'] | 'inkbox' | 'linq' | 'contiguity' | 'linq-whatsapp' | 'resend'
+  provider: ExistingConversationEvent['provider'] | 'inkbox' | 'linq' | 'contiguity' | 'linq-whatsapp' | 'resend' | 'sendblue' | 'twilio-sms'
   /** Actual inbound protocol. Linq reports this per message, not per chat. */
   transport?: 'email' | 'imessage' | 'sms' | 'rcs' | 'whatsapp'
   isGroup?: boolean
@@ -28,7 +28,7 @@ export type ConversationEventNormalizationResult =
 
 export function normalizeConversationEvent(value: unknown): ConversationEventNormalizationResult {
   if (value && typeof value === 'object' && 'provider' in value
-    && ['inkbox', 'linq', 'contiguity', 'linq-whatsapp', 'resend'].includes(String(value.provider))) {
+    && ['inkbox', 'linq', 'contiguity', 'linq-whatsapp', 'resend', 'sendblue', 'twilio-sms'].includes(String(value.provider))) {
     if (!('type' in value) || typeof value.type !== 'string' || !('payload' in value)) {
       return { ok: false, code: 'invalid_payload', message: 'Provider event requires type and payload' }
     }

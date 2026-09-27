@@ -82,3 +82,43 @@ The catalog does not expose a WhatsApp typing action.
 Linq couples its typing indicator to this read command, so repeated typing pulses cannot refresh it after the message is read.
 
 Source: [Linq WhatsApp sending guide](https://docs.linqapp.com/channel/whatsapp/guides/messaging/sending-messages/).
+
+## Sendblue lines
+
+Store `apiKeyId` and `apiSecretKey` together as JSON in the encrypted API-key credential.
+The adapter sends them as `sb-api-key-id` and `sb-api-secret-key` headers.
+Select a number from `lines.state`; the host must bind that number to the connected line before sending.
+The `receive` webhook must have a configured secret.
+The verifier compares the `sb-signing-secret` header with that secret and deduplicates inbound deliveries by `message_handle`.
+Sendblue does not include a signed timestamp in this webhook protocol.
+
+`messages.send` sends text, with optional media or an inline reply target.
+`messages.send_media` sends media without text.
+The group actions require an existing group ID; the host must read its current members before sending.
+The generic reply and presence planners reject group events.
+Read receipts require account activation, and an accepted API response does not prove delivery to the recipient.
+Sendblue does not document native duplicate-send protection, so the host must reconcile an uncertain result before retrying.
+
+Source: [Sendblue API overview](https://docs.sendblue.com/api-v2), [webhooks](https://docs.sendblue.com/getting-started/webhooks/), [messages](https://docs.sendblue.com/getting-started/sending-messages), [group send](https://docs.sendblue.com/api/resources/groups/methods/send_message), and [read receipts](https://docs.sendblue.com/api-v2/read-receipts).
+
+## Twilio SMS and MMS
+
+Bind a Twilio account SID and one SMS-capable number from `list_numbers`.
+The line picker rejects a partial inventory page; query a specific owned number when the account has more than one page.
+Configure the inbound webhook with its exact public URL, account SID, and auth token.
+The verifier checks Twilio's form signature before the host resolves the line.
+The normalizer accepts only SMS or MMS message SIDs and media URLs tied to the signed account and message.
+`get_media` fetches attachment bytes with the connected Twilio credentials, rejects redirects, and caps a download at 20 MiB.
+Store those bytes at the host file boundary before giving an agent a file reference.
+The Messages API does not document a native idempotency key, so uncertain writes need reconciliation before retry.
+
+Source: [Twilio Message resource](https://www.twilio.com/docs/messaging/api/message-resource) and [Media subresource](https://www.twilio.com/docs/messaging/api/media-resource).
+
+## Contiguity presence
+
+`imessage.typing` and `imessage.read_receipt` use an explicit leased sender number and recipient number.
+The generic planner exposes those actions only for authenticated, current, one-to-one iMessage events.
+`messages.react` is available as a manual action after checking the target conversation.
+Contiguity chooses the latest message with matching text, so the generic planner does not select a reaction target automatically.
+
+Source: [Contiguity reactions](https://contiguity.mintlify.app/api-reference/product/imessage/reactions), [typing](https://contiguity.mintlify.app/api-reference/product/imessage/typing), and [read receipts](https://contiguity.mintlify.app/api-reference/product/imessage/read).
