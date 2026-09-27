@@ -44,7 +44,7 @@ export const twilioSmsConnector: ConnectorAdapter = {
       hint: 'Paste your Twilio credentials as "AccountSid:AuthToken" (e.g. "AC123…:abc…"). API-key style "AccountSid:KeySid:Secret" is also accepted.',
     },
     category: 'comms',
-    defaultConsistencyModel: 'authoritative',
+    defaultConsistencyModel: 'advisory',
     capabilities: [
       {
         name: 'send_sms',
@@ -254,7 +254,7 @@ export const twilioSmsConnector: ConnectorAdapter = {
       const res = await fetch(url, {
         headers: { authorization: basicAuth(auth) }, redirect: 'error', signal: AbortSignal.timeout(20_000),
       })
-      if (res.status === 401 || res.status === 403) throw new CredentialsExpired('Twilio rejected media credentials', inv.source.id)
+      if (res.status === 401) throw new CredentialsExpired('Twilio rejected media credentials', inv.source.id)
       if (!res.ok || !res.body) throw new Error(`twilio-sms get_media HTTP ${res.status}`)
       const chunks: Buffer[] = []
       let size = 0

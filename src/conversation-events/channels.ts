@@ -3,7 +3,7 @@ export interface ConversationChannel {
   providerId: string
   eventType: string
   label: string
-  transport: 'email' | 'imessage' | 'sms' | 'whatsapp'
+  transport: 'email' | 'imessage' | 'sms' | 'rcs' | 'whatsapp'
   sourceKind: 'channel' | 'connection'
   replies: boolean
   inventoryAction?: string
@@ -22,7 +22,8 @@ const channels: readonly ConversationChannel[] = [
   { providerId: 'inkbox', eventType: 'inkbox.message.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true, replyAction: 'inkbox.email.send' },
   { providerId: 'linq', eventType: 'linq.message.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply',
     reactionAction: 'linq.messages.react', typingAction: 'linq.chats.typing', readReceiptAction: 'linq.chats.read_receipt', numberProvisioning: 'provider-assigned' },
-  { providerId: 'linq', eventType: 'linq.message.received', label: 'SMS / RCS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
+  { providerId: 'linq', eventType: 'linq.message.received', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
+  { providerId: 'linq', eventType: 'linq.message.received', label: 'RCS', transport: 'rcs', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
   { providerId: 'contiguity', eventType: 'contiguity.imessage.incoming', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'contiguity.messages.send_imessage',
     typingAction: 'contiguity.imessage.typing', readReceiptAction: 'contiguity.imessage.read_receipt' },
   { providerId: 'contiguity', eventType: 'contiguity.text.incoming.sms', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, replyAction: 'contiguity.sms.send' },
@@ -31,7 +32,8 @@ const channels: readonly ConversationChannel[] = [
   { providerId: 'resend', eventType: 'resend.email.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true, replyAction: 'resend.emails.reply' },
   { providerId: 'sendblue', eventType: 'sendblue.message.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'sendblue.lines.state', replyAction: 'sendblue.messages.send',
     reactionAction: 'sendblue.messages.react', typingAction: 'sendblue.typing.send', readReceiptAction: 'sendblue.read_receipts.send' },
-  { providerId: 'sendblue', eventType: 'sendblue.message.received', label: 'SMS / RCS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'sendblue.lines.state', replyAction: 'sendblue.messages.send' },
+  { providerId: 'sendblue', eventType: 'sendblue.message.received', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'sendblue.lines.state', replyAction: 'sendblue.messages.send' },
+  { providerId: 'sendblue', eventType: 'sendblue.message.received', label: 'RCS', transport: 'rcs', sourceKind: 'connection', replies: true, inventoryAction: 'sendblue.lines.state', replyAction: 'sendblue.messages.send' },
   { providerId: 'twilio-sms', eventType: 'twilio-sms.message.received', label: 'SMS / MMS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'twilio-sms.list_numbers', replyAction: 'twilio-sms.send_sms' },
 ]
 

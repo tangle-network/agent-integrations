@@ -149,14 +149,14 @@ export const sendblueWebhookProvider: WebhookProvider = {
   parse: (input) => {
     if (Buffer.byteLength(input.rawBody, 'utf8') > 1_048_576) throw new Error('Webhook exceeds 1 MiB')
     const value: unknown = JSON.parse(input.rawBody)
-    if (!object(value) || typeof value.message_handle !== 'string' || !value.message_handle
+    if (!object(value)) throw new Error('Sendblue webhook requires an object')
+    const messageType = typeof value.message_type === 'string' ? value.message_type.toLowerCase() : null
+    if (messageType !== 'message' && messageType !== 'group') return []
+    if (typeof value.message_handle !== 'string' || !value.message_handle
       || value.message_handle.length > 256 || typeof value.is_outbound !== 'boolean') {
       throw new Error('Sendblue event requires a stable message handle and direction')
     }
     if (value.is_outbound) return []
-    if (value.message_type !== 'message' && value.message_type !== 'group') {
-      throw new Error('Unsupported Sendblue inbound message type')
-    }
     return [{ provider: 'sendblue', eventType: 'sendblue.message.received',
       providerEventId: value.message_handle, receivedAt: input.now ?? Date.now(), payload: value, headers: {} }]
   },

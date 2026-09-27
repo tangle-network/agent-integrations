@@ -94,6 +94,8 @@ Sendblue does not include a signed timestamp in this webhook protocol.
 
 `messages.send` sends text, with optional media or an inline reply target.
 `messages.send_media` sends media without text.
+Sendblue can fall back from iMessage to SMS, and it offers no switch to disable that fallback.
+Use `recipient.service` when the host must check iMessage eligibility before sending.
 The group actions require an existing group ID; the host must read its current members before sending.
 The generic reply and presence planners reject group events.
 Read receipts require account activation, and an accepted API response does not prove delivery to the recipient.
@@ -105,7 +107,8 @@ Source: [Sendblue API overview](https://docs.sendblue.com/api-v2), [webhooks](ht
 
 Bind a Twilio account SID and one SMS-capable number from `list_numbers`.
 The line picker rejects a partial inventory page; query a specific owned number when the account has more than one page.
-Configure the inbound webhook with its exact public URL, account SID, and auth token.
+Create `createTwilioSmsWebhookProvider` with its exact public URL, account SID, and `kind: 'message'`.
+The host supplies the account auth token to webhook verification.
 The verifier checks Twilio's form signature before the host resolves the line.
 The normalizer accepts only SMS or MMS message SIDs and media URLs tied to the signed account and message.
 `get_media` fetches attachment bytes with the connected Twilio credentials, rejects redirects, and caps a download at 20 MiB.

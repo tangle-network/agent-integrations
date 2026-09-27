@@ -36,3 +36,12 @@ export function createTwilioWebhookProvider(options: {
       events: [{ id: `${providerId}.message.received` }, { id: `${providerId}.message.status` }] },
   }
 }
+
+/** Register this provider for Twilio SMS/MMS Hub lines. The older constructor retains its twilio event IDs. */
+export function createTwilioSmsWebhookProvider(options: {
+  url: string
+  accountSid: string
+  kind: 'message' | 'status'
+}): WebhookProvider {
+  return createTwilioWebhookProvider({ ...options, providerId: 'twilio-sms' })
+}

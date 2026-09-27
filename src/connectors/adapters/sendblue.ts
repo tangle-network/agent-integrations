@@ -8,7 +8,7 @@ const mediaUrl = { type: 'string', format: 'uri', pattern: '^https://', maxLengt
 /** API keys are a pair; both stay in the encrypted credential envelope. */
 export const sendblueConnector = declarativeRestConnector({
   kind: 'sendblue', displayName: 'Sendblue', category: 'comms',
-  description: 'Read owned lines and messages; send pinned iMessage, SMS or RCS replies and iMessage presence.',
+  description: 'Read owned lines and messages; send replies from pinned numbers and iMessage presence. Sendblue may fall back to SMS.',
   auth: { kind: 'api-key', hint: 'JSON with apiKeyId and apiSecretKey; use a server-side Sendblue account key.' },
   credentialPlacement: { kind: 'structured-headers', fields: {
     apiKeyId: 'sb-api-key-id', apiSecretKey: 'sb-api-secret-key',
@@ -19,6 +19,9 @@ export const sendblueConnector = declarativeRestConnector({
     { name: 'lines.state', class: 'read', description: 'Read the authenticated account line-state snapshot without buying a number.',
       parameters: { type: 'object', properties: {} },
       request: { method: 'GET', path: '/api/v2/lines/state' } },
+    { name: 'recipient.service', class: 'read', description: 'Check a recipient service before a send that must stay on iMessage.',
+      parameters: { type: 'object', properties: { number: e164 }, required: ['number'] },
+      request: { method: 'GET', path: '/api/evaluate-service', query: { number: '{number}' } } },
     { name: 'messages.list', class: 'read', description: 'Reconcile messages on an explicitly selected owned line.',
       parameters: { type: 'object', properties: { sendblue_number: e164,
         is_outbound: { type: 'boolean' }, limit: { type: 'integer', minimum: 1, maximum: 100 },

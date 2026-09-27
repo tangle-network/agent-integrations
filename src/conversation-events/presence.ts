@@ -77,6 +77,7 @@ function plan(input: ProviderConversationEvent, operationId: string, kind: 'reac
     const route = routedPhones(event)
     if (!route) return invalid('Presence requires an exact owned line and contact phone number')
     if (event.provider === 'contiguity') {
+      if (kind === 'reaction') return unsupported('Contiguity reactions need an explicit, unambiguous text target')
       return { ok: true, plan: { action, idempotencyKey: operationId,
         input: kind === 'typing' ? { to: route.to, from: route.from, action: 'start' }
           : { to: route.to, from: route.from } } }

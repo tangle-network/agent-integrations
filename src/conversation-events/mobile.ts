@@ -61,15 +61,17 @@ export function normalizeMobileConversation(input: ProviderConversationEvent): C
   if (!record(p)) return invalid('Provider payload requires an object')
   if (input.provider === 'sendblue') {
     if (input.type !== 'sendblue.message.received') return unsupported()
-    if (p.is_outbound !== false || p.status !== 'RECEIVED' || !phone(p.from_number)
+    if (p.is_outbound !== false || String(p.status).toUpperCase() !== 'RECEIVED' || !phone(p.from_number)
       || !phone(p.sendblue_number) || (p.to_number !== undefined && p.to_number !== p.sendblue_number)
       || (p.number !== undefined && p.number !== p.from_number)) {
       return invalid('Sendblue requires an inbound received message with exact line and contact routing')
     }
-    const transport = p.service === 'iMessage' ? 'imessage'
-      : p.service === 'SMS' ? 'sms' : p.service === 'RCS' ? 'rcs' : null
-    if (!transport || (p.message_type !== 'message' && p.message_type !== 'group')) return unsupported()
-    const group = p.message_type === 'group' || Boolean(p.group_id)
+    const service = typeof p.service === 'string' ? p.service.toLowerCase() : null
+    const transport = service === 'imessage' ? 'imessage'
+      : service === 'sms' ? 'sms' : service === 'rcs' ? 'rcs' : null
+    const messageType = typeof p.message_type === 'string' ? p.message_type.toLowerCase() : null
+    if (!transport || (messageType !== 'message' && messageType !== 'group')) return unsupported()
+    const group = messageType === 'group' || Boolean(p.group_id)
     if (group && !string(p.group_id, 256)) return invalid('Group messages require a group id')
     if (p.media_url !== undefined && p.media_url !== null && typeof p.media_url !== 'string') return invalid('Invalid Sendblue media URL')
     return finish(input, { id: p.message_handle,
