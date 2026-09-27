@@ -16,6 +16,9 @@ importers:
       '@duckdb/node-api':
         specifier: 1.5.5-r.2
         version: 1.5.5-r.2
+      '@ph0ny/sdk':
+        specifier: 0.1.1
+        version: 0.1.1(typescript@5.9.3)
       amqplib:
         specifier: 2.0.1
         version: 2.0.1
@@ -324,6 +327,13 @@ packages:
 
   '@oxc-project/types@0.139.0':
     resolution: {integrity: sha512-r9gHphtCs+1M7J0pw6Sn/hh/Wpa/iQrOOkrNAlVLF/gHq+/CJmHIWKKUUhdWjcD6CIa8idarspCsASiXCXvFUw==}
+
+  '@ph0ny/sdk@0.1.1':
+    resolution: {integrity: sha512-IeOC1DFWRMDPjT7PHi0dLgNaiLNQPwW34eKIASg51+hhFHDy/aIFVdiGISARQzlymNBOHYqs88gFDEGMb1D5cA==}
+    version: 0.1.1
+    engines: {node: '>=18'}
+    peerDependencies:
+      typescript: ^5.0.0
 
   '@redis/bloom@6.1.0':
     resolution: {integrity: sha512-Rzascjd9J9bJsM45T/Z9CTg1QY/B63B6YO8QorLVMeXnbBDsKiSCVR/+GQ061hYPk8FpTzWmPY8tAv2sT+JEtQ==}
@@ -1366,6 +1376,9 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@duckdb/node-api@1.5.5-r.2':
@@ -1529,6 +1542,11 @@ snapshots:
     optional: true
 
   '@oxc-project/types@0.139.0': {}
+
+  '@ph0ny/sdk@0.1.1(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
+      zod: 4.6.5
 
   '@redis/bloom@6.1.0(@redis/client@6.1.0)':
     dependencies:
@@ -2388,3 +2406,5 @@ snapshots:
       fflate: 0.8.3
 
   xtend@4.0.2: {}
+
+  zod@4.6.5: {}

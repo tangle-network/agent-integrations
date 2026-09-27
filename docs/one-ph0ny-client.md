@@ -9,6 +9,7 @@ Run in fresh checkouts. Node 22, Corepack, pnpm 10.28.0 and an authenticated `gh
 ```bash
 set -euo pipefail
 umask 077
+export NODE_OPTIONS=--max-old-space-size=6144
 export PROOF_ROOT="$(mktemp -d "$HOME/one-ph0ny.XXXXXX")"
 mkdir "$PROOF_ROOT/packages"
 gh repo clone drewstone/ph0ny "$PROOF_ROOT/ph0ny"
@@ -17,7 +18,7 @@ git -C "$PROOF_ROOT/ph0ny" checkout --detach FETCH_HEAD
 git -C "$PROOF_ROOT/ph0ny" rev-parse HEAD > "$PROOF_ROOT/sdk-source.txt"
 (
   cd "$PROOF_ROOT/ph0ny"
-  corepack pnpm install --filter @ph0ny/sdk... --frozen-lockfile --ignore-scripts
+  corepack pnpm install --filter @ph0ny/sdk... --config.node-linker=isolated --frozen-lockfile --ignore-scripts
   corepack pnpm --filter @ph0ny/sdk build
   corepack pnpm --dir packages/sdk pack --pack-destination "$PROOF_ROOT/packages"
 ) 2>&1 | tee "$PROOF_ROOT/sdk-build.log"
@@ -92,3 +93,7 @@ JS
 ```
 
 The archive proof does not claim that an unpublished version is already on npm. Keep publication and staging-call receipts separate from build receipts. Platform line enable, in-call workspace execution, media-host selection and disable are proved in agent-dev-container PR #8183.
+
+## Pre-publication order
+
+Build the SDK with the filtered isolated install above. This does not install Builder or request the unpublished integrations package. Build integrations from that SDK archive next. Use the two archives for the application proofs. After approval, release the exact reviewed SDK archive first, then the exact reviewed integrations archive. Run the fresh registry installs and frozen-lockfile gates after both releases are available. Do not infer publication from a source merge, and do not overwrite an existing registry version.
