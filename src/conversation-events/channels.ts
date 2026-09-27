@@ -8,18 +8,23 @@ export interface ConversationChannel {
   replies: boolean
   inventoryAction?: string
   replyAction?: string
+  reactionAction?: string
+  typingAction?: string
+  readReceiptAction?: string
   numberProvisioning?: 'provider-assigned'
 }
 
 const channels: readonly ConversationChannel[] = [
   { providerId: 'email', eventType: 'email.received', label: 'Tangle email', transport: 'email', sourceKind: 'channel', replies: false },
-  { providerId: 'inkbox', eventType: 'inkbox.imessage.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true },
-  { providerId: 'inkbox', eventType: 'inkbox.text.received', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true },
-  { providerId: 'inkbox', eventType: 'inkbox.message.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true },
-  { providerId: 'linq', eventType: 'linq.message.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
+  { providerId: 'inkbox', eventType: 'inkbox.imessage.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'inkbox.imessage.reply',
+    reactionAction: 'inkbox.imessage.react', typingAction: 'inkbox.imessage.typing', readReceiptAction: 'inkbox.imessage.read_receipt' },
+  { providerId: 'inkbox', eventType: 'inkbox.text.received', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, replyAction: 'inkbox.sms.reply' },
+  { providerId: 'inkbox', eventType: 'inkbox.message.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true, replyAction: 'inkbox.email.send' },
+  { providerId: 'linq', eventType: 'linq.message.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply',
+    reactionAction: 'linq.messages.react', typingAction: 'linq.chats.typing', readReceiptAction: 'linq.chats.read_receipt', numberProvisioning: 'provider-assigned' },
   { providerId: 'linq', eventType: 'linq.message.received', label: 'SMS / RCS', transport: 'sms', sourceKind: 'connection', replies: true, inventoryAction: 'linq.numbers.list', replyAction: 'linq.messages.reply', numberProvisioning: 'provider-assigned' },
-  { providerId: 'contiguity', eventType: 'contiguity.imessage.incoming', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true },
-  { providerId: 'contiguity', eventType: 'contiguity.text.incoming.sms', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true },
+  { providerId: 'contiguity', eventType: 'contiguity.imessage.incoming', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'contiguity.messages.send_imessage' },
+  { providerId: 'contiguity', eventType: 'contiguity.text.incoming.sms', label: 'SMS', transport: 'sms', sourceKind: 'connection', replies: true, replyAction: 'contiguity.sms.send' },
   { providerId: 'linq-whatsapp', eventType: 'linq-whatsapp.message.received', label: 'WhatsApp', transport: 'whatsapp', sourceKind: 'connection', replies: true, inventoryAction: 'linq-whatsapp.numbers.list', replyAction: 'linq-whatsapp.messages.reply' },
   { providerId: 'resend', eventType: 'resend.email.received', label: 'Email', transport: 'email', sourceKind: 'connection', replies: true, replyAction: 'resend.emails.reply' },
 ]

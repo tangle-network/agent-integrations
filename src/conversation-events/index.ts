@@ -10,6 +10,8 @@ import { normalizeResendConversation } from './resend.js'
 export * from './core.js'
 export { buildMessagingReply, type ConversationReply } from './reply.js'
 export { listConversationChannels, conversationEndpointOptions, type ConversationChannel, type ConversationEndpointOption } from './channels.js'
+export { conversationPresenceCapabilities, buildConversationReaction, buildConversationTyping, buildConversationReadReceipt,
+  type ConversationReaction, type ConversationPresenceCapabilities, type ConversationPresenceAction } from './presence.js'
 
 /** Additive provider vocabulary. Neither sender identity nor group membership is authority. */
 export interface ConversationEvent extends Omit<ExistingConversationEvent, 'provider'> {
