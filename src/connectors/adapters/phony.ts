@@ -65,7 +65,33 @@ import { VoiceClient, VoiceApiException } from '@ph0ny/sdk'
 
 const E164 = /^\+[1-9]\d{7,14}$/
 
-export const phonyConnector: ConnectorAdapter = {
+export interface PhonyConnectorOptions {
+  /** Operator-selected API, never taken from capability arguments. */
+  baseUrl?: string
+  fetchImpl?: typeof fetch
+}
+
+/** The production singleton and staging deployments share the same adapter. */
+export function createPhonyConnector(options: PhonyConnectorOptions = {}): ConnectorAdapter {
+  async function ph0ny<T>(
+    sourceId: string,
+    token: string,
+    request: { method: 'GET' | 'POST'; path: string; body?: Record<string, unknown>; timeout: number },
+    label: string,
+  ): Promise<T> {
+    try {
+      return await new VoiceClient({ apiKey: token, baseUrl: options.baseUrl, fetchImpl: options.fetchImpl }).request<T>(request.method, request.path, {
+        body: request.body,
+        timeout: request.timeout,
+      })
+    } catch (error) {
+      if (!(error instanceof VoiceApiException)) throw error
+      if (error.statusCode === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', sourceId)
+      throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
+    }
+  }
+
+  return {
   manifest: {
     kind: 'phony',
     displayName: 'ph0ny',
@@ -528,7 +554,7 @@ export const phonyConnector: ConnectorAdapter = {
       const token = bearerToken(source.credentials)
       // GET /v1/outbound?limit=1 is the cheapest authed read that proves the
       // key is valid.
-      await new VoiceClient({ apiKey: token }).request('GET', '/v1/outbound?limit=1', { timeout: 8_000 })
+      await new VoiceClient({ apiKey: token, baseUrl: options.baseUrl, fetchImpl: options.fetchImpl }).request('GET', '/v1/outbound?limit=1', { timeout: 8_000 })
       return { ok: true }
     } catch (err) {
       if (err instanceof VoiceApiException) {
@@ -543,7 +569,10 @@ export const phonyConnector: ConnectorAdapter = {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) }
     }
   },
+  }
 }
+
+export const phonyConnector = createPhonyConnector()
 
 function bearerToken(creds: { kind: string; apiKey?: string }): string {
   if (creds.kind !== 'api-key' || typeof creds.apiKey !== 'string' || creds.apiKey.length === 0) {
@@ -635,25 +664,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** One ph0ny API call through the SDK client; 401 surfaces as CredentialsExpired
- *  so the platform prompts a reconnect. */
-async function ph0ny<T>(
-  sourceId: string,
-  token: string,
-  request: { method: 'GET' | 'POST'; path: string; body?: Record<string, unknown>; timeout: number },
-  label: string,
-): Promise<T> {
-  try {
-    return await new VoiceClient({ apiKey: token }).request<T>(request.method, request.path, {
-      body: request.body,
-      timeout: request.timeout,
-    })
-  } catch (error) {
-    if (!(error instanceof VoiceApiException)) throw error
-    if (error.statusCode === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', sourceId)
-    throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
-  }
-}
 
 /** Copy only the declared keys that are present (not undefined) into a fresh
  *  payload. Keeps the connector from forwarding fields the route's zod schema

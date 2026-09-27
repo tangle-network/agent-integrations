@@ -49,6 +49,8 @@ const tracedFetch = async (input, init) => {
   return response;
 };
 const client = new VoiceClient({ apiKey, baseUrl: base.href, fetchImpl: tracedFetch });
+assert.equal(typeof client.fetchResponse, 'function', 'Install the SDK built from the owner PR');
+assert.equal(client.fetchImpl, tracedFetch, 'The SDK must preserve the real transport hook');
 const adapter = createPhonyConnector({ baseUrl: base.href, fetchImpl: tracedFetch });
 const source = { id: `gtr-${id}`, kind: 'phony', credentials: { kind: 'api-key', apiKey } };
 const invoke = (capabilityName, args) => ({ source, capabilityName, args });
@@ -95,6 +97,7 @@ try {
     }
     assert(completed, 'No completed call with a transcript within three minutes; inspect provider evidence, do not redial automatically');
   }
+  assert.equal(writes, mode === '--dial' ? 1 : 0, 'Expected exactly one traced call, or no call in read-only mode');
   await save('result.json', { passed: true, mode, realProviderRequests: true, callAttempted: writes === 1 });
   console.log(`Proof passed. Private evidence: ${out}`);
 } catch (error) {
