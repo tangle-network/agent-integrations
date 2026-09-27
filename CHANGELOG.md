@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.56.0
+
+### Added
+
+The conversation channel catalog now describes Inkbox, Linq, Linq WhatsApp, Contiguity, Resend, Sendblue and Twilio SMS transports with their available reply and presence actions.
+Sendblue and Twilio SMS adapters expose owned-line inventory, message reads and sends, and provider-specific media operations.
+Conversation events normalize inbound Sendblue and Twilio SMS messages and carry transport, media, group and history markers for guarded replies.
+Contiguity and Linq WhatsApp expose supported typing, reaction or read-receipt actions.
+
+### Fixed
+
+Twilio SMS message webhooks use a dedicated provider constructor, and MMS downloads follow a bounded HTTPS media redirect without forwarding API credentials.
+Sendblue requests use the documented `api.sendblue.co` endpoint.
+Resend sends and webhook replies preserve provider safety and sender checks.
+
 ## 0.55.0
 
 ### Added
