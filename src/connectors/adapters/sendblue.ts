@@ -13,7 +13,7 @@ export const sendblueConnector = declarativeRestConnector({
   credentialPlacement: { kind: 'structured-headers', fields: {
     apiKeyId: 'sb-api-key-id', apiSecretKey: 'sb-api-secret-key',
   } },
-  baseUrl: 'https://api.sendblue.com', defaultConsistencyModel: 'advisory',
+  baseUrl: 'https://api.sendblue.co', defaultConsistencyModel: 'advisory',
   test: { method: 'GET', path: '/api/v2/lines/state' },
   capabilities: [
     { name: 'lines.state', class: 'read', description: 'Read the authenticated account line-state snapshot without buying a number.',
