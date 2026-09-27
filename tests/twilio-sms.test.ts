@@ -210,3 +210,46 @@ describe('twilio-sms list_numbers', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
+
+describe('twilio-sms get_media', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const args = {
+    messageSid: `SM${'a'.repeat(32)}`,
+    mediaSid: `ME${'b'.repeat(32)}`,
+  }
+
+  it('follows a Twilio media redirect without forwarding API credentials', async () => {
+    const mediaUrl = 'https://mms.twiliocdn.com/secure/signed?token=fixture'
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: mediaUrl } }))
+      .mockResolvedValueOnce(new Response('picture', { headers: { 'content-type': 'image/jpeg' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await twilioSmsConnector.executeRead!({
+      source: source(), capabilityName: 'get_media', args, idempotencyKey: 'media-1',
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toMatch(/^Basic /)
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('manual')
+    expect(String(fetchMock.mock.calls[1][0])).toBe(mediaUrl)
+    expect(fetchMock.mock.calls[1][1].headers).toBeUndefined()
+    expect(fetchMock.mock.calls[1][1].redirect).toBe('error')
+    expect(result.data).toEqual({ base64: Buffer.from('picture').toString('base64'), contentType: 'image/jpeg' })
+  })
+
+  it.each([
+    'http://mms.twiliocdn.com/secure/signed',
+    'https://mms.twiliocdn.com.evil.example/secure/signed',
+    'https://user:pass@mms.twiliocdn.com/secure/signed',
+  ])('rejects an unsafe media redirect: %s', async (location) => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 302, headers: { location } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(twilioSmsConnector.executeRead!({
+      source: source(), capabilityName: 'get_media', args, idempotencyKey: 'media-2',
+    })).rejects.toThrow('rejected media redirect destination')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

@@ -251,10 +251,24 @@ export const twilioSmsConnector: ConnectorAdapter = {
         throw new Error('twilio-sms get_media requires exact message and media SIDs')
       }
       const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/Messages/${messageSid}/Media/${mediaSid}`
-      const res = await fetch(url, {
-        headers: { authorization: basicAuth(auth) }, redirect: 'error', signal: AbortSignal.timeout(20_000),
+      const signal = AbortSignal.timeout(20_000)
+      let res = await fetch(url, {
+        headers: { authorization: basicAuth(auth) }, redirect: 'manual', signal,
       })
       if (res.status === 401) throw new CredentialsExpired('Twilio rejected media credentials', inv.source.id)
+      if ([301, 302, 303, 307, 308].includes(res.status)) {
+        const location = res.headers.get('location')
+        if (!location) throw new Error('twilio-sms get_media redirect omitted Location')
+        const destination = new URL(location, url)
+        // Twilio redirects media to a short-lived CDN URL. Never send API credentials there.
+        if (destination.protocol !== 'https:' ||
+          !['mms.twiliocdn.com', 's3-external-1.amazonaws.com'].includes(destination.hostname) ||
+          destination.port || destination.username || destination.password) {
+          throw new Error('twilio-sms get_media rejected media redirect destination')
+        }
+        await res.body?.cancel()
+        res = await fetch(destination, { redirect: 'error', signal })
+      }
       if (!res.ok || !res.body) throw new Error(`twilio-sms get_media HTTP ${res.status}`)
       const chunks: Buffer[] = []
       let size = 0

@@ -111,7 +111,7 @@ Create `createTwilioSmsWebhookProvider` with its exact public URL, account SID, 
 The host supplies the account auth token to webhook verification.
 The verifier checks Twilio's form signature before the host resolves the line.
 The normalizer accepts only SMS or MMS message SIDs and media URLs tied to the signed account and message.
-`get_media` fetches attachment bytes with the connected Twilio credentials, rejects redirects, and caps a download at 20 MiB.
+`get_media` authenticates the Twilio media request, follows one HTTPS redirect to Twilio's documented media hosts without forwarding credentials, and caps the download at 20 MiB.
 Store those bytes at the host file boundary before giving an agent a file reference.
 The Messages API does not document a native idempotency key, so uncertain writes need reconciliation before retry.
 
