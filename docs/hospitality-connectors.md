@@ -106,7 +106,8 @@ Source: [Sendblue API overview](https://docs.sendblue.com/api-v2), [webhooks](ht
 ## Twilio SMS and MMS
 
 Bind a Twilio account SID and one SMS-capable number from `list_numbers`.
-The line picker rejects a partial inventory page; query a specific owned number when the account has more than one page.
+The line picker rejects a partial inventory page.
+Call `list_numbers` with `numberSid` to fetch the selected number directly from the connected account.
 Create `createTwilioSmsWebhookProvider` with its exact public URL, account SID, and `kind: 'message'`.
 The host supplies the account auth token to webhook verification.
 The verifier checks Twilio's form signature before the host resolves the line.
@@ -115,7 +116,7 @@ The normalizer accepts only SMS or MMS message SIDs and media URLs tied to the s
 Store those bytes at the host file boundary before giving an agent a file reference.
 The Messages API does not document a native idempotency key, so uncertain writes need reconciliation before retry.
 
-Source: [Twilio Message resource](https://www.twilio.com/docs/messaging/api/message-resource) and [Media subresource](https://www.twilio.com/docs/messaging/api/media-resource).
+Source: [Twilio IncomingPhoneNumber resource](https://www.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource), [Message resource](https://www.twilio.com/docs/messaging/api/message-resource), and [Media subresource](https://www.twilio.com/docs/messaging/api/media-resource).
 
 ## Contiguity presence
 

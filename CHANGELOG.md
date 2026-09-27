@@ -12,6 +12,7 @@ Contiguity and Linq WhatsApp expose supported typing, reaction or read-receipt a
 ### Fixed
 
 Twilio SMS message webhooks use a dedicated provider constructor, and MMS downloads follow a bounded HTTPS media redirect without forwarding API credentials.
+Twilio line selection fetches an owned number by SID, so accounts with multiple inventory pages can bind their selected number.
 Sendblue requests use the documented `api.sendblue.co` endpoint.
 Resend sends and webhook replies preserve provider safety and sender checks.
 

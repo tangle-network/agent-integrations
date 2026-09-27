@@ -144,12 +144,13 @@ export const twilioSmsConnector: ConnectorAdapter = {
       {
         name: 'list_numbers',
         class: 'read',
-        description: 'List the IncomingPhoneNumbers owned by the account.',
+        description: 'List the IncomingPhoneNumbers owned by the account, or fetch one owned number by SID.',
         parameters: {
           type: 'object',
           properties: {
             phoneNumber: { type: 'string', description: 'Optional exact-match filter on the E.164 number.' },
-            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            numberSid: { type: 'string', description: 'Optional exact IncomingPhoneNumber SID (PN…). Do not combine with list filters.' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Page size for list mode; defaults to 50.' },
           },
         },
       },
@@ -222,23 +223,39 @@ export const twilioSmsConnector: ConnectorAdapter = {
       }
     }
     if (inv.capabilityName === 'list_numbers') {
-      const { phoneNumber, limit } = inv.args as { phoneNumber?: string; limit?: number }
+      const { phoneNumber, numberSid, limit } = inv.args as { phoneNumber?: string; numberSid?: string; limit?: number }
+      if (numberSid !== undefined &&
+        (!/^PN[a-f\d]{32}$/i.test(numberSid) || phoneNumber !== undefined || limit !== undefined)) {
+        throw new Error('twilio-sms list_numbers requires an exact number SID without list filters')
+      }
       const params = new URLSearchParams()
       params.set('PageSize', String(Math.min(Math.max(1, limit ?? 50), 100)))
       if (phoneNumber) params.set('PhoneNumber', phoneNumber)
-      const url = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/IncomingPhoneNumbers.json?${params.toString()}`
+      const baseUrl = `${API}/Accounts/${encodeURIComponent(auth.accountSid)}/IncomingPhoneNumbers`
+      const url = numberSid ? `${baseUrl}/${numberSid}.json` : `${baseUrl}.json?${params.toString()}`
       const res = await fetch(url, {
         headers: { authorization: basicAuth(auth) },
         signal: AbortSignal.timeout(10_000),
       })
       if (res.status === 401) throw new CredentialsExpired('Twilio rejected credentials (401)', inv.source.id)
+      if (numberSid && res.status === 404) {
+        return { data: { numbers: [], nextPageUri: null }, fetchedAt: Date.now() }
+      }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
         throw new Error(`twilio-sms list_numbers ${res.status}: ${text.slice(0, 200)}`)
       }
       const json = (await res.json()) as {
+        sid?: string
+        phone_number?: string
+        friendly_name?: string
+        capabilities?: unknown
         incoming_phone_numbers?: Array<{ sid: string; phone_number: string; friendly_name?: string; capabilities?: unknown }>
         next_page_uri?: string | null
+      }
+      if (numberSid) {
+        if (json.sid !== numberSid) throw new Error('Twilio returned a different IncomingPhoneNumber SID')
+        return { data: { numbers: [json], nextPageUri: null }, fetchedAt: Date.now() }
       }
       return {
         data: { numbers: json.incoming_phone_numbers ?? [], nextPageUri: json.next_page_uri ?? null },
