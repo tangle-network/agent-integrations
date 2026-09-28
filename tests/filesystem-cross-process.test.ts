@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { build } from 'esbuild'
@@ -18,6 +19,7 @@ const subscriptionModule = pathToFileURL(resolve(bundleDirectory, 'subscription-
 const testRoots: string[] = []
 
 const idempotencyWorker = `
+import { existsSync } from 'node:fs'
 import { FileSystemAtomicIdempotencyStore } from ${JSON.stringify(idempotencyModule)}
 
 const store = new FileSystemAtomicIdempotencyStore(process.env.STORE_ROOT, {
@@ -36,8 +38,18 @@ await send({ type: 'ready' })
 process.once('message', async (message) => {
   if (message !== 'go') return
   const acquired = await store.claim(key, ttlMs)
+  const finished = mode === 'claim'
+    ? new Promise((resolve) => process.once('message', (next) => {
+      if (next !== 'finish') throw new Error('claim worker expected finish')
+      resolve()
+    }))
+    : undefined
   await send({ type: 'claimed', acquired })
-  if (!acquired || mode === 'claim') return process.exit(0)
+  if (mode === 'claim') {
+    await finished
+    return process.exit(0)
+  }
+  if (!acquired) return process.exit(0)
 
   if (mode === 'hold') {
     process.once('message', async (next) => {
@@ -53,8 +65,15 @@ process.once('message', async (message) => {
     process.once('message', async (next) => {
       if (next !== 'block') return
       await send({ type: 'blocking' })
-      const until = Date.now() + Number(process.env.BLOCK_MS ?? 250)
-      while (Date.now() < until) Math.sqrt(81)
+      const releaseFile = process.env.RELEASE_FILE
+      if (!releaseFile) throw new Error('RELEASE_FILE is required for stale worker')
+      const wait = new Int32Array(new SharedArrayBuffer(4))
+      const deadline = Date.now() + 10_000
+      // Keep the heartbeat paused until the successor owns the claim.
+      while (!existsSync(releaseFile)) {
+        if (Date.now() >= deadline) throw new Error('stale worker release timed out')
+        Atomics.wait(wait, 0, 0, 10)
+      }
       try {
         await store.complete(key)
         await send({ type: 'stale_complete', outcome: 'completed' })
@@ -121,6 +140,7 @@ describe('filesystem stores across processes', () => {
     const claims = await Promise.all(results)
     expect(claims.filter((result) => result.acquired)).toHaveLength(1)
     expect(claims.filter((result) => !result.acquired)).toHaveLength(15)
+    workers.forEach((worker) => worker.send('finish'))
     await Promise.all(workers.map(waitForExit))
   }, 20_000)
 
@@ -158,13 +178,14 @@ describe('filesystem stores across processes', () => {
 
   it('fences a stalled owner after a successor takes over', async () => {
     const root = resolve(await temporaryDirectory('stale-owner'))
+    const releaseFile = resolve(root, 'release-stale-worker')
     const stale = startWorker(idempotencyWorker, {
       STORE_ROOT: root,
       CLAIM_KEY: 'stale-owner',
       WORKER_MODE: 'stale',
       LEASE_MS: '80',
       HEARTBEAT_MS: '20',
-      BLOCK_MS: '260',
+      RELEASE_FILE: releaseFile,
     })
     await waitForMessage(stale, 'ready')
     const claimed = waitForMessage<{ acquired: boolean }>(stale, 'claimed')
@@ -175,12 +196,18 @@ describe('filesystem stores across processes', () => {
     stale.send('block')
     await blocking
 
-    await delay(150)
     const successor = new FileSystemAtomicIdempotencyStore(root, {
       processingLeaseMs: 80,
       heartbeatIntervalMs: 20,
     })
-    expect(await successor.claim('stale-owner', 60_000)).toBe(true)
+    const deadline = Date.now() + 5_000
+    let successorClaimed = false
+    while (!successorClaimed && Date.now() < deadline) {
+      successorClaimed = await successor.claim('stale-owner', 60_000)
+      if (!successorClaimed) await delay(20)
+    }
+    await writeFile(releaseFile, 'release')
+    expect(successorClaimed).toBe(true)
     const staleResult = await staleCompletion
     expect(staleResult.outcome).toBe('fenced')
     expect(staleResult.message).toContain('ownership was lost')
@@ -297,4 +324,3 @@ async function temporaryDirectory(label: string): Promise<string> {
 function delay(ms: number): Promise<void> {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms))
 }
-

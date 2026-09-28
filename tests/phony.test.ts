@@ -59,7 +59,7 @@ describe('phony list_agents', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         requestUrl = String(input)
-        requestHeaders = init?.headers as Record<string, string>
+        requestHeaders = Object.fromEntries(new Headers(init?.headers))
         return jsonResponse({ data: [{ id: 'agent_1', name: 'PA' }], nextCursor: 'agent_1', hasMore: true })
       }),
     )
@@ -150,7 +150,7 @@ describe('phony start_outbound_call', () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         requestUrl = String(input)
         requestMethod = init?.method
-        requestHeaders = init?.headers as Record<string, string>
+        requestHeaders = Object.fromEntries(new Headers(init?.headers))
         requestBody = JSON.parse(String(init?.body))
         return jsonResponse({ callSid: 'CA_1', callId: 'oc_1', status: 'initiated' }, { status: 201 })
       }),
@@ -309,7 +309,7 @@ describe('phony test()', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         requestUrl = String(input)
-        requestHeaders = init?.headers as Record<string, string>
+        requestHeaders = Object.fromEntries(new Headers(init?.headers))
         return jsonResponse({ calls: [] })
       }),
     )
@@ -341,7 +341,7 @@ function captureFetch(response: Response): Captured {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       captured.url = String(input)
       captured.method = init?.method
-      captured.headers = init?.headers as Record<string, string>
+      captured.headers = Object.fromEntries(new Headers(init?.headers))
       captured.body = init?.body ? JSON.parse(String(init.body)) : undefined
       return response
     }),

@@ -1,3 +1,4 @@
+import { createPhonyConnector, type PhonyConnectorOptions } from './phony.js'
 import type { ConnectorAdapter } from '../types.js'
 import { oktaConnector } from './okta.js'
 import { oneloginConnector } from './onelogin.js'
@@ -396,6 +397,8 @@ const biginByZohoOAuthEnvMap = {
  */
 export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefinition[] =
   [
+    // Optional deployment override. The credential-only singleton remains the default.
+    defineFactoryAdapter<PhonyConnectorOptions>(createPhonyConnector, { baseUrl: 'PH0NY_API_URL' }),
     defineFactoryAdapter<GoogleCalendarOptions>(
       googleCalendar,
       googleOAuthEnvMap,

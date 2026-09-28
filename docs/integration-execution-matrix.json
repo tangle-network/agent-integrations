@@ -81391,9 +81391,9 @@
     "actionCount": 1,
     "triggerCount": 0,
     "setupStatus": "catalog-only",
-    "tangleContractStatus": "runtime_backed",
-    "implementationKind": "package_runtime",
-    "nativeAdapter": false,
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
     "catalogActionMappings": 1,
     "quality": {
       "tangleContract": true,
@@ -81401,7 +81401,7 @@
       "actionNamesMapped": true,
       "triggerNamesMapped": true,
       "runtimePackageMapped": true,
-      "nativeAdapter": false
+      "nativeAdapter": true
     },
     "missing": [
       "executable_setup_spec"
@@ -83642,6 +83642,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "sendblue",
+    "title": "sendblue",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "sender",
@@ -98833,7 +98857,7 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": 7,
+    "actionCount": 8,
     "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",

@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
-import { TangleSearchClient, buildTangleSearchRequest, parseTangleSearchResult } from '../src/tangle-search/index.js'
+import { TangleSearchClient, buildTangleSearchRequest, parseTangleSearchResult, buildTangleReadRequest, parseTangleReadResult } from '../src/tangle-search/index.js'
 import { TwilioPhoneClient, authenticateTwilioForm, normalizePhoneNumber } from '../src/twilio/index.js'
 import { requestJson } from '../src/http/response-json.js'
 
@@ -63,6 +63,20 @@ test('Missing credentials and invalid result counts fail before dispatch', async
   await assert.rejects(() => c.search({ query: 'part' }), { code: 'search_not_configured' })
   for (const maxResults of [0, 26, 1.5]) assert.throws(() => buildTangleSearchRequest({ query: 'part', maxResults }))
   assert.equal(calls, 0)
+})
+test('Reader accepts UTF-8 replacement expansion only within the returned raw byte count', () => {
+  const request = buildTangleReadRequest({ url: 'https://example.com', maxBytes: 1024 })
+  const bytes = Uint8Array.of(0xff, 0xfe)
+  const content = new TextDecoder().decode(bytes)
+  const response = { id: 'read-1', object: 'web.read', requested_url: request.url, url: request.url,
+    content_type: 'text/plain', content, bytes: bytes.byteLength, truncated: false,
+    fetched_at: '2026-09-28T00:00:00.000Z', usage: { billed_cost: 0 } }
+  assert.equal(new TextEncoder().encode(content).byteLength, 6)
+  assert.equal(parseTangleReadResult(response, request).content, content)
+  assert.equal(parseTangleReadResult({ ...response, content: '', bytes: 0 }, request).bytes, 0)
+  for (const rawBytes of [0, 1]) {
+    assert.throws(() => parseTangleReadResult({ ...response, bytes: rawBytes }, request), { code: 'invalid_read_response' })
+  }
 })
 test('No country is inferred when normalizing a phone number', () => {
   assert.equal(normalizePhoneNumber('+1 (310) 555-1234'), phone)

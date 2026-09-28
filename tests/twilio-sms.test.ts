@@ -29,10 +29,39 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
+describe('twilio-sms adapter manifest', () => {
+  it('marks every mutation as an external effect without claimed provider idempotency', () => {
+    const caps = twilioSmsConnector.manifest.capabilities
+    const mutations = caps.filter((c) => c.class === 'mutation')
+    expect(mutations.length).toBeGreaterThan(0)
+    for (const c of mutations) {
+      if (c.class !== 'mutation') continue
+      expect(c.cas).toBe('none')
+      expect(c.externalEffect).toBe(true)
+    }
+  })
+
+  it('exposes the new write + read capabilities', () => {
+    const names = twilioSmsConnector.manifest.capabilities.map((c) => c.name).sort()
+    expect(names).toEqual(
+      [
+        'send_sms',
+        'send_mms',
+        'send_whatsapp',
+        'redact_message',
+        'lookup_number',
+        'find_recent_messages',
+        'list_numbers',
+        'get_media',
+      ].sort(),
+    )
+  })
+})
+
 describe('twilio-sms send_mms', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('posts MediaUrl entries and includes the idempotency-key header', async () => {
+  it('posts MediaUrl entries without claiming an undocumented idempotency header', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
     let requestBody: string | undefined
@@ -60,7 +89,7 @@ describe('twilio-sms send_mms', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/Accounts/AC123456789abcdef/Messages.json')
-    expect(requestHeaders?.['idempotency-key']).toBe('mms-1')
+    expect(requestHeaders?.['idempotency-key']).toBeUndefined()
     expect(requestBody).toContain('MediaUrl=https%3A%2F%2Fcdn.example.com%2Fa.jpg')
     expect(requestBody).toContain('MediaUrl=https%3A%2F%2Fcdn.example.com%2Fb.jpg')
     expect(requestBody).toContain('Body=pic')
@@ -179,5 +208,48 @@ describe('twilio-sms list_numbers', () => {
         idempotencyKey: 'list-2',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+})
+
+describe('twilio-sms get_media', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const args = {
+    messageSid: `SM${'a'.repeat(32)}`,
+    mediaSid: `ME${'b'.repeat(32)}`,
+  }
+
+  it('follows a Twilio media redirect without forwarding API credentials', async () => {
+    const mediaUrl = 'https://mms.twiliocdn.com/secure/signed?token=fixture'
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: mediaUrl } }))
+      .mockResolvedValueOnce(new Response('picture', { headers: { 'content-type': 'image/jpeg' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await twilioSmsConnector.executeRead!({
+      source: source(), capabilityName: 'get_media', args, idempotencyKey: 'media-1',
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toMatch(/^Basic /)
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('manual')
+    expect(String(fetchMock.mock.calls[1][0])).toBe(mediaUrl)
+    expect(fetchMock.mock.calls[1][1].headers).toBeUndefined()
+    expect(fetchMock.mock.calls[1][1].redirect).toBe('error')
+    expect(result.data).toEqual({ base64: Buffer.from('picture').toString('base64'), contentType: 'image/jpeg' })
+  })
+
+  it.each([
+    'http://mms.twiliocdn.com/secure/signed',
+    'https://mms.twiliocdn.com.evil.example/secure/signed',
+    'https://user:pass@mms.twiliocdn.com/secure/signed',
+  ])('rejects an unsafe media redirect: %s', async (location) => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 302, headers: { location } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(twilioSmsConnector.executeRead!({
+      source: source(), capabilityName: 'get_media', args, idempotencyKey: 'media-2',
+    })).rejects.toThrow('rejected media redirect destination')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
