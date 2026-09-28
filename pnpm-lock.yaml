@@ -170,8 +170,8 @@ importers:
         specifier: 1.5.5-r.5
         version: 1.5.5-r.5
       '@ph0ny/sdk':
-        specifier: 0.1.2
-        version: 0.1.2(typescript@7.0.2)
+        specifier: 0.1.3
+        version: 0.1.3
       amqplib:
         specifier: 2.1.0
         version: 2.1.0
@@ -467,11 +467,9 @@ packages:
   '@oxc-project/types@0.151.0':
     resolution: {integrity: sha512-J1yXrIlNDZVzE3ada310xeAw7nH8yCAyLPuUIsjKatFPmfn5bS1oW+cM+QsGOtVWd5nhSpbwZWx/rue+r5Z+PA==}
 
-  '@ph0ny/sdk@0.1.2':
-    resolution: {integrity: sha512-5QDxo1d4iSHeDYui8OS3Sq8zdRpADCRr43AewD2qEuCB9DOXTqH7nHQwhQQ7b1eqGaG7HtIvhiJvBW/n3EuNrA==}
+  '@ph0ny/sdk@0.1.3':
+    resolution: {integrity: sha512-db8/4zqoWU/W8TPsitLRWaCJkwYvheISBJSdnjJz8VLBUp2yJqyLj1uAStJy6vKuE4615dbgsonnZrdHf/ogVA==}
     engines: {node: '>=18'}
-    peerDependencies:
-      typescript: ^5.0.0
 
   '@quansync/fs@1.1.0':
     resolution: {integrity: sha512-qAPG/t3HqML1TlN7sY/pTbEjzFVAKsMjNNMGheyDosro+kT4iw2KCUoHcVdmliwWjorm4elZbgNQyU2eD97eDg==}
@@ -1702,9 +1700,8 @@ snapshots:
 
   '@oxc-project/types@0.151.0': {}
 
-  '@ph0ny/sdk@0.1.2(typescript@7.0.2)':
+  '@ph0ny/sdk@0.1.3':
     dependencies:
-      typescript: 7.0.2
       zod: 4.6.5
 
   '@quansync/fs@1.1.0':
