@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.59.1
+
+- chore(integrations): upgrade phony sdk to 0.1.3 (#334)
+- fix(release): compare feature metadata from its branch point
+- test: clean up claim workers during setup failures
+- test: terminate claim workers after failed process result
+- test: delete manifest-restating and duplicated connector unit tests (#323)
+- ci(release): prepare release metadata after feature merges
+- ci: reject feature-time release prep
+- ci: keep release metadata out of feature PRs
+- build(release): prepare version and changelog after merge
+
 ## 0.59.0
 
 ### Added
