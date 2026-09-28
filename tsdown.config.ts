@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsup'
+import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: {
@@ -25,9 +25,10 @@ export default defineConfig({
     'twilio/index': 'src/twilio/index.ts',
     'managed-messaging/index': 'src/managed-messaging/index.ts',
   },
-  format: ['esm'],
+  format: 'esm',
+  // Keep .js/.d.ts names: package.json exports point at them.
+  fixedExtension: false,
   dts: true,
   sourcemap: true,
-  clean: true,
   target: 'es2022',
 })
