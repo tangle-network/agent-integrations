@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+`TangleReadClient` reads bounded public HTTPS pages through the Router from the existing `tangle-search` entrypoint.
+It returns untrusted text, raw byte counts, truncation, request identity, and reported cost.
+Response validation preserves UTF-8 replacement expansion within the returned raw byte count.
+
 ## 0.55.0
 
 ### Added
