@@ -67,6 +67,6 @@ export function normalizeLinqWhatsappConversation(input: ProviderConversationEve
     conversationId: message.chat_id, parentEventIds: [],
     sender: { id: `customer:${message.chat_id}`, address: null, displayName: null },
     destinations: [{ kind: 'chat', id: message.from, address: message.from, displayName: null }],
-    subject: null, text: text.join('\n'), html: null, attachments, occurredAt, isGroup: false, historyOnly,
+    subject: null, text: text.join('\n'), html: null, attachments, occurredAt, transport: 'whatsapp', isGroup: false, historyOnly,
   } }
 }

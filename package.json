@@ -1,6 +1,6 @@
 {
   "name": "@tangle-network/agent-integrations",
-  "version": "0.55.0",
+  "version": "0.58.0",
   "description": "Vendor-neutral integration contracts and runtime helpers for sandbox and agent apps.",
   "homepage": "https://github.com/tangle-network/agent-integrations#readme",
   "repository": {
@@ -131,49 +131,50 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "generate:bundled-manifests": "pnpm build && node scripts/generate-bundled-manifest-data.mjs && pnpm build",
     "check:bundled-manifest-freshness": "node scripts/check-bundled-manifest-freshness.mjs",
-    "dev": "tsup --watch",
+    "dev": "tsdown --watch",
     "prepack": "pnpm run build && pnpm run check:bundled-manifest-freshness",
     "prepublishOnly": "pnpm run check:bundled-manifest-freshness",
     "release": "node scripts/release.mjs",
     "audit:execution": "pnpm build >/dev/null && node scripts/audit-integration-execution.mjs",
-    "prepare": "tsup",
+    "prepare": "tsdown",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
-    "@types/pg": "8.20.0",
+    "@types/node": "^26.6.3",
+    "@types/pg": "8.23.1",
     "@types/ssh2-sftp-client": "9.0.6",
-    "esbuild": "0.28.1",
-    "tsup": "^8.0.0",
-    "typescript": "^5.9.3",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
+    "esbuild": "0.28.2",
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@12.6.0",
   "dependencies": {
-    "@duckdb/node-api": "1.5.5-r.2",
-    "amqplib": "2.0.1",
-    "csv-parse": "7.0.2",
-    "csv-stringify": "6.8.1",
-    "hyparquet": "1.27.1",
-    "hyparquet-writer": "0.16.1",
-    "ipaddr.js": "2.4.0",
-    "jose": "6.2.4",
+    "@duckdb/node-api": "1.5.5-r.5",
+    "@ph0ny/sdk": "0.1.2",
+    "amqplib": "2.1.0",
+    "csv-parse": "7.0.3",
+    "csv-stringify": "6.9.0",
+    "hyparquet": "1.31.2",
+    "hyparquet-writer": "0.16.10",
+    "ipaddr.js": "2.5.0",
+    "jose": "6.2.12",
     "kafkajs": "2.2.4",
-    "mongodb": "6.21.0",
-    "mysql2": "3.23.2",
-    "pg": "8.22.0",
-    "read-excel-file": "9.3.5",
-    "redis": "6.1.0",
+    "mongodb": "7.6.0",
+    "mysql2": "3.24.4",
+    "pg": "8.23.0",
+    "read-excel-file": "9.3.10",
+    "redis": "6.2.1",
     "ssh2-sftp-client": "12.1.1",
     "write-excel-file": "4.1.1"
   }

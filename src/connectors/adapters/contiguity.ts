@@ -1,6 +1,7 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
 const address = { type: 'string', minLength: 1, maxLength: 320 }
+const phone = { type: 'string', pattern: '^\\+[1-9]\\d{6,14}$', maxLength: 16 }
 const message = { type: 'string', minLength: 1, maxLength: 18000 }
 const base = declarativeRestConnector({
   kind: 'contiguity', displayName: 'Contiguity', category: 'crm',
@@ -22,6 +23,26 @@ const base = declarativeRestConnector({
         fallback: { type: 'object', properties: { from: address, when: { type: 'array', items: { type: 'string', enum: ['imessage_unsupported', 'imessage_fails'] } } }, required: ['from', 'when'], additionalProperties: false } },
         required: ['to', 'from', 'message'] },
       request: { method: 'POST', path: '/send/imessage', body: { to: '{to}', from: '{from}', message: '{message}', fallback: '{fallback}', attachments: '{attachments}' } } },
+    { name: 'messages.react', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'React to the latest matching inbound iMessage text. The host must check the target is still unambiguous.',
+      parameters: { type: 'object', properties: { to: phone, from: phone, message,
+        action: { type: 'string', enum: ['add', 'remove'] },
+        tapback: { type: 'string', enum: ['love', 'like', 'dislike', 'laugh', 'emphasize', 'question'] } },
+        required: ['to', 'from', 'message', 'action', 'tapback'] },
+      request: { method: 'POST', path: '/send/imessage/reactions', body: {
+        to: '{to}', from: '{from}', message: '{message}', action: '{action}', tapback: '{tapback}',
+      } } },
+    { name: 'imessage.typing', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Start or stop iMessage typing from one explicitly selected leased number.',
+      parameters: { type: 'object', properties: { to: phone, from: phone,
+        action: { type: 'string', enum: ['start', 'stop'] } }, required: ['to', 'from', 'action'] },
+      request: { method: 'POST', path: '/send/imessage/typing', body: {
+        to: '{to}', from: '{from}', action: '{action}',
+      } } },
+    { name: 'imessage.read_receipt', class: 'mutation', cas: 'none', externalEffect: true,
+      description: 'Send a read receipt to an existing iMessage recipient from the pinned leased number.',
+      parameters: { type: 'object', properties: { to: phone, from: phone }, required: ['to', 'from'] },
+      request: { method: 'POST', path: '/send/imessage/read', body: { to: '{to}', from: '{from}' } } },
     { name: 'email.send', class: 'mutation', cas: 'none', externalEffect: true,
       description: 'Send an email from a verified sender. Legacy body/contentType inputs are translated to the documented text/html fields.',
       parameters: { type: 'object', properties: { to: address, from: address, subject: { type: 'string', maxLength: 998 },
