@@ -101,7 +101,7 @@ import {
 } from '@tangle-network/agent-integrations/connectors/oauth'
 ```
 
-This entrypoint keeps the concrete connector catalog out of OAuth-only runtime bundles.
+The hub entrypoint exposes capability issuance without loading concrete connectors. Both entrypoints keep the connector catalog out of consumers that only need runtime helpers.
 
 ## Quick Start
 

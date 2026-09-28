@@ -45,10 +45,11 @@ try {
     }
   }
 
-  const oauthModulePath = join(packageDirectory, 'dist/connectors/oauth.js')
-  const oauthModule = readFileSync(oauthModulePath, 'utf8')
-  if (/graceful-fs|read-excel-file|unzipper-esm|connectors\/index/.test(oauthModule)) {
-    throw new Error('OAuth-only release entrypoint includes the concrete connector catalog.')
+  for (const workerEntryPath of ['dist/connectors/oauth.js', 'dist/hub.js']) {
+    const workerEntry = readFileSync(join(packageDirectory, workerEntryPath), 'utf8')
+    if (/graceful-fs|read-excel-file|unzipper-esm|connectors\/index|node:module|createRequire/.test(workerEntry)) {
+      throw new Error('Worker-safe release entrypoint includes a Node-only connector dependency: ' + workerEntryPath)
+    }
   }
   const oauthConsumerPath = join(packageDirectory, '.release-artifact-oauth-consumer.mjs')
   await import('node:fs/promises').then(({ writeFile }) => writeFile(
