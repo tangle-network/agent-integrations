@@ -1,5 +1,8 @@
 allowBuilds:
+  # ssh2 falls back to its JavaScript crypto, so its native addons stay unbuilt.
+  cpu-features: false
   esbuild: true
+  ssh2: false
 minimumReleaseAgeExclude:
   - '@ph0ny/sdk@0.1.2'
   - amqplib@2.1.0
