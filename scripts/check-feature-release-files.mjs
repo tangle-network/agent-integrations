@@ -4,11 +4,12 @@ import { readFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 
 const baseRef = `origin/${process.env.GITHUB_BASE_REF || 'main'}`
-const basePackage = JSON.parse(execFileSync('git', ['show', `${baseRef}:package.json`], { encoding: 'utf8' }))
 const headPackage = JSON.parse(readFileSync('package.json', 'utf8'))
 const changed = execFileSync('git', ['diff', '--name-only', `${baseRef}...HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
 const headBranch = process.env.GITHUB_HEAD_REF || execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim()
 const releaseBranch = /^release\/v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(headBranch)
+const comparisonRef = releaseBranch ? baseRef : execFileSync('git', ['merge-base', baseRef, 'HEAD'], { encoding: 'utf8' }).trim()
+const basePackage = JSON.parse(execFileSync('git', ['show', `${comparisonRef}:package.json`], { encoding: 'utf8' }))
 
 if (!releaseBranch) {
   if (basePackage.version !== headPackage.version || changed.includes('CHANGELOG.md')) {

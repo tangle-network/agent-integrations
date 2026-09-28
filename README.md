@@ -455,6 +455,7 @@ The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
 ## Prepare a release
 
 Feature PRs must leave the package version and `CHANGELOG.md` unchanged.
+Feature checks compare against the common ancestor, so releases merged into `main` do not invalidate unchanged feature metadata.
 After features merge, run the **Prepare Release** workflow and choose a patch, minor, or major bump.
 The workflow uses Node and Git to open a `release/v<version>` PR from current `main`.
 It does not install dependencies or publish a package.
