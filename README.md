@@ -91,6 +91,18 @@ Main boundaries:
 pnpm add @tangle-network/agent-integrations
 ```
 
+Consumers that need only OAuth protocol helpers can import the narrow entrypoint:
+
+```ts
+import {
+  exchangeAuthorizationCode,
+  refreshAccessToken,
+  startOAuthFlow,
+} from '@tangle-network/agent-integrations/connectors/oauth'
+```
+
+This entrypoint keeps the concrete connector catalog out of OAuth-only runtime bundles.
+
 ## Quick Start
 
 ```ts

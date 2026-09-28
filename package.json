@@ -34,6 +34,11 @@
       "import": "./dist/connectors/index.js",
       "default": "./dist/connectors/index.js"
     },
+    "./connectors/oauth": {
+      "types": "./dist/connectors/oauth.d.ts",
+      "import": "./dist/connectors/oauth.js",
+      "default": "./dist/connectors/oauth.js"
+    },
     "./connectors/adapters": {
       "types": "./dist/connectors/adapters/index.d.ts",
       "import": "./dist/connectors/adapters/index.js",

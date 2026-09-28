@@ -11,6 +11,7 @@ export default defineConfig({
     runtime: 'src/runtime.ts',
     specs: 'src/specs/index.ts',
     'connectors/index': 'src/connectors/index.ts',
+    'connectors/oauth': 'src/connectors/oauth.ts',
     'connectors/adapters/index': 'src/connectors/adapters/index.ts',
     'connect/index': 'src/connect/index.ts',
     'middleware/index': 'src/middleware/index.ts',

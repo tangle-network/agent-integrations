@@ -45,6 +45,23 @@ try {
     }
   }
 
+  const oauthModulePath = join(packageDirectory, 'dist/connectors/oauth.js')
+  const oauthModule = readFileSync(oauthModulePath, 'utf8')
+  if (/graceful-fs|read-excel-file|unzipper-esm|connectors\/index/.test(oauthModule)) {
+    throw new Error('OAuth-only release entrypoint includes the concrete connector catalog.')
+  }
+  const oauthConsumerPath = join(packageDirectory, '.release-artifact-oauth-consumer.mjs')
+  await import('node:fs/promises').then(({ writeFile }) => writeFile(
+    oauthConsumerPath,
+    `import * as oauth from '@tangle-network/agent-integrations/connectors/oauth'\n`
+      + `const values = new Map()\n`
+      + `const store = { async get(key) { return values.get(key) ?? null }, async put(key, value) { values.set(key, value) }, async delete(key) { values.delete(key) } }\n`
+      + `const flow = await oauth.startOAuthFlow({ provider: 'google', authorizationUrl: 'https://accounts.example.test/authorize', clientId: 'client', redirectUri: 'https://example.test/callback', scopes: [], store })\n`
+      + `const pending = values.get(flow.state)\n`
+      + `if (!flow.authorizationUrl.includes('code_challenge_method=S256') || !pending.codeVerifier) throw new Error('OAuth package consumer proof failed')\n`,
+  ))
+  await import(pathToFileURL(oauthConsumerPath).href)
+
   const { checkBundledManifestFreshness } = await import(
     pathToFileURL(join(rootDirectory, 'scripts/check-bundled-manifest-freshness.mjs')).href,
   )
