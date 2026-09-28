@@ -34,6 +34,21 @@
       "import": "./dist/connectors/index.js",
       "default": "./dist/connectors/index.js"
     },
+    "./connectors/oauth": {
+      "types": "./dist/connectors/oauth.d.ts",
+      "import": "./dist/connectors/oauth.js",
+      "default": "./dist/connectors/oauth.js"
+    },
+    "./hub": {
+      "types": "./dist/hub.d.ts",
+      "import": "./dist/hub.js",
+      "default": "./dist/hub.js"
+    },
+    "./sandbox": {
+      "types": "./dist/sandbox.d.ts",
+      "import": "./dist/sandbox.js",
+      "default": "./dist/sandbox.js"
+    },
     "./connectors/adapters": {
       "types": "./dist/connectors/adapters/index.d.ts",
       "import": "./dist/connectors/adapters/index.js",
