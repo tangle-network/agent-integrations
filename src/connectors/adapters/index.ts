@@ -55,7 +55,7 @@ export {
 } from './client-credentials-rest.js'
 
 export { twilioSmsConnector } from './twilio-sms.js'
-export { phonyConnector } from './phony.js'
+export { phonyConnector, createPhonyConnector, type PhonyConnectorOptions } from './phony.js'
 export { whatsappBusiness, type WhatsappBusinessOptions } from './whatsapp-business.js'
 export { stripePackConnector } from './stripe-pack.js'
 export { plaidConnector } from './plaid.js'
@@ -753,6 +753,9 @@ export { inkboxConnector } from './inkbox.js'
 export { linqConnector } from './linq.js'
 
 export { linqWhatsappConnector } from './linq-whatsapp.js'
+
+export { resendConnector } from './resend.js'
+export { sendblueConnector } from './sendblue.js'
 
 export { cloudbedsConnector } from './cloudbeds.js'
 export { pricelabsConnector } from './pricelabs.js'

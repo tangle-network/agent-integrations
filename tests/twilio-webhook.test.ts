@@ -1,7 +1,8 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
-import { createTwilioWebhookProvider } from '../src/webhooks/twilio.js'
+import { createTwilioSmsWebhookProvider, createTwilioWebhookProvider } from '../src/webhooks/twilio.js'
+import { normalizeConversationEvent } from '../src/conversation-events/index.js'
 const accountSid = 'AC' + 'a'.repeat(32), messageSid = 'SM' + 'b'.repeat(32)
 const url = 'https://app.example/sms/status?tenant=opaque', secret = 'fixture-secret'
 function signed(params: Record<string,string>, at = url) {
@@ -22,6 +23,15 @@ test('Message receipt parses one stable inbound identity without granting a work
   assert.equal(events.length,1);assert.equal(events[0].receivedAt,1234);assert.equal(events[0].eventType,'twilio.message.received')
   assert.equal((events[0].payload as any).Body,'Hello');assert(!('workspaceId' in events[0]))
   assert.equal(provider.successResponse?.body,'<Response/>')
+})
+test('SMS line constructor emits the event vocabulary consumed by conversation routing', async () => {
+  const provider = createTwilioSmsWebhookProvider({url,accountSid,kind:'message'})
+  const input = signed({AccountSid:accountSid,MessageSid:messageSid,From:'+19998887777',To:'+15122164639',Body:'Hello',NumMedia:'0'})
+  assert(provider.verifySignature(input).valid)
+  const [event] = await provider.parse({...input,now:1234})
+  assert.equal(event.provider,'twilio-sms')
+  assert.equal(event.eventType,'twilio-sms.message.received')
+  assert.equal(normalizeConversationEvent({provider:event.provider,type:event.eventType,payload:event.payload}).ok,true)
 })
 test('Status identities do not discard a delivered callback after a queued one', async () => {
   const provider = createTwilioWebhookProvider({url,accountSid,kind:'status'})

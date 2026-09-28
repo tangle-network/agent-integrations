@@ -128,7 +128,7 @@ describe('WhatsApp events and replies', () => {
     const channels = listConversationChannels()
     expect(channels.some(c => c.providerId === 'linq-whatsapp' && c.transport === 'whatsapp')).toBe(true)
     expect(channels.some(c => c.providerId === 'email' && c.sourceKind === 'channel')).toBe(true)
-    expect(new Set(channels.map(c => `${c.providerId}:${c.eventType}`)).size).toBe(channels.length)
+    expect(new Set(channels.map(c => `${c.providerId}:${c.eventType}:${c.transport}`)).size).toBe(channels.length)
     channels.length = 0
     expect(listConversationChannels().length).toBeGreaterThan(0)
   })

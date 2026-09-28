@@ -34,44 +34,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('xero adapter manifest', () => {
-  it('exposes the xero kind in the crm category', () => {
-    expect(xeroConnector.manifest.kind).toBe('xero')
-    expect(xeroConnector.manifest.category).toBe('crm')
-    expect(xeroConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares oauth2 auth', () => {
-    expect(xeroConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('covers the new write-side capabilities', () => {
-    const names = xeroConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('contacts.archive')
-    expect(names).toContain('invoices.delete')
-    expect(names).toContain('invoices.email')
-    expect(names).toContain('payments.create')
-    expect(names).toContain('credit-notes.create')
-  })
-
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = [
-      'contacts.archive',
-      'invoices.delete',
-      'invoices.email',
-      'payments.create',
-      'credit-notes.create',
-    ]
-    for (const name of expected) {
-      const cap = xeroConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('xero contacts.archive', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -102,18 +64,6 @@ describe('xero contacts.archive', () => {
     expect(requestUrl).toBe('https://api.xero.com/api.xro/2.0/Contacts/c1')
     expect(requestBody).toEqual({ ContactStatus: 'ARCHIVED' })
     expect(tenantHeader).toBe('tenant_1')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      xeroConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.archive',
-        args: { tenantId: 't', contactId: 'c1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

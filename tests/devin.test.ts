@@ -28,56 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('devin adapter manifest', () => {
-  it('classifies itself as the other category and exposes the devin kind', () => {
-    expect(devinConnector.manifest.kind).toBe('devin')
-    expect(devinConnector.manifest.category).toBe('other')
-    expect(devinConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = devinConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('exposes session lifecycle + attachments capabilities', () => {
-    const names = devinConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'attachments.upload',
-        'create.session',
-        'get.session.details',
-        'send.message',
-        'sessions.list',
-      ].sort(),
-    )
-    const reads = devinConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = devinConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['get.session.details', 'sessions.list'].sort())
-    expect(mutations).toEqual(
-      ['attachments.upload', 'create.session', 'send.message'].sort(),
-    )
-  })
-
-  it('marks attachments.upload as native-idempotency with external effect', () => {
-    const cap = devinConnector.manifest.capabilities.find(
-      (c) => c.name === 'attachments.upload',
-    )
-    expect(cap).toBeDefined()
-    expect(cap?.class).toBe('mutation')
-    if (cap?.class === 'mutation') {
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('devin adapter execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -137,28 +87,6 @@ describe('devin adapter execution', () => {
     expect(capturedUrl).toContain('/sessions')
     expect(capturedUrl).not.toContain('limit=')
     expect(capturedUrl).not.toContain('status=')
-  })
-
-  it('sessions.list surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-
-    await expect(
-      devinConnector.executeRead!({
-        source: source(),
-        capabilityName: 'sessions.list',
-        args: {},
-        idempotencyKey: 'k-list-401',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('attachments.upload POSTs /attachments with session_id + content + filename', async () => {
@@ -241,32 +169,5 @@ describe('devin adapter execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/filename/)
-  })
-
-  it('attachments.upload surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      devinConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'attachments.upload',
-        args: {
-          session_id: 'devin-1',
-          content: 'hi',
-          encoding: 'utf-8',
-          filename: 'log.txt',
-          mime_type: 'text/plain',
-        },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

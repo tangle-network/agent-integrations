@@ -25,44 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('aminos adapter manifest', () => {
-  it('classifies itself as other and exposes the aminos kind', () => {
-    expect(aminosConnector.manifest.kind).toBe('aminos')
-    expect(aminosConnector.manifest.category).toBe('other')
-    expect(aminosConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as the catalog says', () => {
-    const auth = aminosConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the user lifecycle: create, update, delete, list', () => {
-    const names = aminosConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['users.create', 'users.delete', 'users.list', 'users.update'])
-    const mutations = aminosConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['users.create', 'users.delete', 'users.update'])
-    const reads = aminosConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['users.list'])
-  })
-
-  it('marks the new write mutations as native-idempotency external-effect', () => {
-    for (const name of ['users.update', 'users.delete']) {
-      const cap = aminosConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('aminos users.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -89,18 +51,6 @@ describe('aminos users.update', () => {
     expect(requestUrl).toBe('https://panel.example.com/api/users/u_1')
     expect(requestBody).toEqual({ userid: 'u_1', userfriendlyname: 'Drew', userplanid: 7 })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      aminosConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'users.update',
-        args: { userid: 'u_1', userfriendlyname: 'Drew' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

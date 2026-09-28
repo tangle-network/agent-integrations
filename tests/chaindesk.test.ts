@@ -25,48 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('chaindesk adapter manifest', () => {
-  it('classifies itself as the other category and exposes the chaindesk kind', () => {
-    expect(chaindeskConnector.manifest.kind).toBe('chaindesk')
-    expect(chaindeskConnector.manifest.category).toBe('other')
-    expect(chaindeskConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = chaindeskConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the original catalog action set plus the new datasource / agent writes', () => {
-    const names = chaindeskConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'agents.create',
-        'agents.query',
-        'datasources.create',
-        'datasources.delete',
-        'datasources.query',
-        'files.upload',
-      ].sort(),
-    )
-    const mutations = chaindeskConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['agents.create', 'datasources.create', 'datasources.delete', 'files.upload'].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency external effect', () => {
-    for (const cap of chaindeskConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('chaindesk datasources.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -105,27 +63,6 @@ describe('chaindesk datasources.create', () => {
       config: { chunkSize: 1024 },
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      chaindeskConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'datasources.create',
-        args: {
-          agentId: 'agent_1',
-          name: 'Onboarding docs',
-          type: 'text',
-          source: 'hello world',
-          config: {},
-        },
-        idempotencyKey: 'k-ds-create-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

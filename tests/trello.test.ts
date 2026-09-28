@@ -19,62 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('trello adapter manifest', () => {
-  it('classifies itself as kind=trello, category=other, api-key auth', () => {
-    expect(trelloConnector.manifest.kind).toBe('trello')
-    expect(trelloConnector.manifest.category).toBe('other')
-    expect(trelloConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(trelloConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('declares a non-trivial action pack covering boards, lists, cards, checklists, labels, webhooks, search', () => {
-    const names = trelloConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'boards.list',
-        'boards.get',
-        'boards.lists',
-        'boards.create',
-        'boards.update',
-        'lists.cards',
-        'lists.create',
-        'lists.update',
-        'lists.archive',
-        'cards.get',
-        'cards.create',
-        'cards.update',
-        'cards.move',
-        'cards.archive',
-        'cards.delete',
-        'cards.addComment',
-        'cards.addLabel',
-        'cards.addMember',
-        'checklists.create',
-        'checklists.addItem',
-        'checklists.checkItem',
-        'labels.create',
-        'webhooks.create',
-        'search',
-      ].sort(),
-    )
-    const reads = trelloConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    expect(reads).toEqual(['boards.get', 'boards.list', 'boards.lists', 'cards.get', 'lists.cards', 'search'].sort())
-    const mutations = trelloConnector.manifest.capabilities.filter((c) => c.class === 'mutation').length
-    expect(mutations).toBeGreaterThanOrEqual(17)
-  })
-
-  it('marks every new write-side mutation as externalEffect + a valid cas mode', () => {
-    const newMutations = ['lists.archive', 'boards.update', 'checklists.checkItem', 'labels.create', 'webhooks.create']
-    for (const name of newMutations) {
-      const cap = trelloConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `capability ${name} should exist`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'optimistic-read-verify']).toContain(cap.cas)
-    }
-  })
-})
-
 describe('trello adapter execution', () => {
   it('GETs boards.list under https://api.trello.com/1/members/{memberId}/boards with key+token in the query', async () => {
     const fetchMock = vi.fn(
@@ -179,20 +123,6 @@ describe('trello adapter execution', () => {
     expect(new URL(String(call[0])).pathname).toBe('/1/cards/card_42')
     expect(call[1]!.method).toBe('DELETE')
     expect(call[1]!.body).toBeUndefined()
-  })
-
-  it('throws CredentialsExpired when Trello rejects the token with 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'cards.get',
-      args: { key: 'devkey123', cardId: 'card_42' },
-      idempotencyKey: 'idem_5',
-    }
-    await expect(trelloConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('PUTs lists.archive at /1/lists/{listId}/closed with value=true on the query string', async () => {

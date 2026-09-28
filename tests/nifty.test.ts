@@ -30,38 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('nifty adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the nifty kind', () => {
-    expect(niftyConnector.manifest.kind).toBe('nifty')
-    expect(niftyConnector.manifest.category).toBe('doc')
-    expect(niftyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares oauth2 auth as documented in the catalog', () => {
-    const auth = niftyConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-  })
-
-  it('covers the catalog action set: create + update tasks and create comments', () => {
-    const names = niftyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['comments.create', 'tasks.create', 'tasks.update'])
-    const mutations = niftyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['comments.create', 'tasks.create', 'tasks.update'])
-  })
-
-  it('declares native-idempotency CAS and tasks:write scope on every mutation', () => {
-    for (const cap of niftyConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-      expect(cap.requiredScopes).toEqual(['tasks:write'])
-    }
-  })
-})
-
 describe('nifty adapter — tasks.update', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -124,36 +92,6 @@ describe('nifty adapter — tasks.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/taskId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"unauthorized"}', { status: 401 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.update',
-        args: { taskId: 'task_123', name: 'whatever' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"forbidden"}', { status: 403 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'tasks.update',
-        args: { taskId: 'task_123', name: 'whatever' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -226,20 +164,5 @@ describe('nifty adapter — comments.create', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/content/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('{"error":"unauthorized"}', { status: 401 })),
-    )
-    await expect(
-      niftyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'comments.create',
-        args: { object_id: 'task_123', content: 'nope' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

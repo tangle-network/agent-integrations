@@ -18,7 +18,7 @@ const fixtures = {
     content: 'Find a desk', created_at: iso, is_group: false, media: null,
   } } },
   linq: { event_id: 'evt-l', event_type: 'message.received', webhook_version: '2026-02-03', created_at: iso, data: {
-    id: 'msg-l', direction: 'inbound', chat: { id: 'chat-l', is_group: false, owner_handle: { handle: '+15550000002', is_me: true } },
+    id: 'msg-l', direction: 'inbound', service: 'iMessage', chat: { id: 'chat-l', is_group: false, owner_handle: { handle: '+15550000002', is_me: true } },
     sender_handle: { handle: '+15550000001', is_me: false }, parts: [{ type: 'text', value: 'Find a desk' }],
   } },
   contiguity: { id: 'evt-c', type: 'imessage.incoming', timestamp: now / 1000, data: {

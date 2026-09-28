@@ -1,4 +1,4 @@
-# Router search and verified phone transports
+# Router search, page reads, and verified phone transports
 
 These primitives were extracted from SUPER, but have no SUPER database, project,
 pricing policy, sender number, UI, or workflow dependency. Existing Hub invocation,
@@ -34,6 +34,33 @@ still depends on the Router. `maxResults` is 1–25, matching the inspected API.
 Protocol reference: `tangle-network/tangle-router` commit
 `8999a6a9a01d6c2872010e265327c207a73adbe9`, `app/v1/search/route.ts` and `lib/web-search.ts`.
 Requalify against the actual deployment; source compatibility is not live access.
+
+## Read a public page
+
+Install the package and import the reader from the existing search entrypoint.
+
+```ts
+import { TangleReadClient } from '@tangle-network/agent-integrations/tangle-search'
+
+const reader = new TangleReadClient({ apiKey: () => secretStore.routerKey() })
+const page = await reader.read({ url: 'https://example.com/', maxBytes: 32768 }, signal)
+console.log(page.url, page.contentType, page.bytes, page.truncated)
+```
+
+The client sends one POST to `/v1/read` without automatic retries.
+Supply the Router credential through trusted host configuration.
+The Router validates destinations and redirects without forwarding the Router credential to the page.
+
+`maxBytes` accepts 1,024–131,072 raw page bytes and defaults to 131,072.
+`bytes` reports raw bytes; decoded UTF-8 content can expand when invalid bytes become replacement characters.
+`truncated` identifies a bounded partial result.
+The response must correlate with the original requested URL and remain within its reported byte limit.
+`billedCost` preserves the reported charge and stays null when the charge is absent or invalid.
+
+`content` contains untrusted page text or HTML.
+It is neither an extracted summary nor instructions for the agent.
+Retain the request ID, returned URL, content type, and fetch time with downstream evidence.
+For an existing bounded transport, use `buildTangleReadRequest` and `parseTangleReadResult` to share the same contract.
 
 ## Phone verification and SMS
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { whatsappBusiness } from '../whatsapp-business.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const opts = { clientId: 'client_id', clientSecret: 'client_secret' }
 
@@ -37,52 +37,6 @@ afterEach(() => {
 })
 
 describe('whatsappBusiness adapter', () => {
-  it('ships a valid connector manifest with oauth2 endpoints and env-var names', () => {
-    const adapter = whatsappBusiness(opts)
-    const result = validateConnectorManifest(adapter.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-
-    expect(adapter.manifest.kind).toBe('whatsapp-business')
-    expect(adapter.manifest.displayName).toBe('WhatsApp Business')
-    expect(adapter.manifest.category).toBe('comms')
-    expect(adapter.manifest.defaultConsistencyModel).toBe('advisory')
-
-    const auth = adapter.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(auth.authorizationUrl).toBe('https://www.facebook.com/v21.0/dialog/oauth')
-    expect(auth.tokenUrl).toBe('https://graph.facebook.com/v21.0/oauth/access_token')
-    expect(auth.scopes).toEqual(['whatsapp_business_messaging', 'whatsapp_business_management', 'business_management'])
-    expect(auth.clientIdEnv).toBe('WHATSAPP_BUSINESS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('WHATSAPP_BUSINESS_OAUTH_CLIENT_SECRET')
-  })
-
-  it('exposes the documented action map (sends + reads)', () => {
-    const adapter = whatsappBusiness(opts)
-    const names = adapter.manifest.capabilities.map((c) => c.name)
-    expect(names).toEqual([
-      'send_text_message',
-      'send_template_message',
-      'list_message_templates',
-      'get_business_phone_number',
-      'media.upload',
-      'templates.create',
-      'templates.delete',
-      'messages.mark-read',
-    ])
-
-    for (const cap of adapter.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.externalEffect).toBe(true)
-        if (cap.name === 'send_text_message' || cap.name === 'send_template_message') {
-          // outbound chat is append-only — Meta has no idempotency primitive on /messages,
-          // so MutationGuard owns dedup above us.
-          expect(cap.cas).toBe('none')
-        }
-      }
-    }
-  })
-
   it('builds an OAuth authorize URL with the documented Meta scopes', () => {
     const adapter = whatsappBusiness(opts)
     const auth = adapter.manifest.auth

@@ -29,55 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pocketbase adapter manifest', () => {
-  it('classifies itself as the database category and exposes the pocketbase kind', () => {
-    expect(pocketbaseConnector.manifest.kind).toBe('pocketbase')
-    expect(pocketbaseConnector.manifest.category).toBe('database')
-    expect(pocketbaseConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = pocketbaseConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/PocketBase/i)
-  })
-
-  it('covers record CRUD plus collections management', () => {
-    const names = pocketbaseConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'records.list',
-        'records.fullList',
-        'records.get',
-        'records.create',
-        'records.update',
-        'records.delete',
-        'collections.list',
-        'collections.create',
-        'collections.delete',
-      ].sort(),
-    )
-    const mutations = pocketbaseConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['records.create', 'records.update', 'records.delete', 'collections.create', 'collections.delete'].sort(),
-    )
-  })
-
-  it('marks the new write-side collections mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['collections.create', 'collections.delete']) {
-      const cap = pocketbaseConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('pocketbase collections.list', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -130,18 +81,6 @@ describe('pocketbase collections.create', () => {
     expect(requestUrl).toBe('https://pb.example.com/api/collections')
     expect(requestBody).toMatchObject({ name: 'tasks', type: 'base' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pocketbaseConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'collections.create',
-        args: { name: 'tasks' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

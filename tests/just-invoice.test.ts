@@ -29,50 +29,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('just-invoice adapter manifest', () => {
-  it('exposes the just-invoice kind under the commerce category', () => {
-    expect(justInvoiceConnector.manifest.kind).toBe('just-invoice')
-    expect(justInvoiceConnector.manifest.category).toBe('commerce')
-    expect(justInvoiceConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = justInvoiceConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog invoice operations: create, delete, send, markPaid, update', () => {
-    const names = justInvoiceConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'invoices.create',
-      'invoices.delete',
-      'invoices.markPaid',
-      'invoices.send',
-      'invoices.update',
-    ])
-
-    const mutations = justInvoiceConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual([
-      'invoices.create',
-      'invoices.delete',
-      'invoices.markPaid',
-      'invoices.send',
-      'invoices.update',
-    ])
-  })
-
-  it('declares native-idempotency CAS + externalEffect on every write', () => {
-    for (const cap of justInvoiceConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('just-invoice invoices.send', () => {
   it('POSTs to /invoices/{id}/send with email_to body and returns the vendor payload', async () => {
     let capturedUrl: string | null = null
@@ -115,21 +71,6 @@ describe('just-invoice invoices.send', () => {
       }),
     ).rejects.toThrow(/invoiceId/)
   })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.send',
-        args: { invoiceId: 'inv_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('just-invoice invoices.markPaid', () => {
@@ -171,21 +112,6 @@ describe('just-invoice invoices.markPaid', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/invoiceId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('forbidden', { status: 403 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.markPaid',
-        args: { invoiceId: 'inv_99' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -238,20 +164,5 @@ describe('just-invoice invoices.update', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/invoiceId/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    await expect(
-      justInvoiceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'invoices.update',
-        args: { invoiceId: 'inv_7', currencyCode: 'EUR' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

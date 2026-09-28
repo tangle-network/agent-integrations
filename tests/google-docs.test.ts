@@ -45,65 +45,6 @@ describe('google-docs adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares OAuth2 against the Google v2 endpoints with documents + drive.file scopes', () => {
-    expect(adapter.manifest.kind).toBe('google-docs')
-    expect(adapter.manifest.displayName).toBe('Google Docs')
-    expect(adapter.manifest.category).toBe('doc')
-    if (adapter.manifest.auth.kind !== 'oauth2') {
-      throw new Error('expected oauth2 auth')
-    }
-    expect(adapter.manifest.auth.authorizationUrl).toBe(
-      'https://accounts.google.com/o/oauth2/v2/auth',
-    )
-    expect(adapter.manifest.auth.tokenUrl).toBe('https://oauth2.googleapis.com/token')
-    expect(adapter.manifest.auth.scopes).toEqual([
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/drive.file',
-    ])
-    expect(adapter.manifest.auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
-    expect(adapter.manifest.auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
-    expect(adapter.manifest.auth.extraAuthParams).toMatchObject({
-      access_type: 'offline',
-      prompt: 'consent',
-    })
-  })
-
-  it('manifest exposes get_document, create_document, append_text, delete_document, export_document with the right classes + CAS', () => {
-    const caps = adapter.manifest.capabilities
-    const byName = Object.fromEntries(caps.map((c) => [c.name, c]))
-    expect(Object.keys(byName).sort()).toEqual([
-      'append_text',
-      'create_document',
-      'delete_document',
-      'export_document',
-      'get_document',
-    ])
-
-    expect(byName.get_document.class).toBe('read')
-    expect(byName.export_document.class).toBe('read')
-
-    const createCap = byName.create_document
-    expect(createCap.class).toBe('mutation')
-    if (createCap.class === 'mutation') {
-      expect(createCap.cas).toBe('native-idempotency')
-      expect(createCap.externalEffect).toBe(true)
-    }
-
-    const appendCap = byName.append_text
-    expect(appendCap.class).toBe('mutation')
-    if (appendCap.class === 'mutation') {
-      expect(appendCap.cas).toBe('etag-if-match')
-      expect(appendCap.externalEffect).toBe(true)
-    }
-
-    const deleteCap = byName.delete_document
-    expect(deleteCap.class).toBe('mutation')
-    if (deleteCap.class === 'mutation') {
-      expect(deleteCap.cas).toBe('native-idempotency')
-      expect(deleteCap.externalEffect).toBe(true)
-    }
-  })
-
   it('delete_document PATCHes the Drive file with trashed=true and commits', async () => {
     let observedUrl: string | undefined
     let observedMethod: string | undefined

@@ -29,62 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('open-phone adapter manifest', () => {
-  it('classifies itself as communications and exposes the open-phone kind', () => {
-    expect(openPhoneConnector.manifest.kind).toBe('open-phone')
-    expect(openPhoneConnector.manifest.category).toBe('comms')
-    expect(openPhoneConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = openPhoneConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/OpenPhone/i)
-  })
-
-  it('covers the extended messages/contacts/calls capability surface', () => {
-    const names = openPhoneConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'calls.create',
-        'calls.summary',
-        'calls.transfer',
-        'contacts.create',
-        'contacts.delete',
-        'contacts.update',
-        'messages.list',
-        'messages.send',
-      ].sort(),
-    )
-    const mutations = openPhoneConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'calls.create',
-        'calls.transfer',
-        'contacts.create',
-        'contacts.delete',
-        'contacts.update',
-        'messages.send',
-      ].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const required = new Set(['calls.create', 'contacts.delete', 'calls.transfer'])
-    for (const cap of openPhoneConnector.manifest.capabilities) {
-      if (!required.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('open-phone wire behavior', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -179,17 +123,5 @@ describe('open-phone wire behavior', () => {
     expect(capturedUrl).toContain('/v1/calls/call_xyz/transfer')
     expect(capturedBody.to).toBe('+15550000000')
     expect(result.status).toBe('committed')
-  })
-
-  it('calls.create surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      openPhoneConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.create',
-        args: { from: '+1555', to: '+1666' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

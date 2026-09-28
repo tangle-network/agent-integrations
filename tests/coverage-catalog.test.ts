@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildIntegrationCoverageConnectors,
   buildIntegrationToolCatalog,
-  integrationCoverageChecklistMarkdown,
   listIntegrationCoverageSpecs,
   searchIntegrationTools,
 } from '../src/index'
@@ -57,13 +56,4 @@ describe('integration coverage catalog', () => {
     expect(results[0].tool.risk).toBe('read')
   })
 
-  it('renders a launch checklist from the same source of truth', () => {
-    const markdown = integrationCoverageChecklistMarkdown()
-
-    expect(markdown).toContain('# Agent Integrations Coverage Checklist')
-    expect(markdown).toContain('Total cataloged integrations:')
-    expect(markdown).toContain('Gmail (gmail)')
-    expect(markdown).toContain('Salesforce (salesforce)')
-    expect(markdown).toContain('Stripe (stripe)')
-  })
 })

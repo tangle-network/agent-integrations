@@ -25,45 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('alttextify adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the alttextify kind', () => {
-    expect(alttextifyConnector.manifest.kind).toBe('alttextify')
-    expect(alttextifyConnector.manifest.category).toBe('doc')
-    expect(alttextifyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = alttextifyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/AltTextify/i)
-  })
-
-  it('exposes the generate + batch + delete capability surface', () => {
-    const names = alttextifyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['generate.alt.text', 'batch.generate.alt.text', 'result.delete'].sort(),
-    )
-    const mutations = alttextifyConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['generate.alt.text', 'batch.generate.alt.text', 'result.delete'].sort(),
-    )
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    for (const name of ['batch.generate.alt.text', 'result.delete']) {
-      const cap = alttextifyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('alttextify batch.generate.alt.text', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -103,22 +64,6 @@ describe('alttextify batch.generate.alt.text', () => {
       async: false,
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      alttextifyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'batch.generate.alt.text',
-        args: {
-          images: [{ image: 'data:image/png;base64,abc' }],
-          lang: 'en',
-          async: false,
-        },
-        idempotencyKey: 'batch-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

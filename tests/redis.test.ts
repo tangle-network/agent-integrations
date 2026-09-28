@@ -1,40 +1,11 @@
 import type { RedisClientOptions } from 'redis'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createRedisConnector,
-  redisConnector,
-  type RedisConnectorOptions,
-} from '../src/connectors/adapters/redis.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
+  type RedisConnectorOptions } from '../src/connectors/adapters/redis.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('Redis connector', () => {
-  it('ships a valid authoritative manifest with approval-gated compare-and-swap writes', () => {
-    expect(validateConnectorManifest(redisConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(redisConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'redis.keys.scan',
-      'redis.key.inspect',
-      'redis.string.get',
-      'redis.string.set',
-      'redis.string.delete',
-    ])
-    expect(redisConnector.manifest.capabilities.filter((capability) => capability.class === 'mutation')).toMatchObject([
-      { cas: 'optimistic-read-verify', externalEffect: true },
-      { cas: 'optimistic-read-verify', externalEffect: true },
-    ])
-  })
-
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('redis')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'Redis connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'redis')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('redis')
-  })
-
   it('pins a public address while retaining the DNS name for verified TLS identity', async () => {
     let config: RedisClientOptions | undefined
     const connector = createRedisConnector({

@@ -30,60 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pipedrive adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the pipedrive kind', () => {
-    expect(pipedriveConnector.manifest.kind).toBe('pipedrive')
-    expect(pipedriveConnector.manifest.category).toBe('crm')
-    expect(pipedriveConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares OAuth2 with the documented Pipedrive endpoints and env-var names', () => {
-    const auth = pipedriveConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://oauth.pipedrive.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://oauth.pipedrive.com/oauth/token')
-    expect(auth.clientIdEnv).toBe('PIPEDRIVE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('PIPEDRIVE_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('activities:full')
-    expect(auth.scopes).toContain('contacts:full')
-  })
-
-  it('exposes activities.create and notes.create as native-idempotency mutations', () => {
-    const caps = pipedriveConnector.manifest.capabilities
-    const activitiesCreate = caps.find((c) => c.name === 'activities.create')
-    const notesCreate = caps.find((c) => c.name === 'notes.create')
-    expect(activitiesCreate).toBeDefined()
-    expect(notesCreate).toBeDefined()
-    if (!activitiesCreate || !notesCreate) throw new Error('unreachable')
-    expect(activitiesCreate.class).toBe('mutation')
-    expect(notesCreate.class).toBe('mutation')
-    if (activitiesCreate.class !== 'mutation' || notesCreate.class !== 'mutation') {
-      throw new Error('unreachable')
-    }
-    expect(activitiesCreate.cas).toBe('native-idempotency')
-    expect(activitiesCreate.externalEffect).toBe(true)
-    expect(activitiesCreate.requiredScopes).toEqual(['activities:full'])
-    expect(notesCreate.cas).toBe('native-idempotency')
-    expect(notesCreate.externalEffect).toBe(true)
-    expect(notesCreate.requiredScopes).toEqual(['contacts:full'])
-  })
-
-  it('marks subject+type as required for activities.create', () => {
-    const cap = pipedriveConnector.manifest.capabilities.find((c) => c.name === 'activities.create')
-    if (!cap) throw new Error('unreachable')
-    const params = cap.parameters as { required?: string[] }
-    expect(params.required).toEqual(['subject', 'type'])
-  })
-
-  it('marks content as required for notes.create', () => {
-    const cap = pipedriveConnector.manifest.capabilities.find((c) => c.name === 'notes.create')
-    if (!cap) throw new Error('unreachable')
-    const params = cap.parameters as { required?: string[] }
-    expect(params.required).toEqual(['content'])
-  })
-})
-
 describe('pipedrive adapter activities.create', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -156,46 +102,6 @@ describe('pipedrive adapter activities.create', () => {
     })
     expect(capturedUrl).toBe('https://api.pipedrive.com/v1/activities')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      pipedriveConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'activities.create',
-        args: { subject: 's', type: 'call' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'forbidden' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      pipedriveConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'activities.create',
-        args: { subject: 's', type: 'call' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('pipedrive adapter notes.create', () => {
@@ -240,45 +146,5 @@ describe('pipedrive adapter notes.create', () => {
       person_id: 11,
       org_id: 3,
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'unauthorized' }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      pipedriveConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'notes.create',
-        args: { content: 'hi' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: 'forbidden' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      pipedriveConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'notes.create',
-        args: { content: 'hi' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

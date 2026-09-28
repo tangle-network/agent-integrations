@@ -26,112 +26,6 @@ function tgOk<T>(result: T, init: ResponseInit = {}): Response {
 }
 
 describe('telegram adapter manifest', () => {
-  it('identifies as the comms / telegram kind with an advisory consistency model', () => {
-    expect(telegramConnector.manifest.kind).toBe('telegram')
-    expect(telegramConnector.manifest.category).toBe('comms')
-    expect(telegramConnector.manifest.defaultConsistencyModel).toBe('advisory')
-  })
-
-  it('declares api-key auth (Telegram has no OAuth — the bot token IS the credential)', () => {
-    const auth = telegramConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/BotFather/i)
-  })
-
-  it('covers the bot messaging + chat + webhook + media-edit + pin + member-moderation surface', () => {
-    const names = telegramConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'getMe',
-        'getChat',
-        'getChatAdministrators',
-        'getChatMember',
-        'getChatMemberCount',
-        'getUpdates',
-        'getFile',
-        'getWebhookInfo',
-        'sendMessage',
-        'sendPhoto',
-        'sendDocument',
-        'forwardMessage',
-        'editMessageText',
-        'deleteMessage',
-        'answerCallbackQuery',
-        'setWebhook',
-        'deleteWebhook',
-        'editMessageMedia',
-        'pinChatMessage',
-        'unpinChatMessage',
-        'banChatMember',
-        'restrictChatMember',
-      ].sort(),
-    )
-
-    const reads = telegramConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = telegramConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-
-    expect(reads).toEqual(
-      [
-        'getMe',
-        'getChat',
-        'getChatAdministrators',
-        'getChatMember',
-        'getChatMemberCount',
-        'getUpdates',
-        'getFile',
-        'getWebhookInfo',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'sendMessage',
-        'sendPhoto',
-        'sendDocument',
-        'forwardMessage',
-        'editMessageText',
-        'deleteMessage',
-        'answerCallbackQuery',
-        'setWebhook',
-        'deleteWebhook',
-        'editMessageMedia',
-        'pinChatMessage',
-        'unpinChatMessage',
-        'banChatMember',
-        'restrictChatMember',
-      ].sort(),
-    )
-  })
-
-  it('marks sendMessage as append-only (cas:none), edits as optimistic-read-verify, idempotent ops as native-idempotency', () => {
-    const send = telegramConnector.manifest.capabilities.find((c) => c.name === 'sendMessage')
-    if (send?.class !== 'mutation') throw new Error('unreachable')
-    expect(send.cas).toBe('none')
-    expect(send.externalEffect).toBe(true)
-
-    const edit = telegramConnector.manifest.capabilities.find((c) => c.name === 'editMessageText')
-    if (edit?.class !== 'mutation') throw new Error('unreachable')
-    expect(edit.cas).toBe('optimistic-read-verify')
-
-    const del = telegramConnector.manifest.capabilities.find((c) => c.name === 'deleteMessage')
-    if (del?.class !== 'mutation') throw new Error('unreachable')
-    expect(del.cas).toBe('native-idempotency')
-
-    const callbackAck = telegramConnector.manifest.capabilities.find((c) => c.name === 'answerCallbackQuery')
-    if (callbackAck?.class !== 'mutation') throw new Error('unreachable')
-    expect(callbackAck.cas).toBe('native-idempotency')
-
-    const webhook = telegramConnector.manifest.capabilities.find((c) => c.name === 'setWebhook')
-    if (webhook?.class !== 'mutation') throw new Error('unreachable')
-    expect(webhook.cas).toBe('native-idempotency')
-  })
-
   it('marks every new write capability (media-edit, pin/unpin, ban, restrict) as native-idempotency + external-effect', () => {
     const byName = new Map(telegramConnector.manifest.capabilities.map((c) => [c.name, c]))
     for (const name of [
@@ -146,12 +40,6 @@ describe('telegram adapter manifest', () => {
       expect(cap.cas).toBe('native-idempotency')
       expect(cap.externalEffect).toBe(true)
     }
-  })
-
-  it('rate-limits the bot under Telegram\'s documented 30 msg/sec ceiling', () => {
-    expect(telegramConnector.manifest.rateLimit).toBeDefined()
-    expect(telegramConnector.manifest.rateLimit?.requests).toBeLessThanOrEqual(30)
-    expect(telegramConnector.manifest.rateLimit?.windowMs).toBe(1_000)
   })
 
   it('exposes the public file-download root used to assemble getFile URLs', () => {

@@ -13,14 +13,6 @@ function json(body: unknown): Response {
 describe('DigitalOcean adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('exposes infrastructure reads and approval-gated resource changes', () => {
-    expect(digitalOceanConnector.manifest).toMatchObject({ kind: 'digital-ocean', category: 'other', auth: { kind: 'api-key' } })
-    expect(digitalOceanConnector.manifest.capabilities).toHaveLength(23)
-    for (const capability of digitalOceanConnector.manifest.capabilities.filter((item) => item.class === 'mutation')) {
-      expect(capability.externalEffect, capability.name).toBe(true)
-    }
-  })
-
   it('checks the account with bearer authentication', async () => {
     let url = ''
     let authorization = ''

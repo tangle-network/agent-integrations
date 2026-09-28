@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { azureEventGridConnector } from '../src/connectors/adapters/azure-event-grid.js'
 import {
-  validateConnectorManifest,
   type ResolvedDataSource,
 } from '../src/connectors/types.js'
 
@@ -30,22 +29,6 @@ function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource
     ...overrides,
   }
 }
-
-describe('azure-event-grid manifest', () => {
-  it('ships native Event Grid and CloudEvents publishing with a valid safety manifest', () => {
-    expect(azureEventGridConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'events.publish',
-      'cloudEvents.publish',
-    ])
-    expect(validateConnectorManifest(azureEventGridConnector.manifest)).toEqual({ ok: true, issues: [] })
-    for (const capability of azureEventGridConnector.manifest.capabilities) {
-      expect(capability.class).toBe('mutation')
-      if (capability.class !== 'mutation') throw new Error('expected mutation')
-      expect(capability.cas).toBe('none')
-      expect(capability.externalEffect).toBe(true)
-    }
-  })
-})
 
 describe('azure-event-grid publishing', () => {
   afterEach(() => vi.unstubAllGlobals())

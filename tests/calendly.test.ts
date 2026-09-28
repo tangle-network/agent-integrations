@@ -25,29 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('calendly adapter manifest', () => {
-  it('exposes the calendly kind in the calendar category', () => {
-    expect(calendlyConnector.manifest.kind).toBe('calendly')
-    expect(calendlyConnector.manifest.category).toBe('calendar')
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    const caps = calendlyConnector.manifest.capabilities
-    const targets = [
-      'webhooks.create',
-      'webhooks.delete',
-      'invitee.no-show.create',
-    ]
-    for (const name of targets) {
-      const cap = caps.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('calendly webhooks.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 

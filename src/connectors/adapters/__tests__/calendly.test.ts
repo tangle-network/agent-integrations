@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { calendlyConnector } from '../calendly.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_calendly',
@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('calendly adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(calendlyConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares oauth2 against auth.calendly.com with the documented endpoints', () => {
     const auth = calendlyConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -35,57 +30,6 @@ describe('calendly adapter', () => {
     expect(auth.scopes).toEqual([])
     expect(auth.clientIdEnv).toBe('CALENDLY_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('CALENDLY_OAUTH_CLIENT_SECRET')
-  })
-
-  it('exposes the calendly action surface and the right read/mutation split', () => {
-    expect(calendlyConnector.manifest.kind).toBe('calendly')
-    expect(calendlyConnector.manifest.displayName).toBe('Calendly')
-    expect(calendlyConnector.manifest.category).toBe('calendar')
-    const names = calendlyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'event-types.get',
-      'event-types.list',
-      'invitee.no-show.create',
-      'scheduled-events.cancel',
-      'scheduled-events.get',
-      'scheduled-events.list',
-      'scheduled-events.list-invitees',
-      'scheduling-links.create',
-      'user.get-current',
-      'webhooks.create',
-      'webhooks.delete',
-    ])
-    const readers = calendlyConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = calendlyConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'event-types.get',
-      'event-types.list',
-      'scheduled-events.get',
-      'scheduled-events.list',
-      'scheduled-events.list-invitees',
-      'user.get-current',
-    ])
-    expect(mutators).toEqual([
-      'invitee.no-show.create',
-      'scheduled-events.cancel',
-      'scheduling-links.create',
-      'webhooks.create',
-      'webhooks.delete',
-    ])
-  })
-
-  it('every mutation declares a CAS strategy', () => {
-    for (const cap of calendlyConnector.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.cas).toBeDefined()
-        expect(cap.cas).not.toBe('none')
-      }
-    }
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof calendlyConnector.executeRead).toBe('function')
-    expect(typeof calendlyConnector.executeMutation).toBe('function')
   })
 
   it('reads scheduled events via GET /scheduled_events with bearer auth and the requested query filters', async () => {

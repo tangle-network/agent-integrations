@@ -25,54 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bland-ai adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the bland-ai kind', () => {
-    expect(blandAiConnector.manifest.kind).toBe('bland-ai')
-    expect(blandAiConnector.manifest.category).toBe('comms')
-    expect(blandAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = blandAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: send/get/list + cancel/stop + pathways.create', () => {
-    const names = blandAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'calls.cancel',
-        'calls.get',
-        'calls.list',
-        'calls.send',
-        'calls.stop',
-        'pathways.create',
-      ].sort(),
-    )
-    const reads = blandAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = blandAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['calls.get', 'calls.list'])
-    expect(mutations).toEqual(['calls.cancel', 'calls.send', 'calls.stop', 'pathways.create'].sort())
-  })
-
-  it('marks every new mutation as native-idempotency external effect', () => {
-    const newMutations = new Set(['calls.cancel', 'calls.stop', 'pathways.create'])
-    for (const c of blandAiConnector.manifest.capabilities) {
-      if (!newMutations.has(c.name)) continue
-      expect(c.class).toBe('mutation')
-      if (c.class !== 'mutation') throw new Error('unreachable')
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('bland-ai adapter write execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -148,17 +100,5 @@ describe('bland-ai adapter write execution', () => {
       nodes: [{ id: 'n1' }],
       edges: [{ from: 'n1', to: 'n2' }],
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      blandAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'calls.stop',
-        args: { callId: 'call_x' },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

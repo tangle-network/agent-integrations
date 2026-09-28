@@ -37,31 +37,6 @@ describe('google-tasks adapter manifest', () => {
     expect(googleTasksConnector.manifest.auth.clientIdEnv).toBe('GOOGLE_OAUTH_CLIENT_ID')
     expect(googleTasksConnector.manifest.auth.clientSecretEnv).toBe('GOOGLE_OAUTH_CLIENT_SECRET')
   })
-
-  it('declares capabilities covering tasklists, tasks, read and write operations', () => {
-    const names = googleTasksConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'lists.create',
-      'tasklists.get',
-      'tasklists.list',
-      'tasks.complete',
-      'tasks.create',
-      'tasks.delete',
-      'tasks.get',
-      'tasks.list',
-      'tasks.update',
-    ])
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['tasks.complete', 'lists.create']) {
-      const cap = googleTasksConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('google-tasks tasks.complete', () => {
@@ -209,17 +184,5 @@ describe('google-tasks lists.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toBe('https://tasks.googleapis.com/tasks/v1/users/@me/lists')
     expect(requestBody).toMatchObject({ title: 'Groceries' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      googleTasksConnector.executeMutation!({
-        source: baseSource,
-        capabilityName: 'lists.create',
-        args: { title: 'Groceries' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

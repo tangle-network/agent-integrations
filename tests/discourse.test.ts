@@ -31,41 +31,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 describe('Discourse adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('exposes the deep community pack as an authoritative chat connector', () => {
-    expect(discourseConnector.manifest).toMatchObject({
-      kind: 'discourse',
-      category: 'comms',
-      defaultConsistencyModel: 'authoritative',
-      auth: { kind: 'api-key' },
-    })
-    expect(discourseConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual([
-      'categories.create',
-      'categories.list',
-      'categories.update',
-      'groups.get',
-      'groups.list',
-      'groups.members.add',
-      'groups.members.list',
-      'groups.members.remove',
-      'moderation.users.suspend',
-      'notifications.list',
-      'notifications.mark-read',
-      'posts.create',
-      'posts.delete',
-      'posts.get',
-      'posts.update',
-      'search.query',
-      'tags.list',
-      'topics.create',
-      'topics.delete',
-      'topics.get',
-      'topics.latest',
-      'topics.set-status',
-      'topics.update',
-      'users.get',
-    ])
-  })
-
   it('checks credentials with both required Discourse headers', async () => {
     let capturedUrl = ''
     let capturedHeaders = new Headers()

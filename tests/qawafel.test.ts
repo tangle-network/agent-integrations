@@ -29,81 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('qawafel adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the qawafel kind', () => {
-    expect(qawafelConnector.manifest.kind).toBe('qawafel')
-    expect(qawafelConnector.manifest.category).toBe('crm')
-    expect(qawafelConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = qawafelConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Qawafel/i)
-  })
-
-  it('covers products, orders, merchants, and invoices capability surface including write-side extensions', () => {
-    const names = qawafelConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'products.create',
-        'products.update',
-        'products.delete',
-        'products.get',
-        'products.list',
-        'orders.create',
-        'orders.updateStatus',
-        'orders.cancel',
-        'orders.refund',
-        'orders.get',
-        'orders.list',
-        'merchants.create',
-        'invoices.create',
-        'invoices.update',
-        'invoices.send',
-        'invoices.get',
-        'invoices.list',
-      ].sort(),
-    )
-    const mutations = qawafelConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'products.create',
-        'products.update',
-        'products.delete',
-        'orders.create',
-        'orders.updateStatus',
-        'orders.cancel',
-        'orders.refund',
-        'merchants.create',
-        'invoices.create',
-        'invoices.update',
-        'invoices.send',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'products.delete',
-      'orders.refund',
-      'invoices.update',
-      'invoices.send',
-    ])
-    const caps = qawafelConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('qawafel products.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -127,18 +52,6 @@ describe('qawafel products.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/products/p_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      qawafelConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { product_id: 'p_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

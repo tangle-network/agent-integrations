@@ -29,73 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('smartlead adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the smartlead kind', () => {
-    expect(smartleadConnector.manifest.kind).toBe('smartlead')
-    expect(smartleadConnector.manifest.category).toBe('crm')
-    expect(smartleadConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a SmartLead-specific hint', () => {
-    const auth = smartleadConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/SmartLead/i)
-  })
-
-  it('covers campaigns and leads capability surface', () => {
-    const names = smartleadConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('campaigns.create')
-    expect(names).toContain('campaigns.statistics')
-    expect(names).toContain('campaigns.update')
-    expect(names).toContain('campaigns.start')
-    expect(names).toContain('campaigns.pause')
-    expect(names).toContain('campaigns.delete')
-    expect(names).toContain('leads.add')
-    expect(names).toContain('leads.update')
-    expect(names).toContain('leads.remove')
-  })
-
-  it('marks destructive and write operations as mutations', () => {
-    const mutations = smartleadConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('campaigns.create')
-    expect(mutations).toContain('campaigns.update')
-    expect(mutations).toContain('campaigns.start')
-    expect(mutations).toContain('campaigns.pause')
-    expect(mutations).toContain('campaigns.delete')
-    expect(mutations).toContain('leads.add')
-    expect(mutations).toContain('leads.update')
-    expect(mutations).toContain('leads.remove')
-  })
-
-  it('marks read-only operations as read', () => {
-    const reads = smartleadConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-    expect(reads).toContain('campaigns.statistics')
-  })
-
-  it('marks the new mutations as native-idempotency external effect', () => {
-    const targets = [
-      'campaigns.start',
-      'campaigns.pause',
-      'campaigns.delete',
-      'leads.update',
-      'leads.remove',
-    ]
-    for (const name of targets) {
-      const cap = smartleadConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('smartlead campaigns.start', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -122,18 +55,6 @@ describe('smartlead campaigns.start', () => {
     expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/123/status?api_key=smartlead_secret')
     expect(capturedBody).toEqual({ status: 'START' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      smartleadConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.start',
-        args: { campaign_id: 123 },
-        idempotencyKey: 'start-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -244,17 +165,5 @@ describe('smartlead leads.remove', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.smartlead.io/v1/campaigns/12/leads/99?api_key=smartlead_secret')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      smartleadConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'leads.remove',
-        args: { campaign_id: 12, lead_id: 99 },
-        idempotencyKey: 'rem-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

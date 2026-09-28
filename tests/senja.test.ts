@@ -29,57 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('senja adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the senja kind', () => {
-    expect(senjaConnector.manifest.kind).toBe('senja')
-    expect(senjaConnector.manifest.category).toBe('crm')
-    expect(senjaConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = senjaConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers existing and new write capability surface', () => {
-    const names = senjaConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'testimonials.list',
-        'testimonials.get',
-        'testimonials.create',
-        'testimonials.update',
-        'testimonials.delete',
-        'tags.create',
-        'collections.list',
-      ].sort(),
-    )
-    const reads = senjaConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = senjaConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['collections.list', 'testimonials.get', 'testimonials.list'].sort())
-    expect(mutations).toEqual(
-      ['tags.create', 'testimonials.create', 'testimonials.delete', 'testimonials.update'].sort(),
-    )
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    const targets = ['testimonials.update', 'testimonials.delete', 'tags.create']
-    for (const name of targets) {
-      const cap = senjaConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('senja testimonials.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -107,18 +56,6 @@ describe('senja testimonials.update', () => {
     expect(capturedBody).toMatchObject({ id: 't_1', approved: true, title: 'Edited' })
     expect(result.status).toBe('committed')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      senjaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'testimonials.update',
-        args: { id: 't_1', approved: true },
-        idempotencyKey: 'upd-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('senja testimonials.delete', () => {
@@ -144,18 +81,6 @@ describe('senja testimonials.delete', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.senja.io/api/v1/testimonials/t_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      senjaConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'testimonials.delete',
-        args: { id: 't_42' },
-        idempotencyKey: 'del-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

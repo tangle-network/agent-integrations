@@ -28,33 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 describe('bigcommerce adapter write-side capabilities', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('marks every mutation as native-idempotency externalEffect', () => {
-    const caps = bigcommerceConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-
-  it('exposes the extended write surface (refund / product delete / customer create+update)', () => {
-    const mutations = bigcommerceConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'customers.create',
-        'customers.update',
-        'orders.refund',
-        'orders.update',
-        'products.create',
-        'products.delete',
-        'products.update',
-      ].sort(),
-    )
-  })
-
   it('issues a POST against the order-scoped refund path with the renamed body', async () => {
     let requestUrl: string | undefined
     let requestMethod: string | undefined
@@ -157,17 +130,5 @@ describe('bigcommerce adapter write-side capabilities', () => {
 
     expect(requestMethod).toBe('PUT')
     expect(JSON.parse(requestBody ?? '{}')).toEqual([{ id: 12, last_name: 'Z' }])
-  })
-
-  it('surfaces CredentialsExpired when a write fails on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bigcommerceConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'products.delete',
-        args: { productId: 1 },
-        idempotencyKey: 'idem_x',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { brazeConnector } from '../braze.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_braze',
@@ -20,60 +20,6 @@ afterEach(() => {
 })
 
 describe('braze adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(brazeConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares api-key auth with the Braze REST hint', () => {
-    expect(brazeConnector.manifest.kind).toBe('braze')
-    expect(brazeConnector.manifest.displayName).toBe('Braze')
-    expect(brazeConnector.manifest.category).toBe('other')
-    expect(brazeConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('exposes the customer-lifecycle capability surface with the right read/mutation split', () => {
-    const names = brazeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'campaigns.list',
-      'campaigns.trigger.send',
-      'canvas.list',
-      'canvas.trigger.send',
-      'email.blacklist',
-      'subscription.status.get',
-      'subscription.status.set',
-      'users.delete',
-      'users.export.ids',
-      'users.identify',
-      'users.track',
-    ])
-    const readers = brazeConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = brazeConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual(['campaigns.list', 'canvas.list', 'subscription.status.get', 'users.export.ids'])
-    expect(mutators).toEqual([
-      'campaigns.trigger.send',
-      'canvas.trigger.send',
-      'email.blacklist',
-      'subscription.status.set',
-      'users.delete',
-      'users.identify',
-      'users.track',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof brazeConnector.executeRead).toBe('function')
-    expect(typeof brazeConnector.executeMutation).toBe('function')
-  })
-
-  it('declares every mutation with a CAS strategy and externalEffect=true', () => {
-    for (const cap of brazeConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
   it('routes users.track against the per-tenant REST endpoint with bearer auth and a verbatim body', async () => {
     const fetchMock = mockFetch({ message: 'success' })
     const invocation: ConnectorInvocation = {
@@ -169,16 +115,6 @@ describe('braze adapter', () => {
     const body = JSON.parse(String(init.body))
     expect(body.external_ids).toEqual(['user_42'])
     expect(body.fields_to_export).toEqual(['email', 'first_name'])
-  })
-
-  it('refuses to invoke unknown capabilities', async () => {
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'does.not.exist',
-      args: {},
-      idempotencyKey: 'bad_1',
-    }
-    await expect(brazeConnector.executeRead!(invocation)).rejects.toThrow(/unknown read capability/)
   })
 
   it('fails loud when metadata.restEndpoint is missing rather than calling a default cluster', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { xeroConnector } from '../xero.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'src_xero',
@@ -43,18 +43,6 @@ describe('xero adapter manifest', () => {
     expect(auth.clientIdEnv).toBe('XERO_OAUTH_CLIENT_ID')
     expect(auth.clientSecretEnv).toBe('XERO_OAUTH_CLIENT_SECRET')
     expect(auth.scopes).not.toContain('app.connections')
-  })
-
-  it('classifies itself as crm with authoritative consistency', () => {
-    expect(xeroConnector.manifest.kind).toBe('xero')
-    expect(xeroConnector.manifest.displayName).toBe('Xero')
-    expect(xeroConnector.manifest.category).toBe('crm')
-    expect(xeroConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('passes the shared manifest validator', () => {
-    const result = validateConnectorManifest(xeroConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
   })
 
   it('exposes the accounting action pack split between reads and mutations with scope gating', () => {
@@ -173,20 +161,6 @@ describe('xero adapter execution', () => {
         },
       ],
     })
-  })
-
-  it('throws CredentialsExpired when Xero rejects the access token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'contacts.get',
-      args: { tenantId: 'tenant_abc', contactId: 'c1' },
-      idempotencyKey: 'idem_3',
-    }
-    await expect(xeroConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

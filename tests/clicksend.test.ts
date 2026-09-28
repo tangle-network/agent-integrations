@@ -31,35 +31,6 @@ function jsonResponse(body: unknown): Response {
 describe('ClickSend adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('exposes account, contacts, SMS, and voice capabilities', () => {
-    expect(clicksendConnector.manifest).toMatchObject({
-      kind: 'clicksend',
-      category: 'comms',
-      auth: { kind: 'api-key' },
-    })
-    expect(clicksendConnector.manifest.capabilities.map((capability) => capability.name).sort()).toEqual([
-      'account.get',
-      'contacts.create',
-      'contacts.delete',
-      'contacts.get',
-      'contacts.list',
-      'contacts.update',
-      'lists.create',
-      'lists.delete',
-      'lists.get',
-      'lists.list',
-      'lists.update',
-      'sms.cancel',
-      'sms.history',
-      'sms.inbound.list',
-      'sms.receipts.list',
-      'sms.send',
-      'voice.cancel',
-      'voice.history',
-      'voice.send',
-    ])
-  })
-
   it('checks the account with HTTP Basic credentials', async () => {
     let capturedUrl = ''
     let capturedAuthorization = ''

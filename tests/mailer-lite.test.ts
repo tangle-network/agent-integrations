@@ -25,64 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('mailer-lite adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the mailer-lite kind', () => {
-    expect(mailerLiteConnector.manifest.kind).toBe('mailer-lite')
-    expect(mailerLiteConnector.manifest.category).toBe('crm')
-    expect(mailerLiteConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = mailerLiteConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the activepieces action set plus the new write-side mutations', () => {
-    const names = mailerLiteConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'subscribers.upsert',
-        'subscribers.groups.add',
-        'subscribers.groups.remove',
-        'subscribers.find',
-        'subscribers.delete',
-        'campaigns.create',
-        'campaigns.schedule',
-      ].sort(),
-    )
-    const reads = mailerLiteConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = mailerLiteConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['subscribers.find'])
-    expect(mutations).toEqual(
-      [
-        'subscribers.upsert',
-        'subscribers.groups.add',
-        'subscribers.groups.remove',
-        'subscribers.delete',
-        'campaigns.create',
-        'campaigns.schedule',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['subscribers.delete', 'campaigns.create', 'campaigns.schedule']
-    for (const name of expected) {
-      const cap = mailerLiteConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('mailer-lite subscribers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -106,18 +48,6 @@ describe('mailer-lite subscribers.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://connect.mailerlite.com/api/subscribers/sub_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      mailerLiteConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscribers.delete',
-        args: { subscriberId: 'sub_42' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

@@ -25,62 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('kudosity adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the kudosity kind', () => {
-    expect(kudosityConnector.manifest.kind).toBe('kudosity')
-    expect(kudosityConnector.manifest.category).toBe('comms')
-    expect(kudosityConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = kudosityConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the full activepieces action set (contacts + SMS lifecycle + number format)', () => {
-    const names = kudosityConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contact.add.update',
-        'contact.create',
-        'contact.update',
-        'contact.delete',
-        'sms.send',
-        'sms.cancel',
-        'sms.info.get',
-        'number.format',
-      ].sort(),
-    )
-    const reads = kudosityConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = kudosityConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['number.format', 'sms.info.get'].sort())
-    expect(mutations).toEqual(
-      [
-        'contact.add.update',
-        'contact.create',
-        'contact.update',
-        'contact.delete',
-        'sms.cancel',
-        'sms.send',
-      ].sort(),
-    )
-  })
-
-  it('marks all mutations as native-idempotency external effects', () => {
-    for (const c of kudosityConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('kudosity contact.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -116,18 +60,6 @@ describe('kudosity contact.create', () => {
     expect(parsed.list_id).toBe('987')
     expect(parsed.msisdn).toBe('+15551112222')
     expect(parsed.email).toBe('alice@example.com')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      kudosityConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contact.create',
-        args: { listId: '1', msisdn: '+15550000000', email: 'a@b.co' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

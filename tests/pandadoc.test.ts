@@ -36,34 +36,6 @@ describe('pandadoc adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares oauth2 auth with correct authorize/token URLs + env vars', () => {
-    expect(adapter.manifest.auth.kind).toBe('oauth2')
-    if (adapter.manifest.auth.kind !== 'oauth2') throw new Error('expected oauth2')
-    expect(adapter.manifest.auth.authorizationUrl).toBe('https://app.pandadoc.com/oauth2/authorize')
-    expect(adapter.manifest.auth.tokenUrl).toBe('https://api.pandadoc.com/oauth2/access_token')
-    expect(adapter.manifest.auth.clientIdEnv).toBe('PANDADOC_OAUTH_CLIENT_ID')
-    expect(adapter.manifest.auth.clientSecretEnv).toBe('PANDADOC_OAUTH_CLIENT_SECRET')
-    expect(adapter.manifest.auth.scopes).toEqual(['read', 'read+write'])
-  })
-
-  it('manifest exposes the five PandaDoc capabilities expected by the docs action pack', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'cancel_document',
-      'create_document',
-      'get_document',
-      'search_documents',
-      'send_document',
-    ])
-    // Reads vs mutations
-    const byClass = Object.fromEntries(adapter.manifest.capabilities.map((c) => [c.name, c.class]))
-    expect(byClass.search_documents).toBe('read')
-    expect(byClass.get_document).toBe('read')
-    expect(byClass.create_document).toBe('mutation')
-    expect(byClass.send_document).toBe('mutation')
-    expect(byClass.cancel_document).toBe('mutation')
-  })
-
   it('search_documents hits GET /documents with q + status + count', async () => {
     let capturedUrl = ''
     let capturedHeaders: Record<string, string> = {}

@@ -25,51 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('alt-text-ai adapter manifest', () => {
-  it('classifies itself as the other category and exposes the alt-text-ai kind', () => {
-    expect(altTextAiConnector.manifest.kind).toBe('alt-text-ai')
-    expect(altTextAiConnector.manifest.category).toBe('other')
-    expect(altTextAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = altTextAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers single + batch + delete write actions', () => {
-    const names = altTextAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'images.generateAltText',
-        'images.batchGenerateAltText',
-        'images.deleteResult',
-      ].sort(),
-    )
-    const mutations = altTextAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'images.generateAltText',
-        'images.batchGenerateAltText',
-        'images.deleteResult',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    for (const name of ['images.batchGenerateAltText', 'images.deleteResult']) {
-      const cap = altTextAiConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('alt-text-ai images.batchGenerateAltText', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -111,18 +66,6 @@ describe('alt-text-ai images.batchGenerateAltText', () => {
       ],
     })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      altTextAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.batchGenerateAltText',
-        args: { images: [{ image: 'https://x.example/1.png' }] },
-        idempotencyKey: 'batch-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

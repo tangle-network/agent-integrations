@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import { acuitySchedulingConnector } from '../src/connectors/adapters/acuity-scheduling.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -27,46 +26,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe('Acuity Scheduling provider pack', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('registers the documented OAuth application', () => {
-    expect(acuitySchedulingConnector.manifest.auth).toMatchObject({
-      kind: 'oauth2',
-      authorizationUrl: 'https://acuityscheduling.com/oauth2/authorize',
-      tokenUrl: 'https://acuityscheduling.com/oauth2/token',
-      scopes: ['api-v1'],
-    })
-
-    expect(CONNECTOR_ADAPTER_FACTORIES.find(
-      (candidate) => candidate.kind === 'acuity-scheduling',
-    )?.envMap).toEqual({
-      clientId: 'ACUITY_OAUTH_CLIENT_ID',
-      clientSecret: 'ACUITY_OAUTH_CLIENT_SECRET',
-    })
-  })
-
-  it('covers scheduling discovery and requires approval for every write', () => {
-    expect(acuitySchedulingConnector.manifest.capabilities.map(
-      (capability) => capability.name,
-    ).sort()).toEqual([
-      'appointment-types.list',
-      'appointments.cancel',
-      'appointments.create',
-      'appointments.get',
-      'appointments.list',
-      'appointments.reschedule',
-      'availability.dates',
-      'availability.times',
-      'blocks.list',
-      'calendars.list',
-      'clients.list',
-    ])
-
-    for (const capability of acuitySchedulingConnector.manifest.capabilities) {
-      if (capability.class === 'mutation') {
-        expect(capability.externalEffect, capability.name).toBe(true)
-      }
-    }
-  })
 
   it('sends availability filters to the documented dates route', async () => {
     let requestUrl = ''

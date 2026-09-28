@@ -1,5 +1,7 @@
 import { ProviderProtocolError, record, requestJson, type JsonRequestOptions } from '../http/response-json.js'
 export { ProviderProtocolError } from '../http/response-json.js'
+export { TangleReadClient, buildTangleReadRequest, parseTangleReadResult,
+  type TangleReadInput, type TangleReadResult, type TangleReadClientOptions } from './reader.js'
 
 /** Router protocol, not provider-specific APIs. New provider IDs require no client release. */
 export interface TangleSearchInput {

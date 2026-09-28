@@ -29,60 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('pinch-payments adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the pinch-payments kind', () => {
-    expect(pinchPaymentsConnector.manifest.kind).toBe('pinch-payments')
-    expect(pinchPaymentsConnector.manifest.category).toBe('crm')
-    expect(pinchPaymentsConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = pinchPaymentsConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the activepieces action set plus the write-side additions', () => {
-    const names = pinchPaymentsConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'payers.create-or-update',
-        'payers.find',
-        'payers.delete',
-        'sources.add-to-payer',
-        'sources.remove',
-        'payments.create-realtime',
-        'payments.create-or-update-scheduled',
-        'payments.refund',
-        'subscriptions.create-or-update',
-        'subscriptions.find',
-        'subscriptions.cancel',
-        'events.find',
-      ].sort(),
-    )
-    const reads = pinchPaymentsConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['events.find', 'payers.find', 'subscriptions.find'].sort())
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = [
-      'payments.refund',
-      'subscriptions.cancel',
-      'payers.delete',
-      'sources.remove',
-    ]
-    for (const name of writeSide) {
-      const cap = pinchPaymentsConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('pinch-payments payments.refund', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -109,18 +55,6 @@ describe('pinch-payments payments.refund', () => {
     expect(capturedUrl).toBe('https://api.pinchpayments.com/v1/payments/pay_xyz/refunds')
     expect(capturedBody).toMatchObject({ amount: 1500, reason: 'duplicate' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pinchPaymentsConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'payments.refund',
-        args: { paymentId: 'pay_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

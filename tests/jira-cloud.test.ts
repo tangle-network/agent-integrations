@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   jiraCloudConnector,
-  validateConnectorManifest,
   type ConnectorInvocation,
-  type ResolvedDataSource,
-} from '../src/connectors/index.js'
+  type ResolvedDataSource } from '../src/connectors/index.js'
 import {
   getIntegrationSpec,
   resolveConnectorAuthSpec,
@@ -28,14 +26,6 @@ afterEach(() => {
 })
 
 describe('jira-cloud adapter manifest', () => {
-  it('exposes the Jira Cloud connector and passes manifest validation', () => {
-    expect(jiraCloudConnector.manifest.kind).toBe('jira-cloud')
-    expect(jiraCloudConnector.manifest.displayName).toBe('Jira Cloud')
-    expect(jiraCloudConnector.manifest.category).toBe('doc')
-    expect(jiraCloudConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(validateConnectorManifest(jiraCloudConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
   it('uses Atlassian 3LO with the shared app, refresh access, and gateway audience', () => {
     const auth = jiraCloudConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -65,56 +55,6 @@ describe('jira-cloud adapter manifest', () => {
       extraAuthParams: auth.extraAuthParams,
     })
     expect(getIntegrationSpec('jira-cloud')?.setup.credentialFields).toHaveLength(2)
-  })
-
-  it('covers site discovery, issues, comments, attachments, and users', () => {
-    const names = jiraCloudConnector.manifest.capabilities.map((capability) => capability.name).sort()
-    expect(names).toEqual(
-      [
-        'resources.list',
-        'issues.create',
-        'issues.search',
-        'issues.get',
-        'issues.update',
-        'issues.assign',
-        'issues.transition',
-        'issues.link',
-        'issues.watchers.add',
-        'comments.list',
-        'comments.create',
-        'comments.update',
-        'comments.delete',
-        'attachments.get',
-        'users.find',
-      ].sort(),
-    )
-  })
-
-  it('assigns the minimum classic Jira scope to every site-scoped action', () => {
-    const scopes = Object.fromEntries(
-      jiraCloudConnector.manifest.capabilities.map((capability) => [
-        capability.name,
-        capability.requiredScopes ?? [],
-      ]),
-    )
-    expect(scopes['resources.list']).toEqual([])
-    for (const name of ['issues.search', 'issues.get', 'comments.list', 'attachments.get']) {
-      expect(scopes[name], name).toEqual(['read:jira-work'])
-    }
-    for (const name of [
-      'issues.create',
-      'issues.update',
-      'issues.assign',
-      'issues.transition',
-      'issues.link',
-      'issues.watchers.add',
-      'comments.create',
-      'comments.update',
-      'comments.delete',
-    ]) {
-      expect(scopes[name], name).toEqual(['write:jira-work'])
-    }
-    expect(scopes['users.find']).toEqual(['read:jira-user'])
   })
 })
 

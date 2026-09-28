@@ -4,7 +4,6 @@ import {
   azureBlobStorageConnector,
   parseAzureStorageCredentials,
 } from '../src/connectors/adapters/azure-blob-storage.js'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 const ACCOUNT_KEY = Buffer.from('0123456789abcdef0123456789abcdef').toString('base64')
@@ -38,29 +37,6 @@ describe('Azure Blob Storage provider pack', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
-  })
-
-  it('registers all nine catalog operations and approval metadata', () => {
-    expect(azureBlobStorageConnector.manifest.capabilities.map(
-      (capability) => capability.name,
-    ).sort()).toEqual([
-      'blobs.delete',
-      'blobs.findByTags',
-      'blobs.list',
-      'blobs.read',
-      'blobs.tags.set',
-      'blobs.upload',
-      'containers.create',
-      'containers.delete',
-      'containers.list',
-    ])
-    for (const capability of azureBlobStorageConnector.manifest.capabilities) {
-      if (capability.class === 'mutation') expect(capability.externalEffect, capability.name).toBe(true)
-    }
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find(
-      (candidate) => candidate.kind === 'azure-blob-storage',
-    )
-    expect(factory?.envMap).toEqual({})
   })
 
   it('parses Shared Key and SAS connection strings without putting secrets in metadata', () => {

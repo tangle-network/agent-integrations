@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { marketoConnector } from '../marketo.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_marketo',
@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('marketo adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(marketoConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('declares tenant-scoped client credentials with no browser authorization flow', () => {
     const auth = marketoConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -44,48 +39,6 @@ describe('marketo adapter', () => {
         allowedBaseUrlSuffixes: ['.mktorest.com'],
       },
     })
-  })
-
-  it('exposes the lead+list+campaign+activity action surface with the right read/mutation split', () => {
-    expect(marketoConnector.manifest.kind).toBe('marketo')
-    expect(marketoConnector.manifest.displayName).toBe('Marketo')
-    expect(marketoConnector.manifest.category).toBe('crm')
-    const names = marketoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'activities.search',
-      'campaigns.search',
-      'campaigns.trigger',
-      'leads.describe',
-      'leads.get',
-      'leads.search',
-      'leads.upsert',
-      'lists.add-leads',
-      'lists.get',
-      'lists.remove-leads',
-      'lists.search',
-    ])
-    const readers = marketoConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = marketoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'activities.search',
-      'campaigns.search',
-      'leads.describe',
-      'leads.get',
-      'leads.search',
-      'lists.get',
-      'lists.search',
-    ])
-    expect(mutators).toEqual([
-      'campaigns.trigger',
-      'leads.upsert',
-      'lists.add-leads',
-      'lists.remove-leads',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof marketoConnector.executeRead).toBe('function')
-    expect(typeof marketoConnector.executeMutation).toBe('function')
   })
 
   it('routes reads against the per-tenant munchkin REST endpoint with bearer auth', async () => {

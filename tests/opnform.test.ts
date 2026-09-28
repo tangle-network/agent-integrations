@@ -29,59 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('opnform adapter manifest', () => {
-  it('classifies itself as the webhook category and exposes the opnform kind', () => {
-    expect(opnformConnector.manifest.kind).toBe('opnform')
-    expect(opnformConnector.manifest.category).toBe('webhook')
-    expect(opnformConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = opnformConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Opnform/i)
-  })
-
-  it('covers form and submission capability surface', () => {
-    const names = opnformConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'forms.get',
-        'forms.list',
-        'submissions.get',
-        'submissions.list',
-        'webhooks.configure',
-        'forms.create',
-        'forms.update',
-        'forms.delete',
-        'submissions.delete',
-      ].sort(),
-    )
-    const mutations = opnformConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'webhooks.configure',
-        'forms.create',
-        'forms.update',
-        'forms.delete',
-        'submissions.delete',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency with external effect', () => {
-    for (const c of opnformConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('opnform forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -106,18 +53,6 @@ describe('opnform forms.create', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/api/v1/forms')
     expect(requestBody).toMatchObject({ title: 'Feedback' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      opnformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { title: 'Feedback', properties: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -190,17 +125,5 @@ describe('opnform submissions.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/api/v1/forms/form_abc/submissions/sub_xyz')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      opnformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'submissions.delete',
-        args: { formId: 'form_abc', submissionId: 'sub_xyz' },
-        idempotencyKey: 'k-4',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

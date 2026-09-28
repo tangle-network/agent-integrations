@@ -15,11 +15,14 @@ describe('contiguity manifest', () => {
     expect(contiguityConnector.manifest).toMatchObject({ kind: 'contiguity', category: 'crm', auth: { kind: 'api-key' }, defaultConsistencyModel: 'advisory' })
   })
   it('preserves send action names and adds owned-number discovery', () => {
-    expect(contiguityConnector.manifest.capabilities.map((c) => c.name).sort()).toEqual(['email.send', 'messages.send_imessage', 'messages.send_text', 'numbers.list', 'sms.send'])
+    expect(contiguityConnector.manifest.capabilities.map((c) => c.name).sort()).toEqual([
+      'email.send', 'imessage.read_receipt', 'imessage.typing', 'messages.react',
+      'messages.send_imessage', 'messages.send_text', 'numbers.list', 'sms.send',
+    ])
   })
   it('does not claim undocumented provider-native idempotency', () => {
     const mutations = contiguityConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations).toHaveLength(4)
+    expect(mutations).toHaveLength(7)
     for (const cap of mutations) expect(cap).toMatchObject({ cas: 'none', externalEffect: true })
   })
 })

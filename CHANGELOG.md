@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.59.0
+
+### Added
+
+`TangleReadClient` reads bounded public HTTPS pages through the Router from the existing `tangle-search` entrypoint.
+It returns untrusted text, raw byte counts, truncation, request identity, and reported cost.
+Response validation preserves UTF-8 replacement expansion within the returned raw byte count.
+
+## 0.58.0
+
+### Changed
+
+Runtime dependencies are updated to their latest releases, including MongoDB driver 7.
+The package now requires Node.js 20.19.0 or newer, which MongoDB driver 7 requires.
+The package builds with tsdown and TypeScript 7 instead of tsup and TypeScript 5.
+Published entry points and export paths are unchanged.
+
+## 0.57.0
+
+### Changed
+
+The ph0ny connector routes authenticated reads and writes through `@ph0ny/sdk@0.1.2`.
+It keeps consent checks, argument validation, timeouts, and 401 reconnect mapping.
+Its factory accepts an operator-selected staging origin and ignores origins in capability arguments.
+
+## 0.56.0
+
+### Added
+
+The conversation channel catalog now describes Inkbox, Linq, Linq WhatsApp, Contiguity, Resend, Sendblue and Twilio SMS transports with their available reply and presence actions.
+Sendblue and Twilio SMS adapters expose owned-line inventory, message reads and sends, and provider-specific media operations.
+Conversation events normalize inbound Sendblue and Twilio SMS messages and carry transport, media, group and history markers for guarded replies.
+Contiguity and Linq WhatsApp expose supported typing, reaction or read-receipt actions.
+
+### Fixed
+
+Twilio SMS message webhooks use a dedicated provider constructor, and MMS downloads follow a bounded HTTPS media redirect without forwarding API credentials.
+Twilio line selection fetches an owned number by SID, so accounts with multiple inventory pages can bind their selected number.
+Sendblue requests use the documented `api.sendblue.co` endpoint.
+Resend sends and webhook replies preserve provider safety and sender checks.
+
 ## 0.55.0
 
 ### Added

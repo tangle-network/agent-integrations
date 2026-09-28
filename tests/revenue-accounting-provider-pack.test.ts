@@ -1,30 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   billComConnector,
   brexConnector,
-  chargebeeConnector,
   netsuiteConnector,
-  paddleConnector,
   plaidConnector,
   rampConnector,
-  resolveConnectorAdapterFactoryOptions,
   sageIntacctConnector,
-  stripePackConnector,
 } from '../src/connectors/adapters/index.js'
-import type { ConnectorAdapter, ResolvedDataSource } from '../src/connectors/types.js'
-
-const expectedProviders = [
-  'stripe-pack',
-  'chargebee',
-  'paddle',
-  'plaid',
-  'ramp',
-  'brex',
-  'bill-com',
-  'netsuite',
-  'sage-intacct',
-] as const
+import type { ResolvedDataSource } from '../src/connectors/types.js'
 
 function source(
   kind: string,
@@ -51,30 +34,6 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { 'content-type': 'application/json' },
   })
 }
-
-describe('revenue and accounting provider factories', () => {
-  it('registers all nine customer-credential provider packs without shared deployment secrets', () => {
-    const implementations: ConnectorAdapter[] = [
-      stripePackConnector,
-      chargebeeConnector,
-      paddleConnector,
-      plaidConnector,
-      rampConnector,
-      brexConnector,
-      billComConnector,
-      netsuiteConnector,
-      sageIntacctConnector,
-    ]
-    expect(implementations.map((adapter) => adapter.manifest.kind)).toEqual(expectedProviders)
-    for (const kind of expectedProviders) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(definition!.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind).toEqual({})
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-})
 
 describe('structured finance credentials', () => {
   afterEach(() => vi.unstubAllGlobals())

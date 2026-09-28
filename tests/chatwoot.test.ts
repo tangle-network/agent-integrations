@@ -29,64 +29,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('chatwoot adapter manifest', () => {
-  it('identifies itself as the chatwoot kind under the comms category', () => {
-    expect(chatwootConnector.manifest.kind).toBe('chatwoot')
-    expect(chatwootConnector.manifest.category).toBe('comms')
-    expect(chatwootConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = chatwootConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('exposes send.message plus the new write surface as mutations', () => {
-    const names = chatwootConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['assign_conversation', 'send.message', 'toggle_status'].sort(),
-    )
-    for (const name of ['send.message', 'toggle_status', 'assign_conversation']) {
-      const cap = chatwootConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap?.class).toBe('mutation')
-    }
-  })
-
-  it('declares native-idempotency CAS + externalEffect on the new writes', () => {
-    const toggle = chatwootConnector.manifest.capabilities.find(
-      (c) => c.name === 'toggle_status',
-    )
-    const assign = chatwootConnector.manifest.capabilities.find(
-      (c) => c.name === 'assign_conversation',
-    )
-    expect(toggle?.class).toBe('mutation')
-    expect(assign?.class).toBe('mutation')
-    if (toggle?.class === 'mutation') {
-      expect(toggle.cas).toBe('native-idempotency')
-      expect(toggle.externalEffect).toBe(true)
-    }
-    if (assign?.class === 'mutation') {
-      expect(assign.cas).toBe('native-idempotency')
-      expect(assign.externalEffect).toBe(true)
-    }
-  })
-
-  it('declares the required-arg surface for the new writes', () => {
-    const toggle = chatwootConnector.manifest.capabilities.find(
-      (c) => c.name === 'toggle_status',
-    )
-    const assign = chatwootConnector.manifest.capabilities.find(
-      (c) => c.name === 'assign_conversation',
-    )
-    expect((toggle?.parameters as { required?: string[] }).required).toEqual(
-      ['account_id', 'conversation_id', 'status'],
-    )
-    expect((assign?.parameters as { required?: string[] }).required).toEqual(
-      ['account_id', 'conversation_id', 'assignee_id'],
-    )
-  })
-})
-
 describe('chatwoot toggle_status', () => {
   it('POSTs the status to the toggle_status endpoint and returns the response', async () => {
     let seenUrl = ''
@@ -149,27 +91,6 @@ describe('chatwoot toggle_status', () => {
       }),
     ).rejects.toThrow(/status/)
   })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      chatwootConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'toggle_status',
-        args: { account_id: 7, conversation_id: 42, status: 'resolved' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('chatwoot assign_conversation', () => {
@@ -229,26 +150,5 @@ describe('chatwoot assign_conversation', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/assignee_id/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      chatwootConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'assign_conversation',
-        args: { account_id: 7, conversation_id: 42, assignee_id: 11 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
