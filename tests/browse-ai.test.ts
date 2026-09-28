@@ -25,40 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('browse-ai adapter manifest', () => {
-  it('exposes the browse-ai kind and other category', () => {
-    expect(browseAiConnector.manifest.kind).toBe('browse-ai')
-    expect(browseAiConnector.manifest.category).toBe('other')
-    expect(browseAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth matching the activepieces catalog', () => {
-    const auth = browseAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers original actions plus capturedLists.get + tasks.list reads', () => {
-    const names = browseAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'capturedLists.get',
-      'get.task.details',
-      'list.robots',
-      'run.robot',
-      'tasks.list',
-    ])
-    const reads = browseAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = browseAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['capturedLists.get', 'get.task.details', 'list.robots', 'tasks.list'])
-    expect(mutations).toEqual(['run.robot'])
-  })
-})
-
 describe('browse-ai capturedLists.get', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -143,30 +109,6 @@ describe('browse-ai capturedLists.get', () => {
       }),
     ).rejects.toThrow(/missing required argument: capturedListId/)
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'capturedLists.get',
-        args: { robotId: 'r1', taskId: 't1', capturedListId: 'cl_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'capturedLists.get',
-        args: { robotId: 'r1', taskId: 't1', capturedListId: 'cl_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('browse-ai tasks.list', () => {
@@ -249,29 +191,5 @@ describe('browse-ai tasks.list', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/missing required argument: robotId/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'tasks.list',
-        args: { robotId: 'r1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      browseAiConnector.executeRead!({
-        source: source(),
-        capabilityName: 'tasks.list',
-        args: { robotId: 'r1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECTOR_ADAPTER_FACTORIES,
   biginByZohoConnector,
   fireberryConnector,
   flowluConnector,
@@ -9,7 +8,6 @@ import {
   microsoftDynamicsCrmConnector,
   ninjapipeConnector,
   pipedriveConnector,
-  resolveConnectorAdapterFactoryOptions,
   salesforceConnector,
   zohoCrmConnector,
 } from '../src/connectors/adapters/index.js'
@@ -19,96 +17,7 @@ import type {
   ResolvedDataSource,
 } from '../src/connectors/types.js'
 
-const activatedCrms = [
-  'twenty',
-  'folk',
-  'freshsales',
-  'capsule-crm',
-  'insightly',
-  'bigin-by-zoho',
-  'fireberry',
-  'flowlu',
-  'lead-connector',
-  'ninjapipe',
-] as const
-
 afterEach(() => vi.unstubAllGlobals())
-
-describe('complete CRM provider factory pack', () => {
-  it('activates ten additional executable CRM adapters with actions', () => {
-    for (const kind of activatedCrms) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )
-      expect(definition, kind).toBeDefined()
-      expect(
-        definition!.factory({}).manifest.capabilities.length,
-        kind,
-      ).toBeGreaterThan(0)
-    }
-  })
-
-  it('uses exact shared OAuth app environment names and fails closed', () => {
-    const expected = {
-      'capsule-crm': {
-        clientId: 'CAPSULE_CRM_OAUTH_CLIENT_ID',
-        clientSecret: 'CAPSULE_CRM_OAUTH_CLIENT_SECRET',
-      },
-      // Bigin has its own OAuth client rather than the shared Zoho app, so it
-      // reads its own env names — exact, like every other entry here.
-      'bigin-by-zoho': {
-        clientId: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
-        clientSecret: 'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
-      },
-      'lead-connector': {
-        clientId: 'LEAD_CONNECTOR_OAUTH_CLIENT_ID',
-        clientSecret: 'LEAD_CONNECTOR_OAUTH_CLIENT_SECRET',
-      },
-    } as const
-
-    for (const [kind, envMap] of Object.entries(expected)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )!
-      expect(definition.envMap, kind).toEqual(envMap)
-      expect(resolveConnectorAdapterFactoryOptions(definition, {}), kind).toBeNull()
-    }
-  })
-
-  it('keeps customer API-key CRMs independent of deployment secrets', () => {
-    for (const kind of [
-      'twenty',
-      'folk',
-      'freshsales',
-      'insightly',
-      'fireberry',
-      'flowlu',
-      'ninjapipe',
-    ]) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
-        (candidate) => candidate.kind === kind,
-      )!
-      expect(definition.envMap, kind).toEqual({})
-      expect(resolveConnectorAdapterFactoryOptions(definition, {}), kind).toEqual({})
-    }
-  })
-
-  it('keeps catalog-only and known-invalid CRM surfaces hidden', () => {
-    for (const kind of [
-      'salesflare',
-      'nutshell',
-      'teamleader',
-      'vtiger',
-      'lofty',
-      'zendesk-sell',
-    ]) {
-      expect(
-        CONNECTOR_ADAPTER_FACTORIES.some((candidate) => candidate.kind === kind),
-        kind,
-      ).toBe(false)
-    }
-  })
-})
 
 describe('CRM credential placement', () => {
   it('sends each provider API key in its documented authentication scheme', async () => {

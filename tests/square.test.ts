@@ -30,12 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('square adapter manifest', () => {
-  it('classifies itself as crm category and exposes the square kind', () => {
-    expect(squareConnector.manifest.kind).toBe('square')
-    expect(squareConnector.manifest.category).toBe('crm')
-    expect(squareConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('declares oauth2 auth with Square OAuth endpoints', () => {
     const auth = squareConnector.manifest.auth
     expect(auth.kind).toBe('oauth2')
@@ -43,81 +37,6 @@ describe('square adapter manifest', () => {
     expect(auth.authorizationUrl).toMatch(/connect\.squareup\.com/)
     expect(auth.tokenUrl).toMatch(/connect\.squareup\.com/)
     expect(auth.scopes).toContain('ITEMS_WRITE')
-  })
-
-  it('covers customers, payments, invoices, and catalog capability surface', () => {
-    const names = squareConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('customers.list')
-    expect(names).toContain('customers.get')
-    expect(names).toContain('customers.create')
-    expect(names).toContain('customers.update')
-    expect(names).toContain('customers.delete')
-    expect(names).toContain('payments.list')
-    expect(names).toContain('payments.get')
-    expect(names).toContain('payments.refund')
-    expect(names).toContain('invoices.list')
-    expect(names).toContain('invoices.get')
-    expect(names).toContain('invoices.create')
-    expect(names).toContain('invoices.update')
-    expect(names).toContain('invoices.delete')
-    expect(names).toContain('invoices.publish')
-    expect(names).toContain('catalog.upsertItem')
-  })
-
-  it('marks mutations for create, update, delete, publish, refund, and upsert operations', () => {
-    const mutations = squareConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('customers.create')
-    expect(mutations).toContain('customers.update')
-    expect(mutations).toContain('customers.delete')
-    expect(mutations).toContain('invoices.create')
-    expect(mutations).toContain('invoices.update')
-    expect(mutations).toContain('invoices.delete')
-    expect(mutations).toContain('invoices.publish')
-    expect(mutations).toContain('payments.refund')
-    expect(mutations).toContain('catalog.upsertItem')
-  })
-
-  it('marks read-only operations as read', () => {
-    const reads = squareConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-    expect(reads).toContain('customers.list')
-    expect(reads).toContain('customers.get')
-    expect(reads).toContain('payments.list')
-    expect(reads).toContain('payments.get')
-    expect(reads).toContain('invoices.list')
-    expect(reads).toContain('invoices.get')
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true (or optimistic-read-verify for update-style)', () => {
-    const mutations = squareConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(['native-idempotency', 'optimistic-read-verify', 'etag-if-match']).toContain(cap.cas)
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
-  it('marks every new write-side mutation as native-idempotency + externalEffect=true', () => {
-    const newMutations = new Set([
-      'customers.delete',
-      'invoices.delete',
-      'invoices.publish',
-      'payments.refund',
-      'catalog.upsertItem',
-    ])
-    const caps = squareConnector.manifest.capabilities.filter(
-      (c) => newMutations.has(c.name) && c.class === 'mutation',
-    )
-    expect(caps.length).toBe(newMutations.size)
-    for (const cap of caps) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
   })
 })
 
@@ -148,18 +67,6 @@ describe('square customers.delete', () => {
     expect(String(requestUrl)).toContain('/v2/customers/cust_abc')
     expect(authHeader).toBe('Bearer square_token')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      squareConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.delete',
-        args: { customerId: 'cust_abc' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

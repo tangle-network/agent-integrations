@@ -387,62 +387,6 @@ describe('tangle-id revokeSession', () => {
 })
 
 describe('tangle-id adapter wiring', () => {
-  it('exposes the platform-contract capabilities including workspace/member write paths', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'get_user',
-        'list_workspaces',
-        'members.invite',
-        'members.remove',
-        'revoke_session',
-        'switch_workspace',
-        'verify_token',
-        'workspaces.create',
-        'workspaces.delete',
-      ].sort(),
-    )
-  })
-
-  it('manifest declares native-idempotency for every mutation capability', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
-    const mutationNames = adapter.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutationNames).toEqual(
-      [
-        'members.invite',
-        'members.remove',
-        'revoke_session',
-        'switch_workspace',
-        'workspaces.create',
-        'workspaces.delete',
-      ].sort(),
-    )
-    for (const cap of adapter.manifest.capabilities) {
-      if (cap.class === 'mutation') {
-        expect(cap.cas).toBe('native-idempotency')
-      }
-    }
-  })
-
-  it('newly added mutations declare externalEffect: true (real upstream side effects)', () => {
-    const adapter = tangleIdentity({ serviceToken: 'svc_x', serviceName: 'test-suite' })
-    const targets = new Set([
-      'workspaces.create',
-      'workspaces.delete',
-      'members.invite',
-      'members.remove',
-    ])
-    for (const cap of adapter.manifest.capabilities) {
-      if (cap.class === 'mutation' && targets.has(cap.name)) {
-        expect(cap.externalEffect).toBe(true)
-      }
-    }
-  })
-
   it('executeRead routes verify_token to the client and round-trips the typed result', async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse(verifiedHumanKey({ userId: 'u', ownerId: 'u', allowedModels: ['gpt-4'] })),

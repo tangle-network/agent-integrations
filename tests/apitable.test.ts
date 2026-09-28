@@ -25,58 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('apitable adapter manifest', () => {
-  it('classifies itself as the spreadsheet category and exposes the apitable kind', () => {
-    expect(apitableConnector.manifest.kind).toBe('apitable')
-    expect(apitableConnector.manifest.category).toBe('spreadsheet')
-    expect(apitableConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = apitableConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the record, field, and datasheet lifecycle', () => {
-    const names = apitableConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'datasheets.create',
-      'fields.create',
-      'records.create',
-      'records.delete',
-      'records.find',
-      'records.update',
-    ])
-
-    const reads = apitableConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = apitableConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['records.find'])
-    expect(mutations).toEqual([
-      'datasheets.create',
-      'fields.create',
-      'records.create',
-      'records.delete',
-      'records.update',
-    ])
-  })
-
-  it('marks the new write mutations as native-idempotency external-effect', () => {
-    for (const name of ['records.delete', 'fields.create', 'datasheets.create']) {
-      const cap = apitableConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('apitable records.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -101,18 +49,6 @@ describe('apitable records.delete', () => {
     expect(requestUrl).toContain('https://aitable.ai/fusion/v1/datasheets/dst1/records')
     expect(requestUrl).toContain('recordIds=')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      apitableConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.delete',
-        args: { datasheetId: 'dst1', recordIds: ['rec1'] },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

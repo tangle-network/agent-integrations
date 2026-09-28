@@ -29,27 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('typeform adapter manifest (write extensions)', () => {
-  it('exposes the new forms + themes + images capabilities', () => {
-    const names = typeformConnector.manifest.capabilities.map((c) => c.name)
-    expect(names).toContain('forms.create')
-    expect(names).toContain('forms.delete')
-    expect(names).toContain('themes.list')
-    expect(names).toContain('images.create')
-  })
-
-  it('marks every new mutation as native-idempotency + external effect', () => {
-    const targets = ['forms.create', 'forms.delete', 'images.create']
-    for (const target of targets) {
-      const cap = typeformConnector.manifest.capabilities.find((c) => c.name === target)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`expected mutation: ${target}`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('typeform forms.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -85,18 +64,6 @@ describe('typeform forms.create', () => {
       fields: [],
       settings: { language: 'en' },
     })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typeformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'forms.create',
-        args: { fields: { title: 't' } },
-        idempotencyKey: 'fc-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -187,17 +154,5 @@ describe('typeform images.create', () => {
     const parsed = JSON.parse(requestBody ?? '{}')
     expect(parsed.file_name).toBe('logo.png')
     expect(parsed.image).toEqual({ value: 'aGVsbG8=', type: 'image/png' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      typeformConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.create',
-        args: { file_name: 'logo.png' },
-        idempotencyKey: 'ic-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

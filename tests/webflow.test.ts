@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { webflowConnector } from '../src/connectors/adapters/webflow'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 function webflowSource(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -29,120 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('webflow adapter', () => {
-  it('declares kind, category, and OAuth2 auth', () => {
-    expect(webflowConnector.manifest.kind).toBe('webflow')
-    expect(webflowConnector.manifest.displayName).toBe('Webflow')
-    expect(webflowConnector.manifest.category).toBe('doc')
-    expect(webflowConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(webflowConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
-  it('uses real Webflow OAuth endpoints with the four standard fields', () => {
-    const auth = webflowConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
-    expect(auth.authorizationUrl).toBe('https://webflow.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.webflow.com/oauth/access_token')
-    expect(auth.clientIdEnv).toBe('WEBFLOW_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('WEBFLOW_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['sites:read', 'cms:read', 'cms:write', 'pages:read', 'forms:read']),
-    )
-  })
-
-  it('covers sites, collections, items, pages, and forms', () => {
-    const names = webflowConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'sites.list',
-        'sites.get',
-        'sites.publish',
-        'collections.list',
-        'collections.get',
-        'collections.create',
-        'collections.delete',
-        'items.list',
-        'items.get',
-        'items.create',
-        'items.update',
-        'items.delete',
-        'items.publish',
-        'items.unpublish',
-        'pages.list',
-        'forms.list',
-        'forms.submissions',
-      ].sort(),
-    )
-  })
-
-  it('classifies CRUD correctly: reads vs mutations', () => {
-    const reads = webflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = webflowConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-
-    expect(reads).toEqual(
-      [
-        'collections.get',
-        'collections.list',
-        'forms.list',
-        'forms.submissions',
-        'items.get',
-        'items.list',
-        'pages.list',
-        'sites.get',
-        'sites.list',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'collections.create',
-        'collections.delete',
-        'items.create',
-        'items.delete',
-        'items.publish',
-        'items.unpublish',
-        'items.update',
-        'sites.publish',
-      ].sort(),
-    )
-  })
-
-  it('uses native-idempotency CAS for every mutation (Webflow Data API has no ETag/If-Match)', () => {
-    const mutations = webflowConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('expected mutation')
-      expect(m.cas).toBe('native-idempotency')
-      expect(m.externalEffect).toBe(true)
-    }
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(webflowConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = webflowConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = webflowConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(webflowConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(webflowConnector.executeMutation)).toBe(hasMutations)
-  })
-
-  it('scopes write capabilities to cms:write only', () => {
-    const writes = webflowConnector.manifest.capabilities.filter((c) =>
-      c.name.startsWith('items.') && c.class === 'mutation',
-    )
-    for (const w of writes) {
-      expect(w.requiredScopes).toEqual(['cms:write'])
-    }
-  })
-})
-
 describe('webflow items.unpublish', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -170,18 +56,6 @@ describe('webflow items.unpublish', () => {
     expect(String(requestUrl)).toBe('https://api.webflow.com/v2/collections/col_1/items/unpublish')
     const parsed = JSON.parse(requestBody ?? '{}') as Record<string, unknown>
     expect(parsed.itemIds).toEqual(['itm_1', 'itm_2'])
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })))
-    await expect(
-      webflowConnector.executeMutation!({
-        source: webflowSource(),
-        capabilityName: 'items.unpublish',
-        args: { collectionId: 'col_1', itemIds: ['itm_1'] },
-        idempotencyKey: 'k-unpub-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

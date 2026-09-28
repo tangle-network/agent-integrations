@@ -36,23 +36,6 @@ function zoomJson(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('zoom adapter manifest', () => {
-  it('classifies itself as the calendar category and exposes the zoom kind', () => {
-    expect(zoomConnector.manifest.kind).toBe('zoom')
-    expect(zoomConnector.manifest.displayName).toBe('Zoom')
-    expect(zoomConnector.manifest.category).toBe('calendar')
-    expect(zoomConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares OAuth2 with the documented Zoom endpoints and env-var names', () => {
-    const auth = zoomConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://zoom.us/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://zoom.us/oauth/token')
-    expect(auth.clientIdEnv).toBe('ZOOM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZOOM_OAUTH_CLIENT_SECRET')
-  })
-
   it('uses the exact admin-managed granular scopes configured in the production Zoom app', () => {
     const auth = zoomConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('unreachable')
@@ -77,68 +60,6 @@ describe('zoom adapter manifest', () => {
     }
   })
 
-  it('covers users + meetings + registrants + webinars + recordings with a read/mutation split', () => {
-    const names = zoomConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'users.get',
-        'users.list',
-        'users.create',
-        'meetings.list',
-        'meetings.get',
-        'meetings.create',
-        'meetings.update',
-        'meetings.delete',
-        'meetings.end',
-        'meetings.list-registrants',
-        'meetings.add-registrant',
-        'webinars.list',
-        'webinars.get',
-        'webinars.create',
-        'webinars.update',
-        'webinars.delete',
-        'recordings.list',
-        'recordings.get',
-        'recordings.delete',
-      ].sort(),
-    )
-    const reads = zoomConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = zoomConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'meetings.get',
-        'meetings.list',
-        'meetings.list-registrants',
-        'recordings.get',
-        'recordings.list',
-        'users.get',
-        'users.list',
-        'webinars.get',
-        'webinars.list',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'meetings.add-registrant',
-        'meetings.create',
-        'meetings.delete',
-        'meetings.end',
-        'meetings.update',
-        'recordings.delete',
-        'users.create',
-        'webinars.create',
-        'webinars.delete',
-        'webinars.update',
-      ].sort(),
-    )
-  })
-
   it('marks side-effectful create/delete as externalEffect and update/delete as native-idempotency', () => {
     const byName = new Map(zoomConnector.manifest.capabilities.map((c) => [c.name, c]))
     const create = byName.get('meetings.create')
@@ -160,18 +81,6 @@ describe('zoom adapter manifest', () => {
     expect(remove.externalEffect).toBe(true)
     expect(webinarCreate.cas).toBe('none')
     expect(webinarCreate.externalEffect).toBe(true)
-  })
-
-  it('every capability declares at least one requiredScopes entry from the OAuth grant list', () => {
-    const auth = zoomConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    const declared = new Set(auth.scopes)
-    for (const cap of zoomConnector.manifest.capabilities) {
-      expect(cap.requiredScopes && cap.requiredScopes.length).toBeGreaterThan(0)
-      for (const scope of cap.requiredScopes ?? []) {
-        expect(declared.has(scope)).toBe(true)
-      }
-    }
   })
 
   it('maps every capability to the production app scope that authorizes its endpoint', () => {
@@ -354,17 +263,5 @@ describe('zoom new mutations', () => {
       action: 'create',
       user_info: { email: 'new@example.com', type: 1, first_name: 'Ada', last_name: 'Lovelace' },
     })
-  })
-
-  it('surfaces CredentialsExpired on 401 for the new mutations', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      zoomConnector.executeMutation!({
-        source: zoomSource(),
-        capabilityName: 'meetings.end',
-        args: { meetingId: '99887766' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

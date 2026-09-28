@@ -126,58 +126,6 @@ describe('workday adapter manifest', () => {
     })).rejects.toMatchObject({ code: 'config_missing' })
     expect(fetchImpl).not.toHaveBeenCalled()
   })
-
-  it('exposes the HR action pack (workers, organizations, locations, time off) split between reads and mutations', () => {
-    const names = workdayConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'workers.list',
-        'workers.get',
-        'workers.history',
-        'workers.directReports',
-        'organizations.list',
-        'organizations.get',
-        'locations.list',
-        'timeOff.types.list',
-        'timeOff.entries.list',
-        'timeOff.submit',
-      ].sort(),
-    )
-    const reads = workdayConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = workdayConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(['timeOff.submit'])
-    expect(reads).toEqual(
-      [
-        'workers.list',
-        'workers.get',
-        'workers.history',
-        'workers.directReports',
-        'organizations.list',
-        'organizations.get',
-        'locations.list',
-        'timeOff.types.list',
-        'timeOff.entries.list',
-      ].sort(),
-    )
-  })
-
-  it('classifies itself as other (HR) with authoritative consistency', () => {
-    expect(workdayConnector.manifest.kind).toBe('workday')
-    expect(workdayConnector.manifest.category).toBe('other')
-    expect(workdayConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('tags every capability with at least one functional-area scope', () => {
-    for (const cap of workdayConnector.manifest.capabilities) {
-      expect(cap.requiredScopes && cap.requiredScopes.length).toBeGreaterThan(0)
-    }
-  })
 })
 
 describe('workday adapter execution', () => {
@@ -263,20 +211,6 @@ describe('workday adapter execution', () => {
     const headers = call[1]!.headers as Record<string, string>
     expect(headers.authorization).toBe('Bearer token_workday')
     expect(headers['content-type']).toBe('application/json')
-  })
-
-  it('throws CredentialsExpired when Workday rejects the token with 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unauthorized', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'workers.get',
-      args: { workerId: 'w-1' },
-      idempotencyKey: 'idem_4',
-    }
-    await expect(workdayConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('fails fast when metadata.apiBaseUrl is missing (cannot resolve tenant-scoped base URL)', async () => {

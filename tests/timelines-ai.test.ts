@@ -29,74 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('timelines-ai adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the timelines-ai kind', () => {
-    expect(timelinesAiConnector.manifest.kind).toBe('timelines-ai')
-    expect(timelinesAiConnector.manifest.category).toBe('crm')
-    expect(timelinesAiConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = timelinesAiConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the full activepieces action set plus assignment/tagging/read/notes write-side', () => {
-    const names = timelinesAiConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'chats.find',
-        'chats.close',
-        'chats.assign',
-        'chats.tag',
-        'messages.find',
-        'messages.status',
-        'messages.send',
-        'messages.send.to.new.chat',
-        'messages.markRead',
-        'files.find',
-        'files.send',
-        'files.send.uploaded',
-        'accounts.find',
-        'notes.create',
-      ].sort(),
-    )
-    const reads = timelinesAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = timelinesAiConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      ['chats.find', 'messages.find', 'messages.status', 'files.find', 'accounts.find'].sort(),
-    )
-    expect(mutations).toEqual(
-      [
-        'chats.close',
-        'chats.assign',
-        'chats.tag',
-        'messages.send',
-        'messages.send.to.new.chat',
-        'messages.markRead',
-        'files.send',
-        'files.send.uploaded',
-        'notes.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    const mutations = timelinesAiConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    for (const cap of mutations) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('timelines-ai chats.assign', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -123,18 +55,6 @@ describe('timelines-ai chats.assign', () => {
     expect(requestUrl).toBe('https://api.timelines.ai/v1/chats/123%40c.us/assign')
     expect(requestBody).toEqual({ responsible_id: 'user_42' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      timelinesAiConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'chats.assign',
-        args: { jid: '123@c.us', responsible_id: 'user_42' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

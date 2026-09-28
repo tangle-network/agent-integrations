@@ -25,68 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('grist adapter manifest', () => {
-  it('classifies itself under the doc category and exposes the grist kind', () => {
-    expect(gristConnector.manifest.kind).toBe('grist')
-    expect(gristConnector.manifest.category).toBe('doc')
-    expect(gristConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares an api-key auth surface with domain URL hint', () => {
-    const auth = gristConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Grist/i)
-    expect(auth.hint).toMatch(/Domain/)
-  })
-
-  it('covers create/update/search/attachment plus add/delete/tables.create capabilities', () => {
-    const names = gristConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'records.create',
-        'records.update',
-        'records.search',
-        'attachments.upload',
-        'records.add',
-        'records.delete',
-        'tables.create',
-      ].sort(),
-    )
-
-    const reads = gristConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = gristConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['records.search'].sort())
-    expect(mutations).toEqual(
-      [
-        'records.create',
-        'records.update',
-        'attachments.upload',
-        'records.add',
-        'records.delete',
-        'tables.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['records.add', 'records.delete', 'tables.create']
-    for (const name of expected) {
-      const cap = gristConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('grist records.add', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -116,18 +54,6 @@ describe('grist records.add', () => {
     )
     expect(requestBody).toMatchObject({ records: [{ fields: { Name: 'A' } }] })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      gristConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'records.add',
-        args: { docId: 'doc_1', tableId: 'Table1', records: [{ fields: { Name: 'A' } }] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

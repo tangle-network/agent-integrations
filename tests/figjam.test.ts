@@ -1,15 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { figjamConnector } from '../src/connectors/adapters/figjam'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 describe('figjam adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('declares kind, category, and OAuth2 auth', () => {
-    expect(figjamConnector.manifest.kind).toBe('figjam')
-    expect(figjamConnector.manifest.category).toBe('doc')
-    expect(figjamConnector.manifest.auth.kind).toBe('oauth2')
-  })
 
   it('uses real Figma OAuth endpoints (FigJam shares the Figma OAuth app)', () => {
     const auth = figjamConnector.manifest.auth
@@ -99,15 +93,6 @@ describe('figjam adapter', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  it('all mutation capabilities declare native-idempotency CAS (Figma POSTs reject duplicate writes server-side)', () => {
-    const mutations = figjamConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const m of mutations) {
-      if (m.class !== 'mutation') throw new Error('narrowing')
-      expect(m.cas).toBe('native-idempotency')
-    }
-  })
-
   it('only advertises capabilities covered by the configured OAuth scopes', () => {
     const auth = figjamConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
@@ -118,16 +103,5 @@ describe('figjam adapter', () => {
         expect(authScopes.has(scope), `${capability.name} requires unconfigured scope ${scope}`).toBe(true)
       }
     }
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(figjamConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = figjamConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = figjamConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(figjamConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(figjamConnector.executeMutation)).toBe(hasMutations)
   })
 })

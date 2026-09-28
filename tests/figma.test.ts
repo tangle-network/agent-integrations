@@ -1,15 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { figmaConnector } from '../src/connectors/adapters/figma'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types'
+import { type ResolvedDataSource } from '../src/connectors/types'
 
 describe('figma adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('declares kind, category, and OAuth2 auth', () => {
-    expect(figmaConnector.manifest.kind).toBe('figma')
-    expect(figmaConnector.manifest.category).toBe('doc')
-    expect(figmaConnector.manifest.auth.kind).toBe('oauth2')
-  })
 
   it('uses real Figma OAuth endpoints', () => {
     const auth = figmaConnector.manifest.auth
@@ -102,16 +96,5 @@ describe('figma adapter', () => {
       idempotencyKey: 'figma-meta-1',
     })).resolves.toMatchObject({ data: { id: '12345', name: 'Product' } })
     expect(fetchMock).toHaveBeenCalledOnce()
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(figmaConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = figmaConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = figmaConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(figmaConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(figmaConnector.executeMutation)).toBe(hasMutations)
   })
 })

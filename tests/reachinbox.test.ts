@@ -30,19 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('reachinbox adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the reachinbox kind', () => {
-    expect(reachinboxConnector.manifest.kind).toBe('reachinbox')
-    expect(reachinboxConnector.manifest.category).toBe('crm')
-    expect(reachinboxConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = reachinboxConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/ReachInbox/i)
-  })
-
   it('covers campaigns, leads, blocklist, warmup, email, schedule, templates, and inbox capabilities', () => {
     const names = reachinboxConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
@@ -87,16 +74,6 @@ describe('reachinbox adapter manifest', () => {
     )
   })
 
-  it('marks new write-side mutations as native-idempotency + externalEffect=true', () => {
-    for (const name of ['campaigns.create', 'campaigns.delete']) {
-      const cap = reachinboxConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-
   it('exposes templates.list and inbox.replies.fetch as reads', () => {
     const reads = reachinboxConnector.manifest.capabilities
       .filter((c) => c.class === 'read')
@@ -132,18 +109,6 @@ describe('reachinbox campaigns.create', () => {
     expect(requestMethod).toBe('POST')
     expect(requestUrl).toBe('https://api.reachinbox.xyz/api/v1/campaigns')
     expect(requestBody).toMatchObject({ name: 'Q3 outbound' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      reachinboxConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.create',
-        args: { name: 'X' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

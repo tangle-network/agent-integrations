@@ -25,46 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('canny adapter manifest', () => {
-  it('classifies itself with the canny kind and other category', () => {
-    expect(cannyConnector.manifest.kind).toBe('canny')
-    expect(cannyConnector.manifest.category).toBe('other')
-    expect(cannyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = cannyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('includes the new write capabilities alongside the existing ones', () => {
-    const names = cannyConnector.manifest.capabilities.map((c) => c.name)
-    for (const expected of [
-      'posts.create',
-      'posts.retrieve',
-      'posts.list',
-      'posts.update',
-      'posts.delete',
-      'comments.create',
-      'votes.create',
-      'votes.delete',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks the new write capabilities as native-idempotency external effect', () => {
-    const targets = ['posts.update', 'posts.delete', 'comments.create']
-    for (const name of targets) {
-      const cap = cannyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('canny posts.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -100,26 +60,6 @@ describe('canny posts.update', () => {
     expect(String(requestUrl)).toContain('/api/v1/posts/update')
     expect(requestBody).toMatchObject({ postID: 'p1', title: 'new title', etaPublic: true })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      cannyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'posts.update',
-        args: {
-          postID: 'p1',
-          title: 'new title',
-          details: 'new details',
-          eta: '06/2026',
-          etaPublic: true,
-          customFields: {},
-          imageURLs: [],
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

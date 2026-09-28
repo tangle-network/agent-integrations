@@ -237,6 +237,33 @@ const pathConnector = declarativeRestConnector({
   }],
 })
 
+// Every declarative adapter shares this transport, so these cases stand in for
+// the per-adapter copies that each re-asserted the same mapping.
+describe('declarative REST shared transport', () => {
+  const source = sourceFor({ ...connection, connectorId: 'github' })
+
+  it.each([401, 403])('maps HTTP %i to CredentialsExpired', async (status) => {
+    mockFetch({ message: 'bad credentials' }, { status })
+    await expect(githubConnector.executeRead!({
+      source,
+      capabilityName: 'issues.search',
+      args: { q: 'is:open' },
+      idempotencyKey: `expired_${status}`,
+    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+
+  it('rejects capabilities the manifest does not declare', async () => {
+    const fetchMock = mockFetch({})
+    await expect(githubConnector.executeRead!({
+      source,
+      capabilityName: 'does.not.exist',
+      args: {},
+      idempotencyKey: 'unknown_1',
+    })).rejects.toThrow()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 function sourceFor(conn: IntegrationConnection): ResolvedDataSource {
   return {
     id: `source_${conn.connectorId}`,

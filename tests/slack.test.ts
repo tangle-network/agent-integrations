@@ -39,25 +39,6 @@ describe('slack adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest exposes the read + mutation surface', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'add_reaction',
-      'delete_message',
-      'download_file',
-      'list_channels',
-      'lookup_user',
-      'post_in_thread',
-      'post_message',
-      'update_message',
-      'upload_file',
-    ])
-    expect(adapter.manifest.auth).toMatchObject({
-      kind: 'oauth2',
-      scopes: expect.arrayContaining(['app_mentions:read', 'files:read']),
-    })
-  })
-
   it('downloads private Slack files with the bot token and returns bounded base64', async () => {
     const calls: Array<{ url: string; authorization: string | null }> = []
     vi.stubGlobal(

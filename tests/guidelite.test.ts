@@ -25,45 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('guidelite adapter manifest', () => {
-  it('classifies itself as the other category and exposes the guidelite kind', () => {
-    expect(guideliteConnector.manifest.kind).toBe('guidelite')
-    expect(guideliteConnector.manifest.category).toBe('other')
-    expect(guideliteConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares API-key auth matching the activepieces catalog entry', () => {
-    const auth = guideliteConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the sendAPrompt action, polling reads, plus the guide.* write-side mutations', () => {
-    const names = guideliteConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('assistant.sendPrompt')
-    expect(names).toContain('leads.list.recent')
-    expect(names).toContain('conversations.list.recent')
-    expect(names).toContain('guide.create')
-    expect(names).toContain('guide.update')
-    expect(names).toContain('guide.delete')
-
-    const mutations = guideliteConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-    expect(mutations).toContain('assistant.sendPrompt')
-    expect(mutations).toContain('guide.create')
-    expect(mutations).toContain('guide.update')
-    expect(mutations).toContain('guide.delete')
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    for (const cap of guideliteConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('guidelite guide.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -95,18 +56,6 @@ describe('guidelite guide.create', () => {
     expect(String(requestUrl)).toBe('https://api.guidelite.ai/api/v1/assistants')
     expect(requestBody).toMatchObject({ name: 'My Guide', description: 'desc' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      guideliteConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'guide.create',
-        args: { name: 'X', description: '', systemPrompt: '', knowledgeBaseIds: [] },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

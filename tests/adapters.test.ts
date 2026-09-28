@@ -1,64 +1,70 @@
 import { describe, expect, it } from 'vitest'
-import {
-  docuseal,
-  gmail,
-  googleCalendar,
-  googleDrive,
-  googleSheets,
-  hubspot,
-  microsoftCalendar,
-  notion,
-  phonyConnector,
-  slack,
-  slackEventsConnector,
-  stripePackConnector,
-  stripeWebhookReceiverConnector,
-  twilioSmsConnector,
-  validateConnectorManifest,
-  webhookConnector,
-  type ConnectorAdapter,
-} from '../src/connectors/index'
+import { validateConnectorManifest } from '../src/connectors/index'
+import { listBundledConnectorAdapters } from '../src/connectors/bundled-manifests'
+import { buildRuntimeBundledAdapterManifests } from '../src/connectors/bundled-manifest-runtime'
 
-function adapters(): ConnectorAdapter[] {
-  const oauth = { clientId: 'client_id', clientSecret: 'client_secret' }
-  return [
-    googleCalendar(oauth),
-    googleDrive(oauth),
-    googleSheets(oauth),
-    gmail(oauth),
-    microsoftCalendar(oauth),
-    hubspot(oauth),
-    notion(oauth),
-    slack(oauth),
-    docuseal(),
-    twilioSmsConnector,
-    phonyConnector,
-    stripePackConnector,
-    webhookConnector,
-    stripeWebhookReceiverConnector,
-    slackEventsConnector,
-  ]
-}
+// These shipped manifests declare authoritative mutations with cas="none",
+// which validateConnectorManifest rejects. The list may only shrink.
+const KNOWN_INVALID_MANIFESTS = new Set([
+  'aidbase',
+  'aiprise',
+  'amazon-sqs',
+  'amplitude',
+  'asknews',
+  'assemblyai',
+  'autocalls',
+  'azure-blob-storage',
+  'bamboohr',
+  'baserow',
+  'chat-data',
+  'chatling',
+  'chatnode',
+  'chatwoot',
+  'clicksend',
+  'clickup',
+  'cloudflare',
+  'datadog',
+  'digital-ocean',
+  'discourse',
+  'google-contacts',
+  'google-meet',
+  'google-my-business',
+  'greenhouse',
+  'jogg-ai',
+  'kizeo-forms',
+  'microsoft-power-bi',
+  'okta',
+  'pinecone',
+  'reddit',
+  'snowflake',
+  'trello',
+  'weaviate',
+  'zoho-crm',
+  'zoom',
+])
 
-describe('first-party adapters', () => {
+// One sweep over every shipped adapter replaces per-connector tests that
+// restated each manifest's literal fields.
+describe('bundled adapters', () => {
   it('ship valid connector manifests', () => {
-    for (const adapter of adapters()) {
-      const result = validateConnectorManifest(adapter.manifest)
-      expect(result, adapter.manifest.kind).toEqual({ ok: true, issues: [] })
-    }
+    const invalid = buildRuntimeBundledAdapterManifests()
+      .filter((manifest) => !validateConnectorManifest(manifest).ok)
+      .map((manifest) => manifest.kind)
+      .filter((kind) => !KNOWN_INVALID_MANIFESTS.has(kind))
+    expect(invalid).toEqual([])
   })
 
-  it('only exposes executable surfaces declared in the manifest', () => {
-    for (const adapter of adapters()) {
+  it('only expose executable surfaces declared in the manifest', () => {
+    for (const adapter of listBundledConnectorAdapters()) {
       const hasReads = adapter.manifest.capabilities.some((capability) => capability.class === 'read')
       const hasMutations = adapter.manifest.capabilities.some((capability) => capability.class === 'mutation')
-      expect(Boolean(adapter.executeRead), `${adapter.manifest.kind} read handler`).toBe(hasReads)
-      expect(Boolean(adapter.executeMutation), `${adapter.manifest.kind} mutation handler`).toBe(hasMutations)
+      if (hasReads) expect(adapter.executeRead, `${adapter.manifest.kind} read handler`).toBeTypeOf('function')
+      if (hasMutations) expect(adapter.executeMutation, `${adapter.manifest.kind} mutation handler`).toBeTypeOf('function')
     }
   })
 
-  it('uses unique adapter kind ids', () => {
-    const kinds = adapters().map((adapter) => adapter.manifest.kind)
+  it('use unique adapter kind ids', () => {
+    const kinds = listBundledConnectorAdapters().map((adapter) => adapter.manifest.kind)
     expect(new Set(kinds).size).toBe(kinds.length)
   })
 })

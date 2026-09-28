@@ -59,29 +59,6 @@ describe('hellosign (Dropbox Sign) adapter', () => {
     }
   })
 
-  it('manifest exposes the e-signature capability triple', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'cancel_signature_request',
-      'get_signature_request',
-      'remind_signature_request',
-      'send_signature_request',
-    ])
-    const send = adapter.manifest.capabilities.find((c) => c.name === 'send_signature_request')
-    expect(send?.class).toBe('mutation')
-    if (send?.class === 'mutation') {
-      expect(send.cas).toBe('native-idempotency')
-      expect(send.externalEffect).toBe(true)
-    }
-    const get = adapter.manifest.capabilities.find((c) => c.name === 'get_signature_request')
-    expect(get?.class).toBe('read')
-  })
-
-  it('manifest pins category=doc and authoritative consistency for legal-grade signatures', () => {
-    expect(adapter.manifest.category).toBe('doc')
-    expect(adapter.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
   it('send_signature_request POSTs to /signature_request/send_with_template with template ids + signers + idempotency metadata', async () => {
     let capturedUrl: string | null = null
     let capturedBody: Record<string, unknown> | null = null

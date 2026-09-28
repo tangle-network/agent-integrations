@@ -26,17 +26,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('aircall adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the aircall kind', () => {
-    expect(aircallConnector.manifest.kind).toBe('aircall')
-    expect(aircallConnector.manifest.category).toBe('comms')
-    expect(aircallConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = aircallConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
   it('sends the configured API ID/token pair through HTTP Basic auth', async () => {
     let requestHeaders: Record<string, string> = {}
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -49,57 +38,6 @@ describe('aircall adapter manifest', () => {
     }))).toEqual({ ok: true })
     expect(requestHeaders.Authorization).toBe('Basic base64-api-id-and-token')
     expect(requestHeaders.authorization).toBeUndefined()
-  })
-
-  it('covers the catalog action set plus the new write-side mutations', () => {
-    const names = aircallConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'calls.find',
-        'calls.get',
-        'calls.comment',
-        'calls.tag',
-        'calls.transfer',
-        'calls.archive',
-        'contacts.find',
-        'contacts.create',
-        'contacts.update',
-        'contacts.delete',
-        'numbers.assign',
-      ].sort(),
-    )
-    const reads = aircallConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = aircallConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['calls.find', 'calls.get', 'contacts.find'])
-    expect(mutations).toEqual(
-      [
-        'calls.comment',
-        'calls.tag',
-        'calls.transfer',
-        'calls.archive',
-        'contacts.create',
-        'contacts.update',
-        'contacts.delete',
-        'numbers.assign',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['contacts.delete', 'calls.transfer', 'calls.archive', 'numbers.assign']
-    for (const name of expected) {
-      const cap = aircallConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
   })
 })
 
@@ -126,18 +64,6 @@ describe('aircall contacts.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(requestUrl).toBe('https://api.aircall.io/v1/contacts/contact_42')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      aircallConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { contactId: 'c_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

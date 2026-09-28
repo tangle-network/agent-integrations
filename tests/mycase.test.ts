@@ -54,25 +54,6 @@ describe('MyCase legal provider pack', () => {
       .toMatchObject({ implementation: { kind: 'native_adapter' }, status: 'native_backed' })
   })
 
-  it('covers cases, contacts, leads, firm reference data, work, billing activity, and notes', () => {
-    const names = new Set(mycaseConnector.manifest.capabilities.map((capability) => capability.name))
-    for (const name of [
-      'cases.list', 'cases.create', 'cases.update',
-      'clients.list', 'clients.create', 'clients.update',
-      'companies.list', 'companies.create', 'companies.update',
-      'leads.list', 'leads.create', 'staff.list',
-      'case-stages.list', 'practice-areas.list', 'referral-sources.list',
-      'events.list', 'events.create', 'tasks.list', 'tasks.create',
-      'calls.list', 'calls.create', 'time-entries.list', 'time-entries.create',
-      'expenses.list', 'expenses.create', 'case-notes.create',
-      'client-notes.create', 'company-notes.create', 'custom-fields.create',
-    ]) expect(names.has(name), name).toBe(true)
-
-    for (const capability of mycaseConnector.manifest.capabilities) {
-      if (capability.class === 'mutation') expect(capability.externalEffect).toBe(true)
-    }
-  })
-
   it('sends incremental case filters to the documented API v1 endpoint', async () => {
     let requestUrl = ''
     let authorization = ''

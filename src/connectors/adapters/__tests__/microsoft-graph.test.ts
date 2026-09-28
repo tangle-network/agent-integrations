@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   microsoftGraph,
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../../index.js'
+  type ResolvedDataSource } from '../../index.js'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -43,45 +41,6 @@ describe('microsoft-graph adapter', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-  })
-
-  it('manifest passes the connector validator', () => {
-    expect(validateConnectorManifest(adapter.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('manifest exposes the documented identity / directory capability set', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'get_me',
-      'get_organization',
-      'list_group_members',
-      'list_groups',
-      'list_users',
-      'lookup_user',
-    ])
-  })
-
-  it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
-    expect(adapter.manifest.auth).toMatchObject({
-      kind: 'oauth2',
-      authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-      clientIdEnv: 'MS_OAUTH_CLIENT_ID',
-      clientSecretEnv: 'MS_OAUTH_CLIENT_SECRET',
-    })
-    if (adapter.manifest.auth.kind === 'oauth2') {
-      expect(adapter.manifest.auth.scopes).toContain('offline_access')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/User.Read.All')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Group.Read.All')
-    }
-  })
-
-  it('declares no mutation surface (directory is read-only)', () => {
-    expect(adapter.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(adapter.executeMutation).toBeUndefined()
-    for (const cap of adapter.manifest.capabilities) {
-      expect(cap.class).toBe('read')
-    }
   })
 
   it('exposes a read handler but no mutation handler', () => {

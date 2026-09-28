@@ -25,44 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('bannerbear adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the bannerbear kind', () => {
-    expect(bannerbearConnector.manifest.kind).toBe('bannerbear')
-    expect(bannerbearConnector.manifest.category).toBe('crm')
-    expect(bannerbearConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth as documented in the catalog', () => {
-    const auth = bannerbearConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the catalog action set: image create + image delete + video + collection', () => {
-    const names = bannerbearConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['collections.create', 'images.create', 'images.delete', 'videos.create'].sort(),
-    )
-    const mutations = bannerbearConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      ['collections.create', 'images.create', 'images.delete', 'videos.create'].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + externalEffect', () => {
-    const writeSide = ['images.delete', 'videos.create', 'collections.create']
-    for (const name of writeSide) {
-      const cap = bannerbearConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('bannerbear images.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -86,18 +48,6 @@ describe('bannerbear images.delete', () => {
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toBe('https://api.bannerbear.com/v2/images/img_xyz')
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      bannerbearConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'images.delete',
-        args: { imageId: 'img_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

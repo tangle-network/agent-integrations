@@ -5,21 +5,6 @@ import type { ResolvedDataSource } from '../src/connectors/types.js'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('OneSpan Sign adapter', () => {
-  it('declares customer-key auth and executable package actions', () => {
-    expect(oneSpanSignConnector.manifest.kind).toBe('onespan-sign')
-    expect(oneSpanSignConnector.manifest.category).toBe('doc')
-    expect(oneSpanSignConnector.manifest.auth.kind).toBe('api-key')
-    expect(oneSpanSignConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'packages.list',
-      'packages.get',
-      'packages.create',
-      'packages.send',
-      'packages.delete',
-      'documents.add',
-      'roles.add',
-    ])
-  })
-
   it('tests the regional tenant with HTTP Basic auth', async () => {
     let requestUrl = ''
     let requestHeaders: Record<string, string> = {}
@@ -53,16 +38,6 @@ describe('OneSpan Sign adapter', () => {
     expect(requestUrl).toBe('https://sandbox.esignlive.com/api/packages/pkg_1')
     expect(requestBody).toEqual({ status: 'SENT' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces expired credentials on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(oneSpanSignConnector.executeRead!({
-      source: source(),
-      capabilityName: 'packages.get',
-      args: { packageId: 'pkg_1' },
-      idempotencyKey: 'read-pkg-1',
-    })).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

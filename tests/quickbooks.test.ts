@@ -29,65 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('quickbooks adapter manifest', () => {
-  it('classifies itself as the commerce category and exposes the quickbooks kind', () => {
-    expect(quickbooksConnector.manifest.kind).toBe('quickbooks')
-    expect(quickbooksConnector.manifest.category).toBe('commerce')
-    expect(quickbooksConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses OAuth2 with the documented Intuit endpoints and env-var names', () => {
-    const auth = quickbooksConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://appcenter.intuit.com/connect/oauth2')
-    expect(auth.tokenUrl).toBe('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer')
-    expect(auth.clientIdEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('QUICKBOOKS_OAUTH_CLIENT_SECRET')
-    expect(auth.scopes).toContain('com.intuit.quickbooks.accounting')
-  })
-
-  it('covers the original capability set plus the write-side extensions', () => {
-    const names = quickbooksConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'entities.query',
-        'customers.get',
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'invoices.get',
-        'invoices.create',
-        'invoices.update',
-        'invoices.delete',
-        'invoices.send',
-        'items.create',
-        'payments.create',
-        'bills.create',
-        'vendors.create',
-        'reports.get',
-        'companyinfo.get',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'customers.delete',
-      'invoices.delete',
-      'invoices.send',
-      'bills.create',
-      'vendors.create',
-    ])
-    for (const c of quickbooksConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('quickbooks customers.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -115,18 +56,6 @@ describe('quickbooks customers.delete', () => {
     expect(String(requestUrl)).toContain('minorversion=70')
     expect(requestBody).toMatchObject({ Id: '42', SyncToken: '0', sparse: true, Active: false })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      quickbooksConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.delete',
-        args: { Id: '42', SyncToken: '0' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

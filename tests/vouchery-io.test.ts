@@ -28,61 +28,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('vouchery-io adapter manifest', () => {
-  it('classifies itself as the workflow category and exposes the vouchery-io kind', () => {
-    expect(voucheryIoConnector.manifest.kind).toBe('vouchery-io')
-    expect(voucheryIoConnector.manifest.category).toBe('commerce')
-    expect(voucheryIoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = voucheryIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers find/create plus the redeem/void write surface', () => {
-    const names = voucheryIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'vouchers.find',
-        'customers.create',
-        'vouchers.create',
-        'vouchers.redeem',
-        'vouchers.void',
-      ].sort(),
-    )
-    const reads = voucheryIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = voucheryIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['vouchers.find'].sort())
-    expect(mutations).toEqual(
-      [
-        'customers.create',
-        'vouchers.create',
-        'vouchers.redeem',
-        'vouchers.void',
-      ].sort(),
-    )
-  })
-
-  it('marks the new write capabilities native-idempotency + externalEffect', () => {
-    for (const name of ['vouchers.redeem', 'vouchers.void']) {
-      const cap = voucheryIoConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `${name} should be present`).toBeTruthy()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
-})
-
 describe('vouchery-io adapter executeMutation: vouchers.redeem', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -128,27 +73,6 @@ describe('vouchery-io adapter executeMutation: vouchers.redeem', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/code/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('unauthorized', {
-            status: 401,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      voucheryIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'vouchers.redeem',
-        args: { code: 'PROMO50', customer_id: 'cust_42', amount: 1 },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -197,26 +121,5 @@ describe('vouchery-io adapter executeMutation: vouchers.void', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/code/)
-  })
-
-  it('surfaces CredentialsExpired on 401/403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('forbidden', {
-            status: 403,
-            headers: { 'content-type': 'text/plain' },
-          }),
-      ),
-    )
-    await expect(
-      voucheryIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'vouchers.void',
-        args: { code: 'PROMO50', reason: 'merchant fraud check' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -30,22 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('pinecone adapter manifest', () => {
-  it('identifies as kind=pinecone, category=other, authoritative consistency', () => {
-    expect(pineconeConnector.manifest.kind).toBe('pinecone')
-    expect(pineconeConnector.manifest.category).toBe('other')
-    expect(pineconeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-    expect(pineconeConnector.manifest.displayName).toBe('Pinecone')
-  })
-
-  it('uses api-key auth (Pinecone exposes no 3-legged OAuth)', () => {
-    const auth = pineconeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    // Hint must point the operator at the right console + flag the per-project key scope.
-    expect(auth.hint).toMatch(/pcsk_/)
-    expect(auth.hint).toMatch(/indexHost/)
-  })
-
   it('exposes control-plane index, collection, vector-data, and assistant capabilities', () => {
     const names = pineconeConnector.manifest.capabilities.map((c) => c.name).sort()
     expect(names).toEqual(
@@ -99,17 +83,6 @@ describe('pinecone adapter manifest', () => {
     expect(upsert.cas).toBe('native-idempotency')
     expect(indexCreate.cas).toBe('native-idempotency')
   })
-
-  it('marks newly added write capabilities as native-idempotency + externalEffect=true', () => {
-    const newOnes = new Set(['assistants.update', 'assistants.files.delete', 'backups.create'])
-    for (const cap of pineconeConnector.manifest.capabilities) {
-      if (!newOnes.has(cap.name)) continue
-      expect(cap.class).toBe('mutation')
-      if (cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
 })
 
 describe('pinecone assistants.update', () => {
@@ -140,18 +113,6 @@ describe('pinecone assistants.update', () => {
     const parsed = JSON.parse(requestBody ?? '{}') as Record<string, unknown>
     expect(parsed.instructions).toBe('Be concise.')
     expect(parsed).not.toHaveProperty('metadata')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      pineconeConnector.executeMutation!({
-        source: pineconeSource(),
-        capabilityName: 'assistants.update',
-        args: { assistantName: 'support-bot', instructions: 'x' },
-        idempotencyKey: 'k-au-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

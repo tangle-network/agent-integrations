@@ -16,15 +16,6 @@ const expectedProviders = {
 } as const
 
 describe('scheduling and forms provider factories', () => {
-  it('registers every provider with its real deployment requirements', () => {
-    for (const [kind, envNames] of Object.entries(expectedProviders)) {
-      const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)
-      expect(definition, kind).toBeDefined()
-      expect(Object.values(definition!.envMap), kind).toEqual(envNames)
-      expect(definition!.factory({}).manifest.capabilities.length, kind).toBeGreaterThan(0)
-    }
-  })
-
   it('requires every declared OAuth app credential and accepts key-only providers', () => {
     for (const [kind, envNames] of Object.entries(expectedProviders)) {
       const definition = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === kind)!

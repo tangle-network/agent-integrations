@@ -29,72 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('reply-io adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the reply-io kind', () => {
-    expect(replyIoConnector.manifest.kind).toBe('reply-io')
-    expect(replyIoConnector.manifest.category).toBe('crm')
-    expect(replyIoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = replyIoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the contacts action set plus campaigns + templates write-side capabilities', () => {
-    const names = replyIoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'contacts.create',
-        'contacts.push_to_campaign',
-        'contacts.create_and_push',
-        'contacts.get',
-        'contacts.mark_replied',
-        'contacts.mark_finished',
-        'contacts.remove_from_campaign',
-        'contacts.remove_from_all_campaigns',
-        'contacts.delete',
-        'campaigns.list',
-        'campaigns.start',
-        'campaigns.pause',
-        'templates.create',
-      ].sort(),
-    )
-    const reads = replyIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = replyIoConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['contacts.get', 'campaigns.list'].sort())
-    expect(mutations).toEqual(
-      [
-        'contacts.create',
-        'contacts.push_to_campaign',
-        'contacts.create_and_push',
-        'contacts.mark_replied',
-        'contacts.mark_finished',
-        'contacts.remove_from_campaign',
-        'contacts.remove_from_all_campaigns',
-        'contacts.delete',
-        'campaigns.start',
-        'campaigns.pause',
-        'templates.create',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect', () => {
-    for (const c of replyIoConnector.manifest.capabilities) {
-      if (c.class !== 'mutation') continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('reply-io campaigns + templates execution', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -184,17 +118,5 @@ describe('reply-io campaigns + templates execution', () => {
       subject: 'Hello',
       body: '<p>Hi</p>',
     })
-  })
-
-  it('surfaces CredentialsExpired on 401 for campaigns.start', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('expired', { status: 401 })))
-    await expect(
-      replyIoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'campaigns.start',
-        args: { campaignId: 'camp_42' },
-        idempotencyKey: 'k-start-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

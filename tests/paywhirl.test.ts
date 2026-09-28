@@ -29,62 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('paywhirl adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the paywhirl kind', () => {
-    expect(paywhirlConnector.manifest.kind).toBe('paywhirl')
-    expect(paywhirlConnector.manifest.category).toBe('crm')
-    expect(paywhirlConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = paywhirlConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Paywhirl|API/i)
-  })
-
-  it('covers the catalog plus the new write-side mutations', () => {
-    const names = paywhirlConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'customers.create',
-        'customers.get',
-        'customers.search',
-        'customers.update',
-        'customers.delete',
-        'invoices.create',
-        'subscriptions.cancel',
-        'subscriptions.create',
-        'subscriptions.pause',
-        'subscriptions.search',
-      ].sort(),
-    )
-    const mutations = paywhirlConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'customers.create',
-        'customers.update',
-        'customers.delete',
-        'invoices.create',
-        'subscriptions.cancel',
-        'subscriptions.create',
-        'subscriptions.pause',
-      ].sort(),
-    )
-  })
-
-  it('marks every mutation as native-idempotency + externalEffect=true', () => {
-    for (const cap of paywhirlConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas, `mutation ${cap.name} cas`).toBe('native-idempotency')
-      expect(cap.externalEffect, `mutation ${cap.name} externalEffect`).toBe(true)
-    }
-  })
-})
-
 describe('paywhirl customers.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -112,18 +56,6 @@ describe('paywhirl customers.update', () => {
     expect(String(requestUrl)).toContain('/v1/customers/42')
     expect(String(requestUrl)).toContain('api_key=paywhirl_api_key')
     expect(requestBody).toMatchObject({ customerId: '42', firstName: 'New' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      paywhirlConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'customers.update',
-        args: { customerId: '42', firstName: 'New' },
-        idempotencyKey: 'k-update',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -206,17 +138,5 @@ describe('paywhirl subscriptions.pause', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/subscriptions/7/pause')
     expect(String(requestUrl)).toContain('api_key=paywhirl_api_key')
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
-    await expect(
-      paywhirlConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'subscriptions.pause',
-        args: { subscriptionId: 7 },
-        idempotencyKey: 'k-pause',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

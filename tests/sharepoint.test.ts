@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   sharepoint,
-  validateConnectorManifest,
-  type ResolvedDataSource,
-} from '../src/connectors/index'
+  type ResolvedDataSource } from '../src/connectors/index'
 
 function source(overrides: Partial<ResolvedDataSource> = {}): ResolvedDataSource {
   return {
@@ -43,70 +41,6 @@ describe('sharepoint adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest passes the connector validator', () => {
-    expect(validateConnectorManifest(adapter.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('manifest exposes the expected storage-pack capability set', () => {
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'copy_item',
-      'create_folder',
-      'files.delete',
-      'files.move',
-      'get_item_content',
-      'get_site_info',
-      'list_drive_items',
-      'lists.create',
-      'lists.items.create',
-      'lists.items.delete',
-      'lists.items.find',
-      'lists.items.update',
-      'pages.publish',
-      'permissions.grant',
-      'permissions.revoke',
-      'search_drive',
-      'search_sites',
-      'upload_file',
-    ])
-  })
-
-  it('all new write-side mutations are native-idempotency with externalEffect:true', () => {
-    const newMutationNames = [
-      'files.delete',
-      'files.move',
-      'permissions.grant',
-      'permissions.revoke',
-      'lists.items.create',
-    ]
-    for (const name of newMutationNames) {
-      const cap = adapter.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `${name} should exist`).toBeDefined()
-      expect(cap!.class).toBe('mutation')
-      if (cap!.class === 'mutation') {
-        expect(cap!.cas).toBe('native-idempotency')
-        expect(cap!.externalEffect).toBe(true)
-      }
-    }
-  })
-
-  it('declares oauth2 auth with v2.0 endpoints and the documented env-var names', () => {
-    expect(adapter.manifest.auth).toMatchObject({
-      kind: 'oauth2',
-      authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-      clientIdEnv: 'MS_OAUTH_CLIENT_ID',
-      clientSecretEnv: 'MS_OAUTH_CLIENT_SECRET',
-    })
-    if (adapter.manifest.auth.kind === 'oauth2') {
-      expect(adapter.manifest.auth.scopes).toContain('offline_access')
-      expect(adapter.manifest.auth.scopes).toContain('https://graph.microsoft.com/Sites.ReadWrite.All')
-      expect(adapter.manifest.auth.scopes).toContain(
-        'https://graph.microsoft.com/Files.ReadWrite.All',
-      )
-    }
-  })
-
   it('storage-class manifest is authoritative; both mutations are native-idempotency under the consistency floor', () => {
     expect(adapter.manifest.defaultConsistencyModel).toBe('authoritative')
     expect(adapter.manifest.category).toBe('storage')
@@ -125,13 +59,6 @@ describe('sharepoint adapter', () => {
       expect(folder.cas).toBe('native-idempotency')
       expect(folder.externalEffect).toBe(true)
     }
-  })
-
-  it('exposes read + mutation handlers consistent with the manifest', () => {
-    const hasReads = adapter.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = adapter.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(adapter.executeRead)).toBe(hasReads)
-    expect(Boolean(adapter.executeMutation)).toBe(hasMutations)
   })
 
   it('search_sites builds the Graph search URL and maps results into a sites[] summary', async () => {

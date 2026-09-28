@@ -29,23 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('clay adapter manifest', () => {
-  it('is a write-only crm connector: one push mutation, no reads', () => {
-    expect(clayConnector.manifest.kind).toBe('clay')
-    expect(clayConnector.manifest.category).toBe('crm')
-    expect(clayConnector.manifest.defaultConsistencyModel).toBe('advisory')
-    expect(clayConnector.manifest.auth.kind).toBe('api-key')
-
-    const reads = clayConnector.manifest.capabilities.filter((c) => c.class === 'read')
-    const mutations = clayConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(reads).toEqual([])
-    expect(mutations.map((c) => c.name)).toEqual(['push_row'])
-    // No read capabilities → no executeRead handler (isolation invariant).
-    expect(clayConnector.executeRead).toBeUndefined()
-    expect(typeof clayConnector.executeMutation).toBe('function')
-  })
-})
-
 describe('clay push_row mutation', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

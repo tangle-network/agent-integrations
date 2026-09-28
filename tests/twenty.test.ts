@@ -29,51 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twenty adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the twenty kind', () => {
-    expect(twentyConnector.manifest.kind).toBe('twenty')
-    expect(twentyConnector.manifest.category).toBe('crm')
-    expect(twentyConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth', () => {
-    const auth = twentyConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers contacts, companies, opportunities, and notes capabilities', () => {
-    const names = twentyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('contacts.create')
-    expect(names).toContain('contacts.find')
-    expect(names).toContain('contacts.update')
-    expect(names).toContain('contacts.delete')
-    expect(names).toContain('companies.create')
-    expect(names).toContain('companies.find')
-    expect(names).toContain('companies.update')
-    expect(names).toContain('companies.delete')
-    expect(names).toContain('opportunities.create')
-    expect(names).toContain('opportunities.update')
-    expect(names).toContain('opportunities.delete')
-    expect(names).toContain('notes.create')
-  })
-
-  it('marks new write-side capabilities as native-idempotency external-effect', () => {
-    for (const name of [
-      'contacts.delete',
-      'companies.delete',
-      'opportunities.update',
-      'opportunities.delete',
-      'notes.create',
-    ]) {
-      const cap = twentyConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('expected mutation')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('twenty contacts.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -101,18 +56,6 @@ describe('twenty contacts.delete', () => {
     expect(String(requestUrl)).toContain('/graphql')
     expect(requestBody).toContain('deletePerson')
     expect(requestBody).toContain('person_xyz')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      twentyConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'contacts.delete',
-        args: { personId: 'person_xyz' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

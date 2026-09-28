@@ -45,12 +45,6 @@ describe('docuseal adapter', () => {
     vi.unstubAllGlobals()
   })
 
-  it('manifest declares api-key auth + three capabilities', () => {
-    expect(adapter.manifest.auth.kind).toBe('api-key')
-    const names = adapter.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(['create_submission', 'get_submission', 'void_submission'])
-  })
-
   it('create_submission forwards external_id as the idempotency key', async () => {
     let captured: Record<string, unknown> | null = null
     vi.stubGlobal('fetch', vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {

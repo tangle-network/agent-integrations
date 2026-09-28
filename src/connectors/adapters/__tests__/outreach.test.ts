@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { outreachConnector } from '../outreach.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../../types.js'
+import { type ResolvedDataSource } from '../../types.js'
 
 const ACCESS_TOKEN = 'outreach_at_test'
 
@@ -31,49 +31,6 @@ function mockFetch(body: unknown, init: { status?: number; headers?: Record<stri
 }
 
 describe('outreach adapter', () => {
-  it('ships a valid connector manifest', () => {
-    expect(validateConnectorManifest(outreachConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares authorization_code oauth2 against api.outreach.io with crm classification', () => {
-    const auth = outreachConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://api.outreach.io/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.outreach.io/oauth/token')
-    expect(auth.clientIdEnv).toBe('OUTREACH_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('OUTREACH_OAUTH_CLIENT_SECRET')
-    expect(outreachConnector.manifest.category).toBe('crm')
-  })
-
-  it('exposes the expected capability surface and read/mutation split', () => {
-    const names = outreachConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'accounts.create',
-      'opportunities.list',
-      'prospects.create',
-      'prospects.list',
-      'prospects.update',
-      'sequenceStates.create',
-    ])
-    const reads = outreachConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutations = outreachConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(reads).toEqual(['opportunities.list', 'prospects.list'])
-    expect(mutations).toEqual(['accounts.create', 'prospects.create', 'prospects.update', 'sequenceStates.create'])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof outreachConnector.executeRead).toBe('function')
-    expect(typeof outreachConnector.executeMutation).toBe('function')
-  })
-
-  it('declares a CAS strategy for every mutation', () => {
-    for (const cap of outreachConnector.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBeDefined()
-    }
-  })
-
   it('routes prospects.list as GET /api/v2/prospects with the email filter and bearer auth', async () => {
     const fetchMock = mockFetch({ data: [] })
     await outreachConnector.executeRead!({ source, capabilityName: 'prospects.list', args: { email: 'ada@example.com' }, idempotencyKey: 'op_0' })
@@ -114,18 +71,5 @@ describe('outreach adapter', () => {
         },
       },
     })
-  })
-
-  it('throws CredentialsExpired when Outreach rejects the token', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      outreachConnector.executeRead!({ source, capabilityName: 'prospects.list', args: {}, idempotencyKey: 'unauth_1' }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('rejects unknown capabilities', async () => {
-    await expect(
-      outreachConnector.executeRead!({ source, capabilityName: 'does.not.exist', args: {}, idempotencyKey: 'unknown_1' }),
-    ).rejects.toThrow(/unknown read capability/)
   })
 })

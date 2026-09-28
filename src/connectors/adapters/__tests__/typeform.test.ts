@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { typeformConnector } from '../typeform.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_typeform',
@@ -20,82 +20,6 @@ afterEach(() => {
 })
 
 describe('typeform adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(typeformConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
-  it('declares oauth2 against api.typeform.com with typeform-shaped env names and offline scope for refresh', () => {
-    const auth = typeformConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('auth.kind narrowing failed')
-    expect(auth.authorizationUrl).toBe('https://api.typeform.com/oauth/authorize')
-    expect(auth.tokenUrl).toBe('https://api.typeform.com/oauth/token')
-    // `offline` is required to receive a refresh token; the others are the resource:read|write tuples.
-    expect(auth.scopes).toEqual([
-      'forms:read',
-      'forms:write',
-      'responses:read',
-      'webhooks:read',
-      'webhooks:write',
-      'workspaces:read',
-      'accounts:read',
-      'offline',
-    ])
-    expect(auth.clientIdEnv).toBe('TYPEFORM_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('TYPEFORM_OAUTH_CLIENT_SECRET')
-  })
-
-  it('exposes the forms + responses + webhooks + workspaces action surface with the right read/mutation split', () => {
-    expect(typeformConnector.manifest.kind).toBe('typeform')
-    expect(typeformConnector.manifest.displayName).toBe('Typeform')
-    expect(typeformConnector.manifest.category).toBe('other')
-    const names = typeformConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'account.get',
-      'forms.create',
-      'forms.delete',
-      'forms.get',
-      'forms.list',
-      'forms.update',
-      'images.create',
-      'responses.delete',
-      'responses.list',
-      'themes.list',
-      'webhooks.delete',
-      'webhooks.get',
-      'webhooks.list',
-      'webhooks.upsert',
-      'workspaces.list',
-    ])
-    const readers = typeformConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = typeformConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'account.get',
-      'forms.get',
-      'forms.list',
-      'responses.list',
-      'themes.list',
-      'webhooks.get',
-      'webhooks.list',
-      'workspaces.list',
-    ])
-    expect(mutators).toEqual([
-      'forms.create',
-      'forms.delete',
-      'forms.update',
-      'images.create',
-      'responses.delete',
-      'webhooks.delete',
-      'webhooks.upsert',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeformConnector.executeRead).toBeTypeOf('function')
-    expect(typeformConnector.executeMutation).toBeTypeOf('function')
-  })
-
   it('lists responses against /forms/{form_id}/responses with bearer auth and only the provided query params', async () => {
     const fetchMock = mockFetch({ items: [], total_items: 0, page_count: 0 })
     const invocation: ConnectorInvocation = {

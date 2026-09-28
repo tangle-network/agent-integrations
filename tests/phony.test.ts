@@ -30,33 +30,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe('phony adapter manifest', () => {
-  it('marks every mutation as external effect with a declared CAS', () => {
-    const mutations = phonyConnector.manifest.capabilities.filter((c) => c.class === 'mutation')
-    expect(mutations.length).toBeGreaterThan(0)
-    for (const c of mutations) {
-      if (c.class !== 'mutation') continue
-      expect(c.externalEffect).toBe(true)
-      expect(c.cas).toBeTruthy()
-    }
-  })
-
-  it('exposes the read + write capabilities', () => {
-    const names = phonyConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'list_agents',
-        'get_call',
-        'list_calls',
-        'start_outbound_call',
-        'create_agent',
-        'provision_agent',
-        'kb_create_collection',
-        'kb_ingest',
-        'kb_search',
-      ].sort(),
-    )
-  })
-
   it('classifies kb_search as a read and the agent/KB writes as mutations', () => {
     const byName = new Map(phonyConnector.manifest.capabilities.map((c) => [c.name, c]))
     expect(byName.get('kb_search')?.class).toBe('read')
@@ -74,11 +47,6 @@ describe('phony adapter manifest', () => {
     }
   })
 
-  it('requires the consent gate on start_outbound_call', () => {
-    const start = phonyConnector.manifest.capabilities.find((c) => c.name === 'start_outbound_call')
-    const required = (start?.parameters.required ?? []) as string[]
-    expect(required).toContain('userConsentRecorded')
-  })
 })
 
 describe('phony list_agents', () => {

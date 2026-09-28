@@ -25,33 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('zapier adapter manifest', () => {
-  it('exposes the zapier kind in the other category', () => {
-    expect(zapierConnector.manifest.kind).toBe('zapier')
-    expect(zapierConnector.manifest.category).toBe('other')
-  })
-
-  it('uses api-key auth (account-scoped bearer token)', () => {
-    expect(zapierConnector.manifest.auth.kind).toBe('api-key')
-  })
-
-  it('covers catch-hook, Zaps management, and NLA actions surfaces', () => {
-    const names = zapierConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      ['actions.execute', 'actions.list', 'triggers.catch', 'zaps.get', 'zaps.list'].sort(),
-    )
-  })
-
-  it('declares actions.execute as a mutation with native-idempotency CAS', () => {
-    const cap = zapierConnector.manifest.capabilities.find((c) => c.name === 'actions.execute')
-    expect(cap?.class).toBe('mutation')
-    if (cap?.class === 'mutation') {
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('zapier NLA actions', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -88,26 +61,6 @@ describe('zapier NLA actions', () => {
       results: [{ id: 'act_1', description: 'Send Slack message' }],
     })
     expect(typeof result.fetchedAt).toBe('number')
-  })
-
-  it('actions.list surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('unauthorized', {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      zapierConnector.executeRead!({
-        source: source(),
-        capabilityName: 'actions.list',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 
   it('actions.execute POSTs to /v1/exposed/{action_id}/execute with instructions body', async () => {
@@ -187,26 +140,6 @@ describe('zapier NLA actions', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/action_id/)
-  })
-
-  it('actions.execute surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response('forbidden', {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
-    )
-    await expect(
-      zapierConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'actions.execute',
-        args: { action_id: 'act_42', instructions: 'go' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

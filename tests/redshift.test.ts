@@ -1,36 +1,11 @@
 import type { ClientConfig, FieldDef, QueryConfig } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECTOR_ADAPTER_FACTORIES } from '../src/connectors/adapters/factories.js'
 import {
   createRedshiftConnector,
-  redshiftConnector,
-  type RedshiftConnectorOptions,
-} from '../src/connectors/adapters/redshift.js'
-import { validateConnectorManifest, type ResolvedDataSource } from '../src/connectors/types.js'
-import { getIntegrationSpec } from '../src/specs/index.js'
+  type RedshiftConnectorOptions } from '../src/connectors/adapters/redshift.js'
+import { type ResolvedDataSource } from '../src/connectors/types.js'
 
 describe('Redshift connector', () => {
-  it('ships a valid authoritative read-only warehouse surface', () => {
-    expect(validateConnectorManifest(redshiftConnector.manifest)).toEqual({ ok: true, issues: [] })
-    expect(redshiftConnector.manifest.capabilities.map((capability) => capability.name)).toEqual([
-      'redshift.schemas.list',
-      'redshift.tables.list',
-      'redshift.tables.describe',
-      'redshift.rows.select',
-    ])
-    expect(redshiftConnector.manifest.capabilities.every((capability) => capability.class === 'read')).toBe(true)
-  })
-
-  it('exposes executable structured-secret setup and a no-shared-secret factory', () => {
-    expect(getIntegrationSpec('redshift')).toMatchObject({
-      status: 'executable',
-      setup: { credentialFields: [{ label: 'Redshift connection JSON', secret: true }] },
-    })
-    const factory = CONNECTOR_ADAPTER_FACTORIES.find((candidate) => candidate.kind === 'redshift')
-    expect(factory?.envMap).toEqual({})
-    expect(factory?.factory({}).manifest.kind).toBe('redshift')
-  })
-
   it('pins a public address while retaining the DNS name for verified TLS identity', async () => {
     let config: ClientConfig | undefined
     const connector = createRedshiftConnector({

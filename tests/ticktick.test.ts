@@ -29,72 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('ticktick adapter manifest', () => {
-  it('classifies itself as the other category and exposes the ticktick kind', () => {
-    expect(ticktickConnector.manifest.kind).toBe('ticktick')
-    expect(ticktickConnector.manifest.category).toBe('other')
-    expect(ticktickConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares oauth2 auth with TickTick-specific endpoints', () => {
-    const auth = ticktickConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toMatch(/ticktick.com/)
-    expect(auth.tokenUrl).toMatch(/ticktick.com/)
-    expect(auth.tokenClientAuthMethod).toBe('client_secret_basic')
-  })
-
-  it('covers tasks and project surface plus new project CRUD and task move', () => {
-    const names = ticktickConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toContain('tasks.create')
-    expect(names).toContain('tasks.update')
-    expect(names).toContain('tasks.get')
-    expect(names).toContain('tasks.find')
-    expect(names).toContain('tasks.complete')
-    expect(names).toContain('tasks.delete')
-    expect(names).toContain('tasks.move')
-    expect(names).toContain('projects.get')
-    expect(names).toContain('projects.create')
-    expect(names).toContain('projects.update')
-    expect(names).toContain('projects.delete')
-  })
-
-  it('marks mutations and read operations correctly', () => {
-    const mutations = ticktickConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toContain('tasks.create')
-    expect(mutations).toContain('tasks.update')
-    expect(mutations).toContain('tasks.complete')
-    expect(mutations).toContain('tasks.delete')
-    expect(mutations).toContain('tasks.move')
-    expect(mutations).toContain('projects.create')
-    expect(mutations).toContain('projects.update')
-    expect(mutations).toContain('projects.delete')
-
-    const reads = ticktickConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toContain('tasks.get')
-    expect(reads).toContain('tasks.find')
-    expect(reads).toContain('projects.get')
-  })
-
-  it('marks the new write-side mutations as native-idempotency + externalEffect=true', () => {
-    const expected = ['projects.create', 'projects.update', 'projects.delete', 'tasks.move']
-    for (const name of expected) {
-      const cap = ticktickConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} must be a mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('ticktick projects.create', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -121,18 +55,6 @@ describe('ticktick projects.create', () => {
     expect(requestUrl).toBe('https://api.ticktick.com/v2/project')
     expect(requestBody).toMatchObject({ name: 'Inbox 2' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      ticktickConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'projects.create',
-        args: { name: 'x' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

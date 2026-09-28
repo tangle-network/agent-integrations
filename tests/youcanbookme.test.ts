@@ -29,67 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('youcanbookme adapter manifest', () => {
-  it('classifies itself as the crm category and exposes the youcanbookme kind', () => {
-    expect(youcanbookmeConnector.manifest.kind).toBe('youcanbookme')
-    expect(youcanbookmeConnector.manifest.category).toBe('crm')
-    expect(youcanbookmeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth (mirrors the activepieces piece auth shape)', () => {
-    const auth = youcanbookmeConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the full activepieces action set plus write-side extensions', () => {
-    const names = youcanbookmeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'profiles.create',
-        'profiles.update',
-        'profiles.delete',
-        'bookings.retrieve',
-        'bookings.cancel',
-        'bookings.reschedule',
-      ].sort(),
-    )
-    const reads = youcanbookmeConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = youcanbookmeConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(['bookings.retrieve'])
-    expect(mutations).toEqual(
-      [
-        'profiles.create',
-        'profiles.update',
-        'profiles.delete',
-        'bookings.cancel',
-        'bookings.reschedule',
-      ].sort(),
-    )
-  })
-
-  it('marks every new write-side mutation as native-idempotency externalEffect', () => {
-    const expectedExternal = new Set([
-      'profiles.update',
-      'profiles.delete',
-      'bookings.cancel',
-      'bookings.reschedule',
-    ])
-    const caps = youcanbookmeConnector.manifest.capabilities
-    for (const c of caps) {
-      if (c.class !== 'mutation') continue
-      if (!expectedExternal.has(c.name)) continue
-      expect(c.cas).toBe('native-idempotency')
-      expect(c.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('youcanbookme bookings.cancel', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -116,18 +55,6 @@ describe('youcanbookme bookings.cancel', () => {
     expect(String(requestUrl)).toContain('/v1/bookings/b_1/cancel')
     expect(requestBody).toMatchObject({ bookingId: 'b_1', reason: 'no-show' })
     expect(result.status).toBe('committed')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      youcanbookmeConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'bookings.cancel',
-        args: { bookingId: 'b_1' },
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

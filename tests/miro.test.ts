@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { miroConnector } from '../src/connectors/adapters/miro'
-import { validateConnectorManifest } from '../src/connectors/types'
 
 describe('miro adapter', () => {
-  it('declares kind, category, and OAuth2 auth', () => {
-    expect(miroConnector.manifest.kind).toBe('miro')
-    expect(miroConnector.manifest.category).toBe('doc')
-    expect(miroConnector.manifest.auth.kind).toBe('oauth2')
-  })
-
   it('uses real Miro OAuth endpoints', () => {
     const auth = miroConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('expected oauth2 auth')
@@ -28,16 +21,5 @@ describe('miro adapter', () => {
     expect(caps.some((c) => c.class === 'mutation' && c.name === 'boards.create')).toBe(true)
     expect(caps.some((c) => c.name.startsWith('organizations.'))).toBe(false)
     expect(caps.some((c) => c.name === 'teams.get')).toBe(false)
-  })
-
-  it('passes the shared manifest validator', () => {
-    expect(validateConnectorManifest(miroConnector.manifest)).toEqual({ ok: true, issues: [] })
-  })
-
-  it('only ships read + mutation handlers when manifest declares them', () => {
-    const hasReads = miroConnector.manifest.capabilities.some((c) => c.class === 'read')
-    const hasMutations = miroConnector.manifest.capabilities.some((c) => c.class === 'mutation')
-    expect(Boolean(miroConnector.executeRead)).toBe(hasReads)
-    expect(Boolean(miroConnector.executeMutation)).toBe(hasMutations)
   })
 })

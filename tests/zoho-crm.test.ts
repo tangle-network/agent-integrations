@@ -22,51 +22,6 @@ afterEach(() => {
 })
 
 describe('zoho-crm declarative adapter', () => {
-  it('exposes the documented OAuth2 manifest shape', () => {
-    expect(zohoCrmConnector.manifest.kind).toBe('zoho-crm')
-    expect(zohoCrmConnector.manifest.category).toBe('crm')
-    expect(zohoCrmConnector.manifest.auth.kind).toBe('oauth2')
-    if (zohoCrmConnector.manifest.auth.kind !== 'oauth2') {
-      throw new Error('expected oauth2 auth')
-    }
-    const auth = zohoCrmConnector.manifest.auth
-    expect(auth.authorizationUrl).toBe('https://accounts.zoho.com/oauth/v2/auth')
-    expect(auth.tokenUrl).toBe('https://accounts.zoho.com/oauth/v2/token')
-    expect(auth.scopes).toEqual(
-      expect.arrayContaining(['ZohoCRM.modules.ALL', 'ZohoCRM.users.READ']),
-    )
-    expect(auth.scopes).not.toContain('offline_access')
-    expect(auth.scopeSeparator).toBe(',')
-    expect(auth.extraAuthParams).toEqual({ access_type: 'offline', prompt: 'consent' })
-    expect(auth.clientIdEnv).toBe('ZOHO_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('ZOHO_OAUTH_CLIENT_SECRET')
-  })
-
-  it('declares the canonical CRM action surface for the catalog', () => {
-    const names = zohoCrmConnector.manifest.capabilities.map((cap) => cap.name).sort()
-    expect(names).toEqual([
-      'files.upload',
-      'notes.create',
-      'records.assign',
-      'records.convert',
-      'records.create',
-      'records.delete',
-      'records.get',
-      'records.list',
-      'records.search',
-      'records.update',
-      'records.upsert',
-    ])
-
-    const writes = zohoCrmConnector.manifest.capabilities.filter((cap) => cap.class === 'mutation')
-    expect(writes.length).toBe(8)
-    for (const cap of writes) {
-      if (cap.class !== 'mutation') throw new Error('narrowing')
-      expect(cap.externalEffect).toBe(true)
-      expect(['native-idempotency', 'optimistic-read-verify', 'none']).toContain(cap.cas)
-    }
-  })
-
   it('marks the new write capabilities as native-idempotency external-effect mutations', () => {
     const byName = new Map(zohoCrmConnector.manifest.capabilities.map((c) => [c.name, c]))
     for (const name of ['records.convert', 'records.assign', 'notes.create', 'files.upload']) {

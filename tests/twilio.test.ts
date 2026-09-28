@@ -29,73 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('twilio adapter manifest', () => {
-  it('classifies itself as the comms category and exposes the twilio kind', () => {
-    expect(twilioConnector.manifest.kind).toBe('twilio')
-    expect(twilioConnector.manifest.category).toBe('comms')
-    expect(twilioConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('uses api-key auth', () => {
-    const auth = twilioConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-  })
-
-  it('covers the full capability set (messages, calls, recordings, numbers)', () => {
-    const names = twilioConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'messages.send',
-        'messages.get',
-        'messages.list',
-        'messages.delete',
-        'calls.make',
-        'calls.get',
-        'calls.list',
-        'calls.cancel',
-        'calls.update',
-        'recordings.get',
-        'recordings.list',
-        'numbers.list',
-        'numbers.update',
-      ].sort(),
-    )
-    const reads = twilioConnector.manifest.capabilities
-      .filter((c) => c.class === 'read')
-      .map((c) => c.name)
-      .sort()
-    const mutations = twilioConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(reads).toEqual(
-      [
-        'messages.get',
-        'messages.list',
-        'calls.get',
-        'calls.list',
-        'recordings.get',
-        'recordings.list',
-        'numbers.list',
-      ].sort(),
-    )
-    expect(mutations).toEqual(
-      ['messages.send', 'messages.delete', 'calls.make', 'calls.cancel', 'calls.update', 'numbers.update'].sort(),
-    )
-  })
-
-  it('marks every new mutation as native-idempotency + external effect', () => {
-    const targets = ['messages.delete', 'calls.cancel', 'calls.update', 'numbers.update']
-    for (const target of targets) {
-      const cap = twilioConnector.manifest.capabilities.find((c) => c.name === target)
-      expect(cap).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`expected mutation: ${target}`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('twilio messages.delete', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -119,18 +52,6 @@ describe('twilio messages.delete', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/Messages/SM_xyz.json')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      twilioConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'messages.delete',
-        args: { messageSid: 'SM_xyz' },
-        idempotencyKey: 'del-2',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

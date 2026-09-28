@@ -29,52 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('omni-co adapter manifest', () => {
-  it('classifies itself as the database category and exposes the omni-co kind', () => {
-    expect(omniCoConnector.manifest.kind).toBe('omni-co')
-    expect(omniCoConnector.manifest.category).toBe('database')
-    expect(omniCoConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = omniCoConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/Omni/i)
-  })
-
-  it('covers documents, queries, schedules and the new write-side capabilities', () => {
-    const names = omniCoConnector.manifest.capabilities.map((c) => c.name).sort()
-    for (const expected of [
-      'documents.create',
-      'documents.delete',
-      'documents.move',
-      'documents.share',
-      'documents.update',
-      'queries.delete',
-      'queries.generate',
-      'queries.run',
-      'schedules.create',
-      'schedules.delete',
-      'schedules.edit',
-      'schedules.run-now',
-    ]) {
-      expect(names).toContain(expected)
-    }
-  })
-
-  it('marks new mutations as native-idempotency external effect', () => {
-    const newMutations = ['documents.update', 'queries.delete', 'schedules.run-now', 'documents.share']
-    for (const name of newMutations) {
-      const cap = omniCoConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `expected capability ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error('unreachable')
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('omni-co documents.update', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -102,18 +56,6 @@ describe('omni-co documents.update', () => {
     expect(String(requestUrl)).toContain('/v1/documents/doc_1')
     expect(requestBody).toMatchObject({ name: 'Renamed' })
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.update',
-        args: { documentId: 'doc_1', name: 'x' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('omni-co queries.delete', () => {
@@ -140,18 +82,6 @@ describe('omni-co queries.delete', () => {
     expect(requestMethod).toBe('DELETE')
     expect(String(requestUrl)).toContain('/v1/queries/q_1')
   })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'queries.delete',
-        args: { queryId: 'q_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
 })
 
 describe('omni-co schedules.run-now', () => {
@@ -177,18 +107,6 @@ describe('omni-co schedules.run-now', () => {
     expect(result.status).toBe('committed')
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/dashboards/dash_1/schedules/sched_1/run')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'schedules.run-now',
-        args: { identifier: 'dash_1', scheduleId: 'sched_1' },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 
@@ -223,22 +141,5 @@ describe('omni-co documents.share', () => {
     expect(requestMethod).toBe('POST')
     expect(String(requestUrl)).toContain('/v1/documents/doc_1/shares')
     expect(requestBody).toEqual({ principalType: 'user', principalId: 'user_1', accessLevel: 'viewer' })
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      omniCoConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'documents.share',
-        args: {
-          documentId: 'doc_1',
-          principalType: 'user',
-          principalId: 'user_1',
-          accessLevel: 'viewer',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

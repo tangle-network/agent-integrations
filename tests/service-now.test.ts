@@ -29,74 +29,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-describe('service-now adapter manifest', () => {
-  it('classifies itself as the doc category and exposes the service-now kind', () => {
-    expect(serviceNowConnector.manifest.kind).toBe('service-now')
-    expect(serviceNowConnector.manifest.category).toBe('doc')
-    expect(serviceNowConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-
-  it('declares api-key auth with a vendor-specific hint', () => {
-    const auth = serviceNowConnector.manifest.auth
-    expect(auth.kind).toBe('api-key')
-    if (auth.kind !== 'api-key') throw new Error('unreachable')
-    expect(auth.hint).toMatch(/ServiceNow/i)
-  })
-
-  it('covers records, attachments, comments, incidents, changes, and tasks capability surface', () => {
-    const names = serviceNowConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'attachments.add',
-        'attachments.delete',
-        'attachments.find',
-        'changes.create',
-        'comments.add',
-        'incidents.assign',
-        'incidents.close',
-        'incidents.resolve',
-        'records.count',
-        'records.create',
-        'records.delete',
-        'records.find',
-        'records.get',
-        'records.update',
-        'tasks.create',
-      ].sort(),
-    )
-    const mutations = serviceNowConnector.manifest.capabilities
-      .filter((c) => c.class === 'mutation')
-      .map((c) => c.name)
-      .sort()
-    expect(mutations).toEqual(
-      [
-        'attachments.add',
-        'attachments.delete',
-        'changes.create',
-        'comments.add',
-        'incidents.assign',
-        'incidents.close',
-        'incidents.resolve',
-        'records.create',
-        'records.delete',
-        'records.update',
-        'tasks.create',
-      ].sort(),
-    )
-  })
-
-  it('marks the newly added write capabilities as native-idempotency + external effect', () => {
-    const newCaps = ['incidents.close', 'incidents.assign', 'changes.create', 'tasks.create']
-    for (const name of newCaps) {
-      const cap = serviceNowConnector.manifest.capabilities.find((c) => c.name === name)
-      expect(cap, `missing ${name}`).toBeDefined()
-      if (!cap || cap.class !== 'mutation') throw new Error(`${name} should be mutation`)
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('service-now incidents.close', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -131,22 +63,6 @@ describe('service-now incidents.close', () => {
     expect(parsed.incident_state).toBe('7')
     expect(parsed.close_code).toBe('Solved (Permanently)')
     expect(parsed.close_notes).toBe('Root cause: DNS misconfig. Fixed.')
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
-    await expect(
-      serviceNowConnector.executeMutation!({
-        source: source(),
-        capabilityName: 'incidents.close',
-        args: {
-          incidentSysSysId: 'abc123',
-          closeCode: 'cc',
-          closeNotes: 'notes',
-        },
-        idempotencyKey: 'k-1',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
 

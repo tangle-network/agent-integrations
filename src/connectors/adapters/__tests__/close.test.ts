@@ -19,50 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('close adapter manifest', () => {
-  it('declares the expected OAuth2 endpoints, scopes, and env-var names', () => {
-    const auth = closeConnector.manifest.auth
-    expect(auth.kind).toBe('oauth2')
-    if (auth.kind !== 'oauth2') throw new Error('unreachable')
-    expect(auth.authorizationUrl).toBe('https://app.close.com/oauth2/authorize/')
-    expect(auth.tokenUrl).toBe('https://api.close.com/oauth2/token/')
-    expect(auth.scopes).toEqual(['offline_access'])
-    expect(auth.clientIdEnv).toBe('CLOSE_OAUTH_CLIENT_ID')
-    expect(auth.clientSecretEnv).toBe('CLOSE_OAUTH_CLIENT_SECRET')
-  })
-
-  it('exposes the CRM action pack (leads, contacts, opportunities) split between reads and mutations', () => {
-    const names = closeConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual(
-      [
-        'leads.search',
-        'leads.get',
-        'leads.create',
-        'leads.update',
-        'contacts.create',
-        'opportunities.create',
-        'opportunities.update',
-      ].sort(),
-    )
-    const reads = closeConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name)
-    const mutations = closeConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name)
-    expect(reads.sort()).toEqual(['leads.get', 'leads.search'])
-    expect(mutations.sort()).toEqual([
-      'contacts.create',
-      'leads.create',
-      'leads.update',
-      'opportunities.create',
-      'opportunities.update',
-    ])
-  })
-
-  it('classifies itself as crm with authoritative consistency', () => {
-    expect(closeConnector.manifest.kind).toBe('close')
-    expect(closeConnector.manifest.category).toBe('crm')
-    expect(closeConnector.manifest.defaultConsistencyModel).toBe('authoritative')
-  })
-})
-
 describe('close adapter execution', () => {
   it('builds a leads.search URL against the Close API host with bearer auth and interpolated query', async () => {
     const fetchMock = vi.fn(
@@ -144,19 +100,5 @@ describe('close adapter execution', () => {
     expect(call[1]!.method).toBe('PUT')
     const body = JSON.parse(String(call[1]!.body)) as Record<string, unknown>
     expect(body).toMatchObject({ leadId: 'lead_42', status_id: 'stat_won' })
-  })
-
-  it('throws CredentialsExpired when Close rejects the token', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('expired', { status: 401 })),
-    )
-    const invocation: ConnectorInvocation = {
-      source,
-      capabilityName: 'leads.get',
-      args: { leadId: 'lead_42' },
-      idempotencyKey: 'idem_4',
-    }
-    await expect(closeConnector.executeRead!(invocation)).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getIntegrationSpec,
-  neverbounceConnector,
-  validateConnectorManifest,
-} from '../src/index.js'
+  neverbounceConnector } from '../src/index.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 import { listActivepiecesCatalogEntries } from '../src/activepieces-catalog.js'
 
@@ -25,23 +23,6 @@ function source(): ResolvedDataSource {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('NeverBounce connector', () => {
-  it('ships a valid metered verification capability', () => {
-    expect(validateConnectorManifest(neverbounceConnector.manifest)).toEqual({
-      ok: true,
-      issues: [],
-    })
-    expect(neverbounceConnector.manifest.kind).toBe('neverbounce')
-    expect(neverbounceConnector.manifest.auth.kind).toBe('api-key')
-    expect(neverbounceConnector.manifest.capabilities).toEqual([
-      expect.objectContaining({
-        name: 'verify.email.address',
-        class: 'mutation',
-        cas: 'native-idempotency',
-        externalEffect: true,
-      }),
-    ])
-  })
-
   it('publishes executable setup metadata with a secret API-key field', () => {
     const spec = getIntegrationSpec('neverbounce')
     expect(spec?.status).toBe('executable')

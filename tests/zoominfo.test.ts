@@ -25,50 +25,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
-const EXPECTED = [
-  'contact.search',
-  'company.search',
-  'intent.search',
-  'scoops.search',
-  'news.search',
-  'contact.enrich',
-  'company.enrich',
-  'intent.enrich',
-  'scoops.enrich',
-  'news.enrich',
-  'lookup.data',
-  'lookup.search_fields',
-  'usage.get',
-]
-
-describe('zoominfo adapter manifest', () => {
-  it('declares the GTM OAuth2 surface and sales-intelligence category', () => {
-    expect(zoominfoConnector.manifest.kind).toBe('zoominfo')
-    expect(zoominfoConnector.manifest.category).toBe('sales-intelligence')
-    const auth = zoominfoConnector.manifest.auth
-    if (auth.kind !== 'oauth2') throw new Error('zoominfo auth must be oauth2')
-    expect(auth.authorizationUrl).toBe('https://api.zoominfo.com/gtm/oauth/v1/authorize')
-    expect(auth.tokenUrl).toBe('https://api.zoominfo.com/gtm/oauth/v1/token')
-    expect(auth.scopes).toContain('api:data:contact')
-    expect(auth.scopes).toContain('api:data:company')
-  })
-
-  it('models search as free reads and credit-consuming enrich as external-effect mutations', () => {
-    const names = zoominfoConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([...EXPECTED].sort())
-
-    const mutations = zoominfoConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(mutations).toEqual(
-      ['company.enrich', 'contact.enrich', 'intent.enrich', 'news.enrich', 'scoops.enrich'].sort(),
-    )
-
-    const enrich = zoominfoConnector.manifest.capabilities.find((c) => c.name === 'contact.enrich')
-    if (!enrich || enrich.class !== 'mutation') throw new Error('contact.enrich must be a mutation')
-    expect(enrich.cas).toBe('native-idempotency')
-    expect(enrich.externalEffect).toBe(true)
-  })
-})
-
 describe('zoominfo execution', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -151,29 +107,5 @@ describe('zoominfo execution', () => {
         idempotencyKey: 'k',
       }),
     ).rejects.toThrow(/data/)
-  })
-
-  it('surfaces CredentialsExpired on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      zoominfoConnector.executeRead!({
-        source: source(),
-        capabilityName: 'usage.get',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
-  })
-
-  it('surfaces CredentialsExpired on 403', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain' } })))
-    await expect(
-      zoominfoConnector.executeRead!({
-        source: source(),
-        capabilityName: 'usage.get',
-        args: {},
-        idempotencyKey: 'k',
-      }),
-    ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })

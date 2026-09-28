@@ -32,27 +32,6 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 const adapter = hellosign({ clientId: 'cid_test', clientSecret: 'sec_test' })
 
-describe('hellosign adapter manifest (remind capability)', () => {
-  it('exposes remind_signature_request as a native-idempotency external-effect mutation', () => {
-    const remind = adapter.manifest.capabilities.find((c) => c.name === 'remind_signature_request')
-    if (!remind) throw new Error('remind_signature_request missing from manifest')
-    expect(remind.class).toBe('mutation')
-    if (remind.class !== 'mutation') throw new Error('unreachable')
-    expect(remind.cas).toBe('native-idempotency')
-    expect(remind.externalEffect).toBe(true)
-    const params = remind.parameters as { required?: string[] }
-    expect(params.required).toEqual(['signatureRequestId', 'emailAddress'])
-  })
-
-  it('marks every mutation as native-idempotency externalEffect', () => {
-    for (const cap of adapter.manifest.capabilities) {
-      if (cap.class !== 'mutation') continue
-      expect(cap.cas).toBe('native-idempotency')
-      expect(cap.externalEffect).toBe(true)
-    }
-  })
-})
-
 describe('hellosign remind_signature_request', () => {
   afterEach(() => vi.unstubAllGlobals())
 

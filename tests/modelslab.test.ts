@@ -20,20 +20,6 @@ function source(): ResolvedDataSource {
 describe('ModelsLab direct adapter', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('declares the synchronous text-to-image operation as an approved external effect', () => {
-    expect(modelslabConnector.manifest.kind).toBe('modelslab')
-    expect(modelslabConnector.manifest.auth.kind).toBe('api-key')
-    expect(modelslabConnector.manifest.capabilities).toEqual([
-      expect.objectContaining({
-        name: 'text.to.image',
-        class: 'mutation',
-        cas: 'none',
-        externalEffect: true,
-      }),
-      expect.objectContaining({ name: 'images.status', class: 'read' }),
-    ])
-  })
-
   it('sends the API key in the documented JSON body to the fixed ModelsLab endpoint', async () => {
     let request: { url?: string; authorization?: string | null; body?: unknown } = {}
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

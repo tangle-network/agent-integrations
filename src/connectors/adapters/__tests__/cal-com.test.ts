@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { calCom, calComConnector } from '../cal-com.js'
-import { validateConnectorManifest, type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
+import { type ConnectorInvocation, type ResolvedDataSource } from '../../types.js'
 
 const source: ResolvedDataSource = {
   id: 'source_cal_com',
@@ -20,11 +20,6 @@ afterEach(() => {
 })
 
 describe('cal-com adapter', () => {
-  it('ships a valid connector manifest', () => {
-    const result = validateConnectorManifest(calComConnector.manifest)
-    expect(result).toEqual({ ok: true, issues: [] })
-  })
-
   it('binds public-client refresh to the credential-aware factory', () => {
     const adapter = calCom({ clientId: 'cal_public_client' })
     expect(adapter.exchangeOAuth).toBeTypeOf('function')
@@ -84,52 +79,6 @@ describe('cal-com adapter', () => {
     expect(auth.scopes).toContain('BOOKING_READ')
     expect(auth.scopes).toContain('EVENT_TYPE_READ')
     expect(auth.scopes).toContain('EVENT_TYPE_WRITE')
-  })
-
-  it('exposes the booking + event-type + schedules surface and the right read/mutation split', () => {
-    expect(calComConnector.manifest.kind).toBe('cal-com')
-    expect(calComConnector.manifest.displayName).toBe('Cal.com')
-    expect(calComConnector.manifest.category).toBe('calendar')
-    const names = calComConnector.manifest.capabilities.map((c) => c.name).sort()
-    expect(names).toEqual([
-      'bookings.cancel',
-      'bookings.create',
-      'bookings.get',
-      'bookings.list',
-      'bookings.reschedule',
-      'event-types.create',
-      'event-types.delete',
-      'event-types.get',
-      'event-types.list',
-      'me.get',
-      'schedules.create',
-      'schedules.list',
-      'slots.list',
-    ])
-    const readers = calComConnector.manifest.capabilities.filter((c) => c.class === 'read').map((c) => c.name).sort()
-    const mutators = calComConnector.manifest.capabilities.filter((c) => c.class === 'mutation').map((c) => c.name).sort()
-    expect(readers).toEqual([
-      'bookings.get',
-      'bookings.list',
-      'event-types.get',
-      'event-types.list',
-      'me.get',
-      'schedules.list',
-      'slots.list',
-    ])
-    expect(mutators).toEqual([
-      'bookings.cancel',
-      'bookings.create',
-      'bookings.reschedule',
-      'event-types.create',
-      'event-types.delete',
-      'schedules.create',
-    ])
-  })
-
-  it('exposes both executeRead and executeMutation handlers', () => {
-    expect(typeof calComConnector.executeRead).toBe('function')
-    expect(typeof calComConnector.executeMutation).toBe('function')
   })
 
   it('lists bookings via GET /v2/bookings with bearer auth, the cal-api-version pin, and only set query params', async () => {
