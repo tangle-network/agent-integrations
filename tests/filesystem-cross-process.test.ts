@@ -138,9 +138,9 @@ describe('filesystem stores across processes', () => {
     workers.forEach((worker) => worker.send('go'))
 
     const claims = await Promise.all(results)
+    workers.forEach((worker) => worker.send('finish'))
     expect(claims.filter((result) => result.acquired)).toHaveLength(1)
     expect(claims.filter((result) => !result.acquired)).toHaveLength(15)
-    workers.forEach((worker) => worker.send('finish'))
     await Promise.all(workers.map(waitForExit))
   }, 20_000)
 
