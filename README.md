@@ -463,6 +463,8 @@ It does not install dependencies or publish a package.
 Verification requires the branch version to match the next package version.
 Only the package version and generated changelog entry may change in that PR.
 Existing changelog history must remain unchanged.
+The generated notes describe the `main` snapshot used by the preparation workflow.
+Before merging, compare the notes with the final release commits and update them if `main` advanced.
 Approve the generated PR's workflow runs if GitHub requests approval.
 Merge the release PR after its checks pass.
 

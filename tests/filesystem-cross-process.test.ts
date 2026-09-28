@@ -128,20 +128,34 @@ afterAll(async () => {
 describe('filesystem stores across processes', () => {
   it('allows one claim winner across separate Node processes', async () => {
     const root = resolve(await temporaryDirectory('claim-race'))
-    const workers = Array.from({ length: 16 }, () => startWorker(idempotencyWorker, {
-      STORE_ROOT: root,
-      CLAIM_KEY: 'cross-process-claim',
-      WORKER_MODE: 'claim',
-    }))
-    await Promise.all(workers.map((worker) => waitForMessage(worker, 'ready')))
-    const results = workers.map((worker) => waitForMessage<{ acquired: boolean }>(worker, 'claimed'))
-    workers.forEach((worker) => worker.send('go'))
-
-    const claims = await Promise.all(results)
-    workers.forEach((worker) => worker.send('finish'))
-    expect(claims.filter((result) => result.acquired)).toHaveLength(1)
-    expect(claims.filter((result) => !result.acquired)).toHaveLength(15)
-    await Promise.all(workers.map(waitForExit))
+    const workers: TestWorker[] = []
+    const ready: Promise<Record<string, never>>[] = []
+    let results: Promise<{ acquired: boolean }>[] = []
+    try {
+      for (let index = 0; index < 16; index++) {
+        const worker = startWorker(idempotencyWorker, {
+          STORE_ROOT: root,
+          CLAIM_KEY: 'cross-process-claim',
+          WORKER_MODE: 'claim',
+        })
+        workers.push(worker)
+        ready.push(waitForMessage(worker, 'ready'))
+      }
+      await Promise.all(ready)
+      results = workers.map((worker) => waitForMessage<{ acquired: boolean }>(worker, 'claimed'))
+      workers.forEach((worker) => worker.send('go'))
+      const claims = await Promise.all(results)
+      workers.forEach((worker) => worker.send('finish'))
+      await Promise.all(workers.map(waitForExit))
+      expect(claims.filter((result) => result.acquired)).toHaveLength(1)
+      expect(claims.filter((result) => !result.acquired)).toHaveLength(15)
+    } finally {
+      for (const worker of workers) {
+        if (worker.exitCode === null && worker.signalCode === null) worker.kill()
+      }
+      await Promise.allSettled([...ready, ...results])
+      await Promise.allSettled(workers.map(waitForExit))
+    }
   }, 20_000)
 
   // The lease is 10 heartbeats wide, so a single late heartbeat on a loaded
@@ -276,6 +290,9 @@ function waitForMessage<T extends object = Record<string, never>>(
   child: TestWorker,
   type: string,
 ): Promise<T> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.reject(new Error(`worker exited ${child.exitCode ?? child.signalCode}: ${child.stderrText}`))
+  }
   return new Promise((resolveMessage, rejectMessage) => {
     const onMessage = (message: unknown) => {
       if (!message || typeof message !== 'object' || (message as { type?: unknown }).type !== type) return
@@ -286,9 +303,9 @@ function waitForMessage<T extends object = Record<string, never>>(
       cleanup()
       rejectMessage(error)
     }
-    const onExit = (code: number | null) => {
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup()
-      rejectMessage(new Error(`worker exited ${code}: ${child.stderrText}`))
+      rejectMessage(new Error(`worker exited ${code ?? signal}: ${child.stderrText}`))
     }
     const cleanup = () => {
       child.off('message', onMessage)
@@ -302,12 +319,16 @@ function waitForMessage<T extends object = Record<string, never>>(
 }
 
 function waitForExit(child: TestWorker): Promise<void> {
-  if (child.exitCode !== null) return Promise.resolve()
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return child.exitCode === 0
+      ? Promise.resolve()
+      : Promise.reject(new Error(`worker exited ${child.exitCode ?? child.signalCode}: ${child.stderrText}`))
+  }
   return new Promise((resolveExit, rejectExit) => {
     child.once('error', rejectExit)
-    child.once('exit', (code) => {
+    child.once('exit', (code, signal) => {
       if (code === 0) resolveExit()
-      else rejectExit(new Error(`worker exited ${code}: ${child.stderrText}`))
+      else rejectExit(new Error(`worker exited ${code ?? signal}: ${child.stderrText}`))
     })
   })
 }
