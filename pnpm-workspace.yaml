@@ -1,7 +1,5 @@
-overrides:
-  esbuild: ^0.28.1
-  nanoid: ^3.3.18
-  vite: ^8.1.2
-
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@ph0ny/sdk@0.1.2'
+  - amqplib@2.1.0

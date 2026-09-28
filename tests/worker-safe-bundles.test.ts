@@ -29,7 +29,7 @@ const SUBPATHS = [
   },
 ] as const
 
-describe.sequential('packed Worker-safe package subpaths', () => {
+describe('packed Worker-safe package subpaths', () => {
   it('packs every public subpath and runs each as a browser Worker bundle', async () => {
     const root = join(tmpdir(), `agent-integrations-pack-${createHash('sha256').update(String(Date.now())).digest('hex').slice(0, 12)}`)
     const packageArchiveDirectory = join(root, 'archive')

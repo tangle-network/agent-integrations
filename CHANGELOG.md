@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.58.0
+
+### Changed
+
+Runtime dependencies are updated to their latest releases, including MongoDB driver 7.
+The package now requires Node.js 20.19.0 or newer, which MongoDB driver 7 requires.
+The package builds with tsdown and TypeScript 7 instead of tsup and TypeScript 5.
+Published entry points and export paths are unchanged.
+
 ## 0.57.0
 
 ### Changed
