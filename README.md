@@ -452,6 +452,25 @@ Packaging rebuilds the distribution and rejects stale bundled adapter metadata.
 The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
 `/catalog` for a browser Worker runtime.
 
+## Prepare a release
+
+Feature PRs must leave the package version and `CHANGELOG.md` unchanged.
+Feature checks compare against the common ancestor, so releases merged into `main` do not invalidate unchanged feature metadata.
+After features merge, run the **Prepare Release** workflow and choose a patch, minor, or major bump.
+The workflow uses Node and Git to open a `release/v<version>` PR from current `main`.
+It does not install dependencies or publish a package.
+
+Verification requires the branch version to match the next package version.
+Only the package version and generated changelog entry may change in that PR.
+Existing changelog history must remain unchanged.
+The generated notes describe the `main` snapshot used by the preparation workflow.
+Before merging, compare the notes with the final release commits and update them if `main` advanced.
+Approve the generated PR's workflow runs if GitHub requests approval.
+Merge the release PR after its checks pass.
+
+After publication approval, tag the merged commit with `v<version>` to start the existing **Publish** workflow.
+Confirm that the published archive installs and its intended consumer flow works before reporting availability.
+
 ## License
 
 MIT

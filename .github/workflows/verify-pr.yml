@@ -16,6 +16,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 0
+      - name: Keep release prep out of feature PRs
+        run: node scripts/check-feature-release-files.mjs
       - name: Retain exact source
         run: |
           mkdir -p verification
