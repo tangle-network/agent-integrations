@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.57.0
+
+### Changed
+
+The ph0ny connector routes authenticated reads and writes through `@ph0ny/sdk@0.1.2`.
+It keeps consent checks, argument validation, timeouts, and 401 reconnect mapping.
+Its factory accepts an operator-selected staging origin and ignores origins in capability arguments.
+
 ## 0.56.0
 
 ### Added
