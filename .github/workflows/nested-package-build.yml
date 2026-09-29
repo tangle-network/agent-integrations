@@ -1,0 +1,47 @@
+name: Nested package build
+on:
+  pull_request:
+    paths: ['tsdown.config.*', 'package.json', 'pnpm-lock.yaml', 'tsconfig.json', '.github/workflows/nested-package-build.yml']
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: node_modules/source-consumer
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.18.0'
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          package_json_file: node_modules/source-consumer/package.json
+      - name: Install and prepare from the same path class as a Git dependency
+        working-directory: node_modules/source-consumer
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/nested-proof"
+          git rev-parse HEAD > "$RUNNER_TEMP/nested-proof/head.txt"
+          pnpm install --frozen-lockfile > "$RUNNER_TEMP/nested-proof/install.log" 2>&1 || { tail -100 "$RUNNER_TEMP/nested-proof/install.log"; exit 1; }
+          pnpm exec tsc --noEmit > "$RUNNER_TEMP/nested-proof/types.log" 2>&1 || { tail -100 "$RUNNER_TEMP/nested-proof/types.log"; exit 1; }
+          pnpm build > "$RUNNER_TEMP/nested-proof/build.log" 2>&1 || { tail -100 "$RUNNER_TEMP/nested-proof/build.log"; exit 1; }
+          node --input-type=module - <<'JS'
+          import assert from 'node:assert/strict';
+          const oauth = await import('./dist/connectors/oauth.js');
+          const hub = await import('./dist/hub.js');
+          const sandbox = await import('./dist/sandbox.js');
+          assert.equal(typeof oauth.startOAuthFlow, 'function');
+          assert.equal(typeof oauth.exchangeAuthorizationCode, 'function');
+          assert.equal(typeof hub.IntegrationHub, 'function');
+          assert.equal(typeof sandbox.buildIntegrationInvocationEnvelope, 'function');
+          JS
+          git diff --exit-code -- package.json pnpm-lock.yaml
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: nested-package-build
+          path: ${{ runner.temp }}/nested-proof/
+          retention-days: 7
