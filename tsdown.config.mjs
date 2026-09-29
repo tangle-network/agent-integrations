@@ -1,6 +1,5 @@
-import { defineConfig } from 'tsdown'
-
-export default defineConfig({
+/** @type {import('tsdown').UserConfig} */
+const config = {
   entry: {
     index: 'src/index.ts',
     consumer: 'src/consumer.ts',
@@ -34,4 +33,6 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   target: 'es2022',
-})
+}
+
+export default config
