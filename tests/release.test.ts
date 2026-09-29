@@ -17,7 +17,7 @@ const FIXTURE_PATHS = [
   'scripts',
   'src',
   'tsconfig.json',
-  'tsdown.config.ts',
+  'tsdown.config.mjs',
 ]
 
 describe('release entry point', () => {
