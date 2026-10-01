@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.59.2
+
+- fix(connectors): use model-safe tool input names (#338)
+
 ## 0.59.1
 
 - chore(integrations): upgrade phony sdk to 0.1.3 (#334)
