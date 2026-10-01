@@ -165,12 +165,12 @@ export function microsoftCalendar(opts: MicrosoftCalendarOptions): ConnectorAdap
           type: 'object',
           properties: {
             calendarId: { type: 'string', description: "Calendar id; defaults to the user's primary calendar when omitted." },
-            $top: { type: 'integer', description: 'Max events to return (OData page size).' },
-            $skip: { type: 'integer', description: 'Number of events to skip (OData paging offset).' },
-            $filter: { type: 'string', description: 'OData $filter expression.' },
-            $select: { type: 'string', description: 'Comma-separated event fields to project.' },
-            $orderby: { type: 'string', description: 'OData $orderby expression.' },
-            $search: { type: 'string', description: 'OData $search query.' },
+            top: { type: 'integer', description: 'Max events to return (OData page size).' },
+            skip: { type: 'integer', description: 'Number of events to skip (OData paging offset).' },
+            filter: { type: 'string', description: 'OData $filter expression.' },
+            select: { type: 'string', description: 'Comma-separated event fields to project.' },
+            orderBy: { type: 'string', description: 'OData $orderby expression.' },
+            search: { type: 'string', description: 'OData $search query.' },
           },
         },
       },
@@ -191,20 +191,20 @@ export function microsoftCalendar(opts: MicrosoftCalendarOptions): ConnectorAdap
     if (inv.capabilityName === 'list_events') {
       const {
         calendarId,
-        $top,
-        $skip,
-        $filter,
-        $select,
-        $orderby,
-        $search,
+        top,
+        skip,
+        filter,
+        select,
+        orderBy,
+        search,
       } = inv.args as {
         calendarId?: string
-        $top?: number
-        $skip?: number
-        $filter?: string
-        $select?: string
-        $orderby?: string
-        $search?: string
+        top?: number
+        skip?: number
+        filter?: string
+        select?: string
+        orderBy?: string
+        search?: string
       }
       // /me/calendars/{calendarId}/events when a calendar is pinned, else the
       // primary-calendar shorthand /me/events. Mirrors the duplicate's
@@ -213,12 +213,12 @@ export function microsoftCalendar(opts: MicrosoftCalendarOptions): ConnectorAdap
         ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events`
         : 'https://graph.microsoft.com/v1.0/me/events'
       const qs = new URLSearchParams()
-      if ($top !== undefined) qs.set('$top', String($top))
-      if ($skip !== undefined) qs.set('$skip', String($skip))
-      if ($filter) qs.set('$filter', $filter)
-      if ($select) qs.set('$select', $select)
-      if ($orderby) qs.set('$orderby', $orderby)
-      if ($search) qs.set('$search', $search)
+      if (top !== undefined) qs.set('$top', String(top))
+      if (skip !== undefined) qs.set('$skip', String(skip))
+      if (filter) qs.set('$filter', filter)
+      if (select) qs.set('$select', select)
+      if (orderBy) qs.set('$orderby', orderBy)
+      if (search) qs.set('$search', search)
       const query = qs.toString()
       const url = query ? `${base}?${query}` : base
       const res = await fetch(url, {

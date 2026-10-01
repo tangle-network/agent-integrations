@@ -62,15 +62,15 @@ export const microsoftOnenoteConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
-          $top: { type: 'integer' },
-          $filter: { type: 'string' },
-          $select: { type: 'string' },
+          top: { type: 'integer' },
+          filter: { type: 'string' },
+          select: { type: 'string' },
         },
       },
       request: {
         method: 'GET',
         path: '/me/onenote/notebooks',
-        query: { $top: '{$top}', $filter: '{$filter}', $select: '{$select}' },
+        query: { $top: '{top}', $filter: '{filter}', $select: '{select}' },
       },
     },
     {
@@ -82,15 +82,15 @@ export const microsoftOnenoteConnector = declarativeRestConnector({
         type: 'object',
         properties: {
           notebookId: { type: 'string' },
-          $top: { type: 'integer' },
-          $filter: { type: 'string' },
+          top: { type: 'integer' },
+          filter: { type: 'string' },
         },
         required: ['notebookId'],
       },
       request: {
         method: 'GET',
         path: '/me/onenote/notebooks/{notebookId}/sections',
-        query: { $top: '{$top}', $filter: '{$filter}' },
+        query: { $top: '{top}', $filter: '{filter}' },
       },
     },
     {
@@ -102,16 +102,16 @@ export const microsoftOnenoteConnector = declarativeRestConnector({
         type: 'object',
         properties: {
           sectionId: { type: 'string' },
-          $top: { type: 'integer' },
-          $filter: { type: 'string' },
-          $search: { type: 'string' },
+          top: { type: 'integer' },
+          filter: { type: 'string' },
+          search: { type: 'string' },
         },
         required: ['sectionId'],
       },
       request: {
         method: 'GET',
         path: '/me/onenote/sections/{sectionId}/pages',
-        query: { $top: '{$top}', $filter: '{$filter}', $search: '{$search}' },
+        query: { $top: '{top}', $filter: '{filter}', $search: '{search}' },
       },
     },
     {

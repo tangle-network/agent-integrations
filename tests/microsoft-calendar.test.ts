@@ -93,6 +93,37 @@ describe('microsoft-calendar adapter', () => {
     expect(data.nextLink).toBeUndefined()
   })
 
+  it('list_events maps model-safe fields to Graph OData query keys', async () => {
+    let calledUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calledUrl = String(input)
+      return jsonResponse({ value: [] })
+    }))
+
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'list_events',
+      args: {
+        top: 0,
+        skip: 2,
+        filter: "subject eq 'Standup'",
+        select: 'id,subject',
+        orderBy: 'start/dateTime desc',
+        search: 'planning',
+      },
+      idempotencyKey: 'k1',
+    })
+    const query = new URL(calledUrl).searchParams
+    expect(Object.fromEntries(query)).toEqual({
+      $top: '0',
+      $skip: '2',
+      $filter: "subject eq 'Standup'",
+      $select: 'id,subject',
+      $orderby: 'start/dateTime desc',
+      $search: 'planning',
+    })
+  })
+
   it('list_events url-encodes the calendarId segment', async () => {
     let calledUrl = ''
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
