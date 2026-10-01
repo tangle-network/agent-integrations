@@ -48,22 +48,22 @@ export const azureAdConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
-          $filter: { type: 'string' },
-          $select: { type: 'string' },
-          $top: { type: 'integer' },
-          $search: { type: 'string' },
-          $orderby: { type: 'string' },
+          filter: { type: 'string' },
+          select: { type: 'string' },
+          top: { type: 'integer' },
+          search: { type: 'string' },
+          orderBy: { type: 'string' },
         },
       },
       request: {
         method: 'GET',
         path: '/users',
         query: {
-          $filter: '{$filter}',
-          $select: '{$select}',
-          $top: '{$top}',
-          $search: '{$search}',
-          $orderby: '{$orderby}',
+          $filter: '{filter}',
+          $select: '{select}',
+          $top: '{top}',
+          $search: '{search}',
+          $orderby: '{orderBy}',
         },
       },
       requiredScopes: ['User.ReadWrite.All'],
@@ -75,8 +75,8 @@ export const azureAdConnector = declarativeRestConnector({
       parameters: {
         type: 'object',
         properties: {
-          $select: { type: 'string' },
-          $top: { type: 'integer' },
+          select: { type: 'string' },
+          top: { type: 'integer' },
         },
       },
       request: {
@@ -84,8 +84,8 @@ export const azureAdConnector = declarativeRestConnector({
         path: '/users',
         query: {
           $filter: 'accountEnabled eq true',
-          $select: '{$select}',
-          $top: '{$top}',
+          $select: '{select}',
+          $top: '{top}',
         },
       },
       requiredScopes: ['User.ReadWrite.All'],
@@ -287,15 +287,15 @@ export const azureAdConnector = declarativeRestConnector({
         type: 'object',
         properties: {
           id: { type: 'string' },
-          $select: { type: 'string' },
-          $top: { type: 'integer' },
+          select: { type: 'string' },
+          top: { type: 'integer' },
         },
         required: ['id'],
       },
       request: {
         method: 'GET',
         path: '/groups/{id}/members',
-        query: { $select: '{$select}', $top: '{$top}' },
+        query: { $select: '{select}', $top: '{top}' },
       },
       requiredScopes: ['GroupMember.ReadWrite.All', 'Group.ReadWrite.All'],
     },

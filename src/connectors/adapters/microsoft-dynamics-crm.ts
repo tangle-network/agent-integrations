@@ -60,15 +60,15 @@ export const microsoftDynamicsCrmConnector = declarativeRestConnector({
         properties: {
           entitySet: { type: 'string' },
           recordId: { type: 'string' },
-          $select: { type: 'string' },
-          $expand: { type: 'string' },
+          select: { type: 'string' },
+          expand: { type: 'string' },
         },
         required: ['entitySet', 'recordId'],
       },
       request: {
         method: 'GET',
         path: '/api/data/v9.2/{entitySet}({recordId})',
-        query: { $select: '{$select}', $expand: '{$expand}' },
+        query: { $select: '{select}', $expand: '{expand}' },
       },
     },
     {
