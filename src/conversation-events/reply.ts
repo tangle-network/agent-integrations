@@ -8,11 +8,30 @@ export interface ConversationReply {
   idempotencyKey: string
 }
 
+export interface ConversationMediaReplyDescriptor {
+  /** HTTPS location of one authorized media asset, using a DNS host rather than a direct IP. */
+  url: string
+}
+
 type Failure = Exclude<ConversationEventNormalizationResult, { ok: true }>
 function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
+const validOperationId = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= 255 && /^[\x21-\x7e]+$/.test(value)
+function validMediaUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || !value || value.length > 2048 || /[\u0000-\u0020\u007f]/.test(value)) return false
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase()
+    return url.protocol === 'https:' && host.includes('.') && !host.endsWith('.local')
+      && !host.endsWith('.localhost') && !host.startsWith('[') && !/^\d+(?:\.\d+){3}$/.test(host)
+      && !url.username && !url.password && !url.hash
+  } catch {
+    return false
+  }
+}
 // Optional threading forwards only dot-atom IDs with DNS-style domains; other valid legacy forms are omitted.
 const messageIdDotAtom = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/
 const messageIdDomainLabel = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/
@@ -39,7 +58,7 @@ export function buildMessagingReply(
   if (!normalized.ok) return normalized
   const event = normalized.event
   if (typeof text !== 'string' || !text.trim() || text.length > 10000 || text.includes('\0')) return fail('Reply text is empty or exceeds its limit')
-  if (typeof operationId !== 'string' || !operationId || operationId.length > 255 || !/^[\x21-\x7e]+$/.test(operationId)) return fail('A stable operation id is required')
+  if (!validOperationId(operationId)) return fail('A stable operation id is required')
   if (event.historyOnly || event.isGroup) return fail('This event requires review or complete input before a reply')
   const data = object(object(input.payload).data)
   if (event.provider === 'inkbox') {
@@ -102,4 +121,37 @@ export function buildMessagingReply(
       input: { from: event.destinations[0].address, to: event.sender.address, body: text } } }
   }
   return { ok: false, code: 'unsupported_provider', message: 'Use the existing channel-specific reply tool for this provider' }
+}
+
+/**
+ * Plan one Linq media reply from a previously authenticated, stored inbound event.
+ * The caller must authorize the media asset, bind the existing connection and grant,
+ * and retain the same outbox key and body before every Hub invocation or retry.
+ */
+export function buildMessagingMediaReply(
+  input: ProviderConversationEvent,
+  media: ConversationMediaReplyDescriptor,
+  operationId: string,
+): { ok: true; reply: ConversationReply } | Failure {
+  const normalized = normalizeConversationEvent(input)
+  if (!normalized.ok) return normalized
+  const event = normalized.event
+  if (event.provider !== 'linq') {
+    return { ok: false, code: 'unsupported_provider', message: 'Media replies require a Linq inbound event' }
+  }
+  if (event.eventType !== 'linq.message.received' || event.historyOnly || event.isGroup
+    || !event.conversationId || event.conversationId.length > 256) {
+    return fail('Media reply requires a current one-to-one Linq conversation')
+  }
+  if (!validOperationId(operationId)) return fail('A stable operation id is required')
+  const descriptor = object(media)
+  const url = descriptor.url
+  if (Object.keys(descriptor).length !== 1 || !validMediaUrl(url)) {
+    return fail('Media reply requires one HTTPS URL with a DNS host and no credentials or fragment')
+  }
+  return { ok: true, reply: {
+    idempotencyKey: operationId,
+    action: 'linq.messages.media.reply',
+    input: { chat_id: event.conversationId, url, message_key: operationId },
+  } }
 }
