@@ -20,14 +20,19 @@ function object(value: unknown): Record<string, unknown> {
 const fail = (message: string): Failure => ({ ok: false, code: 'invalid_payload', message })
 const validOperationId = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= 255 && /^[\x21-\x7e]+$/.test(value)
+function validMediaHost(host: string): boolean {
+  if (host.length > 253 || host.endsWith('.local') || host.endsWith('.localhost')
+    || host.startsWith('[') || /^\d+(?:\.\d+){3}$/.test(host)) return false
+  const labels = host.split('.')
+  return labels.length >= 2 && labels.every((label) => label.length <= 63
+    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))
+}
 function validMediaUrl(value: unknown): value is string {
-  if (typeof value !== 'string' || !value || value.length > 2048 || /[\u0000-\u0020\u007f]/.test(value)) return false
+  if (typeof value !== 'string' || !value.startsWith('https://') || value.length > 2048
+    || /[\u0000-\u0020\u007f]/.test(value)) return false
   try {
     const url = new URL(value)
-    const host = url.hostname.toLowerCase()
-    return url.protocol === 'https:' && host.includes('.') && !host.endsWith('.local')
-      && !host.endsWith('.localhost') && !host.startsWith('[') && !/^\d+(?:\.\d+){3}$/.test(host)
-      && !url.username && !url.password && !url.hash
+    return validMediaHost(url.hostname.toLowerCase()) && !url.username && !url.password && !url.hash
   } catch {
     return false
   }

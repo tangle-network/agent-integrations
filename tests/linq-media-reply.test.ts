@@ -57,7 +57,11 @@ it('rejects unsafe media descriptors and unstable operation keys', () => {
   for (const url of [
     'http://assets.example.com/image.png', 'https://user:pass@assets.example.com/image.png',
     'https://assets.example.com/image.png#fragment', 'https://assets.example.com/image.png\n',
-    'https://', 'https://localhost/image.png', 'https://private.local/image.png',
+    'https://', 'HTTPS://assets.example.com/image.png',
+    'https://localhost/image.png', 'https://localhost./image.png',
+    'https://private.local/image.png', 'https://private.local./image.png',
+    'https://foo..bar/image.png', 'https://-bad.example.com/image.png',
+    'https://bad-.example.com/image.png', 'https://bad_label.example.com/image.png',
     'https://127.0.0.1/image.png', 'https://[::1]/image.png',
     `https://assets.example.com/${'a'.repeat(2048)}`,
   ]) {
