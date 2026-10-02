@@ -145,12 +145,13 @@ export function buildMessagingMediaReply(
   }
   if (!validOperationId(operationId)) return fail('A stable operation id is required')
   const descriptor = object(media)
-  if (Object.keys(descriptor).length !== 1 || !validMediaUrl(descriptor.url)) {
+  const url = descriptor.url
+  if (Object.keys(descriptor).length !== 1 || !validMediaUrl(url)) {
     return fail('Media reply requires one HTTPS URL with a DNS host and no credentials or fragment')
   }
   return { ok: true, reply: {
     idempotencyKey: operationId,
     action: 'linq.messages.media.reply',
-    input: { chat_id: event.conversationId, url: descriptor.url, message_key: operationId },
+    input: { chat_id: event.conversationId, url, message_key: operationId },
   } }
 }

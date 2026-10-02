@@ -65,6 +65,12 @@ it('rejects unsafe media descriptors and unstable operation keys', () => {
   }
   const modelSelectedChat = { ...media, chat_id: 'model-selected-chat' }
   expect(buildMessagingMediaReply(event(), modelSelectedChat, 'op').ok).toBe(false)
+  let reads = 0
+  const changingUrl = { get url() { return reads++ === 0 ? media.url : 'http://unsafe.example.com/image.png' } }
+  expect(buildMessagingMediaReply(event(), changingUrl, 'op')).toMatchObject({
+    ok: true, reply: { input: { url: media.url } },
+  })
+  expect(reads).toBe(1)
   for (const key of ['', 'unstable\nkey', 'x'.repeat(256)]) {
     expect(buildMessagingMediaReply(event(), media, key).ok).toBe(false)
   }
