@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.59.3
+
+- fix(conversation-events): reject malformed Linq media hosts
+- fix(conversation-events): snapshot validated media URL once
+- feat(conversation-events): plan authenticated Linq media replies
+
 ## 0.59.2
 
 - fix(connectors): use model-safe tool input names (#338)
