@@ -8,7 +8,7 @@ import { normalizeMobileConversation } from './mobile.js'
 import { normalizeResendConversation } from './resend.js'
 
 export * from './core.js'
-export { buildMessagingReply, type ConversationReply } from './reply.js'
+export { buildMessagingReply, buildMessagingMediaReply, type ConversationReply, type ConversationMediaReplyDescriptor } from './reply.js'
 export { listConversationChannels, conversationEndpointOptions, type ConversationChannel, type ConversationEndpointOption } from './channels.js'
 export { conversationPresenceCapabilities, buildConversationReaction, buildConversationTyping, buildConversationReadReceipt,
   type ConversationReaction, type ConversationPresenceCapabilities, type ConversationPresenceAction } from './presence.js'
