@@ -206,6 +206,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           properties: {
             id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
             name: { type: 'string', description: 'Display name (1–100 chars).' },
+            agentKind: {
+              type: 'string',
+              enum: ['inbound', 'personal_assistant', 'outbound'],
+              description: 'Agent runtime kind. Use personal_assistant for outbound calls; omitted defaults to inbound.',
+            },
             description: { type: 'string', description: 'Optional description (≤1000 chars).' },
             systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
             firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
@@ -245,6 +250,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           properties: {
             id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
             name: { type: 'string', description: 'Display name (1–100 chars).' },
+            agentKind: {
+              type: 'string',
+              enum: ['inbound', 'personal_assistant', 'outbound'],
+              description: 'Agent runtime kind. Use personal_assistant for outbound calls; omitted defaults to inbound.',
+            },
             description: { type: 'string', description: 'Optional description (≤1000 chars).' },
             systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
             firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
@@ -681,6 +691,7 @@ function pick(args: Record<string, unknown>, fields: readonly string[]): Record<
 const AGENT_FIELDS = [
   'id',
   'name',
+  'agentKind',
   'description',
   'systemPrompt',
   'firstMessage',
