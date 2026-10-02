@@ -351,6 +351,33 @@ function captureFetch(response: Response): Captured {
 
 const BEARER = 'Bearer plabs_V1StGXR8Z5jdHi6BmyTAbCdEfGhIjKlm'
 
+describe('phony outbound agent provisioning', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([
+    ['create_agent', '/v1/agents'],
+    ['provision_agent', '/v1/agents/provision'],
+  ])('advertises and forwards the outbound-ready kind through %s', async (capabilityName, route) => {
+    const capability = phonyConnector.manifest.capabilities.find(capability => capability.name === capabilityName)
+    expect(capability?.parameters).toMatchObject({
+      properties: {
+        agentKind: { type: 'string', enum: ['inbound', 'personal_assistant', 'outbound'] },
+      },
+    })
+    expect(capability?.parameters.required).not.toContain('agentKind')
+    const captured = captureFetch(jsonResponse({ agent: { id: 'agent_voice', agentKind: 'personal_assistant' } }, { status: 201 }))
+    await phonyConnector.executeMutation!({
+      source: source(),
+      capabilityName,
+      args: { name: 'Router voice', agentKind: 'personal_assistant' },
+      idempotencyKey: `voice-kind-${capabilityName}`,
+    })
+    expect(captured.method).toBe('POST')
+    expect(captured.url).toBe(`https://api.ph0ny.com${route}`)
+    expect(captured.body).toEqual({ name: 'Router voice', agentKind: 'personal_assistant' })
+  })
+})
+
 describe('phony create_agent', () => {
   afterEach(() => vi.unstubAllGlobals())
 
