@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.60.1
+
+- feat(integrations): read scoped GTM campaign outcomes
+
 ## 0.60.0
 
 - feat(integrations): add bounded Google Ads campaigns
