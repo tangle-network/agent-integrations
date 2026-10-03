@@ -156,6 +156,7 @@ import {
   type GoogleCalendarOptions,
 } from './google-calendar.js'
 import { googleAnalyticsConnector } from './google-analytics.js'
+import { googleAdsConnector } from './google-ads.js'
 import { googleCloudStorageConnector } from './google-cloud-storage.js'
 import { googlePubSubConnector } from './google-pubsub.js'
 import { googleContactsConnector } from './google-contacts.js'
@@ -422,6 +423,7 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => googlechatConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleAnalyticsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => googleAdsConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleMeetConnector, googleOAuthEnvMap),
     // Business Profile uses the existing Google OAuth app. Keeping the
     // credentials as one pair prevents a partial dedicated configuration from

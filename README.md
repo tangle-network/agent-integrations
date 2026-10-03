@@ -371,6 +371,7 @@ The package deliberately avoids vendor lock-in.
 - Treat catalog coverage and executable coverage as different states.
 
 See [Provider Decision Matrix](./docs/provider-decision-matrix.md).
+See [Google Ads](./docs/google-ads.md) for total-budget campaigns, account setup, and reporting.
 See [Integration Execution Audit](./docs/integration-execution-audit.md) for
 the exact current split between catalog, setup, first-party execution, and
 package-runtime execution.
