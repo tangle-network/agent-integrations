@@ -66,6 +66,7 @@ export { netsuiteConnector } from './netsuite.js'
 export { sageIntacctConnector } from './sage-intacct.js'
 export { webhookConnector } from './webhook.js'
 export { httpConnector } from './http.js'
+export { gtmAgentConnector } from './gtm-agent.js'
 export { rssConnector } from './rss.js'
 export {
   createKafkaConnector,
