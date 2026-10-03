@@ -166,6 +166,7 @@ const COVERAGE_SPECS: SpecTuple[] = [
   ['x-twitter', 'X / Twitter', 'workflow', 'marketing', 'tier_1', 'social,marketing'],
   ['youtube', 'YouTube', 'storage', 'storage', 'tier_1', 'video,content'],
   ['tiktok', 'TikTok', 'workflow', 'marketing', 'tier_2', 'social,video,marketing'],
+  ['google-ads', 'Google Ads', 'workflow', 'marketing', 'tier_0', 'ads,google,marketing,paid-search'],
   ['google-analytics', 'Google Analytics', 'database', 'analytics', 'tier_0', 'analytics,web,marketing'],
   ['mixpanel', 'Mixpanel', 'database', 'analytics', 'tier_1', 'analytics,product'],
   ['amplitude', 'Amplitude', 'database', 'analytics', 'tier_1', 'analytics,product', 'api_key'],
