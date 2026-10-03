@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.60.0
+
+- feat(integrations): add bounded Google Ads campaigns
+
 ## 0.59.3
 
 - fix(conversation-events): reject malformed Linq media hosts
