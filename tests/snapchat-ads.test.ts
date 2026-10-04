@@ -6,6 +6,7 @@ const objectId = '12345678-1234-1234-1234-123456789abc'
 const source: ResolvedDataSource = { id: 'snap', projectId: 'project', publishedAgentId: null, kind: 'snapchat-ads', label: 'Ads', consistencyModel: 'cache',
   scopes: ['snapchat-marketing-api'], metadata: {}, credentials: { kind: 'oauth2', accessToken: 'private-token' }, status: 'active' }
 const invocation = (capabilityName: string, args: Record<string, unknown> = {}): ConnectorInvocation => ({ source, capabilityName, args, idempotencyKey: 'one-request' })
+const receipt = (resource: string) => ({ request_status: 'SUCCESS', [resource]: [{ sub_request_status: 'SUCCESS', [resource === 'media' ? 'media' : resource.slice(0, -1)]: { id: objectId } }] })
 function transport(data: unknown = { request_status: 'SUCCESS', campaigns: [{ sub_request_status: 'SUCCESS', campaign: { id: objectId } }] }, status = 200) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify(data), { status }))
 }
@@ -27,6 +28,7 @@ describe('Snapchat Ads provider wire contract', () => {
     const flight = { startTime: '2026-10-05T00:00:00Z', endTime: '2026-10-07T00:00:00Z' }
     await snapchatAdsConnector.executeMutation!(invocation('campaigns.createTraffic', { accountId: objectId, name: 'Trial', lifetimeSpendCapMicro: 100000000, ...flight, status: 'ACTIVE' }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).campaigns[0]).toMatchObject({ status: 'PAUSED', lifetime_spend_cap_micro: 100000000, objective_v2_properties: { objective_v2_type: 'TRAFFIC' } })
+    fetch.mockResolvedValue(new Response(JSON.stringify(receipt('adsquads'))))
     await snapchatAdsConnector.executeMutation!(invocation('adsquads.createTraffic', { campaignId: objectId, name: 'Audience', lifetimeBudgetMicro: 100000000, bidMicro: 1000000, ...flight, countries: ['us'] }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).adsquads[0]).toMatchObject({ status: 'PAUSED', lifetime_budget_micro: 100000000, delivery_constraint: 'LIFETIME_BUDGET', targeting: { geos: [{ country_code: 'us' }] } })
   })
@@ -37,19 +39,24 @@ describe('Snapchat Ads provider wire contract', () => {
     expect(fetch.mock.lastCall![1]?.method).toBe('PATCH')
     expect(fetch.mock.lastCall![1]?.headers).toMatchObject({ 'content-type': 'application/json-patch+json' })
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual([{ op: 'replace', path: '/status', value: 'ACTIVE' }])
+    fetch.mockResolvedValue(new Response(JSON.stringify(receipt('ads'))))
     await snapchatAdsConnector.executeMutation!(invocation('ads.pause', { adSquadId: objectId, objectId }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual([{ op: 'replace', path: '/status', value: 'PAUSED' }])
   })
 
   it('uploads bounded bytes as multipart and links website creative to the correct ad type', async () => {
-    const fetch = transport({ request_status: 'SUCCESS', media: [{ sub_request_status: 'SUCCESS', media: { id: objectId } }] })
+    const fetch = transport(receipt('media'))
+    expect((await snapchatAdsConnector.executeMutation!(invocation('media.create', { accountId: objectId, name: 'Offer', type: 'IMAGE' }))).status).toBe('committed')
+    fetch.mockResolvedValue(new Response(JSON.stringify({ request_status: 'success', result: { id: objectId, media_status: 'READY' } })))
     await snapchatAdsConnector.executeMutation!(invocation('media.upload', { mediaId: objectId, fileBase64: 'YWJj', filename: 'offer.png', mimeType: 'image/png' }))
     expect(fetch.mock.lastCall![1]?.body).toBeInstanceOf(FormData)
     const file = (fetch.mock.lastCall![1]?.body as FormData).get('file') as File
     expect(await file.text()).toBe('abc')
     expect(fetch.mock.lastCall![1]?.headers).not.toHaveProperty('content-type')
+    fetch.mockResolvedValue(new Response(JSON.stringify(receipt('creatives'))))
     await snapchatAdsConnector.executeMutation!(invocation('creatives.createWebsite', { accountId: objectId, name: 'Offer', mediaId: objectId, profileId: objectId, headline: 'Run your pipeline', url: 'https://example.com/?utm_source=snapchat', callToAction: 'SIGN_UP' }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).creatives[0]).toMatchObject({ type: 'WEB_VIEW', profile_properties: { profile_id: objectId }, web_view_properties: { url: 'https://example.com/?utm_source=snapchat' } })
+    fetch.mockResolvedValue(new Response(JSON.stringify(receipt('ads'))))
     await snapchatAdsConnector.executeMutation!(invocation('ads.create', { adSquadId: objectId, creativeId: objectId, name: 'Ad' }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).ads[0]).toMatchObject({ status: 'PAUSED', type: 'REMOTE_WEBPAGE' })
   })
@@ -71,5 +78,34 @@ describe('Snapchat Ads provider wire contract', () => {
     expect(fetch).not.toHaveBeenCalled()
     fetch.mockResolvedValueOnce(new Response('{}', { status: 429 }))
     expect(await snapchatAdsConnector.executeMutation!(invocation('campaigns.pause', { accountId: objectId, objectId }))).toMatchObject({ status: 'rate-limited' })
+  })
+
+  it('requires the expected successful sub-request and entity identity for creates and status writes', async () => {
+    const fetch = transport()
+    const flight = { startTime: '2026-10-05T00:00:00Z', endTime: '2026-10-07T00:00:00Z' }
+    const mutations: [string, Record<string, unknown>][] = [
+      ['campaigns.createTraffic', { accountId: objectId, name: 'Trial', lifetimeSpendCapMicro: 100000000, ...flight }],
+      ['adsquads.createTraffic', { campaignId: objectId, name: 'Audience', lifetimeBudgetMicro: 100000000, bidMicro: 1000000, ...flight, countries: ['us'] }],
+      ['media.create', { accountId: objectId, name: 'Offer', type: 'IMAGE' }],
+      ['creatives.createWebsite', { accountId: objectId, name: 'Offer', mediaId: objectId, profileId: objectId, headline: 'Offer', url: 'https://example.com', callToAction: 'SIGN_UP' }],
+      ['ads.create', { adSquadId: objectId, creativeId: objectId, name: 'Ad' }],
+      ['campaigns.pause', { accountId: objectId, objectId }],
+    ]
+    for (const [capability, args] of mutations) {
+      const resource = capability.split('.')[0]!
+      const entity = resource === 'media' ? 'media' : resource.slice(0, -1)
+      for (const body of [{}, { [resource]: [] }, { [resource]: [{ [entity]: { id: objectId } }] }, { [resource]: [{ sub_request_status: 'SUCCESS', [entity]: {} }] }]) {
+        fetch.mockResolvedValue(new Response(JSON.stringify({ request_status: 'SUCCESS', ...body })))
+        await expect(snapchatAdsConnector.executeMutation!(invocation(capability, args))).rejects.toThrow('reconcile provider state')
+      }
+    }
+  })
+
+  it('requires result.id from the native upload response', async () => {
+    const fetch = transport()
+    for (const body of [{}, { result: {} }, { result: { id: '' } }, { media: [] }]) {
+      fetch.mockResolvedValue(new Response(JSON.stringify({ request_status: 'SUCCESS', ...body })))
+      await expect(snapchatAdsConnector.executeMutation!(invocation('media.upload', { mediaId: objectId, fileBase64: 'YWJj', filename: 'offer.png', mimeType: 'image/png' }))).rejects.toThrow('missing native entity ID')
+    }
   })
 })

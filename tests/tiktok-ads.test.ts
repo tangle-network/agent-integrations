@@ -27,6 +27,7 @@ describe('TikTok Ads provider wire contract', () => {
     const fetch = transport()
     await tiktokAdsConnector.executeMutation!(invocation('campaigns.createTraffic', { advertiserId: '123', name: 'Trial', totalBudget: 100, operation_status: 'ENABLE', budget_mode: 'BUDGET_MODE_INFINITE' }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ advertiser_id: '123', campaign_name: 'Trial', objective_type: 'TRAFFIC', budget_mode: 'BUDGET_MODE_TOTAL', budget: 100, operation_status: 'DISABLE', budget_optimize_on: false })
+    fetch.mockResolvedValue(new Response('{"code":0,"data":{"adgroup_id":"43"}}'))
     await tiktokAdsConnector.executeMutation!(invocation('adgroups.createTraffic', { advertiserId: '123', campaignId: '42', name: 'Audience', totalBudget: 100, startTime: '2026-10-05 00:00:00', endTime: '2026-10-06 00:00:00', locationIds: ['6252001'], bidPrice: 1 }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toMatchObject({ operation_status: 'DISABLE', budget_mode: 'BUDGET_MODE_TOTAL', schedule_type: 'SCHEDULE_START_END', placements: ['PLACEMENT_TIKTOK'], location_ids: ['6252001'], bid_type: 'BID_TYPE_CUSTOM' })
   })
@@ -39,6 +40,7 @@ describe('TikTok Ads provider wire contract', () => {
     expect(form).toBeInstanceOf(FormData)
     expect((form as FormData).get('upload_type')).toBe('UPLOAD_BY_URL')
     expect((form as FormData).get('video_url')).toBe('https://example.com/offer.mp4')
+    fetch.mockResolvedValue(new Response('{"code":0,"data":{"ad_ids":["44"]}}'))
     await tiktokAdsConnector.executeMutation!(invocation('ads.createVideo', { advertiserId: '123', adgroupId: '43', name: 'Ad', adText: 'Meet your operator', videoId: 'asset', identityId: 'identity', identityType: 'TT_USER', landingPageUrl: 'https://example.com/?utm_source=tiktok', callToAction: 'SIGN_UP' }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).creatives[0]).toMatchObject({ operation_status: 'DISABLE', ad_format: 'SINGLE_VIDEO', video_id: 'asset', landing_page_url: 'https://example.com/?utm_source=tiktok' })
   })
@@ -52,6 +54,7 @@ describe('TikTok Ads provider wire contract', () => {
     url = new URL(String(fetch.mock.lastCall![0]))
     expect(JSON.parse(url.searchParams.get('dimensions')!)).toEqual(['campaign_id'])
     expect(JSON.parse(url.searchParams.get('metrics')!)).toEqual(['spend', 'conversion'])
+    fetch.mockResolvedValue(new Response('{"code":0,"data":{}}'))
     await tiktokAdsConnector.executeMutation!(invocation('campaigns.pause', { advertiserId: '123', objectId: '42', totalBudget: 9999 }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ advertiser_id: '123', campaign_ids: ['42'], operation_status: 'DISABLE' })
   })
@@ -73,5 +76,28 @@ describe('TikTok Ads provider wire contract', () => {
     await expect(tiktokAdsConnector.executeMutation!(invocation('campaigns.createTraffic', { totalBudget: Infinity }))).rejects.toThrow('positive and finite')
     await expect(tiktokAdsConnector.executeMutation!(invocation('videos.uploadFromUrl', { advertiserId: '123', filename: 'x', videoUrl: 'file:///private' }))).rejects.toThrow('HTTPS URL')
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('requires the capability-specific created identity instead of accepting an empty or unrelated receipt', async () => {
+    const fetch = transport({ code: 0, data: {} })
+    const creates: [string, Record<string, unknown>][] = [
+      ['campaigns.createTraffic', { advertiserId: '123', name: 'Trial', totalBudget: 100 }],
+      ['adgroups.createTraffic', { advertiserId: '123', campaignId: '42', name: 'Audience', totalBudget: 100, startTime: '2026-10-05 00:00:00', endTime: '2026-10-06 00:00:00', locationIds: ['6252001'], bidPrice: 1 }],
+      ['ads.createVideo', { advertiserId: '123', adgroupId: '43', name: 'Ad', adText: 'Meet your operator', videoId: 'asset', identityId: 'identity', identityType: 'TT_USER', landingPageUrl: 'https://example.com', callToAction: 'SIGN_UP' }],
+    ]
+    for (const [capability, args] of creates) {
+      for (const data of [{}, { id: 'unrelated' }, { campaign_id: '', adgroup_id: null, ad_ids: [] }]) {
+        fetch.mockResolvedValue(new Response(JSON.stringify({ code: 0, data })))
+        await expect(tiktokAdsConnector.executeMutation!(invocation(capability, args))).rejects.toThrow('missing native entity ID')
+      }
+    }
+  })
+
+  it('requires a nonempty video upload receipt with an identity on every item', async () => {
+    const fetch = transport()
+    for (const data of [[], {}, [{}], [{ video_id: '' }], [{ video_id: 'asset' }, {}]]) {
+      fetch.mockResolvedValue(new Response(JSON.stringify({ code: 0, data })))
+      await expect(tiktokAdsConnector.executeMutation!(invocation('videos.uploadFromUrl', { advertiserId: '123', filename: 'offer.mp4', videoUrl: 'https://example.com/offer.mp4' }))).rejects.toThrow('missing native entity ID')
+    }
   })
 })
