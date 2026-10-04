@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.61.1
+
+- fix(linkedin-ads): expose model-safe targeting arguments
+
 ## 0.61.0
 
 - feat(ads): publish paid advertising catalog contracts
