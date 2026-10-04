@@ -7,14 +7,26 @@ const money = { type: 'string', pattern: '^(?:[1-9][0-9]*(?:\\.[0-9]{1,2})?|0\\.
 const currency = { type: 'string', pattern: '^[A-Z]{3}$' }
 const time = { type: 'integer', minimum: 1, description: 'Unix epoch milliseconds.' }
 const facets = ['interfaceLocales', 'locations', 'industries', 'employers', 'jobFunctions', 'seniorities', 'titles', 'skills', 'staffCountRanges', 'interests']
-const facetValues = Object.fromEntries(facets.map(facet => [`urn:li:adTargetingFacet:${facet}`, { type: 'array', minItems: 1, maxItems: 100, items: { type: 'string', pattern: '^urn:li:' } }]))
+const facetValues = Object.fromEntries(facets.map(facet => [facet, { type: 'array', minItems: 1, maxItems: 100, items: { type: 'string', pattern: '^urn:li:' } }]))
 const targetingGroup = { type: 'object', properties: { or: { type: 'object', minProperties: 1, properties: facetValues, additionalProperties: false } }, required: ['or'], additionalProperties: false }
 const targeting = {
   type: 'object', properties: {
     include: { type: 'object', properties: { and: { type: 'array', minItems: 1, maxItems: 9, items: targetingGroup } }, required: ['and'], additionalProperties: false },
     exclude: { type: 'object', properties: { or: { type: 'object', minProperties: 1, properties: facetValues, additionalProperties: false } }, required: ['or'], additionalProperties: false },
   }, required: ['include'], additionalProperties: false,
-  description: 'Native targeting criteria. Include a locations facet using current Bing geo URNs discovered through targeting.search. OR within a facet, AND between groups.',
+  description: 'Targeting criteria with short facet names (locations, interfaceLocales, etc.). Include a locations facet using current Bing geo URNs discovered through targeting.search. OR within a facet, AND between groups.',
+}
+// Tool-schema property names must be model-safe; only the wire uses URN keys.
+function nativeTargeting(value: unknown): Record<string, unknown> {
+  if (!isPlainRecord(value) || !isPlainRecord(value.include) || !Array.isArray(value.include.and) || value.include.and.length === 0) throw new Error('linkedin-ads: targetingCriteria.include.and is required')
+  const group = (entry: unknown) => {
+    if (!isPlainRecord(entry) || !isPlainRecord(entry.or) || Object.keys(entry.or).length === 0) throw new Error('linkedin-ads: targeting group requires facets')
+    return { or: Object.fromEntries(Object.entries(entry.or).map(([facet, values]) => {
+      if (!facets.includes(facet) || !Array.isArray(values) || values.length === 0 || values.some(item => typeof item !== 'string' || !item.startsWith('urn:li:'))) throw new Error('linkedin-ads: unknown targeting facet or invalid URN values')
+      return [`urn:li:adTargetingFacet:${facet}`, values]
+    })) }
+  }
+  return { include: { and: value.include.and.map(group) }, ...(value.exclude === undefined ? {} : { exclude: group(value.exclude) }) }
 }
 const account = '/adAccounts/{accountId}'
 const page = { pageSize: { type: 'integer', minimum: 1, maximum: 100 }, pageToken: { type: 'string' } }
@@ -99,6 +111,7 @@ export const linkedinAdsConnector = {
     if (inv.capabilityName === 'campaignGroups.create' || inv.capabilityName === 'campaigns.createSponsored') {
       if (!(typeof inv.args.startTime === 'number' && typeof inv.args.endTime === 'number' && Number.isSafeInteger(inv.args.startTime) && Number.isSafeInteger(inv.args.endTime) && Number(inv.args.startTime) > 0 && Number(inv.args.endTime) > Number(inv.args.startTime))) throw new Error('linkedin-ads: endTime must be after startTime in epoch milliseconds')
     }
+    if (inv.capabilityName === 'campaigns.createSponsored') inv = { ...inv, args: { ...inv.args, targetingCriteria: nativeTargeting(inv.args.targetingCriteria) } }
     const result = await base.executeMutation!(inv)
     if (result.status === 'committed') {
       const creating = ['campaignGroups.create', 'campaigns.createSponsored', 'creatives.createFromPost'].includes(inv.capabilityName)
