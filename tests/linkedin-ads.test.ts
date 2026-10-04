@@ -7,7 +7,7 @@ const invoke = (capabilityName: string, args: Record<string, unknown>): Connecto
 function transport(data: unknown = {}, status = 200, headers: Record<string, string> = {}) { return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(status === 204 ? null : JSON.stringify(data), { status, headers })) }
 afterEach(() => vi.restoreAllMocks())
 const campaign = { accountId: '123', groupId: '456', associatedEntity: 'urn:li:organization:1234', name: 'Trial', totalBudget: '100.00', currencyCode: 'USD', bidAmount: '2.00', startTime: 1791158400000, endTime: 1791331200000,
-  targetingCriteria: { include: { and: [{ or: { 'urn:li:adTargetingFacet:locations': ['urn:li:geo:103644278'] } }, { or: { 'urn:li:adTargetingFacet:interfaceLocales': ['urn:li:locale:en_US'] } }] } }, localeCountry: 'US', localeLanguage: 'en', politicalIntent: 'NOT_POLITICAL' }
+  targetingCriteria: { include: { and: [{ or: { locations: ['urn:li:geo:103644278'] } }, { or: { interfaceLocales: ['urn:li:locale:en_US'] } }] } }, localeCountry: 'US', localeLanguage: 'en', politicalIntent: 'NOT_POLITICAL' }
 
 describe('LinkedIn Ads provider contract', () => {
   it('discovers accounts using Marketing API scopes, version and native pagination', async () => {
@@ -25,10 +25,18 @@ describe('LinkedIn Ads provider contract', () => {
     const result = await linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, status: 'ACTIVE', dailyBudget: { amount: '9999' } }))
     expect(result).toMatchObject({ status: 'committed', data: { id: '789' } })
     const body = JSON.parse(String(fetch.mock.lastCall![1]?.body))
-    expect(body).toMatchObject({ status: 'PAUSED', pacingStrategy: 'LIFETIME', totalBudget: { amount: '100.00', currencyCode: 'USD' }, runSchedule: { start: campaign.startTime, end: campaign.endTime }, campaignGroup: 'urn:li:sponsoredCampaignGroup:456', targetingCriteria: campaign.targetingCriteria, audienceExpansionEnabled: false, offsiteDeliveryEnabled: false })
+    expect(body).toMatchObject({ status: 'PAUSED', pacingStrategy: 'LIFETIME', totalBudget: { amount: '100.00', currencyCode: 'USD' }, runSchedule: { start: campaign.startTime, end: campaign.endTime }, campaignGroup: 'urn:li:sponsoredCampaignGroup:456', targetingCriteria: { include: { and: [{ or: { 'urn:li:adTargetingFacet:locations': ['urn:li:geo:103644278'] } }, { or: { 'urn:li:adTargetingFacet:interfaceLocales': ['urn:li:locale:en_US'] } }] } }, audienceExpansionEnabled: false, offsiteDeliveryEnabled: false })
     expect(body).not.toHaveProperty('dailyBudget')
     expect(body.account).toBe('urn:li:sponsoredAccount:123')
     expect(body.associatedEntity).toBe(campaign.associatedEntity)
+  })
+  it('encodes exclusions and rejects unknown facets before sending a campaign', async () => {
+    const fetch = transport({}, 201, { 'x-restli-id': '789' })
+    await linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, targetingCriteria: { ...campaign.targetingCriteria, exclude: { or: { employers: ['urn:li:organization:999'] } } } }))
+    expect(JSON.parse(String(fetch.mock.lastCall![1]?.body)).targetingCriteria.exclude).toEqual({ or: { 'urn:li:adTargetingFacet:employers': ['urn:li:organization:999'] } })
+    fetch.mockClear()
+    await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, targetingCriteria: { include: { and: [{ or: { unknown: ['urn:li:geo:123'] } }] } } }))).rejects.toThrow('unknown targeting facet')
+    expect(fetch).not.toHaveBeenCalled()
   })
   it('creates a draft group with its own cumulative spending ceiling', async () => {
     const fetch = transport({}, 201, { 'x-restli-id': '456' })
