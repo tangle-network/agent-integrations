@@ -100,6 +100,23 @@ function assertEnvelope(value: unknown, allowArrayData = false): asserts value i
   if (!isPlainRecord(value.data) && !(allowArrayData && Array.isArray(value.data) && value.data.every(isPlainRecord))) throw new Error('tiktok-ads: malformed provider response (missing data)')
 }
 
+function assertMutationReceipt(value: unknown, capability: string): void {
+  assertEnvelope(value, capability === 'videos.uploadFromUrl')
+  const data = value.data
+  const validId = (id: unknown) => typeof id === 'string' && id.trim().length > 0
+  let valid = true
+  if (capability === 'videos.uploadFromUrl') {
+    const videos = Array.isArray(data) ? data : [data]
+    valid = videos.length > 0 && videos.every(video => isPlainRecord(video) && validId(video.video_id))
+  } else if (isPlainRecord(data)) {
+    if (capability === 'campaigns.createTraffic') valid = validId(data.campaign_id)
+    if (capability === 'adgroups.createTraffic') valid = validId(data.adgroup_id)
+    if (capability === 'ads.createVideo') valid = Array.isArray(data.ad_ids) && data.ad_ids.length === 1 && data.ad_ids.every(validId)
+    // Status updates legitimately acknowledge code:0 with an empty data object.
+  }
+  if (!valid) throw new Error('tiktok-ads: missing native entity ID in mutation receipt; reconcile provider state before retrying')
+}
+
 function credentials(value: ConnectorCredentials): { accessToken: string; appId: string; appSecret: string } {
   let data: unknown = value.kind === 'custom' ? value.values : undefined
   if (value.kind === 'api-key') {
@@ -145,7 +162,7 @@ async function uploadVideo(inv: ConnectorInvocation): Promise<CapabilityMutation
   if (response.status === 429) return { status: 'rate-limited', retryAfterMs: 60_000, message: 'TikTok Ads video upload rate limited' }
   if (!response.ok) throw new Error(`tiktok-ads: video upload HTTP ${response.status}`)
   const data: unknown = await response.json().catch(() => null)
-  assertEnvelope(data, true)
+  assertMutationReceipt(data, inv.capabilityName)
   return { status: 'committed', data, committedAt: Date.now(), idempotentReplay: false }
 }
 
@@ -162,7 +179,7 @@ export const tiktokAdsConnector: ConnectorAdapter = {
     if (inv.capabilityName === 'videos.uploadFromUrl') return uploadVideo(inv)
     credentials(inv.source.credentials)
     const result = await base.executeMutation!(prepare(inv))
-    if (result.status === 'committed') assertEnvelope(result.data)
+    if (result.status === 'committed') assertMutationReceipt(result.data, inv.capabilityName)
     return result
   },
   async test(source) {

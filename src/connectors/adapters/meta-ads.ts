@@ -108,5 +108,14 @@ export const metaAdsConnector: ConnectorAdapter = {
     }
     return result
   },
-  executeMutation: async inv => base.executeMutation!(prepare(inv)),
+  async executeMutation(inv) {
+    const result = await base.executeMutation!(prepare(inv))
+    if (result.status !== 'committed') return result
+    const data = result.data
+    const valid = isPlainRecord(data) && !('error' in data) && (inv.capabilityName.includes('.create')
+      ? typeof data.id === 'string' && data.id.trim().length > 0
+      : data.success === true)
+    if (!valid) throw new Error('meta-ads: missing native mutation receipt; reconcile provider state before retrying')
+    return result
+  },
 }
