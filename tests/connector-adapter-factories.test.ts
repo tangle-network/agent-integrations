@@ -17,6 +17,27 @@ import { buildDefaultIntegrationRegistry } from '../src/registry'
 import { listTangleNativeAdapterIds } from '../src/tangle-catalog'
 
 describe('connector adapter factory registry', () => {
+  it('discovers paid advertising as executable native actions with explicit write authority', () => {
+    const registry = buildDefaultIntegrationRegistry()
+    for (const kind of ['meta-ads', 'x-ads', 'tiktok-ads', 'linkedin-ads', 'microsoft-ads', 'reddit-ads', 'pinterest-ads', 'snapchat-ads', 'amazon-ads']) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(candidate => candidate.kind === kind)
+      expect(definition, kind).toBeDefined()
+      const options = Object.fromEntries(Object.keys(definition!.envMap).map(key => [key, `private-${key}`]))
+      const adapter = definition!.factory(options)
+      const actions = registry.byId.get(kind)?.connector.actions.map(action => action.id)
+      expect(actions, kind).toContain('campaigns.enable')
+      expect(actions, kind).toContain('campaigns.pause')
+      expect(adapter.executeRead, kind).toBeTypeOf('function')
+      expect(adapter.executeMutation, kind).toBeTypeOf('function')
+      for (const capability of adapter.manifest.capabilities) {
+        if (capability.class === 'mutation') expect(capability, `${kind}:${capability.name}`).toMatchObject({ cas: 'none', externalEffect: true })
+      }
+      expect(JSON.stringify(adapter.manifest), kind).not.toContain('private-')
+      expect(resolveConnectorAdapterFactoryOptions(definition!, {}), kind)
+        .toEqual(Object.keys(definition!.envMap).length ? null : {})
+    }
+  })
+
   it('constructs every factory from its declared environment mapping', () => {
     const kinds = CONNECTOR_ADAPTER_FACTORIES.map(
       (definition) => definition.kind,
