@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.0
+
+- feat(ads): publish paid advertising catalog contracts
+- fix: validate native paid advertising mutation receipts
+- feat(hub): register paid ads through shared credential and catalog paths
+- fix(ads): require LinkedIn beneficiary and native mutation receipts
+- feat(ads): add Meta TikTok and Snapchat campaign execution
+- feat: add Microsoft Pinterest and Amazon paid ads adapters
+- fix(x-ads): require native promoted post identity and media keys
+- feat(ads): add X LinkedIn and Reddit paid campaign adapters
+
 ## 0.60.1
 
 - feat(integrations): read scoped GTM campaign outcomes
