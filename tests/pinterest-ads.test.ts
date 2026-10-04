@@ -60,4 +60,13 @@ describe('Pinterest Ads v5 wire contract', () => {
     fetch.mockResolvedValue(new Response('{}', { status: 429, headers: { 'retry-after': '2' } }))
     expect(await adapter.executeMutation!(inv('campaigns.pause', { entityId: '42' }))).toMatchObject({ status: 'rate-limited', retryAfterMs: 2000 })
   })
+  it.each([{}, null, { items: [] }, { items: [{}] }, { items: [{ data: {} }] }])('requires an identified item receipt %j', async receipt => {
+    transport(receipt)
+    await expect(adapter.executeMutation!(inv('ads.createFromPin', { adGroupId: '43', pinId: '999', name: 'Creative', destinationUrl: 'https://example.com' }))).rejects.toThrow('reconcile provider state')
+  })
+  it('does not turn an HTML provider failure into a successful status update', async () => {
+    const fetch = transport()
+    fetch.mockResolvedValue(new Response('<html>upstream failure</html>'))
+    await expect(adapter.executeMutation!(inv('campaigns.pause', { entityId: '42' }))).rejects.toThrow('no single-item receipt')
+  })
 })

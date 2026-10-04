@@ -34,14 +34,16 @@ describe('Microsoft Advertising REST v13 wire contract', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
   it('creates a dated paused ad group and native keyword and location criteria', async () => {
-    const fetch = transport()
+    const fetch = transport({ AdGroupIds: ['43'], PartialErrors: [] })
     const startDate = { Year: 2026, Month: 10, Day: 5 }, endDate = { Year: 2026, Month: 10, Day: 8 }
     await adapter.executeMutation!(inv('adGroups.create', { campaignId: '42', name: 'Intent', cpcBid: 1, startDate, endDate }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ CampaignId: '42', AdGroups: [{ Name: 'Intent', Status: 'Paused', Network: 'OwnedAndOperatedOnly', CpcBid: { Amount: 1 }, StartDate: startDate, EndDate: endDate }] })
+    fetch.mockResolvedValue(new Response('{"KeywordIds":["44"],"PartialErrors":[]}'))
     await adapter.executeMutation!(inv('keywords.create', { adGroupId: '43', text: 'sales agent', matchType: 'Exact', bid: 0.75 }))
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ AdGroupId: '43', Keywords: [{ Text: 'sales agent', MatchType: 'Exact', Bid: { Amount: 0.75 }, Status: 'Active' }] })
+    fetch.mockResolvedValue(new Response('{"CampaignCriterionIds":["45"],"NestedPartialErrors":[]}'))
     await adapter.executeMutation!(inv('campaigns.addLocation', { campaignId: '42', locationId: '190' }))
-    expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ CampaignCriterions: [{ CampaignId: '42', Type: 'BiddableCampaignCriterion', Criterion: { Type: 'LocationCriterion', LocationId: '190' }, CriterionBid: { Type: 'BidMultiplier', Multiplier: 0 } }], CriterionType: 'Location' })
+    expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ CampaignCriterions: [{ CampaignId: '42', Type: 'BiddableCampaignCriterion', Criterion: { Type: 'LocationCriterion', LocationId: '190' }, CriterionBid: { Type: 'BidMultiplier', Multiplier: 0 } }], CriterionType: 'Targets' })
   })
   it('maps text assets into the native responsive search polymorphic asset contract', async () => {
     const fetch = transport({ AdIds: ['44'], PartialErrors: [] })
@@ -55,7 +57,7 @@ describe('Microsoft Advertising REST v13 wire contract', () => {
     ['adGroups', { campaignId: '42', adGroupId: '43' }, { CampaignId: '42', AdGroups: [{ Id: '43', Status: 'Active' }] }],
     ['ads', { adGroupId: '43', adId: '44' }, { AdGroupId: '43', Ads: [{ Id: '44', Type: 'ResponsiveSearch', Status: 'Active' }] }],
   ])('activates %s with an identity-and-status-only update', async (resource, args, expected) => {
-    const fetch = transport()
+    const fetch = transport({ PartialErrors: [] })
     await adapter.executeMutation!(inv(`${resource}.enable`, { ...args, DailyBudget: 999 }))
     expect(fetch.mock.lastCall![1]?.method).toBe('PUT')
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual(expected)
@@ -79,5 +81,27 @@ describe('Microsoft Advertising REST v13 wire contract', () => {
     await expect(adapter.executeRead!(inv('users.getCurrent'))).rejects.toThrow('account denied [REDACTED] [REDACTED]')
     fetch.mockResolvedValue(new Response('{}', { status: 401 }))
     await expect(adapter.executeRead!(inv('users.getCurrent'))).rejects.toBeInstanceOf(CredentialsExpired)
+  })
+  it('projects current-user identity without native authentication or security fields', async () => {
+    transport({ User: { Id: '7', CustomerId: '456', UserName: 'operator', Name: { FirstName: 'A', LastName: 'User' }, AuthenticationToken: 'native-user-secret', SecretAnswer: 'native-answer', Password: 'native-password', ContactInfo: { Email: 'private@example.com' } }, CustomerRoles: [{ CustomerId: '456', AccountIds: ['123'], RoleId: 16 }] })
+    const result = await adapter.executeRead!(inv('users.getCurrent'))
+    expect(result.data).toMatchObject({ User: { Id: '7', CustomerId: '456', UserName: 'operator' }, CustomerRoles: [{ CustomerId: '456', AccountIds: ['123'], RoleId: 16 }] })
+    expect(JSON.stringify(result.data)).not.toMatch(/native-user-secret|native-answer|native-password|private@example.com/)
+  })
+  it('rejects nested target errors rather than claiming location targeting was applied', async () => {
+    transport({ CampaignCriterionIds: [null], NestedPartialErrors: [{ Index: 0, BatchErrors: [{ Code: 123, Message: 'private-access-token' }] }] })
+    await expect(adapter.executeMutation!(inv('campaigns.addLocation', { campaignId: '42', locationId: '190' }))).rejects.toThrow('1 provider errors')
+  })
+  it.each([{}, null, { CampaignCriterionIds: [null] }, { CampaignCriterionIds: [] }])('requires a created targeting ID from receipt %j', async receipt => {
+    transport(receipt)
+    await expect(adapter.executeMutation!(inv('campaigns.addLocation', { campaignId: '42', locationId: '190' }))).rejects.toThrow('reconcile provider state')
+  })
+  it('accepts empty successful updates, but rejects malformed provider JSON', async () => {
+    const fetch = transport({})
+    expect((await adapter.executeMutation!(inv('campaigns.pause', { campaignId: '42' }))).status).toBe('committed')
+    fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    expect((await adapter.executeMutation!(inv('campaigns.pause', { campaignId: '42' }))).status).toBe('committed')
+    fetch.mockResolvedValue(new Response('<html>upstream failure</html>'))
+    await expect(adapter.executeMutation!(inv('campaigns.pause', { campaignId: '42' }))).rejects.toThrow('invalid mutation receipt')
   })
 })

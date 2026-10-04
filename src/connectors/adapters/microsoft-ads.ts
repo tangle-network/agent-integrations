@@ -9,6 +9,13 @@ const date = { type: 'object', properties: { Year: { type: 'integer', minimum: 2
 const accountHeaders = { CustomerAccountId: '{accountId}', CustomerId: '{customerId}' }
 const customerService = 'https://clientcenter.api.bingads.microsoft.com/CustomerManagement/v13'
 const reportService = 'https://reporting.api.bingads.microsoft.com/Reporting/v13'
+const createdIds: Record<string, string> = { 'campaigns.createSearch': 'CampaignIds', 'adGroups.create': 'AdGroupIds', 'keywords.create': 'KeywordIds', 'campaigns.addLocation': 'CampaignCriterionIds', 'ads.createResponsiveSearch': 'AdIds' }
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+function validId(value: unknown): boolean {
+  return typeof value === 'string' ? /^[1-9][0-9]*$/.test(value) : typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
 function parameters(properties: Record<string, unknown>, required: string[] = []) {
   return { type: 'object', properties: { accountId: id, customerId: id, ...properties }, required: ['accountId', 'customerId', ...required], additionalProperties: false }
 }
@@ -44,7 +51,7 @@ export function createMicrosoftAdsConnector(options: MicrosoftAdsOptions): Conne
         { AdGroupId: '{adGroupId}', Keywords: [{ Text: '{text}', MatchType: '{matchType}', Bid: { Amount: '{bid}' }, Status: 'Active' }] }),
       write('campaigns.addLocation', 'Add a positive geographic criterion using a Microsoft location ID. Location IDs come from Microsoft geographic location codes; verify location intent settings and targeting before launch.', '/CampaignCriterions',
         { campaignId: id, locationId: id }, ['campaignId', 'locationId'],
-        { CampaignCriterions: [{ CampaignId: '{campaignId}', Type: 'BiddableCampaignCriterion', Criterion: { Type: 'LocationCriterion', LocationId: '{locationId}' }, CriterionBid: { Type: 'BidMultiplier', Multiplier: 0 } }], CriterionType: 'Location' }),
+        { CampaignCriterions: [{ CampaignId: '{campaignId}', Type: 'BiddableCampaignCriterion', Criterion: { Type: 'LocationCriterion', LocationId: '{locationId}' }, CriterionBid: { Type: 'BidMultiplier', Multiplier: 0 } }], CriterionType: 'Targets' }),
       write('ads.createResponsiveSearch', 'Create a PAUSED responsive Search ad, subject to editorial review. Supply 3–15 headlines and 2–4 descriptions, with at least one final URL.', '/Ads',
         { adGroupId: id, headlines: { type: 'array', minItems: 3, maxItems: 15, items: { ...text, maxLength: 30 } }, descriptions: { type: 'array', minItems: 2, maxItems: 4, items: { ...text, maxLength: 90 } }, finalUrls: { type: 'array', minItems: 1, items: { type: 'string', format: 'uri' } } }, ['adGroupId', 'headlines', 'descriptions', 'finalUrls'],
         { AdGroupId: '{adGroupId}', Ads: [{ Type: 'ResponsiveSearch', Status: 'Paused', Headlines: '{headlines}', Descriptions: '{descriptions}', FinalUrls: '{finalUrls}' }] }),
@@ -66,6 +73,19 @@ export function createMicrosoftAdsConnector(options: MicrosoftAdsOptions): Conne
   })
   return {
     ...rest,
+    async executeRead(inv) {
+      const result = await rest.executeRead!(inv)
+      if (inv.capabilityName !== 'users.getCurrent') return result
+      const data = record(result.data), user = record(data?.User)
+      if (!user || !validId(user.Id)) throw new Error('microsoft-ads returned no current user identity')
+      // GetUser's native User schema includes AuthenticationToken and legacy
+      // security fields. Discovery needs identity and roles, never those fields.
+      const name = record(user.Name)
+      return { ...result, data: { User: {
+        Id: user.Id, CustomerId: user.CustomerId, UserName: user.UserName, UserLifeCycleStatus: user.UserLifeCycleStatus,
+        ...(name ? { Name: { FirstName: name.FirstName, LastName: name.LastName, MiddleInitial: name.MiddleInitial } } : {}),
+      }, CustomerRoles: data?.CustomerRoles } }
+    },
     async executeMutation(inv) {
       if (inv.capabilityName === 'ads.createResponsiveSearch') {
         const assets = (value: unknown) => {
@@ -75,8 +95,20 @@ export function createMicrosoftAdsConnector(options: MicrosoftAdsOptions): Conne
         inv = { ...inv, args: { ...inv.args, headlines: assets(inv.args.headlines), descriptions: assets(inv.args.descriptions) } }
       }
       const result = await rest.executeMutation!(inv)
-      if (result.status === 'committed' && result.data && typeof result.data === 'object' && 'PartialErrors' in result.data && Array.isArray(result.data.PartialErrors) && result.data.PartialErrors.length) {
-        throw new Error(`microsoft-ads rejected the item (${result.data.PartialErrors.length} provider errors); inspect account permissions and field constraints before retrying`)
+      if (result.status !== 'committed') return result
+      const idField = createdIds[inv.capabilityName], data = record(result.data)
+      if (result.data === null && !idField) return result // Empty successful update response.
+      if (!data || 'raw' in data) throw new Error('microsoft-ads returned an invalid mutation receipt; reconcile provider state before retrying')
+      for (const field of ['PartialErrors', 'NestedPartialErrors']) {
+        const errors = data[field]
+        if (errors != null && !Array.isArray(errors)) throw new Error('microsoft-ads returned an invalid error receipt; reconcile provider state before retrying')
+        if (Array.isArray(errors) && errors.some(error => error != null)) {
+          throw new Error(`microsoft-ads rejected the item (${errors.length} provider errors); inspect account permissions and field constraints before retrying`)
+        }
+      }
+      if (idField) {
+        const ids = data[idField]
+        if (!Array.isArray(ids) || ids.length !== 1 || !validId(ids[0])) throw new Error('microsoft-ads returned no created entity ID; reconcile provider state before retrying')
       }
       return result
     },

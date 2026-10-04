@@ -8,6 +8,9 @@ const money = { type: 'number', exclusiveMinimum: 0, description: 'Amount in the
 const date = { type: 'string', format: 'date', description: 'YYYY-MM-DD in the advertiser marketplace timezone.' }
 const resources = { campaigns: ['spCampaign', 'campaignId'], adGroups: ['spAdGroup', 'adGroupId'], keywords: ['spKeyword', 'keywordId'], productAds: ['spProductAd', 'adId'] } as const
 type Resource = keyof typeof resources
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
 function parameters(properties: Record<string, unknown>, required: string[] = []) {
   return { type: 'object', properties: { profileId: id, ...properties }, required: ['profileId', ...required], additionalProperties: false }
 }
@@ -73,12 +76,21 @@ export function createAmazonAdsConnector(options: AmazonAdsOptions): ConnectorAd
     ...rest,
     async executeMutation(inv) {
       const result = await rest.executeMutation!(inv)
-      if (result.status === 'committed' && result.data && typeof result.data === 'object') {
-        for (const value of Object.values(result.data)) {
-          if (value && typeof value === 'object' && 'error' in value && Array.isArray(value.error) && value.error.length) {
-            throw new Error(`amazon-ads rejected the item (${value.error.length} provider errors); inspect profile eligibility and field constraints before retrying`)
-          }
-        }
+      if (result.status !== 'committed') return result
+      const resource = inv.capabilityName.split('.')[0] as Resource
+      const receipt = record(record(result.data)?.[resource])
+      if (!receipt) throw new Error('amazon-ads returned no resource receipt; reconcile provider state before retrying')
+      if (receipt.error != null && !Array.isArray(receipt.error)) throw new Error('amazon-ads returned an invalid error receipt; reconcile provider state before retrying')
+      if (Array.isArray(receipt.error) && receipt.error.length) throw new Error(`amazon-ads rejected the item (${receipt.error.length} provider errors); inspect profile eligibility and field constraints before retrying`)
+      const success = Array.isArray(receipt.success) && receipt.success.length === 1 ? record(receipt.success[0]) : undefined
+      if (!success || success.index !== 0) throw new Error('amazon-ads returned no single-item success receipt; reconcile provider state before retrying')
+      // Native updates may acknowledge only index. Creates must return an ID
+      // (or its full representation), so the next ad operation has an identity.
+      if (inv.capabilityName.includes('.create')) {
+        const [, idKey] = resources[resource]
+        const entityKey = { campaigns: 'campaign', adGroups: 'adGroup', keywords: 'keyword', productAds: 'productAd' }[resource]
+        const entityId = success[idKey] ?? record(success[entityKey])?.[idKey]
+        if (typeof entityId !== 'string' || !entityId.trim()) throw new Error('amazon-ads returned no created entity ID; reconcile provider state before retrying')
       }
       return result
     },

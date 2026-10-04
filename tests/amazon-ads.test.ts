@@ -39,13 +39,14 @@ describe('Amazon Sponsored Products v3 wire contract', () => {
     ['productAds.createSellerProduct', { campaignId: '42', adGroupId: '43', sku: 'SKU-1', asin: 'injected' }, 'productAds', { campaignId: '42', adGroupId: '43', sku: 'SKU-1', state: 'PAUSED' }],
     ['productAds.createVendorProduct', { campaignId: '42', adGroupId: '43', asin: 'B000000001', sku: 'injected' }, 'productAds', { campaignId: '42', adGroupId: '43', asin: 'B000000001', state: 'PAUSED' }],
   ])('maps %s to its typed native single-item request', async (name, args, resource, expected) => {
-    const fetch = transport({ [resource]: { success: [{ index: 0 }], error: [] } })
+    const key = resource === 'adGroups' ? 'adGroupId' : resource === 'keywords' ? 'keywordId' : 'adId'
+    const fetch = transport({ [resource]: { success: [{ index: 0, [key]: '44' }], error: [] } })
     await adapter.executeMutation!(inv(name, args))
     expect(String(fetch.mock.lastCall![0])).toBe(`https://advertising-api.amazon.com/sp/${resource}`)
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ [resource]: [expected] })
   })
   it.each([['campaigns', 'campaignId'], ['adGroups', 'adGroupId'], ['keywords', 'keywordId'], ['productAds', 'adId']])('only changes %s identity and state when enabling or pausing', async (resource, key) => {
-    const fetch = transport()
+    const fetch = transport({ [resource]: { success: [{ index: 0 }], error: [] } })
     for (const [action, state] of [['enable', 'ENABLED'], ['pause', 'PAUSED']]) {
       await adapter.executeMutation!(inv(`${resource}.${action}`, { entityId: '42', budget: 999 }))
       expect(fetch.mock.lastCall![1]?.method).toBe('PUT')
@@ -72,5 +73,18 @@ describe('Amazon Sponsored Products v3 wire contract', () => {
     await expect(adapter.executeRead!(inv('profiles.list'))).rejects.toThrow('[REDACTED] [REDACTED] account not eligible')
     fetch.mockResolvedValue(new Response('{}', { status: 401 }))
     await expect(adapter.executeRead!(inv('profiles.list'))).rejects.toBeInstanceOf(CredentialsExpired)
+  })
+  it.each([{}, null, { campaigns: { success: [], error: [] } }, { campaigns: { success: [{ index: 1 }], error: [] } }])('rejects a missing or mismatched single-item receipt %j', async receipt => {
+    transport(receipt)
+    await expect(adapter.executeMutation!(inv('campaigns.enable', { entityId: '42' }))).rejects.toThrow('reconcile provider state')
+  })
+  it('requires an ID on creation, accepts representation receipts, and rejects malformed JSON', async () => {
+    const fetch = transport({ adGroups: { success: [{ index: 0 }], error: [] } })
+    const create = inv('adGroups.create', { campaignId: '42', name: 'Group', defaultBid: 0.5 })
+    await expect(adapter.executeMutation!(create)).rejects.toThrow('no created entity ID')
+    fetch.mockResolvedValue(new Response('{"adGroups":{"success":[{"index":0,"adGroup":{"adGroupId":"43"}}],"error":[]}}', { status: 207 }))
+    expect((await adapter.executeMutation!(create)).status).toBe('committed')
+    fetch.mockResolvedValue(new Response('<html>upstream failure</html>'))
+    await expect(adapter.executeMutation!(inv('campaigns.pause', { entityId: '42' }))).rejects.toThrow('no resource receipt')
   })
 })

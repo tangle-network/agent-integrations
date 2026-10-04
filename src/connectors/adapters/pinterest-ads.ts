@@ -57,15 +57,19 @@ export const pinterestAdsConnector: typeof rest = {
   ...rest,
   async executeMutation(inv) {
     const result = await rest.executeMutation!(inv)
-    if (result.status === 'committed' && result.data && typeof result.data === 'object' && 'items' in result.data && Array.isArray(result.data.items)) {
-      for (const item of result.data.items) {
-        if (item && typeof item === 'object' && 'exceptions' in item && Array.isArray(item.exceptions) && item.exceptions.length) {
-          // Native batch errors may echo request data. Keep diagnostics bounded
-          // and never let a 2xx rejection masquerade as a committed write.
-          throw new Error(`pinterest-ads rejected the item (${item.exceptions.length} provider exceptions); inspect account permissions and field constraints before retrying`)
-        }
-      }
-    }
+    if (result.status !== 'committed') return result
+    const items = record(result.data)?.items
+    const item = Array.isArray(items) && items.length === 1 ? record(items[0]) : undefined
+    if (!item) throw new Error('pinterest-ads returned no single-item receipt; reconcile provider state before retrying')
+    if (item.exceptions != null && !Array.isArray(item.exceptions)) throw new Error('pinterest-ads returned an invalid exception receipt; reconcile provider state before retrying')
+    // Native batch errors can echo request data; do not expose them verbatim.
+    if (Array.isArray(item.exceptions) && item.exceptions.length) throw new Error(`pinterest-ads rejected the item (${item.exceptions.length} provider exceptions); inspect account permissions and field constraints before retrying`)
+    const entity = record(item.data)
+    if (!entity || typeof entity.id !== 'string' || !entity.id.trim()) throw new Error('pinterest-ads returned no entity ID; reconcile provider state before retrying')
     return result
   },
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 }
