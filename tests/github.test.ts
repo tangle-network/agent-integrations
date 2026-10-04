@@ -388,6 +388,33 @@ describe('github adapter', () => {
     expect((result.data as { filename: string }[])[0].filename).toBe('index.html')
   })
 
+  it('repos.getCombinedStatusForRef and checks.listForRef read what a ref reports', async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        urls.push(String(input))
+        return jsonResponse({ state: 'success', statuses: [{ context: 'deploy/host-1', state: 'success' }] })
+      }),
+    )
+
+    const status = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getCombinedStatusForRef',
+      args: { owner: 'acme', repo: 'test-app', ref: 'abc123' },
+      idempotencyKey: 'k',
+    })
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'checks.listForRef',
+      args: { owner: 'acme', repo: 'test-app', ref: 'main' },
+      idempotencyKey: 'k',
+    })
+    expect(urls[0]).toMatch(/\/repos\/acme\/test-app\/commits\/abc123\/status(\?|$)/)
+    expect(urls[1]).toMatch(/\/repos\/acme\/test-app\/commits\/main\/check-runs(\?|$)/)
+    expect((status.data as { statuses: { context: string }[] }).statuses[0].context).toBe('deploy/host-1')
+  })
+
   it('issues.get and issues.listComments address the issue by number', async () => {
     const urls: string[] = []
     vi.stubGlobal(
@@ -498,6 +525,8 @@ describe('github adapter', () => {
       ['repos.listLabels', { owner: 'a', repo: 'b' }],
       ['repos.listBranches', { owner: 'a', repo: 'b' }],
       ['pulls.listFiles', { owner: 'a', repo: 'b', pull_number: 1 }],
+      ['repos.getCombinedStatusForRef', { owner: 'a', repo: 'b', ref: 'main' }],
+      ['checks.listForRef', { owner: 'a', repo: 'b', ref: 'main' }],
     ] as const
 
     for (const [capabilityName, args] of paged) {
