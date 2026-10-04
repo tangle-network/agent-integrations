@@ -24,7 +24,7 @@ describe('connector adapter factory registry', () => {
       expect(definition, kind).toBeDefined()
       const options = Object.fromEntries(Object.keys(definition!.envMap).map(key => [key, `private-${key}`]))
       const adapter = definition!.factory(options)
-      const actions = registry.byId.get(kind)?.actions.map(action => action.id)
+      const actions = registry.byId.get(kind)?.connector.actions.map(action => action.id)
       expect(actions, kind).toContain('campaigns.enable')
       expect(actions, kind).toContain('campaigns.pause')
       expect(adapter.executeRead, kind).toBeTypeOf('function')
