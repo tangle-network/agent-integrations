@@ -78,4 +78,18 @@ describe('Meta Ads provider wire contract', () => {
     fetch.mockResolvedValueOnce(new Response('{"error":"try later"}', { status: 429, headers: { 'retry-after': '3' } }))
     expect(await metaAdsConnector.executeMutation!(invocation('campaigns.pause', { objectId: '42' }))).toMatchObject({ status: 'rate-limited', retryAfterMs: 3000 })
   })
+
+  it('requires a native ID for creation and success:true for delivery updates', async () => {
+    const fetch = transport()
+    for (const data of [{}, null, { id: '' }, { success: true }, { error: { message: 'private-token' }, id: '42' }]) {
+      fetch.mockResolvedValue(new Response(JSON.stringify(data)))
+      await expect(metaAdsConnector.executeMutation!(invocation('ads.create', { accountId: '123', name: 'Ad', adSetId: '44', creativeId: '42' }))).rejects.toThrow('missing native mutation receipt')
+    }
+    for (const data of [{}, null, { id: '42' }, { success: false }, { success: 'true' }, { success: true, error: { message: 'private-token' } }]) {
+      fetch.mockResolvedValue(new Response(JSON.stringify(data)))
+      await expect(metaAdsConnector.executeMutation!(invocation('ads.pause', { objectId: '42' }))).rejects.toThrow('missing native mutation receipt')
+    }
+    fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await expect(metaAdsConnector.executeMutation!(invocation('ads.pause', { objectId: '42' }))).rejects.toThrow('missing native mutation receipt')
+  })
 })

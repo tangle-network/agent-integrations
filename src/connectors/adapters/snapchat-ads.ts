@@ -79,7 +79,7 @@ const base = declarativeRestConnector({
   ],
 })
 
-function assertEnvelope(value: unknown): void {
+function assertEnvelope(value: unknown): asserts value is Record<string, unknown> {
   if (!isPlainRecord(value) || typeof value.request_status !== 'string') throw new Error('snapchat-ads: malformed provider response (missing request_status)')
   if (value.request_status.toUpperCase() !== 'SUCCESS') throw new Error('snapchat-ads: provider rejected request')
   for (const entries of Object.values(value)) {
@@ -89,6 +89,27 @@ function assertEnvelope(value: unknown): void {
         throw new Error('snapchat-ads: provider rejected a sub-request; inspect native status before retrying')
       }
     }
+  }
+}
+
+function assertMutationReceipt(value: unknown, capability: string): void {
+  assertEnvelope(value)
+  let entity: unknown
+  if (capability === 'media.upload') {
+    // The upload endpoint returns result.id, unlike media creation's batch.
+    // https://developers.snap.com/marketing-api/Ads-API/media
+    entity = value.result
+  } else {
+    const resource = capability.split('.')[0]!
+    const entities = value[resource]
+    const receipt = Array.isArray(entities) && entities.length === 1 ? entities[0] : undefined
+    if (!isPlainRecord(receipt) || typeof receipt.sub_request_status !== 'string' || receipt.sub_request_status.toUpperCase() !== 'SUCCESS') {
+      throw new Error('snapchat-ads: missing successful entity sub-request; reconcile provider state before retrying')
+    }
+    entity = receipt[resource === 'media' ? 'media' : resource.slice(0, -1)]
+  }
+  if (!isPlainRecord(entity) || typeof entity.id !== 'string' || !entity.id.trim()) {
+    throw new Error('snapchat-ads: missing native entity ID in mutation receipt; reconcile provider state before retrying')
   }
 }
 
@@ -120,7 +141,7 @@ async function upload(inv: ConnectorInvocation): Promise<CapabilityMutationResul
   if (response.status === 429) return { status: 'rate-limited', retryAfterMs: 60_000, message: 'Snapchat Ads upload rate limited' }
   if (!response.ok) throw new Error(`snapchat-ads: media upload HTTP ${response.status}`)
   const data: unknown = await response.json().catch(() => null)
-  assertEnvelope(data)
+  assertMutationReceipt(data, inv.capabilityName)
   return { status: 'committed', data, committedAt: Date.now(), idempotentReplay: false }
 }
 
@@ -130,7 +151,7 @@ export const snapchatAdsConnector: ConnectorAdapter = {
   async executeMutation(inv) {
     if (inv.capabilityName === 'media.upload') return upload(inv)
     const result = await base.executeMutation!(prepare(inv))
-    if (result.status === 'committed') assertEnvelope(result.data)
+    if (result.status === 'committed') assertMutationReceipt(result.data, inv.capabilityName)
     return result
   },
   async test(source) {
