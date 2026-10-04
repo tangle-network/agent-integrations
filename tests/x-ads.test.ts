@@ -54,6 +54,12 @@ describe('X Ads provider contract', () => {
     expect(String(fetch.mock.lastCall![0])).toBe('https://ads-api.x.com/12/accounts/abc/promoted_tweets')
     expect(Object.fromEntries(new URLSearchParams(String(fetch.mock.lastCall![1]?.body)))).toEqual({ line_item_id: 'line', tweet_ids: '123456' })
   })
+  it('creates promoted-only posts with required advertiser identity and native media keys', async () => {
+    const fetch = transport()
+    await xAdsConnector.executeMutation(invoke('posts.createPromotedOnly', { accountId: 'abc', advertiserUserId: '123', text: 'Run GTM', mediaKeys: '3_456', nullcast: false }))
+    expect(Object.fromEntries(new URLSearchParams(String(fetch.mock.lastCall![1]?.body)))).toEqual({ as_user_id: '123', text: 'Run GTM', media_keys: '3_456', nullcast: 'true' })
+    await expect(xAdsConnector.executeMutation(invoke('posts.createPromotedOnly', { accountId: 'abc', text: 'Run GTM' }))).rejects.toThrow('advertiserUserId')
+  })
   it('rejects invalid monetary bounds, missing caps and reversed schedules before sending', async () => {
     const fetch = transport()
     await expect(xAdsConnector.executeMutation(invoke('campaigns.create', { accountId: 'abc', name: 'Test', fundingInstrumentId: 'fund', dailyBudgetMicros: '1' }))).rejects.toThrow('totalBudgetMicros')

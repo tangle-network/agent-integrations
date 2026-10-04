@@ -25,8 +25,8 @@ const base = declarativeRestConnector({
   capabilities: [
     { name: 'accounts.list', class: 'read', description: 'Discover accessible advertising accounts, approval status and timezone. Follow next_cursor.', parameters: parameters(page),
       request: { method: 'GET', path: '/accounts', query: { count: '{count}', cursor: '{cursor}' } } },
-    ...(['funding_instruments', 'campaigns', 'line_items', 'promoted_tweets'] as const).map(resource => ({
-      name: ({ funding_instruments: 'fundingInstruments.list', campaigns: 'campaigns.list', line_items: 'lineItems.list', promoted_tweets: 'ads.list' })[resource],
+    ...(['funding_instruments', 'campaigns', 'line_items', 'promoted_tweets', 'promotable_users', 'authenticated_user_access'] as const).map(resource => ({
+      name: ({ funding_instruments: 'fundingInstruments.list', campaigns: 'campaigns.list', line_items: 'lineItems.list', promoted_tweets: 'ads.list', promotable_users: 'accounts.promotableUsers', authenticated_user_access: 'accounts.authenticatedUserAccess' })[resource],
       class: 'read' as const, description: `Read ${resource} with native IDs, status, budget and pagination. Funding instruments include currency and funding readiness.`,
       parameters: parameters({ accountId: id, ...page }, ['accountId']),
       request: { method: 'GET' as const, path: `${accountPath}/${resource}`, query: { count: '{count}', cursor: '{cursor}' } },
@@ -58,8 +58,8 @@ const base = declarativeRestConnector({
       { lineItemId: id, targetingType: { type: 'string', enum: ['LOCATION', 'PHRASE_KEYWORD', 'EXACT_KEYWORD', 'BROAD_KEYWORD', 'LANGUAGE', 'FOLLOWERS_OF_USER'] }, targetingValue: { type: 'string', minLength: 1 } },
       ['lineItemId', 'targetingType', 'targetingValue'], { line_item_id: '{lineItemId}', targeting_type: '{targetingType}', targeting_value: '{targetingValue}' }),
     write('posts.createPromotedOnly', 'Create a promoted-only post with text and an optional pre-uploaded card or media. It does not appear on the organic timeline; attach it to a paused line item next.', '/tweet',
-      { text: { type: 'string', minLength: 1, maxLength: 280 }, cardUri: { type: 'string' }, mediaIds: { type: 'string', pattern: '^[0-9]+(,[0-9]+)*$', description: 'Comma-separated media IDs already uploaded through the existing X media integration.' } }, ['text'],
-      { text: '{text}', card_uri: '{cardUri}', media_ids: '{mediaIds}', nullcast: true }),
+      { advertiserUserId: { type: 'string', pattern: '^[0-9]+$', description: 'Promotable advertiser user ID from accounts.promotableUsers. The connected user needs TWEET_COMPOSER permission.' }, text: { type: 'string', minLength: 1, maxLength: 280 }, cardUri: { type: 'string' }, mediaKeys: { type: 'string', pattern: '^[0-9]+_[0-9]+(,[0-9]+_[0-9]+){0,3}$', description: 'Comma-separated media keys already uploaded for the advertiser.' } }, ['advertiserUserId', 'text'],
+      { as_user_id: '{advertiserUserId}', text: '{text}', card_uri: '{cardUri}', media_keys: '{mediaKeys}', nullcast: true }),
     write('ads.promotePost', 'Attach one existing or promoted-only post to a line item. Keep the parent paused while preparing; an active line item can serve this immediately.', '/promoted_tweets',
       { lineItemId: id, tweetId: { type: 'string', pattern: '^[0-9]+$' } }, ['lineItemId', 'tweetId'], { line_item_id: '{lineItemId}', tweet_ids: '{tweetId}' }),
     { name: 'reports.stats', class: 'read', description: 'Read synchronous campaign, line-item or promoted-post spend, engagement and web conversion metrics. Use ranges of at most 7 days; billing metrics can be revised for three days.',
