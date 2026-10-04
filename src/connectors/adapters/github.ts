@@ -223,6 +223,50 @@ export const githubConnector = declarativeRestConnector({
       },
     },
     {
+      name: 'repos.getCombinedStatusForRef',
+      class: 'read',
+      description:
+        'Read the combined commit status for a ref (a SHA, branch or tag): its overall state and every status context, such as CI jobs or deploy receipts. Page with per_page.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          ref: { type: 'string', description: 'A commit SHA, branch name or tag name.' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+          page: { type: 'integer', minimum: 1 },
+        },
+        required: ['owner', 'repo', 'ref'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/commits/{ref}/status',
+        query: { per_page: '{per_page}', page: '{page}' },
+      },
+    },
+    {
+      name: 'checks.listForRef',
+      class: 'read',
+      description:
+        'List the check runs (for example GitHub Actions jobs) reported on a ref, with their status and conclusion. Page with per_page.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          ref: { type: 'string', description: 'A commit SHA, branch name or tag name.' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+          page: { type: 'integer', minimum: 1 },
+        },
+        required: ['owner', 'repo', 'ref'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/commits/{ref}/check-runs',
+        query: { per_page: '{per_page}', page: '{page}' },
+      },
+    },
+    {
       name: 'issues.get',
       class: 'read',
       description: 'Read a single issue by number.',
