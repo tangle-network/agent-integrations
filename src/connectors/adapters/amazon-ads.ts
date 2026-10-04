@@ -37,7 +37,7 @@ export function createAmazonAdsConnector(options: AmazonAdsOptions): ConnectorAd
       ...Object.keys(resources).map(resourceName => {
         const resource = resourceName as Resource
         return { name: `${resource}.list`, class: 'read' as const, requiredScopes: [scope], description: `List Sponsored Products ${resource} and native statuses; use nextToken for pagination.`, parameters: parameters({ nextToken: text }), request: { method: 'POST' as const, path: `/sp/${resource}/list`, headers: headers(resource), body: { nextToken: '{nextToken}', maxResults: 100 } } }
-      ),
+      }),
       write('campaigns.createSponsoredProducts', 'Create a PAUSED manual Sponsored Products campaign. DAILY budget is in profile currency and is an average daily budget, not a hard daily or lifetime spend cap. Required end date bounds the schedule; only eligible products may advertise.', 'campaigns',
         { name: text, dailyBudget: money, startDate: date, endDate: date }, ['name', 'dailyBudget', 'startDate', 'endDate'],
         { name: '{name}', state: 'PAUSED', targetingType: 'MANUAL', budget: { budgetType: 'DAILY', budget: '{dailyBudget}' }, startDate: '{startDate}', endDate: '{endDate}', dynamicBidding: { strategy: 'LEGACY_FOR_SALES' } }),

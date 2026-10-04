@@ -1,4 +1,6 @@
 import { isIP } from 'node:net'
+import { randomBytes } from 'node:crypto'
+import { oauth1Authorization } from './oauth1.js'
 import {
   type Capability,
   type CapabilityMutationResult,
@@ -37,6 +39,8 @@ export type RestCredentialPlacement =
    *  Bill.com's developer key + session id inside the encrypted credential
    *  envelope instead of leaking either through connection metadata. */
   | { kind: 'structured-headers'; fields: Readonly<Record<string, string>> }
+  /** OAuth 1.0a user credentials in the existing protected structured envelope. */
+  | { kind: 'oauth1' }
   /** Multi-part credentials copied into a JSON request body. Plaid requires
    *  client_id, secret, and access_token on every request rather than using an
    *  Authorization header. Credential values override model-authored args. */
@@ -75,6 +79,8 @@ export interface RestConnectorSpec {
   credentialsExpiredStatuses?: readonly number[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
+  /** Server-owned app credentials, never copied to the public manifest or model arguments. */
+  credentialHeaders?: Readonly<Record<string, string>>
   capabilities: RestOperationSpec[]
   test?: RestTestSpec
 }
@@ -95,7 +101,7 @@ export interface RestRequestSpec {
   path: string
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
-  body?: 'args' | string | Record<string, unknown>
+  body?: 'args' | string | Record<string, unknown> | readonly unknown[]
   /** Request-body serialization. JSON remains the default. Form encoding
    *  accepts only a flat object of scalar values and omits nullish fields. */
   bodyEncoding?: 'json' | 'form'
@@ -381,6 +387,10 @@ export async function executeRestRequest(
     accept: 'application/json',
     ...renderHeaders(spec.defaultHeaders ?? {}, scope, true),
     ...renderHeaders(renderableHeaders, scope, false, requiredArgs),
+    ...spec.credentialHeaders,
+  }
+  if (Object.values(spec.credentialHeaders ?? {}).some(value => !value.trim())) {
+    throw new Error(`${spec.kind}: missing application credential header`)
   }
   const structuredCredentials =
     placement.kind === 'structured-headers' || placement.kind === 'structured-json-body'
@@ -441,6 +451,21 @@ export async function executeRestRequest(
       region: awsRegion!,
       bundle: aws!,
     })
+  } else if (placement.kind === 'oauth1') {
+    const bundle = readStructuredCredentials(inv.source.credentials, {
+      consumerKey: '', consumerSecret: '', accessToken: '', accessTokenSecret: '',
+    })
+    headers.authorization = oauth1Authorization({
+      method: request.method,
+      url,
+      formBody: bodyEncoding === 'form' ? bodyString : undefined,
+      credentials: {
+        consumerKey: bundle.consumerKey!, consumerSecret: bundle.consumerSecret!,
+        accessToken: bundle.accessToken!, accessTokenSecret: bundle.accessTokenSecret!,
+      },
+      nonce: randomBytes(24).toString('hex'),
+      timestamp: String(Math.floor(Date.now() / 1000)),
+    })
   } else if (placement.kind === 'basic-structured') {
     const username = structuredCredentials![placement.usernameField]!
     const password = structuredCredentials![placement.passwordField]!
@@ -470,7 +495,7 @@ export async function executeRestRequest(
     const text = redactCredentialText(
       await safeErrorText(res),
       inv.source.credentials,
-      [getHeaderCI(headers, 'authorization')],
+      [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
     return {
       data: parseBodyText(text),
@@ -484,7 +509,7 @@ export async function executeRestRequest(
     const text = redactCredentialText(
       await safeErrorText(res),
       inv.source.credentials,
-      [getHeaderCI(headers, 'authorization')],
+      [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
     return {
       data: parseBodyText(text),
@@ -507,7 +532,7 @@ export async function executeRestRequest(
     const text = redactCredentialText(
       await safeErrorText(res),
       inv.source.credentials,
-      [getHeaderCI(headers, 'authorization')],
+      [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
@@ -748,13 +773,16 @@ function redactCredentialText(
   // fields above remain candidates because an upstream can echo those too.
   const authorizationSecrets = additionalSecrets.flatMap((secret) => {
     if (typeof secret !== 'string') return []
+    if (secret.startsWith('OAuth ')) {
+      return [secret, ...[...secret.matchAll(/oauth_(?:consumer_key|token|signature)="([^"]+)"/g)].map(match => match[1]!)]
+    }
     const credential = secret.match(/^(?:Basic|Bearer)\s+(.+)$/i)?.[1]
     return credential ? [secret, credential] : [secret]
   })
   const secrets = [...candidates, ...authorizationSecrets].filter(
     (secret): secret is string => typeof secret === 'string' && secret.length > 0,
   )
-  return secrets.reduce<string>(
+  return [...new Set(secrets.flatMap(secret => [secret, encodeURIComponent(secret)]))].sort((a, b) => b.length - a.length).reduce<string>(
     (redacted, secret) => redacted.split(secret).join('[REDACTED]'),
     text,
   )
@@ -847,8 +875,7 @@ function resolveBody(
   requiredArgs?: readonly string[],
 ): unknown {
   if (!body || body === 'args') return args
-  if (typeof body === 'string') return renderValue(body, scope, requiredArgs)
-  return renderObject(body, scope, requiredArgs)
+  return renderValue(body, scope, requiredArgs)
 }
 
 /** Conservative wait when the upstream throttles without saying for how long. */

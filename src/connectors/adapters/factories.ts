@@ -157,6 +157,15 @@ import {
 } from './google-calendar.js'
 import { googleAnalyticsConnector } from './google-analytics.js'
 import { googleAdsConnector } from './google-ads.js'
+import { metaAdsConnector } from './meta-ads.js'
+import { xAdsConnector } from './x-ads.js'
+import { tiktokAdsConnector } from './tiktok-ads.js'
+import { linkedinAdsConnector } from './linkedin-ads.js'
+import { redditAdsConnector } from './reddit-ads.js'
+import { snapchatAdsConnector } from './snapchat-ads.js'
+import { pinterestAdsConnector } from './pinterest-ads.js'
+import { createMicrosoftAdsConnector } from './microsoft-ads.js'
+import { createAmazonAdsConnector } from './amazon-ads.js'
 import { googleCloudStorageConnector } from './google-cloud-storage.js'
 import { googlePubSubConnector } from './google-pubsub.js'
 import { googleContactsConnector } from './google-contacts.js'
@@ -424,6 +433,30 @@ export const CONNECTOR_ADAPTER_FACTORIES: readonly ConnectorAdapterFactoryDefini
     defineFactoryAdapter(() => googleTasksConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleAnalyticsConnector, googleOAuthEnvMap),
     defineFactoryAdapter(() => googleAdsConnector, googleOAuthEnvMap),
+    defineFactoryAdapter(() => metaAdsConnector, {
+      clientId: 'META_ADS_OAUTH_CLIENT_ID', clientSecret: 'META_ADS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => xAdsConnector, {}),
+    defineFactoryAdapter(() => tiktokAdsConnector, {}),
+    defineFactoryAdapter(() => linkedinAdsConnector, {
+      clientId: 'LINKEDIN_OAUTH_CLIENT_ID', clientSecret: 'LINKEDIN_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => redditAdsConnector, {
+      clientId: 'REDDIT_ADS_OAUTH_CLIENT_ID', clientSecret: 'REDDIT_ADS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => snapchatAdsConnector, {
+      clientId: 'SNAPCHAT_ADS_OAUTH_CLIENT_ID', clientSecret: 'SNAPCHAT_ADS_OAUTH_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(() => pinterestAdsConnector, {
+      clientId: 'PINTEREST_ADS_CLIENT_ID', clientSecret: 'PINTEREST_ADS_CLIENT_SECRET',
+    }),
+    defineFactoryAdapter(createMicrosoftAdsConnector, {
+      clientId: 'MICROSOFT_ADS_CLIENT_ID', clientSecret: 'MICROSOFT_ADS_CLIENT_SECRET',
+      developerToken: 'MICROSOFT_ADS_DEVELOPER_TOKEN',
+    }),
+    defineFactoryAdapter(createAmazonAdsConnector, {
+      clientId: 'AMAZON_ADS_CLIENT_ID', clientSecret: 'AMAZON_ADS_CLIENT_SECRET',
+    }),
     defineFactoryAdapter(() => googleMeetConnector, googleOAuthEnvMap),
     // Business Profile uses the existing Google OAuth app. Keeping the
     // credentials as one pair prevents a partial dedicated configuration from
