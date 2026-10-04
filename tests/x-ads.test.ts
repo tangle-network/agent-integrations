@@ -50,6 +50,7 @@ describe('X Ads provider contract', () => {
     await xAdsConnector.executeMutation(invoke('lineItems.createTraffic', { accountId: 'abc', campaignId: 'camp', name: 'Traffic', startTime: '2026-10-05T00:00:00Z', endTime: '2026-10-07T00:00:00Z', totalBudgetMicros: '100000000', bidMicros: '1000000' }))
     const body = Object.fromEntries(new URLSearchParams(String(fetch.mock.lastCall![1]?.body)))
     expect(body).toMatchObject({ objective: 'WEBSITE_CLICKS', goal: 'LINK_CLICKS', bid_strategy: 'MAX', entity_status: 'PAUSED', total_budget_amount_local_micro: '100000000', end_time: '2026-10-07T00:00:00Z' })
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'promoted123' }] })))
     await xAdsConnector.executeMutation(invoke('ads.promotePost', { accountId: 'abc', lineItemId: 'line', tweetId: '123456' }))
     expect(String(fetch.mock.lastCall![0])).toBe('https://ads-api.x.com/12/accounts/abc/promoted_tweets')
     expect(Object.fromEntries(new URLSearchParams(String(fetch.mock.lastCall![1]?.body)))).toEqual({ line_item_id: 'line', tweet_ids: '123456' })
@@ -82,6 +83,12 @@ describe('X Ads provider contract', () => {
     await expect(xAdsConnector.executeRead!(invoke('accounts.list', {}))).rejects.toBeInstanceOf(CredentialsExpired)
     fetch.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'retry-after': '2' } }))
     expect(await xAdsConnector.executeMutation(invoke('campaigns.pause', { accountId: 'abc', campaignId: 'camp' }))).toMatchObject({ status: 'rate-limited', retryAfterMs: 2000 })
+  })
+  it('rejects native errors and missing receipts returned with HTTP success', async () => {
+    const fetch = transport({ errors: [{ code: 'INVALID', message: 'provider failure' }] })
+    await expect(xAdsConnector.executeMutation(invoke('campaigns.pause', { accountId: 'abc', campaignId: 'camp' }))).rejects.toThrow('native mutation receipt')
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify({ data: [] })))
+    await expect(xAdsConnector.executeMutation(invoke('ads.promotePost', { accountId: 'abc', lineItemId: 'line', tweetId: '123456' }))).rejects.toThrow('native mutation receipt')
   })
   it('reports spend through the analytics endpoint, not an organic publishing action', async () => {
     const fetch = transport({ data: [{ id: 'camp', id_data: [{ metrics: { billed_charge_local_micro: [1000000] } }] }] })

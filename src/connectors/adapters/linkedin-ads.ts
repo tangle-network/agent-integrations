@@ -1,11 +1,12 @@
 import { declarativeRestConnector, type RestOperationSpec } from './declarative-rest.js'
+import { isPlainRecord } from './file-payload.js'
 
 const id = { type: 'string', pattern: '^[0-9]+$' }
 const text = { type: 'string', minLength: 1, maxLength: 255 }
 const money = { type: 'string', pattern: '^(?:[1-9][0-9]*(?:\\.[0-9]{1,2})?|0\\.(?:0[1-9]|[1-9][0-9]?))$', description: 'Positive decimal amount in account currency, not micros.' }
 const currency = { type: 'string', pattern: '^[A-Z]{3}$' }
 const time = { type: 'integer', minimum: 1, description: 'Unix epoch milliseconds.' }
-const facets = ['locations', 'industries', 'employers', 'jobFunctions', 'seniorities', 'titles', 'skills', 'staffCountRanges', 'interests']
+const facets = ['interfaceLocales', 'locations', 'industries', 'employers', 'jobFunctions', 'seniorities', 'titles', 'skills', 'staffCountRanges', 'interests']
 const facetValues = Object.fromEntries(facets.map(facet => [`urn:li:adTargetingFacet:${facet}`, { type: 'array', minItems: 1, maxItems: 100, items: { type: 'string', pattern: '^urn:li:' } }]))
 const targetingGroup = { type: 'object', properties: { or: { type: 'object', minProperties: 1, properties: facetValues, additionalProperties: false } }, required: ['or'], additionalProperties: false }
 const targeting = {
@@ -56,11 +57,11 @@ const base = declarativeRestConnector({
       status === 'ACTIVE' ? 'Enable a campaign group. Active children can spend immediately; verify the group total budget and schedule first.' : 'Pause the entire campaign group.',
       '/adCampaignGroups/{groupId}', { groupId: id }, ['groupId'], { patch: { $set: { status } } })),
     write('campaigns.createSponsored', 'Create a PAUSED sponsored-content campaign with lifetime pacing, a total budget, fixed schedule and maximum CPC bid. Include geographic targeting. Reuse existing LinkedIn posts for creatives.', '/adCampaigns',
-      { name: text, groupId: id, totalBudget: money, currencyCode: currency, bidAmount: money, startTime: time, endTime: time, targetingCriteria: targeting,
+      { name: text, groupId: id, associatedEntity: { type: 'string', pattern: '^urn:li:(organization:[0-9]+|person:[A-Za-z0-9_-]+)$', description: 'Beneficiary organization or member URN with sponsorship rights for this campaign.' }, totalBudget: money, currencyCode: currency, bidAmount: money, startTime: time, endTime: time, targetingCriteria: targeting,
         localeCountry: { type: 'string', pattern: '^[A-Z]{2}$' }, localeLanguage: { type: 'string', pattern: '^[a-z]{2}$' },
         politicalIntent: { type: 'string', enum: ['NOT_POLITICAL', 'POLITICAL', 'NOT_DECLARED'], description: 'For EU targeting the advertiser must provide the LinkedIn political advertising declaration before submission.' },
-      }, ['name', 'groupId', 'totalBudget', 'currencyCode', 'bidAmount', 'startTime', 'endTime', 'targetingCriteria', 'localeCountry', 'localeLanguage', 'politicalIntent'],
-      { account: 'urn:li:sponsoredAccount:{accountId}', campaignGroup: 'urn:li:sponsoredCampaignGroup:{groupId}', name: '{name}', type: 'SPONSORED_UPDATES', objectiveType: 'WEBSITE_VISIT', status: 'PAUSED', pacingStrategy: 'LIFETIME',
+      }, ['name', 'groupId', 'associatedEntity', 'totalBudget', 'currencyCode', 'bidAmount', 'startTime', 'endTime', 'targetingCriteria', 'localeCountry', 'localeLanguage', 'politicalIntent'],
+      { account: 'urn:li:sponsoredAccount:{accountId}', campaignGroup: 'urn:li:sponsoredCampaignGroup:{groupId}', associatedEntity: '{associatedEntity}', name: '{name}', type: 'SPONSORED_UPDATES', objectiveType: 'WEBSITE_VISIT', status: 'PAUSED', pacingStrategy: 'LIFETIME',
         totalBudget: { amount: '{totalBudget}', currencyCode: '{currencyCode}' }, unitCost: { amount: '{bidAmount}', currencyCode: '{currencyCode}' }, costType: 'CPC', optimizationTargetType: 'NONE',
         runSchedule: { start: '{startTime}', end: '{endTime}' }, targetingCriteria: '{targetingCriteria}', locale: { country: '{localeCountry}', language: '{localeLanguage}' },
         audienceExpansionEnabled: false, offsiteDeliveryEnabled: false, creativeSelection: 'OPTIMIZED', politicalIntent: '{politicalIntent}' }, true),
@@ -98,6 +99,13 @@ export const linkedinAdsConnector = {
     if (inv.capabilityName === 'campaignGroups.create' || inv.capabilityName === 'campaigns.createSponsored') {
       if (!(typeof inv.args.startTime === 'number' && typeof inv.args.endTime === 'number' && Number.isSafeInteger(inv.args.startTime) && Number.isSafeInteger(inv.args.endTime) && Number(inv.args.startTime) > 0 && Number(inv.args.endTime) > Number(inv.args.startTime))) throw new Error('linkedin-ads: endTime must be after startTime in epoch milliseconds')
     }
-    return base.executeMutation!(inv)
+    const result = await base.executeMutation!(inv)
+    if (result.status === 'committed') {
+      const creating = ['campaignGroups.create', 'campaigns.createSponsored', 'creatives.createFromPost'].includes(inv.capabilityName)
+      if (creating ? !(isPlainRecord(result.data) && typeof result.data.id === 'string' && result.data.id.length > 0) : result.data !== null) {
+        throw new Error('linkedin-ads: unexpected mutation receipt; reconcile provider state before retrying')
+      }
+    }
+    return result
   },
 }

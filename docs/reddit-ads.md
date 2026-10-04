@@ -21,3 +21,5 @@ This first supported creation path is Standard traffic CBO, not every Reddit cam
 ## Evidence and limits
 
 `tests/reddit-ads.test.ts` checks v3 account discovery, separate Ads OAuth, pagination, paused lifetime-budget campaign creation, null bid inheritance, geography, pixel/schedule guards, creative-job/readback semantics, paused ad creation, native launch/pause, reporting and redacted failures. These transport tests do not prove an actual funded account, provider review, live delivery or conversion tracking. Production qualification must retain the corresponding provider receipts; tests spend no money.
+
+Mutation success requires a native entity-ID receipt; missing receipts and native error envelopes fail and require reconciliation before retry. A creative job receipt in QUEUED or PROCESSING acknowledges job submission only: `posts.getJob` must reach SUCCESS before its post is usable. Immediate failed or unknown job statuses are rejected.

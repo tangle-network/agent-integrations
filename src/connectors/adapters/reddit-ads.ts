@@ -1,4 +1,5 @@
 import { declarativeRestConnector, type RestOperationSpec } from './declarative-rest.js'
+import { isPlainRecord } from './file-payload.js'
 
 const id = { type: 'string', pattern: '^[a-zA-Z0-9_-]+$' }
 const text = { type: 'string', minLength: 1, maxLength: 255 }
@@ -87,6 +88,16 @@ export const redditAdsConnector = {
     if (inv.capabilityName === 'campaigns.createTraffic' || inv.capabilityName === 'adGroups.createTraffic') {
       if (!(typeof inv.args.startTime === 'string' && typeof inv.args.endTime === 'string' && Date.parse(inv.args.endTime) > Date.parse(inv.args.startTime))) throw new Error('reddit-ads: endTime must be after startTime')
     }
-    return base.executeMutation!(inv)
+    const result = await base.executeMutation!(inv)
+    if (result.status === 'committed') {
+      const envelope = result.data
+      if (!isPlainRecord(envelope) || envelope.error || envelope.errors || !isPlainRecord(envelope.data) || typeof envelope.data.id !== 'string' || !envelope.data.id) {
+        throw new Error('reddit-ads: missing native mutation receipt or provider error; reconcile state before retrying')
+      }
+      if (inv.capabilityName === 'posts.createImage' || inv.capabilityName === 'posts.createText') {
+        if (!['QUEUED', 'PROCESSING', 'SUCCESS'].includes(String(envelope.data.status))) throw new Error('reddit-ads: post creation job failed or returned unknown status')
+      }
+    }
+    return result
   },
 }

@@ -6,8 +6,8 @@ const source: ResolvedDataSource = { id: 'ads', projectId: 'workspace', publishe
 const invoke = (capabilityName: string, args: Record<string, unknown>): ConnectorInvocation => ({ source, capabilityName, args, idempotencyKey: 'one-request' })
 function transport(data: unknown = {}, status = 200, headers: Record<string, string> = {}) { return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(status === 204 ? null : JSON.stringify(data), { status, headers })) }
 afterEach(() => vi.restoreAllMocks())
-const campaign = { accountId: '123', groupId: '456', name: 'Trial', totalBudget: '100.00', currencyCode: 'USD', bidAmount: '2.00', startTime: 1791158400000, endTime: 1791331200000,
-  targetingCriteria: { include: { and: [{ or: { 'urn:li:adTargetingFacet:locations': ['urn:li:geo:103644278'] } }] } }, localeCountry: 'US', localeLanguage: 'en', politicalIntent: 'NOT_POLITICAL' }
+const campaign = { accountId: '123', groupId: '456', associatedEntity: 'urn:li:organization:1234', name: 'Trial', totalBudget: '100.00', currencyCode: 'USD', bidAmount: '2.00', startTime: 1791158400000, endTime: 1791331200000,
+  targetingCriteria: { include: { and: [{ or: { 'urn:li:adTargetingFacet:locations': ['urn:li:geo:103644278'] } }, { or: { 'urn:li:adTargetingFacet:interfaceLocales': ['urn:li:locale:en_US'] } }] } }, localeCountry: 'US', localeLanguage: 'en', politicalIntent: 'NOT_POLITICAL' }
 
 describe('LinkedIn Ads provider contract', () => {
   it('discovers accounts using Marketing API scopes, version and native pagination', async () => {
@@ -28,6 +28,7 @@ describe('LinkedIn Ads provider contract', () => {
     expect(body).toMatchObject({ status: 'PAUSED', pacingStrategy: 'LIFETIME', totalBudget: { amount: '100.00', currencyCode: 'USD' }, runSchedule: { start: campaign.startTime, end: campaign.endTime }, campaignGroup: 'urn:li:sponsoredCampaignGroup:456', targetingCriteria: campaign.targetingCriteria, audienceExpansionEnabled: false, offsiteDeliveryEnabled: false })
     expect(body).not.toHaveProperty('dailyBudget')
     expect(body.account).toBe('urn:li:sponsoredAccount:123')
+    expect(body.associatedEntity).toBe(campaign.associatedEntity)
   })
   it('creates a draft group with its own cumulative spending ceiling', async () => {
     const fetch = transport({}, 201, { 'x-restli-id': '456' })
@@ -39,6 +40,7 @@ describe('LinkedIn Ads provider contract', () => {
     await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, totalBudget: undefined }))).rejects.toThrow('totalBudget')
     await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, totalBudget: '-10' }))).rejects.toThrow('positive decimal')
     await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, endTime: campaign.startTime - 1 }))).rejects.toThrow('endTime')
+    await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', { ...campaign, associatedEntity: undefined }))).rejects.toThrow('associatedEntity')
     expect(fetch).not.toHaveBeenCalled()
   })
   it('sponsors existing content and changes serving status using native partial updates', async () => {
@@ -63,6 +65,12 @@ describe('LinkedIn Ads provider contract', () => {
     expect(url.searchParams.get('accounts')).toBe('List(urn:li:sponsoredAccount:123)')
     expect(url.searchParams.get('dateRange')).toBe('(start:(year:2026,month:10,day:1),end:(year:2026,month:10,day:3))')
     expect(url.searchParams.get('fields')).toContain('costInLocalCurrency')
+  })
+  it('rejects missing create receipts and nonempty status-error responses instead of reporting committed', async () => {
+    const fetch = transport({}, 201)
+    await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.createSponsored', campaign))).rejects.toThrow('x-restli-id')
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify({ serviceErrorCode: 100, message: 'denied' })))
+    await expect(linkedinAdsConnector.executeMutation(invoke('campaigns.pause', { accountId: '123', campaignId: '456' }))).rejects.toThrow('unexpected mutation receipt')
   })
   it('preserves Marketing API approval denial and expired OAuth without exposing the token', async () => {
     const fetch = transport({ message: 'Not approved private-linkedin-token' }, 403)

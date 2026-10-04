@@ -1,4 +1,5 @@
 import { declarativeRestConnector, type RestOperationSpec } from './declarative-rest.js'
+import { isPlainRecord } from './file-payload.js'
 
 const id = { type: 'string', pattern: '^[a-zA-Z0-9]+$' }
 const text = { type: 'string', minLength: 1, maxLength: 255 }
@@ -77,6 +78,15 @@ export const xAdsConnector = {
     }
     if (typeof inv.args.dailyBudgetMicros === 'string' && typeof inv.args.totalBudgetMicros === 'string' && BigInt(inv.args.dailyBudgetMicros) > BigInt(inv.args.totalBudgetMicros)) throw new Error('x-ads: daily budget exceeds total budget')
     if (inv.capabilityName === 'lineItems.createTraffic' && !(typeof inv.args.startTime === 'string' && typeof inv.args.endTime === 'string' && Date.parse(inv.args.endTime) > Date.parse(inv.args.startTime))) throw new Error('x-ads: endTime must be after startTime')
-    return base.executeMutation!(inv)
+    const result = await base.executeMutation!(inv)
+    if (result.status === 'committed') {
+      const envelope = result.data
+      const records = isPlainRecord(envelope) ? (Array.isArray(envelope.data) ? envelope.data : [envelope.data]) : []
+      if (!isPlainRecord(envelope) || envelope.errors || records.length === 0 || !records.every(item => isPlainRecord(item) &&
+        ((typeof item.id === 'string' && item.id.length > 0) || (typeof item.id_str === 'string' && item.id_str.length > 0)))) {
+        throw new Error('x-ads: missing native mutation receipt or provider error; reconcile state before retrying')
+      }
+    }
+    return result
   },
 }

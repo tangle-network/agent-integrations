@@ -62,6 +62,14 @@ describe('Reddit Ads provider contract', () => {
     expect(String(fetch.mock.lastCall![0])).toBe('https://ads-api.reddit.com/api/v3/ad_accounts/a2_account/reports')
     expect(JSON.parse(String(fetch.mock.lastCall![1]?.body))).toEqual({ data: { starts_at: campaign.startTime, ends_at: campaign.endTime, fields: ['SPEND', 'CLICKS', 'CONVERSION_SIGN_UP_CLICKS'], breakdowns: ['CAMPAIGN_ID', 'DATE'] } })
   })
+  it('rejects malformed mutation receipts and immediate failed creative jobs', async () => {
+    const fetch = transport({ error: { message: 'denied' } })
+    await expect(redditAdsConnector.executeMutation(invoke('campaigns.pause', { id: 'campaign1' }))).rejects.toThrow('native mutation receipt')
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify({ data: {} })))
+    await expect(redditAdsConnector.executeMutation(invoke('campaigns.pause', { id: 'campaign1' }))).rejects.toThrow('native mutation receipt')
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'job1', status: 'CLIENT_ERROR' } })))
+    await expect(redditAdsConnector.executeMutation(invoke('posts.createText', { profileId: 'profile1', headline: 'Offer', body: 'Details', allowComments: false }))).rejects.toThrow('post creation job failed')
+  })
   it('preserves native denied, expired and throttled outcomes without exposing credentials', async () => {
     const fetch = transport({ error: { message: 'adsedit missing private-reddit-token' } }, 403)
     await expect(redditAdsConnector.executeMutation(invoke('campaigns.pause', { id: 'campaign1' }))).rejects.toThrow('adsedit missing [REDACTED]')
