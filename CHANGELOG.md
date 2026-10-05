@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.61.2
+
+- fix(clients): call fetch without the client as receiver (#354)
+- feat(github): read combined commit status and check runs for a ref
+
 ## 0.61.1
 
 - fix(ads): require native social advertising mutation receipts
