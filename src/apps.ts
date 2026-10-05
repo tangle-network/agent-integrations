@@ -101,7 +101,10 @@ export class TangleAppsClient {
 
   constructor(options: TangleAppsClientOptions) {
     this.endpoint = options.endpoint.replace(/\/$/, '')
-    this.fetchImpl = options.fetchImpl ?? fetch
+    // Call fetch as a plain function: Workers throw "Illegal invocation" when
+    // fetch runs with the client as its receiver (this.fetchImpl(...)).
+    const fetchImpl = options.fetchImpl ?? fetch
+    this.fetchImpl = (input, init) => fetchImpl(input, init)
     this.ownerPolicy = options.ownerPolicy
   }
 

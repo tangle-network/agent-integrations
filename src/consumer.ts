@@ -247,7 +247,10 @@ export class IntegrationHubClient {
     this.endpoint = (options.endpoint ?? DEFAULT_TANGLE_PLATFORM_URL).replace(/\/+$/, '')
     this.product = options.product.trim()
     this.auth = options.auth
-    this.fetchImpl = options.fetchImpl ?? fetch
+    // Call fetch as a plain function: Workers throw "Illegal invocation" when
+    // fetch runs with the client as its receiver (this.fetchImpl(...)).
+    const fetchImpl = options.fetchImpl ?? fetch
+    this.fetchImpl = (input, init) => fetchImpl(input, init)
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
     this.maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)
     this.ownerPolicy = options.ownerPolicy ?? {
