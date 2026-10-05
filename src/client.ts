@@ -44,7 +44,10 @@ export class TangleIntegrationsClient {
       options.env ?? readProcessEnv(),
       { envVar: options.envVar ?? DEFAULT_INTEGRATION_BRIDGE_ENV },
     )
-    this.fetchImpl = options.fetchImpl ?? fetch
+    // Call fetch as a plain function: Workers throw "Illegal invocation" when
+    // fetch runs with the client as its receiver (this.fetchImpl(...)).
+    const fetchImpl = options.fetchImpl ?? fetch
+    this.fetchImpl = (input, init) => fetchImpl(input, init)
     this.getCapabilityToken = options.getCapabilityToken ?? ((tool) => tool.capabilityToken)
   }
 

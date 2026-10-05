@@ -77,7 +77,9 @@ export class McpHttpClient {
   constructor(private readonly config: McpServerConfig) {}
 
   private get fetchImpl(): typeof fetch {
-    return this.config.fetchImpl ?? fetch
+    // Detach from this client: Workers reject fetch called with a foreign receiver.
+    const fetchImpl = this.config.fetchImpl ?? fetch
+    return (input, init) => fetchImpl(input, init)
   }
 
   private async post(body: Record<string, unknown>): Promise<JsonRpcResponse | undefined> {

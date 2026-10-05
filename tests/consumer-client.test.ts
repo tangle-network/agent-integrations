@@ -148,6 +148,21 @@ describe('IntegrationHubClient — construction', () => {
     await client.resolveManifest({ userId: 'usr_1', manifest: manifest() })
     expect(calls[0].url).toBe('https://id.example.com/v1/integrations/resolve-manifest')
   })
+
+  it('calls fetch without the client as its receiver, as Workers require', async () => {
+    // Workers' fetch throws "Illegal invocation" unless called with no receiver.
+    const workerFetch = function (this: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation')
+      return Promise.resolve(ok(resolution('ready')))
+    } as unknown as typeof fetch
+    const client = createIntegrationHubClient({
+      product: 'blueprint-agent',
+      auth: SERVICE_AUTH,
+      fetchImpl: workerFetch,
+    })
+    const result = await client.resolveManifest({ userId: 'usr_1', manifest: manifest() })
+    expect(result.ready).toHaveLength(1)
+  })
 })
 
 // ─── resolveManifest ──────────────────────────────────────────────────
