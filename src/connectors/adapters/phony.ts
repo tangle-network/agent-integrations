@@ -504,6 +504,18 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             videoUrl: { type: 'string', description: 'Public https URL of the video file (mp4, mov, webm, ...), up to 100 MB.' },
             targetLanguage: { type: 'string', description: 'Language to translate into: ISO 639-1 code or English name.' },
             sourceLanguage: { type: 'string', description: 'Spoken language; detected when omitted.' },
+            translationOverrides: {
+              type: 'array', maxItems: 50,
+              description: 'Reviewed target text for a source cue from a prior job. The full source text must match on the new transcription.',
+              items: {
+                type: 'object', required: ['sourceCueIndex', 'expectedSourceText', 'text'],
+                properties: {
+                  sourceCueIndex: { type: 'integer', minimum: 1 },
+                  expectedSourceText: { type: 'string', minLength: 1, maxLength: 120 },
+                  text: { type: 'string', minLength: 1, maxLength: 500 },
+                },
+              },
+            },
             captions: { type: 'string', enum: ['burn', 'none'], default: 'burn', description: 'burn draws the captions into the video; SRT and VTT are returned either way.' },
             coverSourceCaptions: { type: 'boolean', description: 'Hide captions already burned into the bottom of the source under a solid band.' },
             audio: { type: 'string', enum: ['original', 'dub'], default: 'original' },
@@ -520,7 +532,10 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated video link (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice.',
         parameters: {
           type: 'object',
-          properties: { id: { type: 'string', description: 'Job id from translate_video.' } },
+          properties: {
+            id: { type: 'string', description: 'Job id from translate_video.' },
+            includeSourceCues: { type: 'boolean', description: 'Include the source cue indices and full text needed for reviewed translation overrides.' },
+          },
           required: ['id'],
         },
       },
@@ -668,8 +683,9 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       return { data: json, fetchedAt: Date.now() }
     }
     if (inv.capabilityName === 'get_video_job') {
-      const { id } = inv.args as { id?: unknown }
+      const { id, includeSourceCues } = inv.args as { id?: unknown; includeSourceCues?: unknown }
       if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('phony get_video_job id is required')
+      if (includeSourceCues !== undefined && typeof includeSourceCues !== 'boolean') throw new Error('phony get_video_job includeSourceCues must be boolean')
       const job = await ph0ny<{
         id: string
         status: string
@@ -688,9 +704,12 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           error: job.error ?? null,
           videoUrl: job.result?.video_url ?? null,
           durationSeconds: job.result?.duration_seconds ?? null,
-          // Cue arrays stay out of the conversation; the captions carry the same text and timing.
+          // Return source cues only when the caller needs exact text to bind a reviewed correction.
           translation: translation
-            ? pick(translation, ['source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video'])
+            ? {
+                ...pick(translation, ['source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video']),
+                ...(includeSourceCues ? pick(translation, ['source_cues']) : {}),
+              }
             : null,
         },
         fetchedAt: Date.now(),
@@ -831,6 +850,21 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         const value = args[from]
         if (value === undefined || value === '' || value === 'auto') continue
         payload[to] = from === 'coverSourceCaptions' && typeof value === 'string' ? value === 'true' : value
+      }
+      if (args.translationOverrides !== undefined && args.translationOverrides !== '') {
+        let overrides: unknown = args.translationOverrides
+        if (typeof overrides === 'string') {
+          try { overrides = JSON.parse(overrides) } catch { throw new Error('phony translate_video translationOverrides must be a JSON array') }
+        }
+        if (!Array.isArray(overrides)) throw new Error('phony translate_video translationOverrides must be an array')
+        payload.translation_overrides = overrides.map((item: unknown) => {
+          if (!item || typeof item !== 'object') throw new Error('phony translate_video translationOverrides item must be an object')
+          const value = item as Record<string, unknown>
+          if (!Number.isInteger(value.sourceCueIndex) || typeof value.expectedSourceText !== 'string' || typeof value.text !== 'string') {
+            throw new Error('phony translate_video translationOverrides item requires sourceCueIndex, expectedSourceText, and text')
+          }
+          return { source_cue_index: value.sourceCueIndex, expected_source_text: value.expectedSourceText, text: value.text }
+        })
       }
       const json = await ph0ny<{ id: string; status: string }>(
         inv.source.id,

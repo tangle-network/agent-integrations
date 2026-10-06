@@ -627,11 +627,17 @@ describe('phony video translation', () => {
     const captured = captureFetch(new Response(JSON.stringify({ id: 'job_1', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
     const result = await phonyConnector.executeMutation!({
       source: source(), capabilityName: 'translate_video', idempotencyKey: 't1',
-      args: { videoUrl: 'https://media.test/interview.mp4', targetLanguage: 'en', audio: 'dub', coverSourceCaptions: true, speakerVoices: { speaker_0: 'clone_1' } },
+      args: {
+        videoUrl: 'https://media.test/interview.mp4', targetLanguage: 'en', audio: 'dub', coverSourceCaptions: true,
+        speakerVoices: { speaker_0: 'clone_1' },
+        translationOverrides: [{ sourceCueIndex: 1, expectedSourceText: 'אה אישה משעאל', text: 'Hisham al-Sayed was kidnapped here.' }],
+      },
     })
     expect(captured.url).toMatch(/\/v1\/video\/translate$/)
     expect(captured.body).toEqual({
-      video_url: 'https://media.test/interview.mp4', target_language: 'en', audio: 'dub', cover_source_captions: true, speaker_voices: { speaker_0: 'clone_1' },
+      video_url: 'https://media.test/interview.mp4', target_language: 'en', audio: 'dub', cover_source_captions: true,
+      speaker_voices: { speaker_0: 'clone_1' },
+      translation_overrides: [{ source_cue_index: 1, expected_source_text: 'אה אישה משעאל', text: 'Hisham al-Sayed was kidnapped here.' }],
     })
     expect(result.status === 'committed' && result.data).toMatchObject({ jobId: 'job_1', status: 'pending' })
   })
@@ -643,6 +649,15 @@ describe('phony video translation', () => {
       args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', sourceLanguage: 'auto', voice: '', coverSourceCaptions: 'false', audio: 'original' },
     })
     expect(captured.body).toEqual({ video_url: 'https://media.test/a.mp4', target_language: 'en', cover_source_captions: false, audio: 'original' })
+  })
+
+  it('maps a workflow-rendered JSON override array to the ph0ny request', async () => {
+    const captured = captureFetch(new Response(JSON.stringify({ id: 'job_3', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
+    await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 't4',
+      args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', translationOverrides: JSON.stringify([{ sourceCueIndex: 1, expectedSourceText: 'שלום עולם.', text: 'Hello world.' }]) },
+    })
+    expect(captured.body).toMatchObject({ translation_overrides: [{ source_cue_index: 1, expected_source_text: 'שלום עולם.', text: 'Hello world.' }] })
   })
 
   it('refuses a non-https video URL before calling ph0ny', async () => {
@@ -665,5 +680,15 @@ describe('phony video translation', () => {
     const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1' } } as any)
     expect(read.data).toMatchObject({ status: 'completed', videoUrl: 'https://r2.test/out.mp4', translation: { captions: { vtt: 'WEBVTT' } } })
     expect((read.data as any).translation.cues).toBeUndefined()
+    expect((read.data as any).translation.source_cues).toBeUndefined()
+  })
+
+  it('returns exact source cues when a caller requests review data', async () => {
+    captureFetch(new Response(JSON.stringify({
+      id: 'job_1', status: 'completed',
+      result: { translation: { source_cues: [{ index: 1, text: 'אה אישה משעאל' }] } },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1', includeSourceCues: true } } as any)
+    expect((read.data as any).translation.source_cues).toEqual([{ index: 1, text: 'אה אישה משעאל' }])
   })
 })
