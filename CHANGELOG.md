@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.64.0
+
+- feat(phony): pass reviewed video cues through Hub actions (#361)
+
 ## 0.63.0
 
 - feat(phony): translate_video and get_video_job (#359)
