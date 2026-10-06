@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.62.0
+
+- feat(voice): ph0ny voice memos, voices, self-clones, transcription and call outcomes; ElevenLabs voices, clones, STT and agents (#356)
+
 ## 0.61.2
 
 - fix(clients): call fetch without the client as receiver (#354)
