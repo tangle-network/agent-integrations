@@ -826,7 +826,12 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         ['sourceLanguage', 'source_language'], ['captions', 'captions'], ['coverSourceCaptions', 'cover_source_captions'],
         ['audio', 'audio'], ['voice', 'voice'], ['speakerVoices', 'speaker_voices'], ['speakers', 'speakers'],
       ]
-      for (const [from, to] of fields) if (args[from] !== undefined) payload[to] = args[from]
+      for (const [from, to] of fields) {
+        // Workflow expressions render to strings: "" and "auto" mean unset, "true"/"false" are booleans.
+        const value = args[from]
+        if (value === undefined || value === '' || value === 'auto') continue
+        payload[to] = from === 'coverSourceCaptions' && typeof value === 'string' ? value === 'true' : value
+      }
       const json = await ph0ny<{ id: string; status: string }>(
         inv.source.id,
         token,

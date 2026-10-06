@@ -636,6 +636,15 @@ describe('phony video translation', () => {
     expect(result.status === 'committed' && result.data).toMatchObject({ jobId: 'job_1', status: 'pending' })
   })
 
+  it('reads workflow-rendered strings: "auto" and "" unset, "false" a boolean', async () => {
+    const captured = captureFetch(new Response(JSON.stringify({ id: 'job_2', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
+    await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 't3',
+      args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', sourceLanguage: 'auto', voice: '', coverSourceCaptions: 'false', audio: 'original' },
+    })
+    expect(captured.body).toEqual({ video_url: 'https://media.test/a.mp4', target_language: 'en', cover_source_captions: false, audio: 'original' })
+  })
+
   it('refuses a non-https video URL before calling ph0ny', async () => {
     const captured = captureFetch(new Response('{}'))
     await expect(phonyConnector.executeMutation!({
