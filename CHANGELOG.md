@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.63.0
+
+- feat(phony): translate_video and get_video_job (#359)
+
 ## 0.62.0
 
 - feat(voice): ph0ny voice memos, voices, self-clones, transcription and call outcomes; ElevenLabs voices, clones, STT and agents (#356)
