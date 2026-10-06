@@ -105,6 +105,8 @@ export const elevenlabsConnector: ConnectorAdapter = {
         class: 'mutation',
         cas: 'none',
         externalEffect: true,
+        // Creates a new provider resource each time; nothing to compare-and-swap.
+        consistencyModel: 'advisory',
         description:
           'Instant-clone the requester\'s OWN voice from 1-5 public recordings (needs a paid ElevenLabs plan). consent.subject must be "self" and consent.statement must quote the speaker consenting; never clone anyone else.',
         parameters: {
@@ -148,6 +150,8 @@ export const elevenlabsConnector: ConnectorAdapter = {
         class: 'mutation',
         cas: 'none',
         externalEffect: true,
+        // Creates a new provider resource each time; nothing to compare-and-swap.
+        consistencyModel: 'advisory',
         description: 'Create an ElevenLabs conversational voice agent with a prompt, greeting and voice.',
         parameters: {
           type: 'object',
