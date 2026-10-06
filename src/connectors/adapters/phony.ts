@@ -529,12 +529,12 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'get_video_job',
         class: 'read',
-        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated video link (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice.',
+        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated video link (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice. Optionally return one source cue for reviewed translation.',
         parameters: {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Job id from translate_video.' },
-            includeSourceCues: { type: 'boolean', description: 'Include the source cue indices and full text needed for reviewed translation overrides.' },
+            sourceCueIndex: { type: 'integer', minimum: 1, description: 'Return this one source cue with its full text for a reviewed translation override.' },
           },
           required: ['id'],
         },
@@ -683,9 +683,12 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       return { data: json, fetchedAt: Date.now() }
     }
     if (inv.capabilityName === 'get_video_job') {
-      const { id, includeSourceCues } = inv.args as { id?: unknown; includeSourceCues?: unknown }
+      const { id, sourceCueIndex: rawSourceCueIndex } = inv.args as { id?: unknown; sourceCueIndex?: unknown }
       if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('phony get_video_job id is required')
-      if (includeSourceCues !== undefined && typeof includeSourceCues !== 'boolean') throw new Error('phony get_video_job includeSourceCues must be boolean')
+      const sourceCueIndex = typeof rawSourceCueIndex === 'string' ? Number(rawSourceCueIndex) : rawSourceCueIndex
+      if (sourceCueIndex !== undefined && sourceCueIndex !== 0 && (!Number.isInteger(sourceCueIndex) || Number(sourceCueIndex) < 1)) {
+        throw new Error('phony get_video_job sourceCueIndex must be a positive integer')
+      }
       const job = await ph0ny<{
         id: string
         status: string
@@ -695,6 +698,13 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         result?: { video_url?: string; duration_seconds?: number; translation?: Record<string, unknown> }
       }>(inv.source.id, token, { method: 'GET', path: `/v1/video/${encodeURIComponent(id)}`, timeout: 15_000 }, 'get_video_job')
       const translation = job.result?.translation
+      const sourceCues = translation?.source_cues
+      const sourceCue = sourceCueIndex && Array.isArray(sourceCues)
+        ? sourceCues.find((cue: unknown) => !!cue && typeof cue === 'object' && (cue as Record<string, unknown>).index === sourceCueIndex)
+        : undefined
+      if (sourceCueIndex && job.status === 'completed' && !sourceCue) {
+        throw new Error(`phony get_video_job source cue ${sourceCueIndex} was not returned by ph0ny`)
+      }
       return {
         data: {
           id: job.id,
@@ -704,11 +714,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           error: job.error ?? null,
           videoUrl: job.result?.video_url ?? null,
           durationSeconds: job.result?.duration_seconds ?? null,
-          // Return source cues only when the caller needs exact text to bind a reviewed correction.
+          // Return one reviewed source cue without copying the full transcript into workflow state.
           translation: translation
             ? {
                 ...pick(translation, ['source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video']),
-                ...(includeSourceCues ? pick(translation, ['source_cues']) : {}),
+                ...(sourceCueIndex ? { source_cue: sourceCue ?? null } : {}),
               }
             : null,
         },

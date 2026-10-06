@@ -683,12 +683,13 @@ describe('phony video translation', () => {
     expect((read.data as any).translation.source_cues).toBeUndefined()
   })
 
-  it('returns exact source cues when a caller requests review data', async () => {
+  it('returns one exact source cue when a caller requests review data', async () => {
     captureFetch(new Response(JSON.stringify({
       id: 'job_1', status: 'completed',
-      result: { translation: { source_cues: [{ index: 1, text: 'אה אישה משעאל' }] } },
+      result: { translation: { source_cues: [{ index: 1, text: 'אה אישה משעאל' }, { index: 2, text: 'other cue' }] } },
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
-    const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1', includeSourceCues: true } } as any)
-    expect((read.data as any).translation.source_cues).toEqual([{ index: 1, text: 'אה אישה משעאל' }])
+    const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1', sourceCueIndex: '1' } } as any)
+    expect((read.data as any).translation.source_cue).toEqual({ index: 1, text: 'אה אישה משעאל' })
+    expect((read.data as any).translation.source_cues).toBeUndefined()
   })
 })
