@@ -49,6 +49,32 @@
  *     Read. POST /v1/collections/:id/search. Hybrid vector+keyword search
  *     over a collection. Returns { results, queryTokens, graphContext? }.
  *
+ *   list_voices(provider?, query?, limit?, cursor?)
+ *     Read. GET /v1/voices. Voices an agent can speak with: the account's
+ *     clones plus provider voices, each naming `provider` and
+ *     `providerVoiceId` (set those as an agent's ttsProvider and voiceId).
+ *
+ *   list_phone_numbers()
+ *     Read. GET /v1/phone-numbers. Caller ids that start_outbound_call accepts.
+ *
+ *   synthesize_speech(text, voiceId?, provider?, format?, speed?)
+ *     Mutation (billed). POST /v1/synthesize. A voice memo: ph0ny stores the
+ *     audio and returns a download URL valid for about an hour; save it as a
+ *     file rather than passing audio through the conversation.
+ *
+ *   transcribe(audioUrl, language?, diarize?, …)
+ *     Read (billed). POST /v1/transcribe. Speech-to-text of a public URL.
+ *
+ *   clone_voice(name, sampleUrls, consent, …)
+ *     Mutation, external effect. POST /v1/voices/clone. Instant clone of the
+ *     requester's OWN voice only: consent.subject must be "self" and
+ *     consent.statement must quote them consenting. ph0ny stores the consent
+ *     with the voice. Use the returned voice.id as start_outbound_call's
+ *     voiceCloneId.
+ *
+ *   update_agent(agentId, …)
+ *     Mutation. PUT /v1/agents/:id. Change an agent's voice, prompt or model.
+ *
  * The agent test/eval routes (/v1/agents/:id/tests/*, benchmark, redteam) are
  * deliberately NOT exposed here: they run platform-funded LLM/TTS inference with
  * no usage metering, and are platform-admin tooling — not workspace-agent surface.
@@ -76,7 +102,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
   async function ph0ny<T>(
     sourceId: string,
     token: string,
-    request: { method: 'GET' | 'POST'; path: string; body?: Record<string, unknown>; timeout: number },
+    request: { method: 'GET' | 'POST' | 'PUT'; path: string; body?: Record<string, unknown>; timeout: number },
     label: string,
   ): Promise<T> {
     try {
@@ -181,7 +207,20 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
                 companyName: { type: 'string' },
               },
             },
-            voiceCloneId: { type: 'string', description: 'Optional cloned-voice id to speak with.' },
+            voiceCloneId: {
+              type: 'string',
+              description: 'Optional voice.id from clone_voice. The agent must use the same ttsProvider as the clone (cartesia).',
+            },
+            callback: {
+              type: 'object',
+              description:
+                'Optional. ph0ny POSTs the outcome (summary, extracted fields, transcript, recording URL) here once the call ends, signed X-Signature: hex(HMAC-SHA256(body, token)) and sent with Authorization: Bearer <token>.',
+              properties: {
+                url: { type: 'string', description: 'https URL that receives the outcome.' },
+                token: { type: 'string', description: 'Shared secret, 16-512 chars.' },
+              },
+              required: ['url', 'token'],
+            },
             userConsentRecorded: {
               type: 'boolean',
               description: 'REQUIRED. Must be true — the user explicitly authorized this call. ph0ny rejects false.',
@@ -362,6 +401,125 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           required: ['collectionId', 'query'],
         },
       },
+      {
+        name: 'list_voices',
+        class: 'read',
+        description:
+          'List voices an agent can speak with: your cloned voices, ElevenLabs account voices and, with provider "cartesia", Cartesia stock voices. Each voice names provider and providerVoiceId; set them as an agent\'s ttsProvider and voiceId.',
+        parameters: {
+          type: 'object',
+          properties: {
+            provider: { type: 'string', enum: ['cartesia'], description: 'Also list this provider\'s stock voices.' },
+            query: { type: 'string', description: 'Filter provider voices by name (with provider).' },
+            limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
+            cursor: { type: 'string', description: 'Pagination cursor from a prior response.' },
+          },
+        },
+      },
+      {
+        name: 'list_phone_numbers',
+        class: 'read',
+        description: 'List the phone numbers on your ph0ny account; use one as start_outbound_call fromNumber.',
+        parameters: { type: 'object', properties: {} },
+      },
+      {
+        name: 'transcribe',
+        class: 'read',
+        consistencyModel: 'authoritative',
+        description: 'Transcribe speech from a public audio URL (billed per audio minute).',
+        parameters: {
+          type: 'object',
+          properties: {
+            audioUrl: { type: 'string', description: 'Public https URL of the audio.' },
+            language: { type: 'string', description: 'BCP-47 language hint, e.g. "en".' },
+            diarize: { type: 'boolean', description: 'Label speakers.' },
+            mode: { type: 'string', enum: ['fast', 'accurate'] },
+          },
+          required: ['audioUrl'],
+        },
+      },
+      {
+        name: 'synthesize_speech',
+        class: 'mutation',
+        description:
+          'Speak text in a voice and store it as an audio file (a voice memo). Returns audioUrl, a download link valid for about an hour: save the file to the workspace instead of pasting audio into the conversation.',
+        cas: 'none',
+        externalEffect: false,
+        parameters: {
+          type: 'object',
+          properties: {
+            text: { type: 'string', description: 'What to say (1-10000 chars).' },
+            voiceId: { type: 'string', description: 'providerVoiceId from list_voices; omitted uses the default voice.' },
+            provider: { type: 'string', description: 'The voice\'s provider from list_voices, e.g. "cartesia" or "elevenlabs".' },
+            format: { type: 'string', enum: ['mp3', 'wav', 'ogg'], default: 'mp3' },
+            speed: { type: 'number', minimum: 0.5, maximum: 2 },
+          },
+          required: ['text'],
+        },
+      },
+      {
+        name: 'clone_voice',
+        class: 'mutation',
+        description:
+          'Clone the requester\'s OWN voice from their recording(s). Only self-clones are allowed: consent.subject must be "self" and consent.statement must quote the speaker consenting (for example "I consent to Tangle cloning my voice"). Never clone someone else\'s voice. Returns voice.id for start_outbound_call voiceCloneId.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Voice name (1-100 chars).' },
+            sampleUrls: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 10,
+              items: { type: 'string' },
+              description: 'Public https URLs of the speaker\'s recordings (any common audio format, including iMessage voice memos); 10 s to 3 min of clean speech works best.',
+            },
+            language: { type: 'string', description: 'ISO 639-1 code; defaults to "en".' },
+            description: { type: 'string', description: 'Optional description (<=500 chars).' },
+            consent: {
+              type: 'object',
+              properties: {
+                subject: { type: 'string', enum: ['self'], description: 'Whose voice: only "self" is accepted.' },
+                statement: { type: 'string', description: 'The speaker\'s own words consenting to the clone, quoted from their request.' },
+                speakerName: { type: 'string', description: 'Who the speaker is.' },
+                sourceRef: { type: 'string', description: 'Where the consent was given, e.g. the message id.' },
+              },
+              required: ['subject', 'statement'],
+            },
+          },
+          required: ['name', 'sampleUrls', 'consent'],
+        },
+      },
+      {
+        name: 'update_agent',
+        class: 'mutation',
+        description: 'Update a voice agent: its voice (voiceId + ttsProvider from list_voices), prompt, greeting, kind or model.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: {
+            agentId: { type: 'string', description: 'Agent to update.' },
+            name: { type: 'string' },
+            agentKind: { type: 'string', enum: ['inbound', 'personal_assistant', 'outbound'] },
+            description: { type: 'string' },
+            systemPrompt: { type: 'string' },
+            firstMessage: { type: 'string' },
+            voiceId: { type: 'string', description: 'providerVoiceId from list_voices.' },
+            ttsProvider: { type: 'string', description: 'provider from list_voices.' },
+            ttsModel: { type: 'string' },
+            sttProvider: { type: 'string' },
+            llmProvider: { type: 'string' },
+            llmModel: { type: 'string' },
+            language: { type: 'string' },
+            temperature: { type: 'number', minimum: 0, maximum: 2 },
+            maxTokens: { type: 'integer', minimum: 1, maximum: 16384 },
+            metadata: { type: 'object' },
+          },
+          required: ['agentId'],
+        },
+      },
     ],
   },
 
@@ -438,6 +596,44 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         fetchedAt: Date.now(),
       }
     }
+    if (inv.capabilityName === 'list_voices') {
+      const { provider, query, limit, cursor } = inv.args as { provider?: string; query?: string; limit?: number; cursor?: string }
+      const params = new URLSearchParams({ includeCustom: 'true', limit: String(Math.min(Math.max(1, limit ?? 50), 200)) })
+      if (provider === 'cartesia') params.set('provider', 'cartesia')
+      if (query) params.set('q', query)
+      if (cursor) params.set('cursor', cursor)
+      const json = await ph0ny<{ data?: unknown[]; nextCursor?: string; hasMore?: boolean }>(
+        inv.source.id,
+        token,
+        { method: 'GET', path: `/v1/voices?${params.toString()}`, timeout: 15_000 },
+        'list_voices',
+      )
+      return {
+        data: { voices: json.data ?? [], nextCursor: json.nextCursor ?? null, hasMore: json.hasMore ?? false },
+        fetchedAt: Date.now(),
+      }
+    }
+    if (inv.capabilityName === 'list_phone_numbers') {
+      const json = await ph0ny<{ data?: unknown[] }>(
+        inv.source.id,
+        token,
+        { method: 'GET', path: '/v1/phone-numbers', timeout: 10_000 },
+        'list_phone_numbers',
+      )
+      return { data: { phoneNumbers: json.data ?? [] }, fetchedAt: Date.now() }
+    }
+    if (inv.capabilityName === 'transcribe') {
+      const args = inv.args as { audioUrl?: unknown; language?: unknown; diarize?: unknown; mode?: unknown }
+      assertHttpsUrl(args.audioUrl, 'transcribe audioUrl')
+      const payload = pick(args as Record<string, unknown>, ['audioUrl', 'language', 'diarize', 'mode'])
+      const json = await ph0ny<Record<string, unknown>>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: '/v1/transcribe', body: payload, timeout: 120_000 },
+        'transcribe',
+      )
+      return { data: json, fetchedAt: Date.now() }
+    }
     throw new Error(`phony: unknown read capability ${inv.capabilityName}`)
   },
 
@@ -455,6 +651,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       if (args.missionId !== undefined) payload.missionId = args.missionId
       if (args.callerProfile !== undefined) payload.callerProfile = args.callerProfile
       if (args.voiceCloneId !== undefined) payload.voiceCloneId = args.voiceCloneId
+      if (args.callback !== undefined) payload.callback = args.callback
       if (args.dryRun !== undefined) payload.dryRun = args.dryRun
 
       const json = await ph0ny<{
@@ -556,6 +753,57 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         idempotentReplay: false,
       }
     }
+    if (inv.capabilityName === 'synthesize_speech') {
+      const args = inv.args as Record<string, unknown>
+      if (typeof args.text !== 'string' || args.text.trim().length === 0 || args.text.length > 10_000) {
+        throw new Error('phony synthesize_speech text must be 1-10000 chars')
+      }
+      const payload = pick(args, ['text', 'voiceId', 'provider', 'format', 'speed'])
+      if (payload.format === undefined) payload.format = 'mp3'
+      const json = await ph0ny<{ audioUrl?: string; audio?: string; audioFormat?: string; duration?: number; charactersUsed?: number; provider?: string }>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: '/v1/synthesize', body: payload, timeout: 60_000 },
+        'synthesize_speech',
+      )
+      // Audio stays out of the conversation: ph0ny stores it and returns a link.
+      if (!json.audioUrl) throw new Error('phony synthesize_speech: ph0ny returned no audioUrl (storage unavailable)')
+      return {
+        status: 'committed',
+        data: {
+          audioUrl: json.audioUrl,
+          format: payload.format,
+          durationSeconds: json.duration ?? null,
+          charactersUsed: json.charactersUsed ?? null,
+          provider: json.provider ?? null,
+        },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'clone_voice') {
+      const payload = validateCloneArgs(inv.args)
+      const json = await ph0ny<{ voice?: unknown; message?: string }>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: '/v1/voices/clone', body: payload, timeout: 120_000 },
+        'clone_voice',
+      )
+      return { status: 'committed', data: { voice: json.voice ?? null }, committedAt: Date.now(), idempotentReplay: false }
+    }
+    if (inv.capabilityName === 'update_agent') {
+      const { agentId, ...rest } = inv.args as { agentId?: unknown } & Record<string, unknown>
+      if (typeof agentId !== 'string' || agentId.length === 0 || agentId.length > 128) throw new Error('phony update_agent requires agentId')
+      const payload = pick(rest, AGENT_FIELDS.filter((f) => f !== 'id'))
+      if (Object.keys(payload).length === 0) throw new Error('phony update_agent needs at least one field to change')
+      const json = await ph0ny<Record<string, unknown>>(
+        inv.source.id,
+        token,
+        { method: 'PUT', path: `/v1/agents/${encodeURIComponent(agentId)}`, body: payload, timeout: 20_000 },
+        'update_agent',
+      )
+      return { status: 'committed', data: { agent: json }, committedAt: Date.now(), idempotentReplay: false }
+    }
     throw new Error(`phony: unknown mutation capability ${inv.capabilityName}`)
   },
 
@@ -605,6 +853,7 @@ type OutboundStartArgs = {
   missionId?: string
   callerProfile?: { userName?: string; companyName?: string }
   voiceCloneId?: string
+  callback?: { url: string; token: string }
   userConsentRecorded: true
   dryRun?: boolean
 }
@@ -644,6 +893,13 @@ function validateOutboundStartArgs(args: Record<string, unknown>): OutboundStart
       assertNonEmptyString(args.callerProfile.companyName, 'callerProfile.companyName', 120)
     }
   }
+  if (args.callback !== undefined) {
+    if (!isRecord(args.callback)) throw new Error('phony start_outbound_call callback must be an object')
+    assertHttpsUrl(args.callback.url, 'start_outbound_call callback.url')
+    if (typeof args.callback.token !== 'string' || args.callback.token.length < 16 || args.callback.token.length > 512) {
+      throw new Error('phony start_outbound_call callback.token must be 16-512 chars')
+    }
+  }
   if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
     throw new Error('phony start_outbound_call dryRun must be boolean when supplied')
   }
@@ -668,6 +924,31 @@ function assertOptionalInteger(value: unknown, field: string, min: number, max: 
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
     throw new Error(`phony start_outbound_call ${field} must be an integer between ${min} and ${max}`)
   }
+}
+
+function assertHttpsUrl(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || value.length > 2048 || !URL.canParse(value) || new URL(value).protocol !== 'https:') {
+    throw new Error(`phony ${field} must be an https URL`)
+  }
+}
+
+/** The self-clone rule, checked before ph0ny is contacted; ph0ny enforces it again. */
+function validateCloneArgs(args: Record<string, unknown>): Record<string, unknown> {
+  if (typeof args.name !== 'string' || args.name.trim().length === 0 || args.name.length > 100) {
+    throw new Error('phony clone_voice name must be 1-100 chars')
+  }
+  if (!Array.isArray(args.sampleUrls) || args.sampleUrls.length < 1 || args.sampleUrls.length > 10) {
+    throw new Error('phony clone_voice sampleUrls must hold 1-10 URLs')
+  }
+  for (const url of args.sampleUrls) assertHttpsUrl(url, 'clone_voice sampleUrls[]')
+  const consent = args.consent
+  if (!isRecord(consent) || consent.subject !== 'self') {
+    throw new Error('phony clone_voice only clones the requester\'s own voice: consent.subject must be "self"')
+  }
+  if (typeof consent.statement !== 'string' || consent.statement.trim().length < 10 || !/consent/i.test(consent.statement)) {
+    throw new Error('phony clone_voice consent.statement must quote the speaker consenting to the clone')
+  }
+  return pick(args, ['name', 'sampleUrls', 'language', 'description', 'consent'])
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

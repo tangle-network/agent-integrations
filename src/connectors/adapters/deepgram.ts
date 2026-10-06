@@ -107,7 +107,7 @@ const base = declarativeRestConnector({
     {
       name: 'speak.generate',
       class: 'mutation',
-      description: 'Convert text to speech with AI-powered voice synthesis.',
+      description: 'Convert text to speech. Returns the audio as base64 with its content type.',
       parameters: {
         type: 'object',
         properties: {
@@ -127,6 +127,7 @@ const base = declarativeRestConnector({
           sample_rate: '{sample_rate}',
         },
         body: { text: '{text}' },
+        responseBody: 'base64',
       },
       cas: 'native-idempotency',
     },
