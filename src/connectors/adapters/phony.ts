@@ -492,6 +492,39 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         },
       },
       {
+        name: 'translate_video',
+        class: 'mutation',
+        description:
+          'Translate a video into another language with ph0ny: SRT/VTT captions (optionally burned in) and, with audio "dub", each speaker re-voiced over the original. Starts a job and returns its id; poll get_video_job until status is completed or failed (minutes for a long video). Speakers are dubbed in neutral voices; a cloned voice is used only when it is the requester\'s own clone made with recorded consent.',
+        cas: 'none',
+        externalEffect: false,
+        parameters: {
+          type: 'object',
+          properties: {
+            videoUrl: { type: 'string', description: 'Public https URL of the video file (mp4, mov, webm, ...), up to 100 MB.' },
+            targetLanguage: { type: 'string', description: 'Language to translate into: ISO 639-1 code or English name.' },
+            sourceLanguage: { type: 'string', description: 'Spoken language; detected when omitted.' },
+            captions: { type: 'string', enum: ['burn', 'none'], default: 'burn', description: 'burn draws the captions into the video; SRT and VTT are returned either way.' },
+            coverSourceCaptions: { type: 'boolean', description: 'Hide captions already burned into the bottom of the source under a solid band.' },
+            audio: { type: 'string', enum: ['original', 'dub'], default: 'original' },
+            voice: { type: 'string', description: '"neutral" (default), an OpenAI voice name, or "clone" with speakerVoices set to the requester\'s own consented clone ids.' },
+            speakerVoices: { type: 'object', additionalProperties: { type: 'string' }, description: 'Voice per diarized speaker, e.g. {"speaker_0": "<clone id>"}.' },
+            speakers: { type: 'integer', minimum: 1, maximum: 32, description: 'Expected number of speakers; detected when omitted.' },
+          },
+          required: ['videoUrl', 'targetLanguage'],
+        },
+      },
+      {
+        name: 'get_video_job',
+        class: 'read',
+        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated video link (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string', description: 'Job id from translate_video.' } },
+          required: ['id'],
+        },
+      },
+      {
         name: 'update_agent',
         class: 'mutation',
         description: 'Update a voice agent: its voice (voiceId + ttsProvider from list_voices), prompt, greeting, kind or model.',
@@ -634,6 +667,35 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       )
       return { data: json, fetchedAt: Date.now() }
     }
+    if (inv.capabilityName === 'get_video_job') {
+      const { id } = inv.args as { id?: unknown }
+      if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('phony get_video_job id is required')
+      const job = await ph0ny<{
+        id: string
+        status: string
+        stage?: string
+        progress?: number
+        error?: { code: string; message: string }
+        result?: { video_url?: string; duration_seconds?: number; translation?: Record<string, unknown> }
+      }>(inv.source.id, token, { method: 'GET', path: `/v1/video/${encodeURIComponent(id)}`, timeout: 15_000 }, 'get_video_job')
+      const translation = job.result?.translation
+      return {
+        data: {
+          id: job.id,
+          status: job.status,
+          stage: job.stage ?? null,
+          progress: job.progress ?? null,
+          error: job.error ?? null,
+          videoUrl: job.result?.video_url ?? null,
+          durationSeconds: job.result?.duration_seconds ?? null,
+          // Cue arrays stay out of the conversation; the captions carry the same text and timing.
+          translation: translation
+            ? pick(translation, ['source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video'])
+            : null,
+        },
+        fetchedAt: Date.now(),
+      }
+    }
     throw new Error(`phony: unknown read capability ${inv.capabilityName}`)
   },
 
@@ -749,6 +811,31 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           chunksCreated: json.chunksCreated ?? 0,
           tokensUsed: json.tokensUsed ?? 0,
         },
+        committedAt: Date.now(),
+        idempotentReplay: false,
+      }
+    }
+    if (inv.capabilityName === 'translate_video') {
+      const args = inv.args as Record<string, unknown>
+      assertHttpsUrl(args.videoUrl, 'translate_video videoUrl')
+      if (typeof args.targetLanguage !== 'string' || args.targetLanguage.trim().length < 2) {
+        throw new Error('phony translate_video targetLanguage is required')
+      }
+      const payload: Record<string, unknown> = { video_url: args.videoUrl, target_language: args.targetLanguage }
+      const fields: Array<[string, string]> = [
+        ['sourceLanguage', 'source_language'], ['captions', 'captions'], ['coverSourceCaptions', 'cover_source_captions'],
+        ['audio', 'audio'], ['voice', 'voice'], ['speakerVoices', 'speaker_voices'], ['speakers', 'speakers'],
+      ]
+      for (const [from, to] of fields) if (args[from] !== undefined) payload[to] = args[from]
+      const json = await ph0ny<{ id: string; status: string }>(
+        inv.source.id,
+        token,
+        { method: 'POST', path: '/v1/video/translate', body: payload, timeout: 30_000 },
+        'translate_video',
+      )
+      return {
+        status: 'committed',
+        data: { jobId: json.id, status: json.status, next: 'Poll get_video_job with this jobId until status is completed or failed.' },
         committedAt: Date.now(),
         idempotentReplay: false,
       }
