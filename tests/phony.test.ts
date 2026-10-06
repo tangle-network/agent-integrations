@@ -562,3 +562,60 @@ describe('phony kb_search', () => {
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
   })
 })
+
+describe('phony voice tools', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function capture() {
+    const calls: Array<{ url: string; method?: string; body: unknown }> = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      return jsonResponse({ voice: { id: 'voice_1', provider: 'cartesia' }, audioUrl: 'https://cdn.test/a.mp3', duration: 2 })
+    }))
+    return calls
+  }
+
+  it('refuses to clone anyone but the requester before contacting ph0ny', async () => {
+    const calls = capture()
+    const invoke = (consent: unknown) => phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'clone_voice', idempotencyKey: 'c',
+      args: { name: 'Drew', sampleUrls: ['https://media.test/memo.caf'], consent },
+    })
+    await expect(invoke({ subject: 'other', statement: 'I consent to cloning their voice' })).rejects.toThrow(/own voice/)
+    await expect(invoke({ subject: 'self', statement: 'clone me please' })).rejects.toThrow(/consenting/)
+    expect(calls).toHaveLength(0)
+
+    await invoke({ subject: 'self', statement: 'I consent to Tangle cloning my voice' })
+    expect(calls[0]).toMatchObject({ method: 'POST', body: { name: 'Drew', consent: { subject: 'self' } } })
+    expect(calls[0]!.url).toMatch(/\/v1\/voices\/clone$/)
+  })
+
+  it('returns a synthesized memo as a link, never inline audio', async () => {
+    const calls = capture()
+    const result = await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'synthesize_speech', idempotencyKey: 's',
+      args: { text: 'Back at six.', voiceId: 'v_1', provider: 'cartesia' },
+    })
+    expect(calls[0]!.body).toEqual({ text: 'Back at six.', voiceId: 'v_1', provider: 'cartesia', format: 'mp3' })
+    expect(result.status === 'committed' && result.data).toEqual({
+      audioUrl: 'https://cdn.test/a.mp3', format: 'mp3', durationSeconds: 2, charactersUsed: null, provider: null,
+    })
+  })
+
+  it('forwards an https outcome callback on start_outbound_call and rejects plain http', async () => {
+    const calls = capture()
+    const args = {
+      agentId: 'agent_1', toNumber: '+14155550123', fromNumber: '+14155550124',
+      mission: { goal: 'Ask what time the store closes today' }, userConsentRecorded: true,
+    }
+    await expect(phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'start_outbound_call', idempotencyKey: 'o1',
+      args: { ...args, callback: { url: 'http://hub.test/hook', token: 'x'.repeat(32) } },
+    })).rejects.toThrow(/https/)
+    await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'start_outbound_call', idempotencyKey: 'o2',
+      args: { ...args, callback: { url: 'https://hub.test/hook', token: 'x'.repeat(32) } },
+    })
+    expect(calls[0]!.body).toMatchObject({ callback: { url: 'https://hub.test/hook' } })
+  })
+})
