@@ -371,6 +371,142 @@ export const githubConnector = declarativeRestConnector({
         query: { per_page: '{per_page}', page: '{page}' },
       },
     },
+    // ---------- Git Data: propose a change on a NEW branch ----------
+    // A change is proposed in five calls, each one request: read the base
+    // branch head, read the tree/blobs being edited, write one tree holding
+    // every changed file, write one commit on top of the base, then CREATE a
+    // new branch ref at that commit. There is deliberately no ref-update
+    // action: a caller can create a new branch but can never move an existing
+    // one, so the default branch and every protected branch stay out of reach.
+    // GitHub refuses `git.createRef` for a ref that already exists (422).
+    {
+      name: 'repos.getBranch',
+      class: 'read',
+      description: 'Read one branch: its head commit sha and that commit\'s tree sha. Use it to find the base a proposed change builds on.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          branch: { type: 'string', description: 'Branch name, e.g. `main`.' },
+        },
+        required: ['owner', 'repo', 'branch'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/branches/{branch}' },
+    },
+    {
+      name: 'git.getTree',
+      class: 'read',
+      description: 'Read a git tree. With `recursive: "1"` it lists every file path with its blob sha, so files can be read without path URLs.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          tree_sha: { type: 'string', description: 'Tree sha (or a commit sha / branch name).' },
+          recursive: { type: 'string', enum: ['1'], description: 'Set to "1" to list the whole tree.' },
+        },
+        required: ['owner', 'repo', 'tree_sha'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/git/trees/{tree_sha}',
+        query: { recursive: '{recursive}' },
+      },
+    },
+    {
+      name: 'git.getBlob',
+      class: 'read',
+      description: 'Read one file blob by sha. GitHub returns its content base64-encoded (`encoding: "base64"`).',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          file_sha: { type: 'string' },
+        },
+        required: ['owner', 'repo', 'file_sha'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/git/blobs/{file_sha}' },
+    },
+    {
+      name: 'git.createTree',
+      class: 'mutation',
+      description: 'Write a tree: `base_tree` plus the changed entries. Each entry is `{ path, mode: "100644", type: "blob", content }` (use `sha: null` to delete a file). Creates an unreferenced object; nothing is visible until a branch points at a commit using it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          base_tree: { type: 'string', description: 'Tree sha of the base commit.' },
+          tree: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                path: { type: 'string' },
+                mode: { type: 'string', enum: ['100644', '100755', '040000', '160000', '120000'] },
+                type: { type: 'string', enum: ['blob', 'tree', 'commit'] },
+                content: { type: 'string' },
+                sha: { type: ['string', 'null'] },
+              },
+              required: ['path', 'mode', 'type'],
+            },
+          },
+        },
+        required: ['owner', 'repo', 'base_tree', 'tree'],
+      },
+      request: {
+        method: 'POST',
+        path: '/repos/{owner}/{repo}/git/trees',
+        body: { base_tree: '{base_tree}', tree: '{tree}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'git.createCommit',
+      class: 'mutation',
+      description: 'Write a commit object for a tree with explicit parents (normally the base branch head). Creates an unreferenced object; it moves no branch.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          message: { type: 'string' },
+          tree: { type: 'string', description: 'Tree sha from git.createTree.' },
+          parents: { type: 'array', items: { type: 'string' }, description: 'Parent commit shas.' },
+        },
+        required: ['owner', 'repo', 'message', 'tree', 'parents'],
+      },
+      request: {
+        method: 'POST',
+        path: '/repos/{owner}/{repo}/git/commits',
+        body: { message: '{message}', tree: '{tree}', parents: '{parents}' },
+      },
+      cas: 'native-idempotency',
+    },
+    {
+      name: 'git.createRef',
+      class: 'mutation',
+      description: 'Create a NEW branch at a commit: `ref` must be `refs/heads/<new-branch>`. Never moves an existing branch; GitHub returns 422 when the ref already exists.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          ref: { type: 'string', pattern: '^refs/heads/.+', description: 'Fully qualified new branch ref, e.g. `refs/heads/gtm-agent/hero-copy`.' },
+          sha: { type: 'string', description: 'Commit sha from git.createCommit.' },
+        },
+        required: ['owner', 'repo', 'ref', 'sha'],
+      },
+      request: {
+        method: 'POST',
+        path: '/repos/{owner}/{repo}/git/refs',
+        body: { ref: '{ref}', sha: '{sha}' },
+      },
+      cas: 'native-idempotency',
+      externalEffect: true,
+    },
     {
       name: 'issues.create',
       class: 'mutation',

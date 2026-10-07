@@ -643,6 +643,86 @@ describe('github adapter', () => {
     expect(result.ok).toBe(false)
   })
 
+  // ---------- Git Data: propose a change on a new branch ----------
+
+  it('git.createTree POSTs base_tree and entries only, keeping owner/repo out of the body', async () => {
+    let calledUrl = ''
+    let calledBody: Record<string, unknown> = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledBody = JSON.parse(init!.body as string)
+      return jsonResponse({ sha: 'tree2' })
+    }))
+    const tree = [{ path: 'src/routes/home.tsx', mode: '100644', type: 'blob', content: 'export {}\n' }]
+    const result = await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'git.createTree',
+      args: { owner: 'octo', repo: 'hello', base_tree: 'tree1', tree },
+      idempotencyKey: 'k-tree',
+    })
+    expect(calledUrl).toContain('/repos/octo/hello/git/trees')
+    expect(calledBody).toEqual({ base_tree: 'tree1', tree })
+    expect(result.status).toBe('committed')
+  })
+
+  it('git.createCommit POSTs message, tree and parents', async () => {
+    let calledBody: Record<string, unknown> = {}
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calledBody = JSON.parse(init!.body as string)
+      return jsonResponse({ sha: 'commit2' })
+    }))
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'git.createCommit',
+      args: { owner: 'octo', repo: 'hello', message: 'Shorten hero', tree: 'tree2', parents: ['commit1'] },
+      idempotencyKey: 'k-commit',
+    })
+    expect(calledBody).toEqual({ message: 'Shorten hero', tree: 'tree2', parents: ['commit1'] })
+  })
+
+  it('git.createRef creates a new branch ref at a commit', async () => {
+    let calledUrl = ''
+    let calledMethod = ''
+    let calledBody: Record<string, unknown> = {}
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      calledMethod = init?.method ?? ''
+      calledBody = JSON.parse(init!.body as string)
+      return jsonResponse({ ref: 'refs/heads/gtm-agent/hero', object: { sha: 'commit2' } })
+    }))
+    await adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'git.createRef',
+      args: { owner: 'octo', repo: 'hello', ref: 'refs/heads/gtm-agent/hero', sha: 'commit2' },
+      idempotencyKey: 'k-ref',
+    })
+    expect(calledMethod).toBe('POST')
+    expect(calledUrl).toContain('/repos/octo/hello/git/refs')
+    expect(calledBody).toEqual({ ref: 'refs/heads/gtm-agent/hero', sha: 'commit2' })
+  })
+
+  it('exposes no capability that moves an existing ref or writes file contents in place', () => {
+    const names = adapter.manifest.capabilities.map((capability) => capability.name)
+    expect(names).toEqual(expect.arrayContaining(['git.createTree', 'git.createCommit', 'git.createRef']))
+    expect(names.filter((name) => /updateRef|refs\.update|contents|deleteRef/i.test(name))).toEqual([])
+  })
+
+  it('git.getTree passes recursive as a query parameter', async () => {
+    let calledUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calledUrl = String(input)
+      return jsonResponse({ sha: 'tree1', tree: [] })
+    }))
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'git.getTree',
+      args: { owner: 'octo', repo: 'hello', tree_sha: 'tree1', recursive: '1' },
+      idempotencyKey: 'k-get-tree',
+    })
+    expect(calledUrl).toContain('/repos/octo/hello/git/trees/tree1')
+    expect(new URL(calledUrl).searchParams.get('recursive')).toBe('1')
+  })
+
   // ---------- pulls.create ----------
 
   it('pulls.create POSTs the PR body and returns committed status', async () => {
