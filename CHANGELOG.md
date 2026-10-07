@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.0
+
+- feat(telegram): normalize group conversations and fail refused deliveries (#371)
+
 ## 0.66.0
 
 - feat(github): propose changes on a new branch through Git Data actions (#369)
