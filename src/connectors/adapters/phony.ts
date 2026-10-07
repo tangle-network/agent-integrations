@@ -504,14 +504,17 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             videoUrl: { type: 'string', description: 'Public https URL of the video file (mp4, mov, webm, ...), up to 100 MB.' },
             targetLanguage: { type: 'string', description: 'Language to translate into: ISO 639-1 code or English name.' },
             sourceLanguage: { type: 'string', description: 'Spoken language; detected when omitted.' },
+            reviewedSourceSha256: { type: 'string', description: 'SHA-256 of the exact source bytes from a prior translation job. Supply with expected cue times on every override.' },
             translationOverrides: {
               type: 'array', maxItems: 50,
-              description: 'Reviewed target text for a source cue from a prior job. The full source text must match on the new transcription.',
+              description: 'Reviewed target text for a source cue from a prior job. Supply reviewedSourceSha256 and both cue times for exact media binding.',
               items: {
                 type: 'object', required: ['sourceCueIndex', 'expectedSourceText', 'text'],
                 properties: {
                   sourceCueIndex: { type: 'integer', minimum: 1 },
                   expectedSourceText: { type: 'string', minLength: 1, maxLength: 120 },
+                  expectedStartSeconds: { type: 'number', minimum: 0 },
+                  expectedEndSeconds: { type: 'number', exclusiveMinimum: 0 },
                   text: { type: 'string', minLength: 1, maxLength: 500 },
                 },
               },
@@ -717,7 +720,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           // Return one reviewed source cue without copying the full transcript into workflow state.
           translation: translation
             ? {
-                ...pick(translation, ['source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video']),
+                ...pick(translation, ['source_media_sha256', 'source_language', 'target_language', 'speakers', 'captions', 'dub_fit', 'has_video']),
                 ...(sourceCueIndex ? { source_cue: sourceCue ?? null } : {}),
               }
             : null,
@@ -861,20 +864,43 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         if (value === undefined || value === '' || value === 'auto') continue
         payload[to] = from === 'coverSourceCaptions' && typeof value === 'string' ? value === 'true' : value
       }
+      if (args.reviewedSourceSha256 !== undefined && args.reviewedSourceSha256 !== '') {
+        payload.reviewed_source_sha256 = args.reviewedSourceSha256
+      }
+      const reviewedHash = payload.reviewed_source_sha256
+      if (reviewedHash !== undefined && (typeof reviewedHash !== 'string' || !/^[a-f0-9]{64}$/.test(reviewedHash))) {
+        throw new Error('phony translate_video reviewedSourceSha256 must be a lowercase SHA-256 digest')
+      }
       if (args.translationOverrides !== undefined && args.translationOverrides !== '') {
         let overrides: unknown = args.translationOverrides
         if (typeof overrides === 'string') {
           try { overrides = JSON.parse(overrides) } catch { throw new Error('phony translate_video translationOverrides must be a JSON array') }
         }
         if (!Array.isArray(overrides)) throw new Error('phony translate_video translationOverrides must be an array')
+        if (reviewedHash !== undefined && overrides.length === 0) throw new Error('phony translate_video reviewedSourceSha256 requires overrides')
         payload.translation_overrides = overrides.map((item: unknown) => {
           if (!item || typeof item !== 'object') throw new Error('phony translate_video translationOverrides item must be an object')
           const value = item as Record<string, unknown>
           if (!Number.isInteger(value.sourceCueIndex) || typeof value.expectedSourceText !== 'string' || typeof value.text !== 'string') {
             throw new Error('phony translate_video translationOverrides item requires sourceCueIndex, expectedSourceText, and text')
           }
-          return { source_cue_index: value.sourceCueIndex, expected_source_text: value.expectedSourceText, text: value.text }
+          const bound = value.expectedStartSeconds !== undefined || value.expectedEndSeconds !== undefined
+          if (bound !== (reviewedHash !== undefined)) {
+            throw new Error('phony translate_video reviewedSourceSha256 and both cue times must be supplied together')
+          }
+          if (bound && (typeof value.expectedStartSeconds !== 'number' || !Number.isFinite(value.expectedStartSeconds)
+            || typeof value.expectedEndSeconds !== 'number' || !Number.isFinite(value.expectedEndSeconds)
+            || value.expectedStartSeconds < 0 || value.expectedEndSeconds <= value.expectedStartSeconds)) {
+            throw new Error('phony translate_video media-bound override needs an ordered, finite cue window')
+          }
+          return {
+            source_cue_index: value.sourceCueIndex, expected_source_text: value.expectedSourceText, text: value.text,
+            ...(bound ? { expected_start_seconds: value.expectedStartSeconds, expected_end_seconds: value.expectedEndSeconds } : {}),
+          }
         })
+      }
+      if (reviewedHash !== undefined && !payload.translation_overrides) {
+        throw new Error('phony translate_video reviewedSourceSha256 requires overrides')
       }
       const json = await ph0ny<{ id: string; status: string }>(
         inv.source.id,
