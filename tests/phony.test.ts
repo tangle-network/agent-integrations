@@ -655,9 +655,27 @@ describe('phony video translation', () => {
     const captured = captureFetch(new Response(JSON.stringify({ id: 'job_3', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
     await phonyConnector.executeMutation!({
       source: source(), capabilityName: 'translate_video', idempotencyKey: 't4',
-      args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', translationOverrides: JSON.stringify([{ sourceCueIndex: 1, expectedSourceText: 'שלום עולם.', text: 'Hello world.' }]) },
+      args: {
+        videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', reviewedSourceSha256: 'a'.repeat(64),
+        translationOverrides: JSON.stringify([{ sourceCueIndex: 1, expectedSourceText: 'שלום עולם.', expectedStartSeconds: 0.12, expectedEndSeconds: 5.2, text: 'Hello world.' }]),
+      },
     })
-    expect(captured.body).toMatchObject({ translation_overrides: [{ source_cue_index: 1, expected_source_text: 'שלום עולם.', text: 'Hello world.' }] })
+    expect(captured.body).toMatchObject({
+      reviewed_source_sha256: 'a'.repeat(64),
+      translation_overrides: [{ source_cue_index: 1, expected_source_text: 'שלום עולם.', expected_start_seconds: 0.12, expected_end_seconds: 5.2, text: 'Hello world.' }],
+    })
+  })
+
+  it.each([
+    { reviewedSourceSha256: 'a'.repeat(64), translationOverrides: [] },
+    { reviewedSourceSha256: 'auto', translationOverrides: [{ sourceCueIndex: 1, expectedSourceText: 'שלום', text: 'Hello' }] },
+    { translationOverrides: [{ sourceCueIndex: 1, expectedSourceText: 'שלום', expectedStartSeconds: 0.1, expectedEndSeconds: 2, text: 'Hello' }] },
+    { reviewedSourceSha256: 'a'.repeat(64), translationOverrides: [{ sourceCueIndex: 1, expectedSourceText: 'שלום', expectedStartSeconds: 2, expectedEndSeconds: 1, text: 'Hello' }] },
+  ])('rejects an incomplete media-bound correction before submission', async (binding) => {
+    await expect(phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 'bad-binding',
+      args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', ...binding },
+    })).rejects.toThrow(/override|cue (times|window)|digest/)
   })
 
   it('refuses a non-https video URL before calling ph0ny', async () => {
@@ -686,10 +704,11 @@ describe('phony video translation', () => {
   it('returns one exact source cue when a caller requests review data', async () => {
     captureFetch(new Response(JSON.stringify({
       id: 'job_1', status: 'completed',
-      result: { translation: { source_cues: [{ index: 1, text: 'אה אישה משעאל' }, { index: 2, text: 'other cue' }] } },
+      result: { translation: { source_media_sha256: 'a'.repeat(64), source_cues: [{ index: 1, start: 0.12, end: 5.2, text: 'אה אישה משעאל' }, { index: 2, text: 'other cue' }] } },
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1', sourceCueIndex: '1' } } as any)
-    expect((read.data as any).translation.source_cue).toEqual({ index: 1, text: 'אה אישה משעאל' })
+    expect((read.data as any).translation.source_cue).toEqual({ index: 1, start: 0.12, end: 5.2, text: 'אה אישה משעאל' })
+    expect((read.data as any).translation.source_media_sha256).toBe('a'.repeat(64))
     expect((read.data as any).translation.source_cues).toBeUndefined()
   })
 })
