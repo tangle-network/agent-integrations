@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.65.1
+
+- fix(release): publish the verified package with npm trusted publishing
+
 ## 0.65.0
 
 - feat(phony): bind reviewed captions to the source video and cue times (#364)

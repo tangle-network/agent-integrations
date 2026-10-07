@@ -115,17 +115,16 @@ function publishArtifact(archivePath, packageData) {
     return
   }
 
-  const publishToken = process.env.NODE_AUTH_TOKEN
-  if (!publishToken) throw new Error('NODE_AUTH_TOKEN is required to publish.')
   run(npmCommand, [
     'publish',
     archivePath,
     '--access',
     'public',
     '--ignore-scripts',
+    '--provenance',
     '--registry',
     registry,
-  ], { npm_config_ignore_scripts: 'true', NODE_AUTH_TOKEN: publishToken })
+  ], { npm_config_ignore_scripts: 'true' })
 }
 
 function getArchiveIntegrity(archivePath) {
