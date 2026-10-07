@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.0
+
+- feat(github): propose changes on a new branch through Git Data actions (#369)
+- feat(phony): let outbound missions name the purpose the callee hears (#368)
+
 ## 0.65.1
 
 - fix(release): publish the verified package with npm trusted publishing
