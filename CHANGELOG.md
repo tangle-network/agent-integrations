@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.65.0
+
+- feat(phony): bind reviewed captions to the source video and cue times (#364)
+
 ## 0.64.0
 
 - feat(phony): pass reviewed video cues through Hub actions (#361)
