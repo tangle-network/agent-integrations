@@ -188,6 +188,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
               description: 'What the agent should accomplish on the call.',
               properties: {
                 goal: { type: 'string', description: 'Plain-language objective (8–2000 chars).' },
+                purpose: {
+                  type: 'string',
+                  description:
+                    'Optional short phrase the person called hears, e.g. "your table booking tonight" (3–100 chars). The goal is never read aloud.',
+                },
                 successSchema: { type: 'object', description: 'Optional JSON schema describing fields to extract on success.' },
                 ivrHints: {
                   type: 'array',
@@ -1007,6 +1012,7 @@ type OutboundStartArgs = {
   fromNumber: string
   mission: {
     goal: string
+    purpose?: string
     successSchema?: Record<string, unknown>
     ivrHints?: string[]
     maxTurns?: number
@@ -1035,6 +1041,10 @@ function validateOutboundStartArgs(args: Record<string, unknown>): OutboundStart
   const mission = args.mission
   assertNonEmptyString(mission.goal, 'mission.goal', 2000)
   if (mission.goal.trim().length < 8) throw new Error('phony start_outbound_call mission.goal must be at least 8 characters')
+  if (mission.purpose !== undefined) {
+    assertNonEmptyString(mission.purpose, 'mission.purpose', 100)
+    if (mission.purpose.trim().length < 3) throw new Error('phony start_outbound_call mission.purpose must be at least 3 characters')
+  }
   if (mission.successSchema !== undefined && !isRecord(mission.successSchema)) {
     throw new Error('phony start_outbound_call mission.successSchema must be an object when supplied')
   }
