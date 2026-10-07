@@ -9,8 +9,6 @@ on:
 jobs:
   verify:
     runs-on: [self-hosted, ci-public]
-    outputs:
-      publish: ${{ steps.registry.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
 
@@ -46,49 +44,26 @@ jobs:
           fi
           echo "Version locked: $NPM_VERSION"
 
-      # npm trusted publishing runs on GitHub-hosted runners only, so the hosted
-      # publish job starts only when this version is not yet on npm.
-      - name: Decide whether this release publishes
-        id: registry
-        run: |
-          NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
-          if npm view "$NAME@$VERSION" version --registry=https://registry.npmjs.org 2>/dev/null | grep -qx "$VERSION"; then
-            echo "$NAME@$VERSION is already on npm; nothing to publish"
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
-
   publish-npm:
     needs: verify
-    if: startsWith(github.ref, 'refs/tags/v') && needs.verify.outputs.publish == 'true'
-    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: [self-hosted, ci-public]
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
-      # No registry-url or NODE_AUTH_TOKEN here: any token makes pnpm
-      # authenticate by token instead of OIDC trusted publishing.
-      # Node 24 ships npm >= 11.5.1, which the OIDC handshake requires.
-      # Trust is established by the npm trusted-publisher entry
-      # (workflow=publish.yml, env=blank) + the id-token: write permission.
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
+          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
-      # Idempotent: re-running a tag whose exact npm artifact is already
-      # published skips publish. A same-version integrity mismatch fails
-      # closed. Auth is npm OIDC trusted publishing
-      # (no NPM_TOKEN). The id-token: write permission above lets the
-      # runner mint the short-lived OIDC token npm exchanges for publish
-      # rights, and emits Sigstore provenance attestations.
       - name: Build, pack, test, and publish exact artifact
         run: pnpm run release -- --publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -58,9 +58,11 @@ function parseArguments(args) {
 }
 
 function run(command, args, environment = {}) {
+  const childEnvironment = { ...process.env, ...environment }
+  if (!('NODE_AUTH_TOKEN' in environment)) delete childEnvironment.NODE_AUTH_TOKEN
   const result = spawnSync(command, args, {
     cwd: rootDirectory,
-    env: { ...process.env, ...environment },
+    env: childEnvironment,
     stdio: 'inherit',
   })
   if (result.error) throw result.error
@@ -93,9 +95,10 @@ function getSingleArchivePath(directory) {
 function publishArtifact(archivePath, packageData) {
   const version = `${packageData.name}@${packageData.version}`
   const archiveIntegrity = getArchiveIntegrity(archivePath)
+  const { NODE_AUTH_TOKEN: _publishToken, ...readEnvironment } = process.env
   const existing = spawnSync(npmCommand, ['view', version, 'dist.integrity', '--registry', registry], {
     cwd: rootDirectory,
-    env: process.env,
+    env: readEnvironment,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
@@ -112,16 +115,17 @@ function publishArtifact(archivePath, packageData) {
     return
   }
 
+  const publishToken = process.env.NODE_AUTH_TOKEN
+  if (!publishToken) throw new Error('NODE_AUTH_TOKEN is required to publish.')
   run(npmCommand, [
     'publish',
     archivePath,
     '--access',
     'public',
     '--ignore-scripts',
-    '--provenance',
     '--registry',
     registry,
-  ], { npm_config_ignore_scripts: 'true' })
+  ], { npm_config_ignore_scripts: 'true', NODE_AUTH_TOKEN: publishToken })
 }
 
 function getArchiveIntegrity(archivePath) {
