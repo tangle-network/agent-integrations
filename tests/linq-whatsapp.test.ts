@@ -85,11 +85,12 @@ describe('WhatsApp events and replies', () => {
     const pending = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [
       { type: 'media', kind: 'audio', media_id: 'channel-audio' },
     ] } } }
-    expect(normalizeConversationEvent(input(pending))).toMatchObject({ ok: true, event: { historyOnly: true, attachments: [{ url: null }] } })
+    expect(normalizeConversationEvent(input(pending))).toMatchObject({ ok: true, event: { historyOnly: false, attachments: [{ url: null }] } })
+    expect(buildMessagingReply(input(pending), 'Media is not supported by this agent.', 'pending-media').ok).toBe(true)
     const explicitNull = { ...payload(), data: { ...payload().data, message: { ...payload().data.message, parts: [
       { type: 'media', kind: 'audio', media_id: 'channel-audio', url: null },
     ] } } }
-    expect(normalizeConversationEvent(input(explicitNull))).toMatchObject({ ok: true, event: { historyOnly: true, attachments: [{ url: null }] } })
+    expect(normalizeConversationEvent(input(explicitNull))).toMatchObject({ ok: true, event: { historyOnly: false, attachments: [{ url: null }] } })
     const untrusted = { ...value, data: { ...value.data, message: { ...value.data.message, parts: [
       { type: 'media', kind: 'audio', media_id: 'channel-audio', url: 'https://evil.example/v1/attachments/media_1/content' },
     ] } } }

@@ -45,7 +45,6 @@ export function normalizeLinqWhatsappConversation(input: ProviderConversationEve
   if (!Array.isArray(message.parts) || !message.parts.length || message.parts.length > 50) return invalid('Invalid message parts')
   const text: string[] = []
   const attachments: NonNullable<ReturnType<typeof mediaPart>>['attachment'][] = []
-  let historyOnly = false
   for (const part of message.parts) {
     if (!object(part)) return invalid('Invalid message part')
     if (part.type === 'media') {
@@ -53,7 +52,6 @@ export function normalizeLinqWhatsappConversation(input: ProviderConversationEve
       if (!media) return invalid('Invalid media attachment')
       attachments.push(media.attachment)
       if (media.caption) text.push(media.caption)
-      if (!media.attachment.url) historyOnly = true
     } else if (part.type === 'text' && typeof part.body === 'string' && part.body.length <= 4096) {
       text.push(part.body)
     } else {
@@ -67,6 +65,6 @@ export function normalizeLinqWhatsappConversation(input: ProviderConversationEve
     conversationId: message.chat_id, parentEventIds: [],
     sender: { id: `customer:${message.chat_id}`, address: null, displayName: null },
     destinations: [{ kind: 'chat', id: message.from, address: message.from, displayName: null }],
-    subject: null, text: text.join('\n'), html: null, attachments, occurredAt, transport: 'whatsapp', isGroup: false, historyOnly,
+    subject: null, text: text.join('\n'), html: null, attachments, occurredAt, transport: 'whatsapp', isGroup: false, historyOnly: false,
   } }
 }
