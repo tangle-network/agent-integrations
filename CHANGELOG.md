@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.1
+
+- fix(whatsapp): allow receipts for current media without download URLs
+
 ## 0.67.0
 
 - feat(telegram): normalize group conversations and fail refused deliveries (#371)
