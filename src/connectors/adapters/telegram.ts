@@ -32,10 +32,9 @@
  *                 setWebhook, deleteWebhook
  *
  * Long-polling (`getUpdates`) and webhook receivers are both supported as
- * read/mutation capabilities; full inbound `handleInboundEvent` wiring is
- * left for the webhook layer to add once a `telegram-webhook-receiver`
- * adapter lands (Telegram delivers updates as raw POST bodies with a
- * `X-Telegram-Bot-Api-Secret-Token` header that the receiver verifies).
+ * read/mutation capabilities; the Hub webhook layer verifies the
+ * `X-Telegram-Bot-Api-Secret-Token` header before normalizing conversation
+ * messages. The host owns group membership and administrative authority.
  */
 
 import {
@@ -45,6 +44,7 @@ import {
   type CapabilityMutationResult,
   CredentialsExpired,
 } from '../types.js'
+import { ProviderProtocolError } from '../../http/response-json.js'
 
 const API_ROOT = 'https://api.telegram.org'
 const FILE_ROOT = 'https://api.telegram.org/file'
@@ -514,16 +514,12 @@ async function callMethod(inv: ConnectorInvocation, method: string): Promise<unk
       `telegram ${method} rate-limited${retryAfter !== undefined ? ` (retry_after=${retryAfter}s)` : ''}`,
     )
   }
-  if (res.status === 403 && /bot was blocked|chat not found|user is deactivated/i.test(json.description ?? '')) {
-    // Recipient-side terminal failure; surface as data so the agent can
-    // route around it rather than throwing. The mutation still committed
-    // from the SDK's perspective — we just couldn't reach the chat.
-    return {
-      ok: false,
-      delivered: false,
-      reason: json.description,
-      error_code: json.error_code,
-    }
+  if (res.status === 403) {
+    // A provider refusal is a failed action, never a committed send. Keep the
+    // terminal status so the Hub outbox does not retry a blocked recipient.
+    throw new ProviderProtocolError(
+      `Telegram refused ${method} (403)`, 'telegram_delivery_refused', 403, true,
+    )
   }
   if (!res.ok || !json.ok) {
     throw new Error(

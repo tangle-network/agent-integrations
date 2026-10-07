@@ -3,7 +3,7 @@ export interface ConversationChannel {
   providerId: string
   eventType: string
   label: string
-  transport: 'email' | 'imessage' | 'sms' | 'rcs' | 'whatsapp'
+  transport: 'email' | 'imessage' | 'sms' | 'rcs' | 'whatsapp' | 'telegram'
   sourceKind: 'channel' | 'connection'
   replies: boolean
   inventoryAction?: string
@@ -15,6 +15,7 @@ export interface ConversationChannel {
 }
 
 const channels: readonly ConversationChannel[] = [
+  { providerId: 'telegram', eventType: 'telegram.message', label: 'Telegram', transport: 'telegram', sourceKind: 'connection', replies: true, replyAction: 'telegram.sendMessage' },
   { providerId: 'email', eventType: 'email.received', label: 'Tangle email', transport: 'email', sourceKind: 'channel', replies: false },
   { providerId: 'inkbox', eventType: 'inkbox.imessage.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'inkbox.imessage.reply',
     reactionAction: 'inkbox.imessage.react', typingAction: 'inkbox.imessage.typing', readReceiptAction: 'inkbox.imessage.read_receipt' },

@@ -64,7 +64,17 @@ export function buildMessagingReply(
   const event = normalized.event
   if (typeof text !== 'string' || !text.trim() || text.length > 10000 || text.includes('\0')) return fail('Reply text is empty or exceeds its limit')
   if (!validOperationId(operationId)) return fail('A stable operation id is required')
-  if (event.historyOnly || event.isGroup) return fail('This event requires review or complete input before a reply')
+  if (event.historyOnly || (event.isGroup && event.provider !== 'telegram')) return fail('This event requires review or complete input before a reply')
+  if (event.provider === 'telegram') {
+    if (text.length > 4096) return fail('Telegram text is limited to 4096 characters')
+    const message = object(object(input.payload).message)
+    return { ok: true, reply: { idempotencyKey: operationId, action: 'telegram.sendMessage', input: {
+      chat_id: event.conversationId,
+      text,
+      reply_parameters: { message_id: message.message_id, allow_sending_without_reply: true },
+      ...(message.message_thread_id === undefined ? {} : { message_thread_id: message.message_thread_id }),
+    } } }
+  }
   const data = object(object(input.payload).data)
   if (event.provider === 'inkbox') {
     if (event.eventType === 'inkbox.imessage.received') {
