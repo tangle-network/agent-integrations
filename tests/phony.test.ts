@@ -91,6 +91,47 @@ describe('phony list_agents', () => {
   })
 })
 
+describe('phony error passthrough', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps ph0ny\'s status, code and field on a refused call', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
+      code: 'INVALID_TTS_PROVIDER',
+      message: 'ttsProvider "openai" is not a ph0ny TTS provider. Use one of: default, cartesia, kokoro.',
+      details: { field: 'ttsProvider', allowed: ['default', 'cartesia', 'kokoro'] },
+    }, { status: 400 })))
+    const failure = await phonyConnector.executeMutation!({
+      source: source(),
+      capabilityName: 'update_agent',
+      args: { agentId: 'agent_1', ttsProvider: 'openai', voiceId: 'ash' },
+      idempotencyKey: 'update-1',
+    }).catch((error: unknown) => error)
+    expect(failure).toMatchObject({
+      name: 'ProviderRequestError',
+      status: 400,
+      reason: 'INVALID_TTS_PROVIDER',
+      body: { details: { field: 'ttsProvider' } },
+    })
+    expect((failure as Error).message).toContain('ttsProvider "openai" is not a ph0ny TTS provider')
+  })
+
+  it('lists a named provider\'s voices', async () => {
+    let requestUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      requestUrl = String(input)
+      return jsonResponse({ data: [{ id: 'openai-tts:ash', provider: 'openai-tts', providerVoiceId: 'ash', callCapable: false }] })
+    }))
+    const result = await phonyConnector.executeRead!({
+      source: source(),
+      capabilityName: 'list_voices',
+      args: { provider: 'openai-tts' },
+      idempotencyKey: 'voices-1',
+    })
+    expect(new URL(requestUrl).searchParams.get('provider')).toBe('openai-tts')
+    expect((result.data as { voices: Array<{ providerVoiceId: string }> }).voices[0].providerVoiceId).toBe('ash')
+  })
+})
+
 describe('phony get_call + list_calls', () => {
   afterEach(() => vi.unstubAllGlobals())
 
