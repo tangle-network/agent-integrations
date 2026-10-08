@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.3
+
+- fix(phony): keep ph0ny's status and message on refused calls
+
 ## 0.67.2
 
 - fix(whatsapp): route sends through Meta phone number IDs
