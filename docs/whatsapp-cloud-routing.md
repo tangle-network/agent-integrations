@@ -13,7 +13,16 @@ prove that a specific sender is registered or that a message will deliver.
 
 The separate OAuth `whatsapp-business` adapter already takes its sender from
 connection metadata `phoneNumberId`, with `wabaId` for account-level template
-operations. This change does not migrate those connections or add a Hub Lines
-channel.
+operations. An OAuth reply must match that saved sender. Both providers expose owned-number
+inventory and signed incoming message normalization for Hub Lines.
 
 API contract: [Meta's WhatsApp Cloud API messages](https://www.postman.com/meta/whatsapp-business-platform/folder/13382743-ba8d099d-007e-4b52-b9f2-3cf3c60e4fbc).
+
+Incoming webhooks must be bound to the exact WABA and phone number ID. The app
+secret authenticates the raw body; it does not authorize another account using
+the same Meta app. Status callbacks are not agent commands. Text is bounded to
+4096 characters; media descriptors require explicit handling by the consumer.
+
+Meta does not expose an idempotency key for message sends. API-key and OAuth
+replies declare `cas: none`; consumers must retain an attempted effect before
+calling Meta and must not repeat an ambiguous send automatically.

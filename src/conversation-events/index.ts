@@ -3,6 +3,7 @@ import {
   type ConversationEvent as ExistingConversationEvent,
   type ConversationEventNormalizationResult as ExistingNormalizationResult,
 } from './core.js'
+import { normalizeMetaWhatsappConversation } from './whatsapp.js'
 import { normalizeLinqWhatsappConversation } from './linq-whatsapp.js'
 import { normalizeMobileConversation } from './mobile.js'
 import { normalizeResendConversation } from './resend.js'
@@ -16,7 +17,7 @@ export { conversationPresenceCapabilities, buildConversationReaction, buildConve
 
 /** Additive provider vocabulary. Neither sender identity nor group membership is authority. */
 export interface ConversationEvent extends Omit<ExistingConversationEvent, 'provider'> {
-  provider: ExistingConversationEvent['provider'] | 'inkbox' | 'linq' | 'contiguity' | 'linq-whatsapp' | 'resend' | 'sendblue' | 'twilio-sms' | 'telegram'
+  provider: ExistingConversationEvent['provider'] | 'inkbox' | 'linq' | 'contiguity' | 'linq-whatsapp' | 'resend' | 'sendblue' | 'twilio-sms' | 'telegram' | 'whatsapp' | 'whatsapp-business'
   /** Actual inbound protocol. Linq reports this per message, not per chat. */
   transport?: 'email' | 'imessage' | 'sms' | 'rcs' | 'whatsapp' | 'telegram'
   isGroup?: boolean
@@ -29,10 +30,11 @@ export type ConversationEventNormalizationResult =
 
 export function normalizeConversationEvent(value: unknown): ConversationEventNormalizationResult {
   if (value && typeof value === 'object' && 'provider' in value
-    && ['inkbox', 'linq', 'contiguity', 'linq-whatsapp', 'resend', 'sendblue', 'twilio-sms', 'telegram'].includes(String(value.provider))) {
+    && ['inkbox', 'linq', 'contiguity', 'linq-whatsapp', 'resend', 'sendblue', 'twilio-sms', 'telegram', 'whatsapp', 'whatsapp-business'].includes(String(value.provider))) {
     if (!('type' in value) || typeof value.type !== 'string' || !('payload' in value)) {
       return { ok: false, code: 'invalid_payload', message: 'Provider event requires type and payload' }
     }
+    if (value.provider === 'whatsapp' || value.provider === 'whatsapp-business') return normalizeMetaWhatsappConversation({ provider: value.provider, type: value.type, payload: value.payload })
     if (value.provider === 'telegram') return normalizeTelegramConversation({ provider: value.provider, type: value.type, payload: value.payload })
     if (value.provider === 'linq-whatsapp') return normalizeLinqWhatsappConversation({ provider: value.provider, type: value.type, payload: value.payload })
     if (value.provider === 'resend') return normalizeResendConversation({ provider: value.provider, type: value.type, payload: value.payload })
