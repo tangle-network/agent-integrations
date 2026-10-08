@@ -1,6 +1,6 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
-export const whatsappConnector = declarativeRestConnector({
+const base = declarativeRestConnector({
   kind: 'whatsapp',
   displayName: 'WhatsApp Business',
   description: 'Send messages, media, and templates via WhatsApp Business API.',
@@ -10,8 +10,9 @@ export const whatsappConnector = declarativeRestConnector({
   },
   category: 'comms',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: 'https://graph.instagram.com/v21.0',
-  test: { method: 'GET', path: '/{businessAccountId}' },
+  baseUrl: 'https://graph.facebook.com/v21.0',
+  // Validate the token identity without requiring a model-supplied sending ID.
+  test: { method: 'GET', path: '/me', query: { fields: 'id' } },
   capabilities: [
     {
       name: 'messages.send',
@@ -22,13 +23,13 @@ export const whatsappConnector = declarativeRestConnector({
         properties: {
           to: { type: 'string', description: 'Recipient phone number' },
           text: { type: 'string', description: 'Message text' },
-          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          phoneNumberId: { type: 'string', pattern: '^[0-9]+$', maxLength: 64, description: 'Meta phone number ID for the sender, not a WhatsApp Business Account (WABA) ID.' },
         },
-        required: ['to', 'text', 'businessAccountId'],
+        required: ['to', 'text', 'phoneNumberId'],
       },
       request: {
         method: 'POST',
-        path: '/{businessAccountId}/messages',
+        path: '/{phoneNumberId}/messages',
         body: {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -55,13 +56,13 @@ export const whatsappConnector = declarativeRestConnector({
           media: { type: 'string', description: 'Media URL' },
           caption: { type: 'string', description: 'Caption for the media' },
           filename: { type: 'string', description: 'Filename (for documents)' },
-          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          phoneNumberId: { type: 'string', pattern: '^[0-9]+$', maxLength: 64, description: 'Meta phone number ID for the sender, not a WhatsApp Business Account (WABA) ID.' },
         },
-        required: ['to', 'type', 'media', 'businessAccountId'],
+        required: ['to', 'type', 'media', 'phoneNumberId'],
       },
       request: {
         method: 'POST',
-        path: '/{businessAccountId}/messages',
+        path: '/{phoneNumberId}/messages',
         body: {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -83,13 +84,13 @@ export const whatsappConnector = declarativeRestConnector({
           templateName: { type: 'string', description: 'Name of the template' },
           language: { type: 'string', description: 'Template language code (e.g., en, es)' },
           parameters: { type: 'array', description: 'Template parameter values' },
-          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          phoneNumberId: { type: 'string', pattern: '^[0-9]+$', maxLength: 64, description: 'Meta phone number ID for the sender, not a WhatsApp Business Account (WABA) ID.' },
         },
-        required: ['to', 'templateName', 'language', 'businessAccountId'],
+        required: ['to', 'templateName', 'language', 'phoneNumberId'],
       },
       request: {
         method: 'POST',
-        path: '/{businessAccountId}/messages',
+        path: '/{phoneNumberId}/messages',
         body: {
           messaging_product: 'whatsapp',
           to: '{to}',
@@ -113,13 +114,13 @@ export const whatsappConnector = declarativeRestConnector({
           to: { type: 'string', description: 'Recipient phone number' },
           text: { type: 'string', description: 'Reply text body' },
           replyToMessageId: { type: 'string', description: 'WAMID of the message to reply to' },
-          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          phoneNumberId: { type: 'string', pattern: '^[0-9]+$', maxLength: 64, description: 'Meta phone number ID for the sender, not a WhatsApp Business Account (WABA) ID.' },
         },
-        required: ['to', 'text', 'replyToMessageId', 'businessAccountId'],
+        required: ['to', 'text', 'replyToMessageId', 'phoneNumberId'],
       },
       request: {
         method: 'POST',
-        path: '/{businessAccountId}/messages',
+        path: '/{phoneNumberId}/messages',
         body: {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -142,13 +143,13 @@ export const whatsappConnector = declarativeRestConnector({
           to: { type: 'string', description: 'Recipient phone number' },
           messageId: { type: 'string', description: 'WAMID of the message to react to' },
           emoji: { type: 'string', description: 'Emoji to react with (empty string removes existing reaction)' },
-          businessAccountId: { type: 'string', description: 'Business Account ID' },
+          phoneNumberId: { type: 'string', pattern: '^[0-9]+$', maxLength: 64, description: 'Meta phone number ID for the sender, not a WhatsApp Business Account (WABA) ID.' },
         },
-        required: ['to', 'messageId', 'emoji', 'businessAccountId'],
+        required: ['to', 'messageId', 'emoji', 'phoneNumberId'],
       },
       request: {
         method: 'POST',
-        path: '/{businessAccountId}/messages',
+        path: '/{phoneNumberId}/messages',
         body: {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -199,3 +200,20 @@ export const whatsappConnector = declarativeRestConnector({
     },
   ],
 })
+
+// Cloud API /messages accepts a phone number ID. A WABA ID identifies the
+// account and cannot be relabeled as a sending ID during migration.
+const sendCapabilities = new Set(['messages.send', 'media.send', 'template.send', 'messages.reply', 'messages.react'])
+export const whatsappConnector: typeof base = {
+  ...base,
+  async executeMutation(inv) {
+    if (sendCapabilities.has(inv.capabilityName)) {
+      const { phoneNumberId, businessAccountId } = inv.args
+      if (businessAccountId !== undefined || typeof phoneNumberId !== 'string'
+        || !/^[0-9]{1,64}$/.test(phoneNumberId)) {
+        throw new Error('WhatsApp sends require phoneNumberId, the Meta sender phone number ID; businessAccountId (WABA ID) is not a sending ID')
+      }
+    }
+    return base.executeMutation!(inv)
+  },
+}
