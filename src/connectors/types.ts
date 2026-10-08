@@ -585,6 +585,28 @@ export class ProviderRateLimited extends Error {
   }
 }
 
+/** Thrown when the provider settles a call with a non-2xx status that is not
+ *  a credential, permission or rate-limit failure: a 400 naming a bad field, a
+ *  404, a 409, or a 5xx. Carries `{status, reason, body}` so the platform
+ *  answers a refusal as a refusal (a 4xx with the provider's message) instead
+ *  of a gateway fault, and keeps the provider's own error code as `reason`. */
+export class ProviderRequestError extends Error {
+  override readonly name = 'ProviderRequestError'
+  readonly status: number
+  readonly reason?: string
+  readonly body?: unknown
+  constructor(
+    message: string,
+    public readonly dataSourceId: string,
+    init: ProviderHttpErrorInit,
+  ) {
+    super(message)
+    this.status = init.status
+    this.reason = init.reason
+    this.body = init.body
+  }
+}
+
 export interface ConnectorManifestValidationIssue {
   path: string
   message: string
