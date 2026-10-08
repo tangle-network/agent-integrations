@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.2
+
+- fix(whatsapp): route sends through Meta phone number IDs
+
 ## 0.67.1
 
 - fix(whatsapp): allow receipts for current media without download URLs
