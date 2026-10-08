@@ -30,6 +30,27 @@ export const githubConnector = declarativeRestConnector({
       request: { method: 'GET', path: '/repos/{owner}/{repo}' },
     },
     {
+      name: 'repos.listForAuthenticatedUser',
+      class: 'read',
+      description:
+        'List repositories the connected account can read, including private and organization repositories the token is granted. Use it to suggest a repository before reading its files.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sort: { type: 'string', enum: ['created', 'updated', 'pushed', 'full_name'] },
+          affiliation: { type: 'string', description: 'Comma-separated owner, collaborator, organization_member.' },
+          per_page: { type: 'integer', minimum: 1, maximum: 100 },
+          page: { type: 'integer', minimum: 1 },
+        },
+        required: [],
+      },
+      request: {
+        method: 'GET',
+        path: '/user/repos',
+        query: { sort: '{sort}', affiliation: '{affiliation}', per_page: '{per_page}', page: '{page}' },
+      },
+    },
+    {
       name: 'issues.search',
       class: 'read',
       description: 'Search GitHub issues and pull requests.',
