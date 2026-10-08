@@ -37,6 +37,7 @@ import {
   type ConnectorCredentials,
   CredentialsExpired,
 } from '../types.js'
+import { readWhatsappNumbers, whatsappNumbersCapability, whatsappWebhookStatusCapability } from './whatsapp-cloud.js'
 import { exchangeAuthorizationCode } from '../oauth.js'
 
 const SCOPES = ['whatsapp_business_messaging', 'whatsapp_business_management', 'business_management']
@@ -68,6 +69,12 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
       category: 'comms',
       defaultConsistencyModel: 'advisory',
       capabilities: [
+        whatsappNumbersCapability, whatsappWebhookStatusCapability,
+        { name: 'messages.reply', class: 'mutation', cas: 'none', externalEffect: true,
+          description: 'Reply to one authenticated incoming WhatsApp message from this OAuth connection number.',
+          requiredScopes: ['whatsapp_business_messaging'],
+          parameters: { type: 'object', properties: { to: { type: 'string' }, text: { type: 'string', maxLength: 4096 }, replyToMessageId: { type: 'string' }, phoneNumberId: { type: 'string', pattern: '^[0-9]{1,64}$' } }, required: ['to', 'text', 'replyToMessageId', 'phoneNumberId'] },
+        },
         {
           name: 'send_text_message',
           class: 'mutation',
@@ -197,6 +204,7 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const accessToken = readAccessToken(inv.source.credentials)
+      if ((inv.capabilityName === 'numbers.list' || inv.capabilityName === 'webhooks.status')) return readWhatsappNumbers(inv)
       if (inv.capabilityName === 'list_message_templates') {
         const wabaId = readMetaString(inv.source.metadata, 'wabaId')
         const { limit, status } = inv.args as { limit?: number; status?: string }
@@ -262,7 +270,13 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
       const phoneNumberId = readMetaString(inv.source.metadata, 'phoneNumberId')
       const url = `${API}/${encodeURIComponent(phoneNumberId)}/messages`
       let body: Record<string, unknown>
-      if (inv.capabilityName === 'send_text_message') {
+      if (inv.capabilityName === 'messages.reply') {
+        const { to, text, replyToMessageId } = inv.args
+        if (inv.args.phoneNumberId !== phoneNumberId || typeof to !== 'string' || !/^[1-9]\d{6,14}$/.test(to)
+          || typeof text !== 'string' || !text.trim() || text.length > 4096 || typeof replyToMessageId !== 'string' || !replyToMessageId || replyToMessageId.length > 256) throw new Error('Invalid bound WhatsApp reply')
+        body = { messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text',
+          text: { body: text }, context: { message_id: replyToMessageId } }
+      } else if (inv.capabilityName === 'send_text_message') {
         const { to, body: text, previewUrl } = inv.args as { to: string; body: string; previewUrl?: boolean }
         body = {
           messaging_product: 'whatsapp',

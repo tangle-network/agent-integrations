@@ -15,6 +15,7 @@ export interface ConversationChannel {
 }
 
 const channels: readonly ConversationChannel[] = [
+  ...(['whatsapp', 'whatsapp-business'] as const).map(providerId => ({ providerId, eventType: `${providerId}.message.received`, label: 'WhatsApp (Meta)', transport: 'whatsapp' as const, sourceKind: 'connection' as const, replies: true, inventoryAction: `${providerId}.numbers.list`, replyAction: `${providerId}.messages.reply` })),
   { providerId: 'telegram', eventType: 'telegram.message', label: 'Telegram', transport: 'telegram', sourceKind: 'connection', replies: true, replyAction: 'telegram.sendMessage' },
   { providerId: 'email', eventType: 'email.received', label: 'Tangle email', transport: 'email', sourceKind: 'channel', replies: false },
   { providerId: 'inkbox', eventType: 'inkbox.imessage.received', label: 'iMessage', transport: 'imessage', sourceKind: 'connection', replies: true, replyAction: 'inkbox.imessage.reply',
@@ -61,6 +62,17 @@ function bounded(value: unknown, max: number): value is string {
  * Protocol shapes stay with the adapters. Unknown provider health remains unknown;
  * configuration, customer eligibility and delivery readiness are separate facts. */
 export function conversationEndpointOptions(providerId: string, result: unknown): ConversationEndpointOption[] {
+  if (providerId === 'whatsapp' || providerId === 'whatsapp-business') {
+    if (!record(result) || !Array.isArray(result.data) || result.data.length > 1000 || (record(result.paging) && result.paging.next)) throw new Error('Meta phone inventory is missing or incomplete')
+    const seen = new Set<string>()
+    return result.data.map(row => {
+      if (!record(row) || typeof row.id !== 'string' || !/^\d{1,64}$/.test(row.id) || seen.has(row.id) || typeof row.display_phone_number !== 'string') throw new Error('Invalid or ambiguous Meta phone number')
+      const address = '+' + row.display_phone_number.replace(/[^0-9]/g, '')
+      if (!/^\+[1-9]\d{6,14}$/.test(address)) throw new Error('Invalid Meta display number')
+      seen.add(row.id)
+      return { id: row.id, address, providerId, channel: 'whatsapp' as const, health: 'unknown' as const }
+    })
+  }
   if (providerId === 'sendblue') {
     const rows = record(result) ? result.data : null
     if (!Array.isArray(rows) || rows.length > 1000) throw new Error('Invalid Sendblue line-state inventory')
