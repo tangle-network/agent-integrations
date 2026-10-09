@@ -1,7 +1,21 @@
-import { declarativeRestConnector } from './declarative-rest.js'
+import { InvalidCapabilityArgument, type ConnectorAdapter, type ConnectorInvocation } from '../types.js'
+import {
+  declarativeRestConnector,
+  executeRestRequest,
+  mutationResultFromTransport,
+  type RestConnectorSpec,
+  type RestRequestSpec,
+} from './declarative-rest.js'
 
 // A full object id: SHA-1 (40 hex) or, for SHA-256 repositories, 64 hex.
 const GIT_SHA = '(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})'
+/** The most files one pulls.propose call may write or delete. */
+const PROPOSE_MAX_FILES = 50
+// A conservative git branch name: no spaces, `..`, `@{`, control, glob or
+// leading/trailing separator characters, and no `.lock` suffix. Checked in
+// code rather than published as a schema pattern: model providers compile
+// published patterns and do not all accept lookarounds.
+const PLAIN_BRANCH = '^(?!/)(?!.*//)(?!.*\\.\\.)(?!.*@\\{)(?!.*\\.lock$)[A-Za-z0-9._/-]+(?<![/.])$'
 
 const repoParams = {
   type: 'object',
@@ -12,7 +26,7 @@ const repoParams = {
   required: ['owner', 'repo'],
 }
 
-export const githubConnector = declarativeRestConnector({
+const githubSpec: RestConnectorSpec = {
   kind: 'github',
   displayName: 'GitHub',
   description: 'Search repositories/issues and create or update GitHub issues through a user-scoped token.',
@@ -495,7 +509,7 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createTree',
       class: 'mutation',
-      description: 'Step 2 of a draft pull request. Write a tree: `base_tree` plus the changed entries. Each entry is `{ path, mode: "100644", type: "blob", content }` (use `sha: null` to delete a file). Creates an unreferenced object; nothing is visible until a branch points at a commit using it.',
+      description: 'Prefer pulls.propose, which proposes a whole change under one owner approval; each of these low-level steps needs its own. Step 2 of a draft pull request. Write a tree: `base_tree` plus the changed entries. Each entry is `{ path, mode: "100644", type: "blob", content }` (use `sha: null` to delete a file). Creates an unreferenced object; nothing is visible until a branch points at a commit using it.',
       parameters: {
         type: 'object',
         properties: {
@@ -529,7 +543,7 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createCommit',
       class: 'mutation',
-      description: 'Step 3 of a draft pull request. Write a commit object for a tree with explicit parents (normally the base branch head). Creates an unreferenced object; it moves no branch. Its `sha` is what git.createRef needs.',
+      description: 'Prefer pulls.propose for a pull request (one owner approval for the whole change). Step 3 of a draft pull request. Write a commit object for a tree with explicit parents (normally the base branch head). Creates an unreferenced object; it moves no branch. Its `sha` is what git.createRef needs.',
       parameters: {
         type: 'object',
         properties: {
@@ -551,7 +565,7 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createRef',
       class: 'mutation',
-      description: 'Step 4 of a draft pull request. Create a NEW branch at a commit: `ref` must be `refs/heads/<new-branch>` and `sha` the commit from git.createCommit. Never moves an existing branch; GitHub returns 422 when the ref already exists. Then pulls.create with `head: "<new-branch>"` (no `refs/heads/`) and `draft: true`.',
+      description: 'Prefer pulls.propose for a pull request (one owner approval for the whole change). Step 4 of a draft pull request. Create a NEW branch at a commit: `ref` must be `refs/heads/<new-branch>` and `sha` the commit from git.createCommit. Never moves an existing branch; GitHub returns 422 when the ref already exists. Then pulls.create with `head: "<new-branch>"` (no `refs/heads/`) and `draft: true`.',
       parameters: {
         type: 'object',
         properties: {
@@ -610,7 +624,7 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'pulls.create',
       class: 'mutation',
-      description: 'Open a pull request from `head` into `base` on the target repository. Step 5 of a draft pull request: `head` is the branch git.createRef created and `draft: true`.',
+      description: 'Open a pull request from `head` into `base` on the target repository. To propose file changes, prefer pulls.propose, which writes the files and opens the draft under one owner approval. Step 5 of a draft pull request: `head` is the branch git.createRef created and `draft: true`.',
       parameters: {
         type: 'object',
         properties: {
@@ -629,6 +643,61 @@ export const githubConnector = declarativeRestConnector({
       },
       request: { method: 'POST', path: '/repos/{owner}/{repo}/pulls', body: 'args' },
       cas: 'native-idempotency',
+      externalEffect: true,
+    },
+    {
+      name: 'pulls.propose',
+      class: 'mutation',
+      description:
+        'Propose a change as a draft pull request in ONE call, under one owner approval: write `files` on a NEW branch '
+        + 'cut from the head of `base`, commit them, and open a draft pull request from `branch` into `base`. '
+        + 'Prefer it over git.createTree, git.createCommit, git.createRef and pulls.create, which each need their own approval. '
+        + 'It never moves an existing branch and never merges. Returns the pull request, the commit and each changed file '
+        + 'with its line counts.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          base: {
+            type: 'string',
+            description: 'Branch the pull request merges into, usually the default branch (`main`). A plain branch name.',
+          },
+          branch: {
+            type: 'string',
+            description: 'The NEW branch to create, e.g. `gtm-agent/hero-copy`. It must not exist yet and must differ from `base`.',
+          },
+          title: { type: 'string', minLength: 1, maxLength: 256 },
+          body: { type: 'string', description: 'Pull request description (markdown).' },
+          commit_message: { type: 'string', description: 'Commit message; defaults to the title.' },
+          files: {
+            type: 'array',
+            minItems: 1,
+            maxItems: PROPOSE_MAX_FILES,
+            description: 'Every file the change writes or deletes. `{ path, content }` writes the whole new file; `{ path, delete: true }` removes it.',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                path: { type: 'string', description: 'Repository-relative path, e.g. `src/routes/_index.tsx`.' },
+                content: { type: 'string', description: 'The complete new file content (UTF-8 text).' },
+                mode: { type: 'string', enum: ['100644', '100755'], description: 'File mode; `100755` for an executable. Defaults to `100644`.' },
+                delete: { type: 'boolean', description: 'Set to true to delete the file.' },
+              },
+              required: ['path'],
+            },
+          },
+        },
+        required: ['owner', 'repo', 'base', 'branch', 'title', 'files'],
+      },
+      // Executed by `proposePullRequest` below as six requests; this is the
+      // request that makes the change visible.
+      request: { method: 'POST', path: '/repos/{owner}/{repo}/pulls' },
+      // The new branch is the at-most-once guard: GitHub refuses to create a
+      // ref that exists, so a replay fails before it can open a second pull
+      // request.
+      cas: 'optimistic-read-verify',
       externalEffect: true,
     },
     {
@@ -707,4 +776,254 @@ export const githubConnector = declarativeRestConnector({
       externalEffect: true,
     },
   ],
-})
+}
+
+const base = declarativeRestConnector(githubSpec)
+const baseMutation = base.executeMutation!
+
+export const githubConnector: ConnectorAdapter = {
+  ...base,
+  async executeMutation(inv: ConnectorInvocation) {
+    if (inv.capabilityName === 'pulls.propose') return proposePullRequest(inv)
+    return baseMutation(inv)
+  },
+}
+
+// ---------- pulls.propose ----------
+
+const PROPOSE_MAX_FILE_BYTES = 1_000_000
+const PROPOSE_MAX_TOTAL_BYTES = 4_000_000
+/** Branches a repository serves by default; a proposal never creates one. */
+const DEFAULT_BRANCH_NAMES = new Set(['main', 'master', 'trunk', 'default', 'head', 'develop'])
+const PROPOSE_ARGUMENTS = new Set(['owner', 'repo', 'base', 'branch', 'title', 'body', 'commit_message', 'files'])
+const PROPOSE_FILE_FIELDS = new Set(['path', 'content', 'mode', 'delete'])
+
+interface ProposedFile {
+  path: string
+  content?: string
+  mode: '100644' | '100755'
+  delete: boolean
+}
+
+interface ProposeArgs {
+  owner: string
+  repo: string
+  base: string
+  branch: string
+  title: string
+  body?: string
+  commitMessage: string
+  files: ProposedFile[]
+}
+
+function refuse(field: string, message: string): never {
+  throw new InvalidCapabilityArgument(`github pulls.propose: invalid argument "${field}": ${message}`, field)
+}
+
+function requiredText(args: Record<string, unknown>, field: string, max = 256): string {
+  const value = args[field]
+  if (typeof value !== 'string' || !value.trim()) refuse(field, 'is required')
+  if (value.length > max) refuse(field, `is longer than ${max} characters`)
+  return value.trim()
+}
+
+function branchName(args: Record<string, unknown>, field: 'base' | 'branch'): string {
+  const value = requiredText(args, field, 200)
+  if (new RegExp(`^${GIT_SHA}$`).test(value)) refuse(field, 'is a commit sha, not a branch name')
+  if (value.startsWith('refs/')) refuse(field, 'pass the bare branch name, not a `refs/` path')
+  if (!new RegExp(PLAIN_BRANCH).test(value)) refuse(field, 'is not a plain git branch name')
+  return value
+}
+
+function repoPath(value: unknown, index: number): string {
+  const field = `files[${index}].path`
+  if (typeof value !== 'string' || !value.trim()) refuse(field, 'is required')
+  const path = value.trim()
+  if (path.startsWith('/') || /[\\\0]/.test(path) || path.split('/').some((part) => !part || part === '.' || part === '..')) {
+    refuse(field, `${JSON.stringify(path.slice(0, 80))} is not a repository-relative path`)
+  }
+  if (path === '.git' || path.startsWith('.git/')) refuse(field, 'cannot write inside .git')
+  return path
+}
+
+/** Validate every argument before the first request, so a refusal writes nothing. */
+function proposeArgs(raw: Record<string, unknown>): ProposeArgs {
+  for (const key of Object.keys(raw)) {
+    if (!PROPOSE_ARGUMENTS.has(key)) refuse(key, 'is not an argument of pulls.propose')
+  }
+  const base = branchName(raw, 'base')
+  const branch = branchName(raw, 'branch')
+  if (branch === base) refuse('branch', 'must be a new branch, not the base')
+  if (DEFAULT_BRANCH_NAMES.has(branch.toLowerCase())) refuse('branch', `${branch} is a default branch name; name a new branch`)
+  const title = requiredText(raw, 'title')
+  const body = raw.body === undefined ? undefined : typeof raw.body === 'string' ? raw.body : refuse('body', 'must be a string')
+  const commitMessage = raw.commit_message === undefined ? title : requiredText(raw, 'commit_message', 4_000)
+  if (!Array.isArray(raw.files) || raw.files.length === 0) refuse('files', 'name at least one file')
+  if (raw.files.length > PROPOSE_MAX_FILES) refuse('files', `a proposal changes at most ${PROPOSE_MAX_FILES} files`)
+  const seen = new Set<string>()
+  let total = 0
+  const files = raw.files.map((entry, index): ProposedFile => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) refuse(`files[${index}]`, 'must be an object')
+    const file = entry as Record<string, unknown>
+    for (const key of Object.keys(file)) {
+      if (!PROPOSE_FILE_FIELDS.has(key)) refuse(`files[${index}].${key}`, 'is not a file field')
+    }
+    const path = repoPath(file.path, index)
+    if (seen.has(path)) refuse(`files[${index}].path`, `${path} is listed twice`)
+    seen.add(path)
+    const mode = file.mode === undefined ? '100644' : file.mode
+    if (mode !== '100644' && mode !== '100755') refuse(`files[${index}].mode`, 'must be 100644 or 100755')
+    if (file.delete !== undefined && file.delete !== true) refuse(`files[${index}].delete`, 'must be true when present')
+    if (file.delete === true) {
+      if (file.content !== undefined) refuse(`files[${index}]`, 'a deleted file carries no content')
+      return { path, mode, delete: true }
+    }
+    if (typeof file.content !== 'string') refuse(`files[${index}].content`, 'is required unless delete is true')
+    const bytes = new TextEncoder().encode(file.content).length
+    if (bytes > PROPOSE_MAX_FILE_BYTES) refuse(`files[${index}].content`, `is larger than ${PROPOSE_MAX_FILE_BYTES} bytes`)
+    total += bytes
+    return { path, content: file.content, mode, delete: false }
+  })
+  if (total > PROPOSE_MAX_TOTAL_BYTES) refuse('files', `the change is larger than ${PROPOSE_MAX_TOTAL_BYTES} bytes`)
+  return {
+    owner: requiredText(raw, 'owner', 100),
+    repo: requiredText(raw, 'repo', 100),
+    base,
+    branch,
+    title,
+    ...(body !== undefined ? { body } : {}),
+    commitMessage,
+    files,
+  }
+}
+
+function field(value: unknown, ...path: string[]): unknown {
+  let current = value
+  for (const key of path) {
+    if (!current || typeof current !== 'object') return undefined
+    current = (current as Record<string, unknown>)[key]
+  }
+  return current
+}
+
+function shaOf(value: unknown, what: string, ...path: string[]): string {
+  const sha = field(value, ...path)
+  if (typeof sha !== 'string' || !new RegExp(`^${GIT_SHA}$`).test(sha)) throw new Error(`github pulls.propose: GitHub returned no ${what}`)
+  return sha
+}
+
+/**
+ * Write the files on a new branch and open a draft pull request, as one call:
+ * read the base head, write a tree, commit it on that head, create the branch,
+ * open the draft, and read its file list. The branch is new (GitHub refuses
+ * an existing ref), so the call never moves an existing branch.
+ */
+async function proposePullRequest(inv: ConnectorInvocation) {
+  const args = proposeArgs(inv.args)
+  const at = (request: RestRequestSpec, values: Record<string, unknown>) =>
+    executeRestRequest(githubSpec, request, { ...inv, args: { owner: args.owner, repo: args.repo, ...values } })
+
+  const head = await at({ method: 'GET', path: '/repos/{owner}/{repo}/branches/{branch}' }, { branch: args.base })
+  if (head.outcome) return mutationResultFromTransport(githubSpec.displayName, head)
+  const parent = shaOf(head.data, 'base head commit', 'commit', 'sha')
+  const baseTree = shaOf(head.data, 'base tree', 'commit', 'commit', 'tree', 'sha')
+
+  const tree = await at({
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/git/trees',
+    body: { base_tree: '{base_tree}', tree: '{tree}' },
+  }, {
+    base_tree: baseTree,
+    tree: args.files.map((file) => file.delete
+      ? { path: file.path, mode: file.mode, type: 'blob', sha: null }
+      : { path: file.path, mode: file.mode, type: 'blob', content: file.content }),
+  })
+  if (tree.outcome) return mutationResultFromTransport(githubSpec.displayName, tree)
+
+  const commit = await at({
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/git/commits',
+    body: { message: '{message}', tree: '{tree}', parents: '{parents}' },
+  }, { message: args.commitMessage, tree: shaOf(tree.data, 'tree', 'sha'), parents: [parent] })
+  if (commit.outcome) return mutationResultFromTransport(githubSpec.displayName, commit)
+  const commitSha = shaOf(commit.data, 'commit', 'sha')
+
+  let ref
+  try {
+    ref = await at({
+      method: 'POST',
+      path: '/repos/{owner}/{repo}/git/refs',
+      body: { ref: '{ref}', sha: '{sha}' },
+    }, { ref: `refs/heads/${args.branch}`, sha: commitSha })
+  } catch (error) {
+    if (error instanceof Error && / HTTP 422: /.test(error.message) && /already exists/i.test(error.message)) {
+      refuse('branch', `${args.branch} already exists in ${args.owner}/${args.repo}; name a new branch`)
+    }
+    throw error
+  }
+  if (ref.outcome) return mutationResultFromTransport(githubSpec.displayName, ref)
+
+  // The branch exists from here on. A failure names it and the commit, so a
+  // retry opens the pull request with pulls.create instead of redoing the change.
+  const created = `branch ${args.branch} at commit ${commitSha} exists in ${args.owner}/${args.repo}`
+  let pull
+  try {
+    pull = await at({
+      method: 'POST',
+      path: '/repos/{owner}/{repo}/pulls',
+      body: { title: '{title}', head: '{head}', base: '{base}', body: '{body}', draft: true },
+    }, { title: args.title, head: args.branch, base: args.base, ...(args.body !== undefined ? { body: args.body } : {}) })
+  } catch (error) {
+    throw new Error(`github pulls.propose: ${created}, but opening the pull request failed; call pulls.create with head ${args.branch}. ${error instanceof Error ? error.message : String(error)}`)
+  }
+  if (pull.outcome) {
+    return { ...mutationResultFromTransport(githubSpec.displayName, pull), message: `${created}; ${pull.message ?? 'GitHub did not open the pull request'}` }
+  }
+  const number = field(pull.data, 'number')
+  if (typeof number !== 'number') throw new Error(`github pulls.propose: ${created}, but GitHub returned no pull request number`)
+
+  let files: Array<{ path: string; status: string; additions: number; deletions: number }> = args.files.map((file) => ({
+    path: file.path, status: file.delete ? 'removed' : 'modified', additions: 0, deletions: 0,
+  }))
+  try {
+    const listed = await at({
+      method: 'GET',
+      path: '/repos/{owner}/{repo}/pulls/{pull_number}/files',
+      query: { per_page: '100' },
+    }, { pull_number: number })
+    if (!listed.outcome && Array.isArray(listed.data)) {
+      files = listed.data.flatMap((entry) => {
+        const path = field(entry, 'filename')
+        return typeof path === 'string' ? [{
+          path,
+          status: String(field(entry, 'status') ?? 'modified'),
+          additions: Number(field(entry, 'additions') ?? 0),
+          deletions: Number(field(entry, 'deletions') ?? 0),
+        }] : []
+      })
+    }
+  } catch {
+    // The pull request is open; the declared files stand in for GitHub's list.
+  }
+
+  return {
+    status: 'committed' as const,
+    data: {
+      pullRequest: {
+        number,
+        url: String(field(pull.data, 'html_url') ?? `https://github.com/${args.owner}/${args.repo}/pull/${number}`),
+        title: String(field(pull.data, 'title') ?? args.title),
+        state: String(field(pull.data, 'state') ?? 'open'),
+        draft: field(pull.data, 'draft') !== false,
+      },
+      repository: `${args.owner}/${args.repo}`,
+      base: args.base,
+      branch: args.branch,
+      commit: { sha: commitSha, url: `https://github.com/${args.owner}/${args.repo}/commit/${commitSha}` },
+      files,
+    },
+    etagAfter: pull.etag,
+    committedAt: Date.now(),
+    idempotentReplay: false,
+  }
+}
