@@ -1,5 +1,8 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
+// A full object id: SHA-1 (40 hex) or, for SHA-256 repositories, 64 hex.
+const GIT_SHA = '(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})'
+
 const repoParams = {
   type: 'object',
   properties: {
@@ -372,27 +375,66 @@ export const githubConnector = declarativeRestConnector({
       },
     },
     // ---------- Git Data: propose a change on a NEW branch ----------
-    // A change is proposed in five calls, each one request: read the base
-    // branch head, read the tree/blobs being edited, write one tree holding
-    // every changed file, write one commit on top of the base, then CREATE a
-    // new branch ref at that commit. There is deliberately no ref-update
-    // action: a caller can create a new branch but can never move an existing
-    // one, so the default branch and every protected branch stay out of reach.
-    // GitHub refuses `git.createRef` for a ref that already exists (422).
+    // A change is proposed as a draft pull request in this order, each step
+    // one request:
+    //   1. repos.getBranch    the BASE branch by name: head commit + tree sha
+    //   2. git.createTree     base tree + every changed file -> new tree sha
+    //   3. git.createCommit   new tree, parents [base head]  -> new commit sha
+    //      git.getCommit      optional: verify that commit by sha
+    //   4. git.createRef      refs/heads/<new-branch> at the new commit
+    //   5. pulls.create       head <new-branch>, base <base>, draft: true
+    // (git.getTree / git.getBlob read the files being edited before step 2.)
+    // There is deliberately no ref-update action: a caller can create a new
+    // branch but can never move an existing one, so the default branch and
+    // every protected branch stay out of reach. GitHub refuses
+    // `git.createRef` for a ref that already exists (422).
     {
       name: 'repos.getBranch',
       class: 'read',
-      description: 'Read one branch: its head commit sha and that commit\'s tree sha. Use it to find the base a proposed change builds on.',
+      description:
+        'Read one branch BY NAME: `commit.sha` is its head commit and `commit.commit.tree.sha` that commit\'s tree. '
+        + 'Step 1 of a draft pull request: read the base branch (e.g. `main`), then git.createTree on that tree, '
+        + 'git.createCommit with that head as parent, git.createRef `refs/heads/<new-branch>`, and pulls.create with `draft: true`. '
+        + 'A commit sha is not a branch name: read a commit with git.getCommit.',
       parameters: {
         type: 'object',
         properties: {
           owner: { type: 'string' },
           repo: { type: 'string' },
-          branch: { type: 'string', description: 'Branch name, e.g. `main`.' },
+          branch: { type: 'string', description: 'Branch name such as `main` or `gtm-agent/hero-copy`; never a commit sha or a `refs/` path.' },
         },
         required: ['owner', 'repo', 'branch'],
       },
       request: { method: 'GET', path: '/repos/{owner}/{repo}/branches/{branch}' },
+      refuseArguments: [
+        {
+          field: 'branch',
+          pattern: `^${GIT_SHA}$`,
+          message: 'that is a commit sha, not a branch name. Pass a branch name such as `main`; read a commit by sha with git.getCommit.',
+        },
+        {
+          field: 'branch',
+          pattern: '^refs/',
+          message: 'pass the bare branch name (`main`), not a ref path (`refs/heads/main`).',
+        },
+      ],
+    },
+    {
+      name: 'git.getCommit',
+      class: 'read',
+      description:
+        'Read one commit object by sha: its `tree.sha`, `parents[].sha`, message and author. '
+        + 'Use it to verify the commit git.createCommit returned before git.createRef points a new branch at it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          commit_sha: { type: 'string', pattern: `^${GIT_SHA}$`, description: 'Full commit sha.' },
+        },
+        required: ['owner', 'repo', 'commit_sha'],
+      },
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/git/commits/{commit_sha}' },
     },
     {
       name: 'git.getTree',
@@ -432,13 +474,13 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createTree',
       class: 'mutation',
-      description: 'Write a tree: `base_tree` plus the changed entries. Each entry is `{ path, mode: "100644", type: "blob", content }` (use `sha: null` to delete a file). Creates an unreferenced object; nothing is visible until a branch points at a commit using it.',
+      description: 'Step 2 of a draft pull request. Write a tree: `base_tree` plus the changed entries. Each entry is `{ path, mode: "100644", type: "blob", content }` (use `sha: null` to delete a file). Creates an unreferenced object; nothing is visible until a branch points at a commit using it.',
       parameters: {
         type: 'object',
         properties: {
           owner: { type: 'string' },
           repo: { type: 'string' },
-          base_tree: { type: 'string', description: 'Tree sha of the base commit.' },
+          base_tree: { type: 'string', pattern: `^${GIT_SHA}$`, description: 'Tree sha of the base commit: `commit.commit.tree.sha` from repos.getBranch.' },
           tree: {
             type: 'array',
             items: {
@@ -466,15 +508,15 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createCommit',
       class: 'mutation',
-      description: 'Write a commit object for a tree with explicit parents (normally the base branch head). Creates an unreferenced object; it moves no branch.',
+      description: 'Step 3 of a draft pull request. Write a commit object for a tree with explicit parents (normally the base branch head). Creates an unreferenced object; it moves no branch. Its `sha` is what git.createRef needs.',
       parameters: {
         type: 'object',
         properties: {
           owner: { type: 'string' },
           repo: { type: 'string' },
           message: { type: 'string' },
-          tree: { type: 'string', description: 'Tree sha from git.createTree.' },
-          parents: { type: 'array', items: { type: 'string' }, description: 'Parent commit shas.' },
+          tree: { type: 'string', pattern: `^${GIT_SHA}$`, description: 'Tree sha from git.createTree.' },
+          parents: { type: 'array', items: { type: 'string', pattern: `^${GIT_SHA}$` }, description: 'Parent commit shas: the base branch head from repos.getBranch.' },
         },
         required: ['owner', 'repo', 'message', 'tree', 'parents'],
       },
@@ -488,14 +530,14 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'git.createRef',
       class: 'mutation',
-      description: 'Create a NEW branch at a commit: `ref` must be `refs/heads/<new-branch>`. Never moves an existing branch; GitHub returns 422 when the ref already exists.',
+      description: 'Step 4 of a draft pull request. Create a NEW branch at a commit: `ref` must be `refs/heads/<new-branch>` and `sha` the commit from git.createCommit. Never moves an existing branch; GitHub returns 422 when the ref already exists. Then pulls.create with `head: "<new-branch>"` (no `refs/heads/`) and `draft: true`.',
       parameters: {
         type: 'object',
         properties: {
           owner: { type: 'string' },
           repo: { type: 'string' },
           ref: { type: 'string', pattern: '^refs/heads/.+', description: 'Fully qualified new branch ref, e.g. `refs/heads/gtm-agent/hero-copy`.' },
-          sha: { type: 'string', description: 'Commit sha from git.createCommit.' },
+          sha: { type: 'string', pattern: `^${GIT_SHA}$`, description: 'Commit sha from git.createCommit.' },
         },
         required: ['owner', 'repo', 'ref', 'sha'],
       },
@@ -547,7 +589,7 @@ export const githubConnector = declarativeRestConnector({
     {
       name: 'pulls.create',
       class: 'mutation',
-      description: 'Open a pull request from `head` into `base` on the target repository.',
+      description: 'Open a pull request from `head` into `base` on the target repository. Step 5 of a draft pull request: `head` is the branch git.createRef created and `draft: true`.',
       parameters: {
         type: 'object',
         properties: {
@@ -556,7 +598,7 @@ export const githubConnector = declarativeRestConnector({
           title: { type: 'string' },
           head: {
             type: 'string',
-            description: 'Branch (or cross-fork ref like `octocat:feature-x`) containing the changes.',
+            description: 'Branch name (or cross-fork `octocat:feature-x`) containing the changes, without `refs/heads/`.',
           },
           base: { type: 'string', description: 'Branch in the target repo to merge into (e.g. `main`).' },
           body: { type: 'string', description: 'PR description body (markdown).' },

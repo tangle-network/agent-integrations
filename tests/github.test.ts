@@ -645,23 +645,115 @@ describe('github adapter', () => {
 
   // ---------- Git Data: propose a change on a new branch ----------
 
+  const TREE_1 = '7e9a071fd4e87b437dca9a7798e40e714078ca22'
+  const TREE_2 = 'ab49d842fdea494a587aaf0232e3234d8555f7ce'
+  const COMMIT_1 = '21b8c13e0d6a8c1f6a54c9d1d7f3f2b3a4c5d6e7'
+  const COMMIT_2 = '60568543335bbaf23bce528e7a6092fae10d1974'
+
+  function refusingFetch() {
+    const fetchMock = vi.fn(async () => jsonResponse({}))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('repos.getBranch refuses a commit sha as the branch, naming the field and the read to use instead', async () => {
+    const fetchMock = refusingFetch()
+    const read = adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getBranch',
+      args: { owner: 'octo', repo: 'hello', branch: COMMIT_2 },
+      idempotencyKey: 'k-branch-sha',
+    })
+    await expect(read).rejects.toMatchObject({
+      name: 'InvalidCapabilityArgument',
+      field: 'branch',
+      status: 400,
+      message: expect.stringMatching(/invalid argument "branch".*commit sha, not a branch name.*git\.getCommit/),
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('repos.getBranch refuses a ref path where the bare branch name belongs', async () => {
+    const fetchMock = refusingFetch()
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getBranch',
+      args: { owner: 'octo', repo: 'hello', branch: 'refs/heads/main' },
+      idempotencyKey: 'k-branch-ref',
+    })).rejects.toMatchObject({ field: 'branch', message: expect.stringContaining('bare branch name') })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('repos.getBranch still reads a branch name made of hex characters that is not a full sha', async () => {
+    let calledUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calledUrl = String(input)
+      return jsonResponse({ name: 'deadbeef', commit: { sha: COMMIT_1 } })
+    }))
+    await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.getBranch',
+      args: { owner: 'octo', repo: 'hello', branch: 'deadbeef' },
+      idempotencyKey: 'k-branch-hex',
+    })
+    expect(calledUrl).toContain('/repos/octo/hello/branches/deadbeef')
+  })
+
+  it('git.getCommit reads a commit object by sha', async () => {
+    let calledUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calledUrl = String(input)
+      return jsonResponse({ sha: COMMIT_2, tree: { sha: TREE_2 }, parents: [{ sha: COMMIT_1 }] })
+    }))
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'git.getCommit',
+      args: { owner: 'octo', repo: 'hello', commit_sha: COMMIT_2 },
+      idempotencyKey: 'k-get-commit',
+    })
+    expect(calledUrl).toContain(`/repos/octo/hello/git/commits/${COMMIT_2}`)
+    expect(result.data).toMatchObject({ tree: { sha: TREE_2 }, parents: [{ sha: COMMIT_1 }] })
+  })
+
+  it('git.createRef refuses a bare branch name for ref before anything is written', async () => {
+    const fetchMock = refusingFetch()
+    await expect(adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'git.createRef',
+      args: { owner: 'octo', repo: 'hello', ref: 'gtm-agent/hero', sha: COMMIT_2 },
+      idempotencyKey: 'k-ref-bare',
+    })).rejects.toMatchObject({ field: 'ref', message: expect.stringMatching(/invalid argument "ref".*refs\/heads/) })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('git.createCommit names the parent that is a branch name instead of a sha', async () => {
+    const fetchMock = refusingFetch()
+    await expect(adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'git.createCommit',
+      args: { owner: 'octo', repo: 'hello', message: 'Shorten hero', tree: TREE_2, parents: [COMMIT_1, 'main'] },
+      idempotencyKey: 'k-commit-parent',
+    })).rejects.toMatchObject({ field: 'parents[1]' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('git.createTree POSTs base_tree and entries only, keeping owner/repo out of the body', async () => {
     let calledUrl = ''
     let calledBody: Record<string, unknown> = {}
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       calledUrl = String(input)
       calledBody = JSON.parse(init!.body as string)
-      return jsonResponse({ sha: 'tree2' })
+      return jsonResponse({ sha: TREE_2 })
     }))
     const tree = [{ path: 'src/routes/home.tsx', mode: '100644', type: 'blob', content: 'export {}\n' }]
     const result = await adapter.executeMutation!({
       source: source(),
       capabilityName: 'git.createTree',
-      args: { owner: 'octo', repo: 'hello', base_tree: 'tree1', tree },
+      args: { owner: 'octo', repo: 'hello', base_tree: TREE_1, tree },
       idempotencyKey: 'k-tree',
     })
     expect(calledUrl).toContain('/repos/octo/hello/git/trees')
-    expect(calledBody).toEqual({ base_tree: 'tree1', tree })
+    expect(calledBody).toEqual({ base_tree: TREE_1, tree })
     expect(result.status).toBe('committed')
   })
 
@@ -669,15 +761,15 @@ describe('github adapter', () => {
     let calledBody: Record<string, unknown> = {}
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calledBody = JSON.parse(init!.body as string)
-      return jsonResponse({ sha: 'commit2' })
+      return jsonResponse({ sha: COMMIT_2 })
     }))
     await adapter.executeMutation!({
       source: source(),
       capabilityName: 'git.createCommit',
-      args: { owner: 'octo', repo: 'hello', message: 'Shorten hero', tree: 'tree2', parents: ['commit1'] },
+      args: { owner: 'octo', repo: 'hello', message: 'Shorten hero', tree: TREE_2, parents: [COMMIT_1] },
       idempotencyKey: 'k-commit',
     })
-    expect(calledBody).toEqual({ message: 'Shorten hero', tree: 'tree2', parents: ['commit1'] })
+    expect(calledBody).toEqual({ message: 'Shorten hero', tree: TREE_2, parents: [COMMIT_1] })
   })
 
   it('git.createRef creates a new branch ref at a commit', async () => {
@@ -688,17 +780,17 @@ describe('github adapter', () => {
       calledUrl = String(input)
       calledMethod = init?.method ?? ''
       calledBody = JSON.parse(init!.body as string)
-      return jsonResponse({ ref: 'refs/heads/gtm-agent/hero', object: { sha: 'commit2' } })
+      return jsonResponse({ ref: 'refs/heads/gtm-agent/hero', object: { sha: COMMIT_2 } })
     }))
     await adapter.executeMutation!({
       source: source(),
       capabilityName: 'git.createRef',
-      args: { owner: 'octo', repo: 'hello', ref: 'refs/heads/gtm-agent/hero', sha: 'commit2' },
+      args: { owner: 'octo', repo: 'hello', ref: 'refs/heads/gtm-agent/hero', sha: COMMIT_2 },
       idempotencyKey: 'k-ref',
     })
     expect(calledMethod).toBe('POST')
     expect(calledUrl).toContain('/repos/octo/hello/git/refs')
-    expect(calledBody).toEqual({ ref: 'refs/heads/gtm-agent/hero', sha: 'commit2' })
+    expect(calledBody).toEqual({ ref: 'refs/heads/gtm-agent/hero', sha: COMMIT_2 })
   })
 
   it('exposes no capability that moves an existing ref or writes file contents in place', () => {
