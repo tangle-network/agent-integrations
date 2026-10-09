@@ -79,6 +79,11 @@
       "import": "./dist/webhooks/index.js",
       "default": "./dist/webhooks/index.js"
     },
+    "./triggers": {
+      "types": "./dist/triggers/index.d.ts",
+      "import": "./dist/triggers/index.js",
+      "default": "./dist/triggers/index.js"
+    },
     "./conversation-events": {
       "types": "./dist/conversation-events/index.d.ts",
       "import": "./dist/conversation-events/index.js",

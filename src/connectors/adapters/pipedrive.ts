@@ -26,6 +26,45 @@ export const pipedriveConnector = declarativeRestConnector({
   test: { method: 'GET', path: '/v1/users/me' },
   capabilities: [
     {
+      name: 'deals.list',
+      class: 'read',
+      description: 'List deals, newest first by default (`sort: "add_time DESC"`), with offset paging via `start`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sort: { type: 'string', description: 'Pipedrive sort expression, e.g. "add_time DESC".' },
+          status: { type: 'string', enum: ['open', 'won', 'lost', 'deleted', 'all_not_deleted'] },
+          start: { type: 'integer', minimum: 0 },
+          limit: { type: 'integer', minimum: 1, maximum: 500 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/deals',
+        query: { sort: '{sort}', status: '{status}', start: '{start}', limit: '{limit}' },
+      },
+      requiredScopes: ['deals:full'],
+    },
+    {
+      name: 'persons.list',
+      class: 'read',
+      description: 'List persons, newest first by default (`sort: "add_time DESC"`), with offset paging via `start`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sort: { type: 'string', description: 'Pipedrive sort expression, e.g. "add_time DESC".' },
+          start: { type: 'integer', minimum: 0 },
+          limit: { type: 'integer', minimum: 1, maximum: 500 },
+        },
+      },
+      request: {
+        method: 'GET',
+        path: '/v1/persons',
+        query: { sort: '{sort}', start: '{start}', limit: '{limit}' },
+      },
+      requiredScopes: ['contacts:full'],
+    },
+    {
       name: 'deals.search',
       class: 'read',
       description: 'Search Pipedrive deals by free-text term.',

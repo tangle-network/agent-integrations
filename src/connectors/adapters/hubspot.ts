@@ -119,6 +119,22 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
         },
       },
       {
+        name: 'list_new_deals',
+        class: 'read',
+        description:
+          'List deals created at or after a time, oldest first: id, name, stage, pipeline, amount and creation time. Page with the returned `after` cursor.',
+        requiredScopes: ['crm.objects.deals.read'],
+        parameters: {
+          type: 'object',
+          properties: {
+            createdAfter: { type: 'string', description: 'ISO-8601 time; deals created at or after it.' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            after: { type: 'string', description: 'Paging cursor from a previous call.' },
+          },
+          required: ['createdAfter'],
+        },
+      },
+      {
         name: 'upsert_contact',
         class: 'mutation',
         description:
@@ -242,6 +258,9 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
     if (inv.capabilityName === 'list_new_contacts') {
       return listNewContacts(inv, await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret))
+    }
+    if (inv.capabilityName === 'list_new_deals') {
+      return listNewDeals(inv, await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret))
     }
     if (inv.capabilityName !== 'find_contact') {
       throw new Error(`hubspot: unknown read capability ${inv.capabilityName}`)
@@ -694,19 +713,26 @@ async function ensureFreshAccessToken(creds: ConnectorCredentials, clientId: str
   return creds.accessToken
 }
 
-const NEW_CONTACT_PROPERTIES = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'lifecyclestage', 'hs_analytics_source', 'createdate']
+const NEW_DEAL_PROPERTIES = ['dealname', 'dealstage', 'pipeline', 'amount', 'createdate', 'hubspot_owner_id']
 
-async function listNewContacts(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityReadResult> {
+/** Objects created since a time, oldest first, through the CRM search endpoint. */
+async function searchCreatedSince(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  object: 'contacts' | 'deals',
+  properties: string[],
+  label: string,
+): Promise<{ results: Array<{ id: string; createdAt?: string; properties?: Record<string, string | null> }>; after: string | null }> {
   const { createdAfter, limit, after } = inv.args as { createdAfter: string; limit?: number; after?: string }
   const since = Date.parse(createdAfter)
-  if (!Number.isFinite(since)) throw new Error('hubspot list_new_contacts: createdAfter must be an ISO-8601 time')
-  const res = await fetch(`${API}/crm/v3/objects/contacts/search`, {
+  if (!Number.isFinite(since)) throw new Error(`hubspot ${label}: createdAfter must be an ISO-8601 time`)
+  const res = await fetch(`${API}/crm/v3/objects/${object}/search`, {
     method: 'POST',
     headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       filterGroups: [{ filters: [{ propertyName: 'createdate', operator: 'GTE', value: String(since) }] }],
       sorts: [{ propertyName: 'createdate', direction: 'ASCENDING' }],
-      properties: NEW_CONTACT_PROPERTIES,
+      properties,
       limit: Math.min(Math.max(limit ?? 50, 1), 100),
       ...(after ? { after } : {}),
     }),
@@ -717,13 +743,37 @@ async function listNewContacts(inv: ConnectorInvocation, accessToken: string): P
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`hubspot list_new_contacts ${res.status}: ${text.slice(0, 200)}`)
+    throw new Error(`hubspot ${label} ${res.status}: ${text.slice(0, 200)}`)
   }
   const json = (await res.json()) as {
     results?: Array<{ id: string; createdAt?: string; properties?: Record<string, string | null> }>
     paging?: { next?: { after?: string } }
   }
-  const contacts = (json.results ?? []).map((row) => {
+  return { results: json.results ?? [], after: json.paging?.next?.after ?? null }
+}
+
+async function listNewDeals(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityReadResult> {
+  const { results, after } = await searchCreatedSince(inv, accessToken, 'deals', NEW_DEAL_PROPERTIES, 'list_new_deals')
+  const deals = results.map((row) => {
+    const props = row.properties ?? {}
+    return {
+      id: row.id,
+      name: props.dealname ?? null,
+      stage: props.dealstage ?? null,
+      pipeline: props.pipeline ?? null,
+      amount: props.amount ?? null,
+      ownerId: props.hubspot_owner_id ?? null,
+      createdAt: props.createdate ?? row.createdAt ?? null,
+    }
+  })
+  return { data: { deals, after }, fetchedAt: Date.now() }
+}
+
+const NEW_CONTACT_PROPERTIES = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'lifecyclestage', 'hs_analytics_source', 'createdate']
+
+async function listNewContacts(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityReadResult> {
+  const { results, after } = await searchCreatedSince(inv, accessToken, 'contacts', NEW_CONTACT_PROPERTIES, 'list_new_contacts')
+  const contacts = results.map((row) => {
     const props = row.properties ?? {}
     return {
       id: row.id,
@@ -737,7 +787,7 @@ async function listNewContacts(inv: ConnectorInvocation, accessToken: string): P
     }
   })
   return {
-    data: { contacts, after: json.paging?.next?.after ?? null },
+    data: { contacts, after },
     fetchedAt: Date.now(),
   }
 }

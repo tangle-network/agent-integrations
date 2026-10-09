@@ -18,6 +18,7 @@ const config = {
     'middleware/index': 'src/middleware/index.ts',
     idempotency: 'src/idempotency.ts',
     'webhooks/index': 'src/webhooks/index.ts',
+    'triggers/index': 'src/triggers/index.ts',
     'conversation-events/index': 'src/conversation-events/index.ts',
     'delegated-tools/index': 'src/delegated-tools/index.ts',
     'stripe/index': 'src/stripe/index.ts',

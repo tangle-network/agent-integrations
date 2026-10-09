@@ -7,6 +7,17 @@ import {
   listIntegrationSpecs,
   canonicalIntegrationKind,
 } from '../dist/index.js'
+import { HOSTED_TRIGGER_PROVIDER_IDS } from '../dist/triggers/index.js'
+import * as webhookProviders from '../dist/webhooks/index.js'
+
+// A connector's triggers run when the Hub can receive them: a hosted (polled)
+// trigger or a signed webhook provider.
+const TRIGGER_RUNTIME_IDS = new Set([
+  ...HOSTED_TRIGGER_PROVIDER_IDS,
+  ...Object.values(webhookProviders)
+    .filter((value) => value && typeof value === 'object' && typeof value.id === 'string' && typeof value.verifySignature === 'function')
+    .map((provider) => provider.id),
+])
 
 const catalog = JSON.parse(readFileSync('data/activepieces-catalog.json', 'utf8'))
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -86,6 +97,7 @@ const matrix = [
       catalogActionMappings,
       quality: contract?.quality,
       missing: missingForCatalogEntry(entry, {
+        id: canonicalIntegrationKind(entry.id),
         catalogActionMappings,
         setupStatus: spec?.status ?? 'catalog-only',
       }),
@@ -311,7 +323,7 @@ function missingForCatalogEntry(entry, status) {
   if (entry.auth === 'custom' && (entry.authFields ?? []).length === 0) {
     missing.push('custom_auth_shape')
   }
-  if (entry.triggers.length > 0) missing.push('hosted_trigger_runtime')
+  if (entry.triggers.length > 0 && !TRIGGER_RUNTIME_IDS.has(status.id) && !TRIGGER_RUNTIME_IDS.has(entry.id)) missing.push('hosted_trigger_runtime')
   if (status.setupStatus === 'catalog-only' || status.setupStatus === 'catalog') missing.push('executable_setup_spec')
   return missing
 }

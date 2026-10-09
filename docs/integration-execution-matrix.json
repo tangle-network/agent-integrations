@@ -2835,6 +2835,53 @@
     ]
   },
   {
+    "id": "amazon-ads",
+    "title": "Amazon Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.amazon.com/ap/oa",
+      "tokenUrl": "https://api.amazon.com/auth/o2",
+      "clientIdEnv": "AMAZON_ADS_CLIENT_ID",
+      "clientSecretEnv": "AMAZON_ADS_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "advertising::campaign_management",
+          "title": "Amazon Ads read",
+          "reason": "Read Amazon Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/amazon-ads/callback",
+      "pkce": "required"
+    },
+    "runtimePackage": null,
+    "actionCount": 20,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "amazon-bedrock",
     "title": "AWS Bedrock",
     "category": "workflow",
@@ -12487,9 +12534,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "auth0",
@@ -25367,6 +25412,30 @@
     "missing": []
   },
   {
+    "id": "clerk",
+    "title": "clerk",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "clicdata",
     "title": "Clicdata",
     "category": "database",
@@ -35488,7 +35557,7 @@
       "mode": "api_key",
       "credential": {
         "label": "elevenlabs API key",
-        "description": "ElevenLabs API key.",
+        "description": "ElevenLabs API key (Profile > API keys).",
         "secret": true
       },
       "placement": "bearer"
@@ -42724,9 +42793,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "gong",
@@ -45617,6 +45684,30 @@
     ]
   },
   {
+    "id": "gtm-agent",
+    "title": "gtm-agent",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "guidelite",
     "title": "GuideLite",
     "category": "workflow",
@@ -47731,9 +47822,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "hugging-face",
@@ -50081,9 +50170,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "intruder",
@@ -57506,6 +57593,61 @@
     "missing": []
   },
   {
+    "id": "linkedin-ads",
+    "title": "LinkedIn Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.linkedin.com/oauth/v2/authorization",
+      "tokenUrl": "https://www.linkedin.com/oauth/v2/accessToken",
+      "clientIdEnv": "LINKEDIN_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "LINKEDIN_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "rw_ads",
+          "title": "LinkedIn Ads read",
+          "reason": "Read LinkedIn Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "r_ads_reporting",
+          "title": "LinkedIn Ads read",
+          "reason": "Read LinkedIn Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/linkedin-ads/callback",
+      "pkce": "required"
+    },
+    "runtimePackage": null,
+    "actionCount": 18,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "linkup",
     "title": "Linkup",
     "category": "workflow",
@@ -61268,6 +61410,77 @@
     ]
   },
   {
+    "id": "meta-ads",
+    "title": "Meta Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.facebook.com/v25.0/dialog/oauth",
+      "tokenUrl": "https://graph.facebook.com/v25.0/oauth/access_token",
+      "clientIdEnv": "META_ADS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "META_ADS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "ads_read",
+          "title": "Meta Ads read",
+          "reason": "Read Meta Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "ads_management",
+          "title": "Meta Ads read",
+          "reason": "Read Meta Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "pages_show_list",
+          "title": "Meta Ads read",
+          "reason": "Read Meta Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "pages_read_engagement",
+          "title": "Meta Ads read",
+          "reason": "Read Meta Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/meta-ads/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": 17,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "metabase",
     "title": "Metabase API base URL",
     "category": "workflow",
@@ -61609,6 +61822,61 @@
     "missing": [
       "hosted_trigger_runtime"
     ]
+  },
+  {
+    "id": "microsoft-ads",
+    "title": "Microsoft Advertising",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "clientIdEnv": "MICROSOFT_ADS_CLIENT_ID",
+      "clientSecretEnv": "MICROSOFT_ADS_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.write",
+          "providerScope": "https://ads.microsoft.com/msads.manage",
+          "title": "Microsoft Advertising write",
+          "reason": "Create or update Microsoft Advertising resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "offline_access",
+          "title": "Microsoft Advertising read",
+          "reason": "Read Microsoft Advertising data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/microsoft/callback",
+      "pkce": "supported"
+    },
+    "runtimePackage": null,
+    "actionCount": 16,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "microsoft-calendar",
@@ -62307,9 +62575,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "microsoft-outlook-calendar",
@@ -75592,7 +75858,7 @@
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": 9,
+    "actionCount": 17,
     "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -76467,6 +76733,61 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "pinterest-ads",
+    "title": "Pinterest Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.pinterest.com/oauth/",
+      "tokenUrl": "https://api.pinterest.com/v5/oauth/token",
+      "clientIdEnv": "PINTEREST_ADS_CLIENT_ID",
+      "clientSecretEnv": "PINTEREST_ADS_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_basic",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "ads:read",
+          "title": "Pinterest Ads read",
+          "reason": "Read Pinterest Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.write",
+          "providerScope": "ads:write",
+          "title": "Pinterest Ads write",
+          "reason": "Create or update Pinterest Ads resources after policy approval.",
+          "risk": "write",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/pinterest-ads/callback",
+      "pkce": "required"
+    },
+    "runtimePackage": null,
+    "actionCount": 14,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "pipedream",
@@ -81111,6 +81432,64 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "reddit-ads",
+    "title": "Reddit Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://www.reddit.com/api/v1/authorize",
+      "tokenUrl": "https://www.reddit.com/api/v1/access_token",
+      "clientIdEnv": "REDDIT_ADS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "REDDIT_ADS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_basic",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "adsread",
+          "title": "Reddit Ads read",
+          "reason": "Read Reddit Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "marketing.read",
+          "providerScope": "adsedit",
+          "title": "Reddit Ads read",
+          "reason": "Read Reddit Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "extraAuthParams": {
+        "duration": "permanent"
+      },
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/reddit-ads/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": 26,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "redis",
@@ -88714,9 +89093,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "slidespeak",
@@ -89823,6 +90200,53 @@
     "missing": [
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "snapchat-ads",
+    "title": "Snapchat Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "oauth2",
+      "authorizationUrl": "https://accounts.snapchat.com/login/oauth2/authorize",
+      "tokenUrl": "https://accounts.snapchat.com/login/oauth2/access_token",
+      "clientIdEnv": "SNAPCHAT_ADS_OAUTH_CLIENT_ID",
+      "clientSecretEnv": "SNAPCHAT_ADS_OAUTH_CLIENT_SECRET",
+      "scopeSeparator": " ",
+      "authorizationClientIdParam": "client_id",
+      "tokenClientIdParam": "client_id",
+      "tokenClientSecretParam": "client_secret",
+      "tokenClientAuthMethod": "client_secret_post",
+      "scopes": [
+        {
+          "normalized": "marketing.read",
+          "providerScope": "snapchat-marketing-api",
+          "title": "Snapchat Ads read",
+          "reason": "Read Snapchat Ads data for user-authorized agent workflows.",
+          "risk": "read",
+          "dataClass": "private"
+        }
+      ],
+      "redirectUriTemplate": "https://{host}/api/integrations/oauth/snapchat-ads/callback",
+      "pkce": "unsupported"
+    },
+    "runtimePackage": null,
+    "actionCount": 19,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "snov-io",
@@ -92842,7 +93266,7 @@
       "mode": "api_key",
       "credential": {
         "label": "stripe API key",
-        "description": "Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions and write on invoices + checkout + subscriptions + billing portal.",
+        "description": "Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions + events and write on invoices + checkout + subscriptions + billing portal.",
         "example": "sk_live_...",
         "secret": true
       },
@@ -93257,14 +93681,14 @@
       "mode": "api_key",
       "credential": {
         "label": "stripe API key",
-        "description": "Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions and write on invoices + checkout + subscriptions + billing portal.",
+        "description": "Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions + events and write on invoices + checkout + subscriptions + billing portal.",
         "example": "sk_live_...",
         "secret": true
       },
       "placement": "bearer"
     },
     "runtimePackage": null,
-    "actionCount": 9,
+    "actionCount": 11,
     "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -94666,7 +95090,6 @@
       "nativeAdapter": true
     },
     "missing": [
-      "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
   },
@@ -97265,6 +97688,38 @@
     "missing": []
   },
   {
+    "id": "tiktok-ads",
+    "title": "TikTok Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "tiktok-ads API key",
+        "description": "JSON secret bundle with accessToken, appId and appSecret from your approved TikTok API for Business app. This is separate from TikTok creator OAuth. Keep all three in this secret field.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": 19,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "time-ops",
     "title": "API Key",
     "category": "docs",
@@ -98442,6 +98897,30 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "treg",
+    "title": "treg",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "trello",
@@ -106083,9 +106562,7 @@
       "runtimePackageMapped": true,
       "nativeAdapter": true
     },
-    "missing": [
-      "hosted_trigger_runtime"
-    ]
+    "missing": []
   },
   {
     "id": "webhook",
@@ -107294,7 +107771,7 @@
       "pkce": "required"
     },
     "runtimePackage": null,
-    "actionCount": 8,
+    "actionCount": 11,
     "triggerCount": 1,
     "setupStatus": "executable",
     "tangleContractStatus": "native_backed",
@@ -108908,6 +109385,38 @@
       "hosted_trigger_runtime",
       "executable_setup_spec"
     ]
+  },
+  {
+    "id": "x-ads",
+    "title": "X Ads",
+    "category": "workflow",
+    "catalogAuth": null,
+    "setupAuth": {
+      "mode": "api_key",
+      "credential": {
+        "label": "x-ads API key",
+        "description": "JSON OAuth 1.0a credential bundle: consumerKey, consumerSecret, accessToken, accessTokenSecret. Requires an Ads API approved application and advertiser user access. Twitter OAuth 2.0 tokens do not work.",
+        "secret": true
+      },
+      "placement": "bearer"
+    },
+    "runtimePackage": null,
+    "actionCount": 19,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
   },
   {
     "id": "xero",

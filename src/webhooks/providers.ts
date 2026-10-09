@@ -144,6 +144,71 @@ export const slackWebhookProvider: WebhookProvider = {
 }
 
 /** DocuSeal webhook provider. Signature header `X-Docuseal-Signature`. */
+/**
+ * Clerk webhooks, delivered by Svix. The signing secret is the `whsec_`
+ * value Clerk shows for the endpoint; its base64 tail is the HMAC key. Svix
+ * signs `${svix-id}.${svix-timestamp}.${body}` with HMAC-SHA256 and sends one
+ * or more space-separated `v1,<base64>` signatures. Deliveries older than five
+ * minutes are refused, so a captured request cannot be replayed later.
+ */
+const SVIX_TOLERANCE_SECONDS = 5 * 60
+
+export const clerkWebhookProvider: WebhookProvider = {
+  id: 'clerk',
+  verifySignature({ rawBody, headers, secret }): SignatureVerification {
+    const id = firstHeader(headers, 'svix-id')
+    const timestamp = firstHeader(headers, 'svix-timestamp')
+    const signatures = firstHeader(headers, 'svix-signature')
+    if (!id || !timestamp || !signatures) return { valid: false, reason: 'missing_svix_headers' }
+    const sent = Number(timestamp)
+    if (!Number.isFinite(sent) || Math.abs(Date.now() / 1000 - sent) > SVIX_TOLERANCE_SECONDS) {
+      return { valid: false, reason: 'stale_svix_timestamp' }
+    }
+    const encodedKey = secret.startsWith('whsec_') ? secret.slice('whsec_'.length) : secret
+    let key: Buffer
+    try {
+      key = Buffer.from(encodedKey, 'base64')
+    } catch {
+      return { valid: false, reason: 'invalid_secret' }
+    }
+    if (key.length === 0) return { valid: false, reason: 'invalid_secret' }
+    const expected = Buffer.from(createHmac('sha256', key).update(`${id}.${timestamp}.${rawBody}`).digest('base64'))
+    for (const entry of signatures.split(' ')) {
+      const [version, signature] = entry.split(',', 2)
+      if (version !== 'v1' || !signature) continue
+      const actual = Buffer.from(signature)
+      if (actual.length === expected.length && timingSafeEqual(actual, expected)) return { valid: true }
+    }
+    return { valid: false, reason: 'invalid_signature' }
+  },
+  parse({ rawBody, headers, now }): WebhookEnvelope[] {
+    const evt = safeJson(rawBody) as { type?: unknown; data?: unknown } | null
+    if (!evt || typeof evt !== 'object' || typeof evt.type !== 'string') return []
+    return [{
+      provider: 'clerk',
+      eventType: `clerk.${evt.type}`,
+      providerEventId: firstHeader(headers, 'svix-id') ?? undefined,
+      receivedAt: now ?? Date.now(),
+      payload: evt,
+      headers: normalizeHeaders(headers),
+    }]
+  },
+  eventCatalog: {
+    // Clerk names events `<object>.<action>`; the vocabulary is Clerk's and open.
+    namespace: 'clerk.',
+    closed: false,
+    events: [
+      { id: 'clerk.user.created' },
+      { id: 'clerk.user.updated' },
+      { id: 'clerk.user.deleted' },
+      { id: 'clerk.session.created' },
+      { id: 'clerk.organization.created' },
+      { id: 'clerk.organizationMembership.created' },
+      { id: 'clerk.waitlistEntry.created' },
+    ],
+  },
+}
+
 export const docusealWebhookProvider: WebhookProvider = {
   id: 'docuseal',
   verifySignature({ rawBody, headers, secret }): SignatureVerification {
