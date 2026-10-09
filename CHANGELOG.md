@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.70.0
+
+- feat(treg): add a capped treg.to connector for per-call SEO and enrichment data
+- feat(github): list the repositories a connection can read
+
 ## 0.69.0
 
 - fix(github): read commits by sha and refuse a sha where a branch name belongs
