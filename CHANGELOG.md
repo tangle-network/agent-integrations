@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.73.0
+
+- chore(manifests): republish the pulls.propose file schema
+- fix(github): pulls.propose reports a throttled pull request as a partial write and refuses invalid ref components
+- chore(manifests): publish pulls.propose in the bundled GitHub manifest
+- feat(github): pulls.propose opens a draft pull request with its file changes in one call
+
 ## 0.72.0
 
 - feat(hubspot): find_contact_owner resolves a person's owner from contact, company or deal
