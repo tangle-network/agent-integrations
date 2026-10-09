@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.69.1
+
+- feat(github): list the repositories a connection can read
+
 ## 0.69.0
 
 - fix(github): read commits by sha and refuse a sha where a branch name belongs
