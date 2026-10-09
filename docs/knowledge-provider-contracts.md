@@ -75,7 +75,7 @@ Its result preserves GitHub's `{sha, commit: {tree: {sha}}}` shape. Persist the
 resolved commit SHA and use `commit.tree.sha` with `git.getTree`; read selected
 blob SHAs with `git.getBlob`. `git.getCommit` is a different endpoint accepting an
 immutable SHA only, so do not send `HEAD` to it. The repository commit read rejects
-redirects and limits responses to 8 MiB. Slash-containing refs remain one encoded
+redirects and limits responses to 8 MiB. The subsequent immutable tree and blob reads also reject redirects and cap responses at 8 MiB and 32 MiB respectively. Slash-containing refs remain one encoded
 path parameter. Hosts must reject truncated tree listings or explicitly walk
 subtrees, bound total source bytes/count, and retain revision provenance.
 

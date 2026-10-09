@@ -505,7 +505,7 @@ const githubSpec: RestConnectorSpec = {
         },
         required: ['owner', 'repo', 'tree_sha'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'GET',
         path: '/repos/{owner}/{repo}/git/trees/{tree_sha}',
         query: { recursive: '{recursive}' },
@@ -524,7 +524,7 @@ const githubSpec: RestConnectorSpec = {
         },
         required: ['owner', 'repo', 'file_sha'],
       },
-      request: { method: 'GET', path: '/repos/{owner}/{repo}/git/blobs/{file_sha}' },
+      request: { redirect: 'error', maxResponseBytes: 32 * 1024 * 1024, method: 'GET', path: '/repos/{owner}/{repo}/git/blobs/{file_sha}' },
     },
     {
       name: 'git.createTree',
