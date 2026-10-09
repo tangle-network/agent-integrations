@@ -1025,4 +1025,212 @@ describe('github adapter', () => {
       }),
     ).rejects.toThrow(/missing required argument: pull_number/)
   })
+
+  // ---------- pulls.propose ----------
+
+  describe('pulls.propose', () => {
+    const BASE_HEAD = '21b8c13e0d6a8c1f6a54c9d1d7f3f2b3a4c5d6e7'
+    const BASE_TREE = '7e9a071fd4e87b437dca9a7798e40e714078ca22'
+    const NEW_TREE = 'ab49d842fdea494a587aaf0232e3234d8555f7ce'
+    const NEW_COMMIT = '60568543335bbaf23bce528e7a6092fae10d1974'
+    const args = {
+      owner: 'octo',
+      repo: 'hello',
+      base: 'main',
+      branch: 'gtm-agent/hero-copy',
+      title: 'Fix the hero headline wrap',
+      body: 'The headline wrapped to four lines at 390 px.',
+      files: [
+        { path: 'src/routes/_index.tsx', content: 'export default 1\n' },
+        { path: 'bin/run.sh', content: '#!/bin/sh\n', mode: '100755' },
+        { path: 'docs/old.md', delete: true },
+      ],
+    }
+
+    interface Call { method: string; path: string; body: unknown }
+
+    function githubFake(overrides: Partial<Record<string, (call: Call) => Response>> = {}) {
+      const calls: Call[] = []
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input))
+        const call = { method: init?.method ?? 'GET', path: url.pathname + url.search, body: init?.body ? JSON.parse(init.body as string) : undefined }
+        calls.push(call)
+        const key = `${call.method} ${url.pathname}`
+        const override = overrides[key]
+        if (override) return override(call)
+        switch (key) {
+          case 'GET /repos/octo/hello/branches/main':
+            return jsonResponse({ name: 'main', commit: { sha: BASE_HEAD, commit: { tree: { sha: BASE_TREE } } } })
+          case 'POST /repos/octo/hello/git/trees':
+            return jsonResponse({ sha: NEW_TREE, tree: [] })
+          case 'POST /repos/octo/hello/git/commits':
+            return jsonResponse({ sha: NEW_COMMIT })
+          case 'POST /repos/octo/hello/git/refs':
+            return jsonResponse({ ref: 'refs/heads/gtm-agent/hero-copy', object: { sha: NEW_COMMIT } })
+          case 'POST /repos/octo/hello/pulls':
+            return jsonResponse({ number: 123, html_url: 'https://github.com/octo/hello/pull/123', title: args.title, state: 'open', draft: true })
+          case 'GET /repos/octo/hello/pulls/123/files':
+            return jsonResponse([
+              { filename: 'src/routes/_index.tsx', status: 'modified', additions: 1, deletions: 3 },
+              { filename: 'bin/run.sh', status: 'added', additions: 1, deletions: 0 },
+              { filename: 'docs/old.md', status: 'removed', additions: 0, deletions: 12 },
+            ])
+          default:
+            return jsonResponse({ message: `unexpected ${key}` }, { status: 500 })
+        }
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      return calls
+    }
+
+    const propose = (input: Record<string, unknown>) => adapter.executeMutation!({
+      source: source(),
+      capabilityName: 'pulls.propose',
+      args: input,
+      idempotencyKey: 'k-propose',
+    })
+
+    it('is a published external-effect mutation whose schema names the change', () => {
+      const capability = adapter.manifest.capabilities.find((entry) => entry.name === 'pulls.propose')
+      expect(capability).toMatchObject({ class: 'mutation', externalEffect: true })
+      expect((capability?.parameters as { required?: string[] }).required).toEqual(['owner', 'repo', 'base', 'branch', 'title', 'files'])
+      // Published patterns are compiled by model providers; the branch rules stay in code.
+      expect(JSON.stringify(capability?.parameters)).not.toContain('(?')
+    })
+
+    it('reads the base head, writes tree, commit, new branch and a draft pull request, then reads its files', async () => {
+      const calls = githubFake()
+      const result = await propose(args)
+
+      expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+        'GET /repos/octo/hello/branches/main',
+        'POST /repos/octo/hello/git/trees',
+        'POST /repos/octo/hello/git/commits',
+        'POST /repos/octo/hello/git/refs',
+        'POST /repos/octo/hello/pulls',
+        'GET /repos/octo/hello/pulls/123/files?per_page=100',
+      ])
+      expect(calls[1].body).toEqual({
+        base_tree: BASE_TREE,
+        tree: [
+          { path: 'src/routes/_index.tsx', mode: '100644', type: 'blob', content: 'export default 1\n' },
+          { path: 'bin/run.sh', mode: '100755', type: 'blob', content: '#!/bin/sh\n' },
+          { path: 'docs/old.md', mode: '100644', type: 'blob', sha: null },
+        ],
+      })
+      expect(calls[2].body).toEqual({ message: args.title, tree: NEW_TREE, parents: [BASE_HEAD] })
+      expect(calls[3].body).toEqual({ ref: 'refs/heads/gtm-agent/hero-copy', sha: NEW_COMMIT })
+      expect(calls[4].body).toEqual({ title: args.title, head: 'gtm-agent/hero-copy', base: 'main', body: args.body, draft: true })
+      expect(result).toMatchObject({
+        status: 'committed',
+        data: {
+          pullRequest: { number: 123, url: 'https://github.com/octo/hello/pull/123', title: args.title, state: 'open', draft: true },
+          repository: 'octo/hello',
+          base: 'main',
+          branch: 'gtm-agent/hero-copy',
+          commit: { sha: NEW_COMMIT, url: `https://github.com/octo/hello/commit/${NEW_COMMIT}` },
+          files: [
+            { path: 'src/routes/_index.tsx', status: 'modified', additions: 1, deletions: 3 },
+            { path: 'bin/run.sh', status: 'added', additions: 1, deletions: 0 },
+            { path: 'docs/old.md', status: 'removed', additions: 0, deletions: 12 },
+          ],
+        },
+      })
+    })
+
+    it('uses the commit message when given and omits an absent body', async () => {
+      const calls = githubFake()
+      const { body: _body, ...withoutBody } = args
+      await propose({ ...withoutBody, commit_message: 'fix(hero): one-line headline' })
+      expect(calls[2].body).toMatchObject({ message: 'fix(hero): one-line headline' })
+      expect(calls[4].body).toEqual({ title: args.title, head: 'gtm-agent/hero-copy', base: 'main', draft: true })
+    })
+
+    it.each([
+      ['branch equal to base', { branch: 'main' }, /branch.*new branch, not the base/],
+      ['a default branch name', { branch: 'master' }, /default branch name/],
+      ['a commit sha as the branch', { branch: NEW_COMMIT }, /commit sha/],
+      ['a refs/ path as the base', { base: 'refs/heads/main' }, /bare branch name/],
+      ['a branch with ..', { branch: 'a..b' }, /plain git branch name/],
+      ['a hidden branch component', { branch: 'topic/.hidden' }, /plain git branch name/],
+      ['a .lock branch component', { branch: 'topic/foo.lock/bar' }, /plain git branch name/],
+      ['no files', { files: [] }, /at least one file/],
+      ['an absolute path', { files: [{ path: '/etc/passwd', content: 'x' }] }, /repository-relative/],
+      ['a .. segment', { files: [{ path: 'src/../x', content: 'x' }] }, /repository-relative/],
+      ['a write inside .git', { files: [{ path: '.git/config', content: 'x' }] }, /inside \.git/],
+      ['a duplicate path', { files: [{ path: 'a.md', content: 'x' }, { path: 'a.md', content: 'y' }] }, /listed twice/],
+      ['a file without content', { files: [{ path: 'a.md' }] }, /content.*required/],
+      ['content on a delete', { files: [{ path: 'a.md', delete: true, content: 'x' }] }, /no content/],
+      ['an unknown file field', { files: [{ path: 'a.md', content: 'x', sha: 'abc' }] }, /not a file field/],
+      ['an unknown argument', { draft: false }, /not an argument of pulls.propose/],
+      ['too many files', { files: Array.from({ length: 51 }, (_, index) => ({ path: `f${index}.md`, content: 'x' })) }, /at most 50 files/],
+      ['an oversized file', { files: [{ path: 'big.txt', content: 'x'.repeat(1_000_001) }] }, /larger than 1000000 bytes/],
+    ])('refuses %s before any request', async (_name, change, message) => {
+      const calls = githubFake()
+      await expect(propose({ ...args, ...change })).rejects.toThrow(message)
+      expect(calls).toEqual([])
+    })
+
+    it('names the existing branch when GitHub refuses to create it, after writing only unreferenced objects', async () => {
+      const calls = githubFake({
+        'POST /repos/octo/hello/git/refs': () => jsonResponse({ message: 'Reference already exists' }, { status: 422 }),
+      })
+      await expect(propose(args)).rejects.toThrow(/gtm-agent\/hero-copy already exists in octo\/hello; name a new branch/)
+      expect(calls.some((call) => call.path.endsWith('/pulls'))).toBe(false)
+    })
+
+    it('names the created branch and commit when opening the pull request fails', async () => {
+      githubFake({
+        'POST /repos/octo/hello/pulls': () => jsonResponse({ message: 'Validation Failed' }, { status: 422 }),
+      })
+      await expect(propose(args)).rejects.toThrow(
+        new RegExp(`branch gtm-agent/hero-copy at commit ${NEW_COMMIT} exists in octo/hello, but opening the pull request failed; call pulls.create`),
+      )
+    })
+
+    it('names the created branch when GitHub throttles the pull request, instead of a retryable soft failure', async () => {
+      githubFake({
+        'POST /repos/octo/hello/pulls': () => new Response('slow down', { status: 429, headers: { 'retry-after': '3' } }),
+      })
+      await expect(propose(args)).rejects.toThrow(
+        new RegExp(`branch gtm-agent/hero-copy at commit ${NEW_COMMIT} exists in octo/hello, but GitHub throttled opening the pull request; call pulls.create`),
+      )
+    })
+
+    it('treats delete: false as a write', async () => {
+      const calls = githubFake()
+      await propose({ ...args, files: [{ path: 'a.md', content: 'x', delete: false }] })
+      expect((calls[1].body as { tree: unknown[] }).tree).toEqual([{ path: 'a.md', mode: '100644', type: 'blob', content: 'x' }])
+    })
+
+    it('still returns the open pull request when its file list cannot be read', async () => {
+      githubFake({
+        'GET /repos/octo/hello/pulls/123/files': () => jsonResponse({ message: 'boom' }, { status: 500 }),
+      })
+      const result = await propose(args) as { data: { files: Array<{ path: string; status: string }> } }
+      expect(result.data.files.map((file) => [file.path, file.status])).toEqual([
+        ['src/routes/_index.tsx', 'modified'],
+        ['bin/run.sh', 'modified'],
+        ['docs/old.md', 'removed'],
+      ])
+    })
+
+    it('reports a throttled step as the rate-limited soft failure, not a commit', async () => {
+      githubFake({
+        'POST /repos/octo/hello/git/trees': () => new Response('slow down', { status: 429, headers: { 'retry-after': '3' } }),
+      })
+      await expect(propose(args)).resolves.toMatchObject({ status: 'rate-limited', retryAfterMs: 3000 })
+    })
+
+    it('other mutations still run through the declarative connector', async () => {
+      const calls = githubFake({
+        'POST /repos/octo/hello/issues': () => jsonResponse({ number: 9 }),
+      })
+      const result = await adapter.executeMutation!({
+        source: source(), capabilityName: 'issues.create', args: { owner: 'octo', repo: 'hello', title: 'x' }, idempotencyKey: 'k',
+      })
+      expect(result.status).toBe('committed')
+      expect(calls.map((call) => call.path)).toEqual(['/repos/octo/hello/issues'])
+    })
+  })
 })
