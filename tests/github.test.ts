@@ -497,6 +497,27 @@ describe('github adapter', () => {
     expect(calledUrl).toContain('per_page=50')
   })
 
+  it('repos.listForAuthenticatedUser lists the repositories the token can read', async () => {
+    let calledUrl = ''
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        calledUrl = String(input)
+        return jsonResponse([{ full_name: 'acme/private-skills', private: true, default_branch: 'main' }])
+      }),
+    )
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'repos.listForAuthenticatedUser',
+      args: { sort: 'pushed', per_page: 100 },
+      idempotencyKey: 'k',
+    })
+    expect(calledUrl).toContain('/user/repos')
+    expect(calledUrl).toContain('sort=pushed')
+    expect(calledUrl).toContain('per_page=100')
+    expect(JSON.stringify(result)).toContain('acme/private-skills')
+  })
+
   it('repos.listBranches reads a repository branch list', async () => {
     let calledUrl = ''
     vi.stubGlobal(
@@ -524,6 +545,7 @@ describe('github adapter', () => {
       ['issues.listComments', { owner: 'a', repo: 'b', issue_number: 1 }],
       ['repos.listLabels', { owner: 'a', repo: 'b' }],
       ['repos.listBranches', { owner: 'a', repo: 'b' }],
+      ['repos.listForAuthenticatedUser', {}],
       ['pulls.listFiles', { owner: 'a', repo: 'b', pull_number: 1 }],
       ['repos.getCombinedStatusForRef', { owner: 'a', repo: 'b', ref: 'main' }],
       ['checks.listForRef', { owner: 'a', repo: 'b', ref: 'main' }],
