@@ -607,6 +607,24 @@ export class ProviderRequestError extends Error {
   }
 }
 
+/** Thrown before any provider request when a caller's argument breaks the
+ *  capability's declared contract: a value that fails its `pattern`, or one the
+ *  provider would refuse with a misleading answer (a commit sha where a branch
+ *  name belongs reads back as "Branch not found"). `field` names the argument,
+ *  and the message says what to pass instead. `status` is 400 so a platform
+ *  classifier answers it as a settled refusal: the same arguments fail again. */
+export class InvalidCapabilityArgument extends Error {
+  override readonly name = 'InvalidCapabilityArgument'
+  readonly status = 400
+  readonly reason = 'invalid_argument'
+  constructor(
+    message: string,
+    public readonly field: string,
+  ) {
+    super(message)
+  }
+}
+
 export interface ConnectorManifestValidationIssue {
   path: string
   message: string
