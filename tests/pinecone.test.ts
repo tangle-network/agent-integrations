@@ -173,3 +173,34 @@ describe('pinecone backups.create', () => {
     expect(parsed.indexName).toBe('prod-idx')
   })
 })
+
+
+describe('Pinecone knowledge endpoint routing', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const host = 'https://docs-abc.svc.us-east1-gcp.pinecone.io'
+  it('keeps management and probe requests on the control plane with an indexHost bound', async () => {
+    const fetch = vi.fn().mockImplementation(async () => jsonResponse({ indexes: [] }))
+    vi.stubGlobal('fetch', fetch)
+    const source = pineconeSource({ metadata: { indexHost: host } })
+    await pineconeConnector.test!(source)
+    await pineconeConnector.executeRead!({ source, capabilityName: 'indexes.describe', args: { indexName: 'docs' }, idempotencyKey: 'describe' })
+    await pineconeConnector.executeMutation!({ source, capabilityName: 'indexes.create', args: { name: 'docs', dimension: 3, metric: 'cosine', spec: { serverless: { cloud: 'aws', region: 'us-east-1' } } }, idempotencyKey: 'create' })
+    expect(fetch.mock.calls.map(call => String(call[0]))).toEqual(['https://api.pinecone.io/indexes', 'https://api.pinecone.io/indexes/docs', 'https://api.pinecone.io/indexes'])
+  })
+  it('sends vector query, upsert and delete only to the bound data host', async () => {
+    const fetch = vi.fn().mockImplementation(async () => jsonResponse({ matches: [] }))
+    vi.stubGlobal('fetch', fetch)
+    const source = pineconeSource({ metadata: { indexHost: host } })
+    await pineconeConnector.executeRead!({ source, capabilityName: 'vectors.query', args: { namespace: 'kb', vector: [1, 0, 0], top_k: 3 }, idempotencyKey: 'query' })
+    await pineconeConnector.executeMutation!({ source, capabilityName: 'vectors.upsert', args: { namespace: 'kb', vectors: [{ id: 'source-1', values: [1, 0, 0] }] }, idempotencyKey: 'upsert' })
+    await pineconeConnector.executeMutation!({ source, capabilityName: 'vectors.delete', args: { namespace: 'kb', ids: ['source-1'] }, idempotencyKey: 'delete' })
+    expect(fetch.mock.calls.map(call => String(call[0]))).toEqual([`${host}/query`, `${host}/vectors/upsert`, `${host}/vectors/delete`])
+    for (const call of fetch.mock.calls) expect(call[1].redirect).toBe('error')
+  })
+  it.each([undefined, 'https://pinecone.io.attacker.example', 'http://docs.pinecone.io', 'https://127.0.0.1'])('rejects missing or untrusted index host %s before exposing credentials', async indexHost => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(pineconeConnector.executeRead!({ source: pineconeSource({ metadata: { indexHost } }), capabilityName: 'vectors.query', args: { vector: [1], top_k: 1 }, idempotencyKey: 'query' })).rejects.toThrow()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+})
