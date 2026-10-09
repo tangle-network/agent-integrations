@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.71.0
+
+- feat(triggers): hosted triggers for connectors that cannot push, and Clerk signups
+
 ## 0.70.0
 
 - feat(treg): add a capped treg.to connector for per-call SEO and enrichment data
