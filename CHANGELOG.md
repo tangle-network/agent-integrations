@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.69.0
+
+- fix(github): read commits by sha and refuse a sha where a branch name belongs
+
 ## 0.68.0
 
 - feat(integrations): bind native Meta WhatsApp messages to owned numbers
