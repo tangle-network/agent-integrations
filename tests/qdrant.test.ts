@@ -160,3 +160,33 @@ describe('qdrant write capabilities', () => {
     expect(url.searchParams.get('force')).toBe('true')
   })
 })
+
+
+describe('Qdrant knowledge transport', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const cases: [string, 'read' | 'mutation', Record<string, unknown>][] = [
+    ['collections.list', 'read', {}],
+    ['collections.get', 'read', { collection_name: 'docs' }],
+    ['collections.exists', 'read', { collection_name: 'docs' }],
+    ['collections.create', 'mutation', { collection_name: 'docs', vectors: { size: 3, distance: 'Cosine' } }],
+    ['collections.delete', 'mutation', { collection_name: 'docs' }],
+    ['points.query', 'read', { collection_name: 'docs', query: [1, 0, 0], limit: 3 }],
+    ['points.search', 'read', { collection_name: 'docs', vector: [1, 0, 0], limit: 3 }],
+    ['points.scroll', 'read', { collection_name: 'docs', limit: 3 }],
+    ['points.upsert', 'mutation', { collection_name: 'docs', points: [{ id: 1, vector: [1, 0, 0] }] }],
+    ['points.delete', 'mutation', { collection_name: 'docs', points: [1] }],
+  ]
+  it.each(cases)('%s refuses redirects with an api-key header', async (capabilityName, kind, args) => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse({ result: {} }))
+    vi.stubGlobal('fetch', fetch)
+    const inv = { source: source(), capabilityName, args, idempotencyKey: 'test' }
+    if (kind === 'read') await qdrantConnector.executeRead!(inv)
+    else await qdrantConnector.executeMutation!(inv)
+    expect(fetch.mock.calls[0]![1].redirect).toBe('error')
+    expect(fetch.mock.calls[0]![1].headers['api-key']).toBe('qdrant_secret')
+  })
+  it('bounds payloads before the product parses or truncates them', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { headers: { 'content-length': String(9 * 1024 * 1024) } })))
+    await expect(qdrantConnector.executeRead!({ source: source(), capabilityName: 'points.query', args: { collection_name: 'docs', query: [1], limit: 3 }, idempotencyKey: 'read' })).rejects.toThrow('byte limit')
+  })
+})

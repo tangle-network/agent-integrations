@@ -47,7 +47,7 @@ export const qdrantConnector = declarativeRestConnector({
       class: 'read',
       description: 'List all collections in the cluster.',
       parameters: { type: 'object', properties: {} },
-      request: { method: 'GET', path: '/collections' },
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024, method: 'GET', path: '/collections' },
     },
     {
       name: 'collections.get',
@@ -58,7 +58,7 @@ export const qdrantConnector = declarativeRestConnector({
         properties: { collection_name: { type: 'string' } },
         required: ['collection_name'],
       },
-      request: { method: 'GET', path: '/collections/{collection_name}' },
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024, method: 'GET', path: '/collections/{collection_name}' },
     },
     {
       name: 'collections.exists',
@@ -69,7 +69,7 @@ export const qdrantConnector = declarativeRestConnector({
         properties: { collection_name: { type: 'string' } },
         required: ['collection_name'],
       },
-      request: { method: 'GET', path: '/collections/{collection_name}/exists' },
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024, method: 'GET', path: '/collections/{collection_name}/exists' },
     },
     {
       name: 'collections.create',
@@ -98,7 +98,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name', 'vectors'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'PUT',
         path: '/collections/{collection_name}',
         body: {
@@ -167,7 +167,7 @@ export const qdrantConnector = declarativeRestConnector({
         properties: { collection_name: { type: 'string' } },
         required: ['collection_name'],
       },
-      request: { method: 'DELETE', path: '/collections/{collection_name}' },
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024, method: 'DELETE', path: '/collections/{collection_name}' },
       cas: 'native-idempotency',
       externalEffect: true,
     },
@@ -284,7 +284,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'PUT',
         path: '/collections/{collection_name}/points',
         query: { wait: '{wait}', ordering: '{ordering}' },
@@ -343,7 +343,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'POST',
         path: '/collections/{collection_name}/points/delete',
         query: { wait: '{wait}', ordering: '{ordering}' },
@@ -588,7 +588,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name', 'vector', 'limit'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'POST',
         path: '/collections/{collection_name}/points/search',
         query: { consistency: '{consistency}', timeout: '{timeout}' },
@@ -652,7 +652,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'POST',
         path: '/collections/{collection_name}/points/query',
         query: { consistency: '{consistency}', timeout: '{timeout}' },
@@ -762,7 +762,7 @@ export const qdrantConnector = declarativeRestConnector({
         },
         required: ['collection_name'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'POST',
         path: '/collections/{collection_name}/points/scroll',
         query: { consistency: '{consistency}', timeout: '{timeout}' },

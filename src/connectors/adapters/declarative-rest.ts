@@ -113,6 +113,12 @@ export interface RestArgumentRefusal {
 export interface RestRequestSpec {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
+  /** Operation-owned endpoint selection (e.g. vector data vs control plane). Same host policy applies. */
+  baseUrl?: RestConnectorSpec['baseUrl']
+  /** Refuse redirects for credential-bound object fetches. */
+  redirect?: 'error'
+  /** Object-key placeholders whose slashes separate path segments. Dot segments are refused. */
+  pathSegmentParameters?: readonly string[]
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
   body?: 'args' | string | Record<string, unknown> | readonly unknown[]
@@ -130,6 +136,8 @@ export interface RestRequestSpec {
   resultFromHeader?: { header: string; field: string }
   /** Return a successful binary response as base64 instead of decoding it as UTF-8 text. */
   responseBody?: 'json-or-text' | 'base64'
+  /** Hard response-byte budget, enforced while streaming before parsing/decoding. */
+  maxResponseBytes?: number
 }
 
 export interface RestTestSpec extends RestRequestSpec {
@@ -428,7 +436,7 @@ export async function executeRestRequest(
   const awsRegion = aws ? resolveAwsRegion(aws, inv.source.metadata, placement as { defaultRegion?: string }) : undefined
 
   let baseUrl = resolveBaseUrl(
-    spec.baseUrl,
+    request.baseUrl ?? spec.baseUrl,
     inv.source.metadata,
     spec.allowedBaseUrls,
     spec.allowedBaseUrlSuffixes,
@@ -449,7 +457,7 @@ export async function executeRestRequest(
   // (leading `/`) would otherwise be resolved against the origin and drop
   // every path segment the base URL carries.
   const templatePath = request.path.replace(/^\/+/, '')
-  const renderedPath = interpolate(templatePath, scope)
+  const renderedPath = interpolate(templatePath, scope, request.pathSegmentParameters)
   // encodeURIComponent leaves `.` intact, so an argument of `.` or `..` would
   // become a dot segment that URL resolution collapses onto another endpoint.
   // A template may still use `..` deliberately to leave its base prefix.
@@ -571,10 +579,12 @@ export async function executeRestRequest(
 
   const res = await fetch(url, {
     method: request.method,
+    ...(request.redirect ? { redirect: request.redirect } : {}),
     headers,
     body: bodyString,
     signal: AbortSignal.timeout(20_000),
   })
+  const boundedBytes = request.maxResponseBytes === undefined ? undefined : await readBoundedResponse(res, request.maxResponseBytes)
   const credentialsExpiredStatuses = spec.credentialsExpiredStatuses ?? [401, 403]
   if (credentialsExpiredStatuses.includes(res.status)) {
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
@@ -588,7 +598,7 @@ export async function executeRestRequest(
   // share this transport, so that was a foot-gun waiting on one adapter.
   if (res.status === 409 || res.status === 412) {
     const text = redactCredentialText(
-      await safeErrorText(res),
+      boundedBytes?.toString('utf8') ?? await safeErrorText(res),
       inv.source.credentials,
       [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
@@ -602,7 +612,7 @@ export async function executeRestRequest(
   }
   if (res.status === 429) {
     const text = redactCredentialText(
-      await safeErrorText(res),
+      boundedBytes?.toString('utf8') ?? await safeErrorText(res),
       inv.source.credentials,
       [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
@@ -625,17 +635,17 @@ export async function executeRestRequest(
   }
   if (!res.ok) {
     const text = redactCredentialText(
-      await safeErrorText(res),
+      boundedBytes?.toString('utf8') ?? await safeErrorText(res),
       inv.source.credentials,
       [getHeaderCI(headers, 'authorization'), ...Object.values(spec.credentialHeaders ?? {})],
     )
     throw new Error(`${spec.kind} ${request.method} ${url.pathname} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
   if (request.responseBody === 'base64') {
-    const bytes = Buffer.from(await res.arrayBuffer())
-    return { data: { base64: bytes.toString('base64'), contentType: res.headers.get('content-type') ?? undefined } }
+    const bytes = boundedBytes ?? Buffer.from(await res.arrayBuffer())
+    return { data: { base64: bytes.toString('base64'), contentType: res.headers.get('content-type') ?? undefined }, etag: res.headers.get('etag') ?? undefined }
   }
-  const text = await res.text()
+  const text = boundedBytes?.toString('utf8') ?? await res.text()
   // Most upstreams return JSON, but some return raw payloads — scrapers
   // (ZenRows, Bright Data Web Unlocker) return HTML/markdown/PDF, a few APIs
   // return plain text. Parse JSON when we can; otherwise surface the raw text
@@ -1123,11 +1133,18 @@ function renderQueryValue(value: unknown, args: Record<string, unknown>): unknow
   }
 }
 
-function interpolate(template: string, args: Record<string, unknown>): string {
+function interpolate(template: string, args: Record<string, unknown>, pathSegmentParameters?: readonly string[]): string {
   return template.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_match, key: string) => {
     const value = readPath(args, key)
     if (value === undefined || value === null) {
       throw new Error(`missing required argument: ${key}`)
+    }
+    if (pathSegmentParameters?.includes(key)) {
+      const segments = String(value).split('/')
+      if (segments.some(segment => segment === '.' || segment === '..')) {
+        throw new Error('invalid path argument: dot segment')
+      }
+      return segments.map(segment => encodeURIComponent(segment).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)).join('/')
     }
     return encodeURIComponent(String(value))
   })
@@ -1159,4 +1176,33 @@ function readPathFromUnknown(input: unknown, path: string): unknown {
 
 async function safeErrorText(res: Response): Promise<string> {
   return (await res.text().catch(() => res.statusText)) || res.statusText
+}
+
+/** Prevent a provider response from allocating beyond an operation's declared budget. */
+async function readBoundedResponse(response: Response, maximum: number): Promise<Buffer> {
+  if (!Number.isSafeInteger(maximum) || maximum < 1) throw new Error('invalid response byte limit')
+  const declared = response.headers.get('content-length')
+  if (declared !== null && Number(declared) > maximum) {
+    await response.body?.cancel()
+    throw new Error(`provider response exceeds ${maximum} byte limit`)
+  }
+  if (!response.body) return Buffer.alloc(0)
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (true) {
+      const result = await reader.read()
+      if (result.done) break
+      size += result.value.byteLength
+      if (size > maximum) {
+        await reader.cancel()
+        throw new Error(`provider response exceeds ${maximum} byte limit`)
+      }
+      chunks.push(result.value)
+    }
+    return Buffer.concat(chunks, size)
+  } finally {
+    reader.releaseLock()
+  }
 }
