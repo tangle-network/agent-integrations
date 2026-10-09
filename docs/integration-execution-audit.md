@@ -22,8 +22,8 @@ This audit separates product contracts from implementation backends:
 | Catalog connectors with auth field metadata | 648 |
 | Custom-auth connectors with auth field metadata | 11 |
 | Runtime package dependencies declared by this package | 0 |
-| Setup specs | 254 |
-| Executable setup specs | 242 |
+| Setup specs | 263 |
+| Executable setup specs | 251 |
 | Catalog/setup-only specs | 12 |
 | Tangle first-class contracts | 669 |
 | Contracts with runtime packages | 669 |
@@ -31,7 +31,7 @@ This audit separates product contracts from implementation backends:
 | Contracts with mapped triggers | 669 |
 | Contracts with mapped auth | 669 |
 | Native adapter backends | 517 |
-| Native adapter surfaces shipped | 635 |
+| Native adapter surfaces shipped | 647 |
 | Package-runtime backends | 152 |
 | Runtime manifest dependencies for catalog-only connectors | 161 |
 | Catalog-only connectors exposable behind runtime | 152 |
@@ -89,6 +89,7 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `alai`
 - `alt-text-ai`
 - `alttextify`
+- `amazon-ads`
 - `amazon-bedrock`
 - `amazon-eventbridge`
 - `amazon-s3`
@@ -147,9 +148,8 @@ The full set is in the machine-readable matrix; representative native adapters:
 - `bill-com`
 - `billplz`
 - `bitly`
-- `bland-ai`
 
-...and 555 more native adapter surfaces.
+...and 567 more native adapter surfaces.
 
 Executable setup specs:
 
@@ -163,6 +163,7 @@ Executable setup specs:
 - `aircall`
 - `airparser`
 - `airtable`
+- `amazon-ads`
 - `amazon-eventbridge`
 - `amazon-s3`
 - `amazon-sns`
@@ -297,11 +298,14 @@ Executable setup specs:
 - `lever`
 - `linear`
 - `linkedin`
+- `linkedin-ads`
 - `mailchimp`
 - `make`
 - `marketo`
+- `meta-ads`
 - `microsoft-365-people`
 - `microsoft-365-planner`
+- `microsoft-ads`
 - `microsoft-calendar`
 - `microsoft-dynamics-365-business-central`
 - `microsoft-dynamics-crm`
@@ -338,6 +342,7 @@ Executable setup specs:
 - `phony`
 - `pinecone`
 - `ping-identity`
+- `pinterest-ads`
 - `pipedream`
 - `pipedrive`
 - `plaid`
@@ -347,6 +352,7 @@ Executable setup specs:
 - `quickbooks`
 - `rabbitmq`
 - `ramp`
+- `reddit-ads`
 - `redis`
 - `redshift`
 - `ringcentral`
@@ -364,12 +370,14 @@ Executable setup specs:
 - `sharepoint`
 - `shopify`
 - `slack`
+- `snapchat-ads`
 - `snowflake`
 - `stripe-pack`
 - `supabase`
 - `taxjar`
 - `telegram`
 - `tiktok`
+- `tiktok-ads`
 - `trello`
 - `twilio-sms`
 - `twitter`
@@ -382,6 +390,7 @@ Executable setup specs:
 - `woocommerce`
 - `wordpress`
 - `workday`
+- `x-ads`
 - `xero`
 - `youtube`
 - `zapier`
@@ -402,8 +411,8 @@ Executable setup specs:
 | --- | --- | --- |
 | Tangle first-class contracts | Done | 669 connectors have Tangle-owned action/trigger/auth/runtime contracts. |
 | Connector discovery/catalog search | Done | 669 catalog connectors, 3790 actions, 998 triggers normalized into Tangle catalog shapes. |
-| Native adapter execution | Done for listed native backends | 635 reviewed native adapter surfaces ship from this package; 517 overlap the 669 catalog contracts. |
-| OAuth/API-key setup metadata | Partial | 254 setup specs exist; 242 are executable setup specs and 12 are catalog/setup-only. |
+| Native adapter execution | Done for listed native backends | 647 reviewed native adapter surfaces ship from this package; 517 overlap the 669 catalog contracts. |
+| OAuth/API-key setup metadata | Partial | 263 setup specs exist; 251 are executable setup specs and 12 are catalog/setup-only. |
 | Direct adapter backlog | Tracked | 152 contracts still need native/direct adapters before they should be product-executable. |
 | Legacy runtime dependency manifest | Deprecated | `buildTangleCatalogRuntimePackageManifest()` is retained only as an audit/provenance helper; products should not deploy a package runner for normal execution. |
 | Runtime package coverage audit | Removed from launch path | Package-runner smoke is no longer a product launch gate; port demanded integrations to direct adapters instead. |
@@ -482,7 +491,7 @@ Manual custom auth mapping gap: none.
    There are 998 catalog triggers and 998 upstream trigger names. The provider flow supports trigger subscribe/unsubscribe/normalize hooks. Runtime services still need live webhook/polling smoke verification.
 
 5. **Native adapter coverage is intentionally smaller than contract breadth.**
-   This repo ships 635 native adapter surfaces. 517 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
+   This repo ships 647 native adapter surfaces. 517 overlap the 669 catalog contracts; the remaining catalog contracts are not product-executable until ported.
 
 ## Concrete Launch Interpretation
 
