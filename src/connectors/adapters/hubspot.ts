@@ -8,6 +8,12 @@
  *     POST /crm/v3/objects/contacts/search with an email-equality filter.
  *     Cheap, idempotent, no CAS needed (read).
  *
+ *   list_new_contacts(createdAfter, limit?, after?)
+ *     → {contacts: [{id, email, name, company, ...}], after}
+ *     Read. The same search endpoint filtered on createdate and sorted
+ *     oldest first, so a poller can pick up every contact created since
+ *     its last cursor (inbound leads from forms, imports and integrations).
+ *
  *   upsert_contact(email, properties)
  *     → {contactId, created}
  *     Mutation. CAS strategy = native-idempotency, BUT: HubSpot's
@@ -94,6 +100,22 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
           type: 'object',
           properties: { email: { type: 'string', description: 'Email to search for (case-insensitive).' } },
           required: ['email'],
+        },
+      },
+      {
+        name: 'list_new_contacts',
+        class: 'read',
+        description:
+          'List contacts created at or after a time, oldest first: id, email, name, company, job title, lifecycle stage, original source and creation time. Page with the returned `after` cursor.',
+        requiredScopes: [SCOPE_CONTACTS_READ],
+        parameters: {
+          type: 'object',
+          properties: {
+            createdAfter: { type: 'string', description: 'ISO-8601 time; contacts created at or after it.' },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            after: { type: 'string', description: 'Paging cursor from a previous call.' },
+          },
+          required: ['createdAfter'],
         },
       },
       {
@@ -218,6 +240,9 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
   },
 
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
+    if (inv.capabilityName === 'list_new_contacts') {
+      return listNewContacts(inv, await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret))
+    }
     if (inv.capabilityName !== 'find_contact') {
       throw new Error(`hubspot: unknown read capability ${inv.capabilityName}`)
     }
@@ -667,4 +692,52 @@ async function ensureFreshAccessToken(creds: ConnectorCredentials, clientId: str
   creds.expiresAt = refreshed.expiresIn ? Date.now() + refreshed.expiresIn * 1000 : undefined
   if (refreshed.refreshToken) creds.refreshToken = refreshed.refreshToken
   return creds.accessToken
+}
+
+const NEW_CONTACT_PROPERTIES = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'lifecyclestage', 'hs_analytics_source', 'createdate']
+
+async function listNewContacts(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityReadResult> {
+  const { createdAfter, limit, after } = inv.args as { createdAfter: string; limit?: number; after?: string }
+  const since = Date.parse(createdAfter)
+  if (!Number.isFinite(since)) throw new Error('hubspot list_new_contacts: createdAfter must be an ISO-8601 time')
+  const res = await fetch(`${API}/crm/v3/objects/contacts/search`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      filterGroups: [{ filters: [{ propertyName: 'createdate', operator: 'GTE', value: String(since) }] }],
+      sorts: [{ propertyName: 'createdate', direction: 'ASCENDING' }],
+      properties: NEW_CONTACT_PROPERTIES,
+      limit: Math.min(Math.max(limit ?? 50, 1), 100),
+      ...(after ? { after } : {}),
+    }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired(`HubSpot rejected token (401)`, inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hubspot list_new_contacts ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    results?: Array<{ id: string; createdAt?: string; properties?: Record<string, string | null> }>
+    paging?: { next?: { after?: string } }
+  }
+  const contacts = (json.results ?? []).map((row) => {
+    const props = row.properties ?? {}
+    return {
+      id: row.id,
+      email: props.email ?? null,
+      name: [props.firstname, props.lastname].filter(Boolean).join(' ') || null,
+      company: props.company ?? null,
+      jobTitle: props.jobtitle ?? null,
+      lifecycleStage: props.lifecyclestage ?? null,
+      source: props.hs_analytics_source ?? null,
+      createdAt: props.createdate ?? row.createdAt ?? null,
+    }
+  })
+  return {
+    data: { contacts, after: json.paging?.next?.after ?? null },
+    fetchedAt: Date.now(),
+  }
 }

@@ -6,7 +6,9 @@
  * `stripe-checkout`, `stripe-invoices`, `stripe-subscriptions` n-tuples.
  *
  *   find_customer(email)                       → read; CAS n/a
+ *   retrieve_customer(customerId)              → read; CAS n/a
  *   list_subscriptions(customerId, status?)    → read; CAS n/a
+ *   list_signup_events(createdGte?, types?)    → read; CAS n/a
  *   create_invoice(customerId, items)          → mutation; cas: 'native-idempotency'
  *   create_checkout_session(...)               → mutation; cas: 'native-idempotency'
  *   cancel_subscription(subscriptionId, atPeriodEnd?) → mutation; cas: 'native-idempotency'
@@ -41,6 +43,9 @@ import {
 
 const API = 'https://api.stripe.com/v1'
 
+/** Stripe events that mean a new customer: an account, a purchase, or a subscription or trial. */
+const SIGNUP_EVENT_TYPES = ['customer.created', 'checkout.session.completed', 'customer.subscription.created']
+
 export const stripePackConnector: ConnectorAdapter = {
   manifest: {
     kind: 'stripe-pack',
@@ -49,7 +54,7 @@ export const stripePackConnector: ConnectorAdapter = {
       "Look up Stripe customers, draft invoices, spin up hosted Checkout sessions, manage subscriptions, and hand off to the customer billing portal — all from one Stripe restricted key. Idempotency-Key forwarded on every mutation.",
     auth: {
       kind: 'api-key',
-      hint: 'Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions and write on invoices + checkout + subscriptions + billing portal.',
+      hint: 'Paste a Stripe restricted key (rk_live_…) with read on customers + subscriptions + events and write on invoices + checkout + subscriptions + billing portal.',
     },
     category: 'commerce',
     defaultConsistencyModel: 'authoritative',
@@ -62,6 +67,35 @@ export const stripePackConnector: ConnectorAdapter = {
           type: 'object',
           properties: { email: { type: 'string' } },
           required: ['email'],
+        },
+      },
+      {
+        name: 'retrieve_customer',
+        class: 'read',
+        description: 'Read one Stripe customer by id (cus_...): email, name and creation time.',
+        parameters: {
+          type: 'object',
+          properties: { customerId: { type: 'string', pattern: '^cus_[A-Za-z0-9]+$' } },
+          required: ['customerId'],
+        },
+      },
+      {
+        name: 'list_signup_events',
+        class: 'read',
+        description:
+          'List the account\'s new-customer events since a time: customer.created, checkout.session.completed and customer.subscription.created (trials included), oldest first within the page. Each event carries only the customer id, email, name, checkout amount and subscription status.',
+        parameters: {
+          type: 'object',
+          properties: {
+            createdGte: { type: 'integer', minimum: 0, description: 'Unix seconds; events created at or after this time.' },
+            types: {
+              type: 'array',
+              items: { type: 'string', enum: SIGNUP_EVENT_TYPES },
+              description: 'Default: all three types.',
+            },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            startingAfter: { type: 'string', description: 'Event id cursor from a previous page.' },
+          },
         },
       },
       {
@@ -246,6 +280,8 @@ export const stripePackConnector: ConnectorAdapter = {
   async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
     const apiKey = readApiKey(inv.source.credentials)
     if (inv.capabilityName === 'list_subscriptions') return listSubscriptions(inv, apiKey)
+    if (inv.capabilityName === 'retrieve_customer') return retrieveCustomer(inv, apiKey)
+    if (inv.capabilityName === 'list_signup_events') return listSignupEvents(inv, apiKey)
     if (inv.capabilityName !== 'find_customer') {
       throw new Error(`stripe-pack: unknown read capability ${inv.capabilityName}`)
     }
@@ -425,6 +461,91 @@ async function createCheckoutSession(
     data: { sessionId: created.id, url: created.url, paymentStatus: created.payment_status },
     committedAt: Date.now(),
     idempotentReplay: false,
+  }
+}
+
+async function stripeGet(inv: ConnectorInvocation, apiKey: string, path: string, label: string): Promise<unknown> {
+  const res = await fetch(`${API}${path}`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (res.status === 401) {
+    throw new CredentialsExpired('Stripe rejected API key (401)', inv.source.id)
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`stripe-pack ${label} ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.json()
+}
+
+async function retrieveCustomer(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityReadResult> {
+  const { customerId } = inv.args as { customerId: string }
+  if (!/^cus_[A-Za-z0-9]+$/.test(customerId ?? '')) throw new Error('stripe-pack retrieve_customer: customerId must be a cus_ id')
+  const customer = await stripeGet(inv, apiKey, `/customers/${encodeURIComponent(customerId)}`, 'retrieve_customer') as {
+    id: string; email?: string | null; name?: string | null; created?: number; deleted?: boolean
+  }
+  return {
+    data: customer.deleted
+      ? { found: false }
+      : { found: true, customer: { id: customer.id, email: customer.email ?? null, name: customer.name ?? null, created: customer.created ?? null } },
+    fetchedAt: Date.now(),
+  }
+}
+
+type StripeEventObject = {
+  id?: string
+  object?: string
+  customer?: string | null
+  email?: string | null
+  name?: string | null
+  customer_email?: string | null
+  customer_details?: { email?: string | null; name?: string | null } | null
+  amount_total?: number | null
+  currency?: string | null
+  mode?: string | null
+  status?: string | null
+  trial_end?: number | null
+}
+
+async function listSignupEvents(inv: ConnectorInvocation, apiKey: string): Promise<CapabilityReadResult> {
+  const args = inv.args as { createdGte?: number; types?: string[]; limit?: number; startingAfter?: string }
+  const types = args.types && args.types.length > 0 ? args.types : SIGNUP_EVENT_TYPES
+  const unknown = types.filter((type) => !SIGNUP_EVENT_TYPES.includes(type))
+  if (unknown.length > 0) throw new Error(`stripe-pack list_signup_events: unsupported event types ${unknown.join(', ')}`)
+  const params = new URLSearchParams({ limit: String(Math.min(Math.max(args.limit ?? 50, 1), 100)) })
+  for (const type of types) params.append('types[]', type)
+  if (typeof args.createdGte === 'number') params.set('created[gte]', String(Math.floor(args.createdGte)))
+  if (args.startingAfter) params.set('starting_after', args.startingAfter)
+  const json = await stripeGet(inv, apiKey, `/events?${params.toString()}`, 'list_signup_events') as {
+    data?: Array<{ id: string; type: string; created: number; livemode?: boolean; data?: { object?: StripeEventObject } }>
+    has_more?: boolean
+  }
+  // Stripe lists newest first; a poller reads oldest first.
+  const events = (json.data ?? []).map((event) => {
+    const object = event.data?.object ?? {}
+    const isCustomer = object.object === 'customer'
+    return {
+      id: event.id,
+      type: event.type,
+      created: event.created,
+      livemode: event.livemode ?? null,
+      customer: {
+        id: isCustomer ? object.id ?? null : typeof object.customer === 'string' ? object.customer : null,
+        email: (isCustomer ? object.email : object.customer_details?.email ?? object.customer_email) ?? null,
+        name: (isCustomer ? object.name : object.customer_details?.name) ?? null,
+      },
+      ...(object.object === 'checkout.session'
+        ? { checkout: { id: object.id ?? null, amountTotal: object.amount_total ?? null, currency: object.currency ?? null, mode: object.mode ?? null } }
+        : {}),
+      ...(object.object === 'subscription'
+        ? { subscription: { id: object.id ?? null, status: object.status ?? null, trialEnd: object.trial_end ?? null } }
+        : {}),
+    }
+  }).reverse()
+  return {
+    data: { events, hasMore: json.has_more ?? false },
+    fetchedAt: Date.now(),
   }
 }
 
