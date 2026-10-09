@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.72.0
+
+- feat(hubspot): find_contact_owner resolves a person's owner from contact, company or deal
+
 ## 0.71.0
 
 - feat(triggers): hosted triggers for connectors that cannot push, and Clerk signups
