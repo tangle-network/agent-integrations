@@ -1152,6 +1152,8 @@ describe('github adapter', () => {
       ['a commit sha as the branch', { branch: NEW_COMMIT }, /commit sha/],
       ['a refs/ path as the base', { base: 'refs/heads/main' }, /bare branch name/],
       ['a branch with ..', { branch: 'a..b' }, /plain git branch name/],
+      ['a hidden branch component', { branch: 'topic/.hidden' }, /plain git branch name/],
+      ['a .lock branch component', { branch: 'topic/foo.lock/bar' }, /plain git branch name/],
       ['no files', { files: [] }, /at least one file/],
       ['an absolute path', { files: [{ path: '/etc/passwd', content: 'x' }] }, /repository-relative/],
       ['a .. segment', { files: [{ path: 'src/../x', content: 'x' }] }, /repository-relative/],
@@ -1184,6 +1186,21 @@ describe('github adapter', () => {
       await expect(propose(args)).rejects.toThrow(
         new RegExp(`branch gtm-agent/hero-copy at commit ${NEW_COMMIT} exists in octo/hello, but opening the pull request failed; call pulls.create`),
       )
+    })
+
+    it('names the created branch when GitHub throttles the pull request, instead of a retryable soft failure', async () => {
+      githubFake({
+        'POST /repos/octo/hello/pulls': () => new Response('slow down', { status: 429, headers: { 'retry-after': '3' } }),
+      })
+      await expect(propose(args)).rejects.toThrow(
+        new RegExp(`branch gtm-agent/hero-copy at commit ${NEW_COMMIT} exists in octo/hello, but GitHub throttled opening the pull request; call pulls.create`),
+      )
+    })
+
+    it('treats delete: false as a write', async () => {
+      const calls = githubFake()
+      await propose({ ...args, files: [{ path: 'a.md', content: 'x', delete: false }] })
+      expect((calls[1].body as { tree: unknown[] }).tree).toEqual([{ path: 'a.md', mode: '100644', type: 'blob', content: 'x' }])
     })
 
     it('still returns the open pull request when its file list cannot be read', async () => {

@@ -683,7 +683,7 @@ const githubSpec: RestConnectorSpec = {
                 path: { type: 'string', description: 'Repository-relative path, e.g. `src/routes/_index.tsx`.' },
                 content: { type: 'string', description: 'The complete new file content (UTF-8 text).' },
                 mode: { type: 'string', enum: ['100644', '100755'], description: 'File mode; `100755` for an executable. Defaults to `100644`.' },
-                delete: { type: 'boolean', description: 'Set to true to delete the file.' },
+                delete: { type: 'boolean', description: 'True deletes the file; false or absent writes `content`.' },
               },
               required: ['path'],
             },
@@ -831,7 +831,10 @@ function branchName(args: Record<string, unknown>, field: 'base' | 'branch'): st
   const value = requiredText(args, field, 200)
   if (new RegExp(`^${GIT_SHA}$`).test(value)) refuse(field, 'is a commit sha, not a branch name')
   if (value.startsWith('refs/')) refuse(field, 'pass the bare branch name, not a `refs/` path')
-  if (!new RegExp(PLAIN_BRANCH).test(value)) refuse(field, 'is not a plain git branch name')
+  // git check-ref-format: no component may start with `.` or end with `.lock`.
+  if (!new RegExp(PLAIN_BRANCH).test(value) || value.split('/').some((part) => part.startsWith('.') || part.endsWith('.lock'))) {
+    refuse(field, 'is not a plain git branch name')
+  }
   return value
 }
 
@@ -873,7 +876,7 @@ function proposeArgs(raw: Record<string, unknown>): ProposeArgs {
     seen.add(path)
     const mode = file.mode === undefined ? '100644' : file.mode
     if (mode !== '100644' && mode !== '100755') refuse(`files[${index}].mode`, 'must be 100644 or 100755')
-    if (file.delete !== undefined && file.delete !== true) refuse(`files[${index}].delete`, 'must be true when present')
+    if (file.delete !== undefined && typeof file.delete !== 'boolean') refuse(`files[${index}].delete`, 'must be true or false')
     if (file.delete === true) {
       if (file.content !== undefined) refuse(`files[${index}]`, 'a deleted file carries no content')
       return { path, mode, delete: true }
@@ -976,8 +979,10 @@ async function proposePullRequest(inv: ConnectorInvocation) {
   } catch (error) {
     throw new Error(`github pulls.propose: ${created}, but opening the pull request failed; call pulls.create with head ${args.branch}. ${error instanceof Error ? error.message : String(error)}`)
   }
+  // A throttled or conflicted pull request is not retryable as a whole: a
+  // replay would stop at the branch that now exists.
   if (pull.outcome) {
-    return { ...mutationResultFromTransport(githubSpec.displayName, pull), message: `${created}; ${pull.message ?? 'GitHub did not open the pull request'}` }
+    throw new Error(`github pulls.propose: ${created}, but GitHub ${pull.outcome === 'rate-limited' ? 'throttled' : 'refused'} opening the pull request; call pulls.create with head ${args.branch}. ${(pull.message ?? '').slice(0, 300)}`.trim())
   }
   const number = field(pull.data, 'number')
   if (typeof number !== 'number') throw new Error(`github pulls.propose: ${created}, but GitHub returned no pull request number`)
