@@ -88,3 +88,70 @@ describe('hubspot new contacts', () => {
       jobTitle: 'Rear Admiral', lifecycleStage: 'lead', source: 'ORGANIC_SEARCH', createdAt: '2026-10-09T10:00:00.000Z' }] })
   })
 })
+
+describe('hubspot contact owner', () => {
+  const connector = hubspot({ clientId: 'cid', clientSecret: 'sec' })
+  const run = (email: string) => connector.executeRead!({
+    source: source('hubspot', { kind: 'oauth2', accessToken: 'at', refreshToken: 'rt', expiresAt: Date.now() + 3_600_000 }),
+    capabilityName: 'find_contact_owner', args: { email }, idempotencyKey: 'owner',
+  })
+  const routes = (handlers: Record<string, () => Response>) => vi.fn(async (input: string, init?: RequestInit) => {
+    const key = `${init?.method ?? 'GET'} ${new URL(input).pathname}`
+    const handler = handlers[key]
+    if (!handler) throw new Error(`unexpected ${key}`)
+    return handler()
+  })
+
+  it('returns the contact owner first, with its name when owners are readable', async () => {
+    const fetchMock = routes({
+      'POST /crm/v3/objects/contacts/search': () => json({ results: [{ id: '101', properties: { email: 'ada@engines.io', hubspot_owner_id: '77' } }] }),
+      'GET /crm/v3/owners/77': () => json({ id: '77', email: 'sam@seller.dev', firstName: 'Sam', lastName: 'Seller' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await run('Ada@Engines.io')
+    expect(result.data).toEqual({
+      found: true, contactId: '101',
+      owner: { level: 'contact', recordId: '101', ownerId: '77', email: 'sam@seller.dev', name: 'Sam Seller' },
+      checked: [{ level: 'contact', recordId: '101', result: 'owner' }],
+    })
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body)).filterGroups[0].filters[0].value).toBe('ada@engines.io')
+  })
+
+  it('falls back to the company owner, then the most recent deal owner, and records each level it checked', async () => {
+    vi.stubGlobal('fetch', routes({
+      'POST /crm/v3/objects/contacts/search': () => json({ results: [{ id: '101', properties: { hubspot_owner_id: '' } }] }),
+      'GET /crm/v4/objects/contacts/101/associations/companies': () => json({ results: [{ toObjectId: 501 }] }),
+      'POST /crm/v3/objects/companies/batch/read': () => json({ results: [{ id: '501', properties: { hubspot_owner_id: null } }] }),
+      'GET /crm/v4/objects/contacts/101/associations/deals': () => json({ results: [{ toObjectId: 9 }, { toObjectId: 10 }] }),
+      'POST /crm/v3/objects/deals/batch/read': () => json({ results: [
+        { id: '9', properties: { hubspot_owner_id: '1', hs_lastmodifieddate: '2026-09-01T00:00:00Z' } },
+        { id: '10', properties: { hubspot_owner_id: '2', hs_lastmodifieddate: '2026-10-01T00:00:00Z' } },
+      ] }),
+      // Owner details need a scope this connection does not have.
+      'GET /crm/v3/owners/2': () => new Response('{}', { status: 403 }),
+    }))
+    const result = await run('ada@engines.io')
+    expect(result.data).toEqual({
+      found: true, contactId: '101',
+      owner: { level: 'deal', recordId: '10', ownerId: '2', email: null, name: null },
+      checked: [
+        { level: 'contact', recordId: '101', result: 'none' },
+        { level: 'company', recordId: '501', result: 'none' },
+        { level: 'deal', recordId: '10', result: 'owner' },
+      ],
+    })
+  })
+
+  it('reports no owner when the person is not in HubSpot, and an unreadable level instead of guessing', async () => {
+    vi.stubGlobal('fetch', routes({ 'POST /crm/v3/objects/contacts/search': () => json({ results: [] }) }))
+    expect((await run('nobody@else.dev')).data).toEqual({ found: false, contactId: null, owner: null,
+      checked: [{ level: 'contact', recordId: null, result: 'not_found' }] })
+    vi.stubGlobal('fetch', routes({
+      'POST /crm/v3/objects/contacts/search': () => json({ results: [{ id: '101', properties: {} }] }),
+      'GET /crm/v4/objects/contacts/101/associations/companies': () => new Response('{}', { status: 403 }),
+      'GET /crm/v4/objects/contacts/101/associations/deals': () => json({ results: [] }),
+    }))
+    expect((await run('ada@engines.io')).data).toMatchObject({ found: true, owner: null, checked: [
+      { level: 'contact', result: 'none' }, { level: 'company', result: 'not_readable' }, { level: 'deal', result: 'not_found' }] })
+  })
+})

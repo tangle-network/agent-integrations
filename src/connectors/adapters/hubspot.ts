@@ -103,6 +103,18 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
         },
       },
       {
+        name: 'find_contact_owner',
+        class: 'read',
+        description:
+          'Find who owns a person in HubSpot, by email: the contact owner, else the owner of an associated company, else of the most recently updated associated deal. Returns the owner id, the level and record it came from, every level checked, and the owner\'s name and email when the connection can read owners. Never infers an owner from activity.',
+        requiredScopes: [SCOPE_CONTACTS_READ],
+        parameters: {
+          type: 'object',
+          properties: { email: { type: 'string', description: 'Email of the person (case-insensitive).' } },
+          required: ['email'],
+        },
+      },
+      {
         name: 'list_new_contacts',
         class: 'read',
         description:
@@ -262,6 +274,9 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
     if (inv.capabilityName === 'list_new_deals') {
       return listNewDeals(inv, await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret))
     }
+    if (inv.capabilityName === 'find_contact_owner') {
+      return findContactOwner(inv, await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret))
+    }
     if (inv.capabilityName !== 'find_contact') {
       throw new Error(`hubspot: unknown read capability ${inv.capabilityName}`)
     }
@@ -279,7 +294,7 @@ export function hubspot(opts: HubSpotOptions): ConnectorAdapter {
             filters: [{ propertyName: 'email', operator: 'EQ', value: email.toLowerCase() }],
           },
         ],
-        properties: ['email', 'firstname', 'lastname', 'phone', 'company'],
+        properties: ['email', 'firstname', 'lastname', 'phone', 'company', 'hubspot_owner_id'],
         limit: 1,
       }),
       signal: AbortSignal.timeout(10_000),
@@ -789,5 +804,106 @@ async function listNewContacts(inv: ConnectorInvocation, accessToken: string): P
   return {
     data: { contacts, after },
     fetchedAt: Date.now(),
+  }
+}
+
+type OwnerLevel = 'contact' | 'company' | 'deal'
+interface OwnerCheck { level: OwnerLevel; recordId: string | null; result: 'owner' | 'none' | 'not_found' | 'not_readable' }
+
+async function hubspotJson(inv: ConnectorInvocation, accessToken: string, path: string, init: RequestInit = {}): Promise<{ status: number; body: unknown }> {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (res.status === 401) throw new CredentialsExpired(`HubSpot rejected token (401)`, inv.source.id)
+  if (res.status === 403 || res.status === 404) return { status: res.status, body: null }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`hubspot find_contact_owner ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return { status: res.status, body: await res.json() }
+}
+
+function ownerIdOf(body: unknown): string | null {
+  const props = (body as { properties?: Record<string, unknown> } | null)?.properties
+  const id = props?.hubspot_owner_id
+  return typeof id === 'string' && id.trim() ? id.trim() : null
+}
+
+/** The ids of a contact's associated records of one type, or null when the token cannot read them. */
+async function associatedIds(inv: ConnectorInvocation, accessToken: string, contactId: string, object: 'companies' | 'deals'): Promise<string[] | null> {
+  const { status, body } = await hubspotJson(inv, accessToken, `/crm/v4/objects/contacts/${encodeURIComponent(contactId)}/associations/${object}?limit=20`)
+  if (status === 403) return null
+  const results = (body as { results?: Array<{ toObjectId?: string | number }> } | null)?.results ?? []
+  return results.map((row) => String(row.toObjectId ?? '')).filter(Boolean)
+}
+
+async function findContactOwner(inv: ConnectorInvocation, accessToken: string): Promise<CapabilityReadResult> {
+  const { email } = inv.args as { email: string }
+  const checked: OwnerCheck[] = []
+  const done = (owner: { level: OwnerLevel; recordId: string; ownerId: string } | null, contactId: string | null) =>
+    ownerDetails(inv, accessToken, owner).then((details) => ({
+      data: { found: contactId !== null, contactId, owner: details, checked },
+      fetchedAt: Date.now(),
+    }))
+
+  const search = await hubspotJson(inv, accessToken, '/crm/v3/objects/contacts/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email.toLowerCase() }] }],
+      properties: ['email', 'hubspot_owner_id'],
+      limit: 1,
+    }),
+  })
+  const contact = (search.body as { results?: Array<{ id: string; properties?: Record<string, unknown> }> } | null)?.results?.[0]
+  if (!contact) {
+    checked.push({ level: 'contact', recordId: null, result: search.status === 403 ? 'not_readable' : 'not_found' })
+    return done(null, null)
+  }
+  const contactOwner = ownerIdOf(contact)
+  checked.push({ level: 'contact', recordId: contact.id, result: contactOwner ? 'owner' : 'none' })
+  if (contactOwner) return done({ level: 'contact', recordId: contact.id, ownerId: contactOwner }, contact.id)
+
+  for (const object of ['companies', 'deals'] as const) {
+    const level: OwnerLevel = object === 'companies' ? 'company' : 'deal'
+    const ids = await associatedIds(inv, accessToken, contact.id, object)
+    if (ids === null) {
+      checked.push({ level, recordId: null, result: 'not_readable' })
+      continue
+    }
+    if (ids.length === 0) {
+      checked.push({ level, recordId: null, result: 'not_found' })
+      continue
+    }
+    const read = await hubspotJson(inv, accessToken, `/crm/v3/objects/${object}/batch/read`, {
+      method: 'POST',
+      body: JSON.stringify({ properties: ['hubspot_owner_id', 'hs_lastmodifieddate'], inputs: ids.map((id) => ({ id })) }),
+    })
+    if (read.status === 403) {
+      checked.push({ level, recordId: null, result: 'not_readable' })
+      continue
+    }
+    // The most recently updated record with an owner speaks for the account.
+    const owned = ((read.body as { results?: Array<{ id: string; properties?: Record<string, unknown> }> } | null)?.results ?? [])
+      .map((row) => ({ id: row.id, ownerId: ownerIdOf(row), updated: Date.parse(String(row.properties?.hs_lastmodifieddate ?? '')) || 0 }))
+      .filter((row) => row.ownerId)
+      .sort((a, b) => b.updated - a.updated)[0]
+    checked.push({ level, recordId: owned?.id ?? ids[0] ?? null, result: owned ? 'owner' : 'none' })
+    if (owned?.ownerId) return done({ level, recordId: owned.id, ownerId: owned.ownerId }, contact.id)
+  }
+  return done(null, contact.id)
+}
+
+/** The owner's name and email when the connection may read owners; the id alone otherwise. */
+async function ownerDetails(inv: ConnectorInvocation, accessToken: string, owner: { level: OwnerLevel; recordId: string; ownerId: string } | null) {
+  if (!owner) return null
+  const { body } = await hubspotJson(inv, accessToken, `/crm/v3/owners/${encodeURIComponent(owner.ownerId)}`)
+  const details = body as { email?: unknown; firstName?: unknown; lastName?: unknown } | null
+  const name = [details?.firstName, details?.lastName].filter((part): part is string => typeof part === 'string' && part.trim() !== '').join(' ')
+  return {
+    ...owner,
+    email: typeof details?.email === 'string' ? details.email : null,
+    name: name || null,
   }
 }
