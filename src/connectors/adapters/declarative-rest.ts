@@ -9,6 +9,7 @@ import {
   type ConnectorCredentials,
   type ConnectorInvocation,
   CredentialsExpired,
+  InvalidCapabilityArgument,
   ProviderRateLimited,
 } from '../types.js'
 import {
@@ -94,6 +95,19 @@ export interface RestOperationSpec {
   request: RestRequestSpec
   cas?: 'etag-if-match' | 'native-idempotency' | 'optimistic-read-verify' | 'none'
   externalEffect?: boolean
+  /** Values the schema's type admits but the provider would answer
+   *  misleadingly, refused before any request. They stay out of the published
+   *  schema so a model provider never has to compile them. */
+  refuseArguments?: readonly RestArgumentRefusal[]
+}
+
+export interface RestArgumentRefusal {
+  /** Top-level argument name. */
+  field: string
+  /** Regular expression source. A string argument matching it is refused. */
+  pattern: string
+  /** Why the value is wrong and what to pass instead. */
+  message: string
 }
 
 export interface RestRequestSpec {
@@ -129,6 +143,7 @@ export interface RestResponseExpectation {
 
 export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdapter {
   const capabilities = spec.capabilities.map(operationToCapability)
+  const argumentRules = new Map(spec.capabilities.map((op) => [op.name, compileArgumentRules(spec.kind, op)]))
   const adapter: ConnectorAdapter = {
     manifest: {
       kind: spec.kind,
@@ -142,6 +157,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const op = readOperation(spec, inv.capabilityName, 'read')
+      checkArguments(spec.kind, op.name, argumentRules.get(op.name)!, inv.args)
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
       // `CapabilityReadResult` has no soft-failure channel, so a tagged
       // transport outcome MUST throw here: returning it as `data` reported the
@@ -170,6 +186,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
 
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
+      checkArguments(spec.kind, op.name, argumentRules.get(op.name)!, inv.args)
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
       return mutationResultFromTransport(spec.displayName, response)
     },
@@ -253,6 +270,84 @@ function readOperation(spec: RestConnectorSpec, name: string, expected: 'read' |
     throw new Error(`${spec.kind}: unknown ${expected} capability ${name}`)
   }
   return op
+}
+
+interface ArgumentRule {
+  field: string
+  /** Validate each string element of an array argument instead of the value. */
+  each: boolean
+  test: RegExp
+  /** A match is refused (refusal) rather than required (schema pattern). */
+  refuse: boolean
+  message: string
+}
+
+// A declared `pattern` is the capability's contract, so it is enforced before
+// the request rather than left for the provider to answer. A provider's answer
+// to a value that breaks the contract is often misleading: GitHub reads a
+// commit sha passed as a branch name as "Branch not found". Only top-level
+// string arguments and arrays of strings are checked; that is where declarative
+// schemas put their patterns. Patterns compile once, when the connector is
+// built, so a malformed one fails at import instead of on a customer's call.
+function compileArgumentRules(kind: string, op: RestOperationSpec): ArgumentRule[] {
+  const rules: ArgumentRule[] = []
+  const properties = objectField(op.parameters, 'properties')
+  for (const [field, schema] of Object.entries(properties)) {
+    const property = schema as Record<string, unknown>
+    const items = objectField(property, 'items')
+    const pattern = typeof property.pattern === 'string' ? property.pattern : undefined
+    const itemPattern = typeof items.pattern === 'string' ? items.pattern : undefined
+    const source = pattern ?? itemPattern
+    if (source === undefined) continue
+    const description = typeof property.description === 'string' ? ` ${property.description}` : ''
+    rules.push({
+      field,
+      each: pattern === undefined,
+      test: compilePattern(kind, op.name, field, source),
+      refuse: false,
+      message: `must match ${source}.${description}`,
+    })
+  }
+  for (const refusal of op.refuseArguments ?? []) {
+    rules.push({
+      field: refusal.field,
+      each: false,
+      test: compilePattern(kind, op.name, refusal.field, refusal.pattern),
+      refuse: true,
+      message: refusal.message,
+    })
+  }
+  return rules
+}
+
+function compilePattern(kind: string, operation: string, field: string, source: string): RegExp {
+  try {
+    return new RegExp(source)
+  } catch (error) {
+    throw new Error(`${kind} ${operation}: argument "${field}" declares an invalid pattern: ${(error as Error).message}`)
+  }
+}
+
+function checkArguments(kind: string, operation: string, rules: readonly ArgumentRule[], args: Record<string, unknown>): void {
+  for (const rule of rules) {
+    const value = args[rule.field]
+    const values = rule.each ? (Array.isArray(value) ? value : []) : [value]
+    values.forEach((entry, index) => {
+      if (typeof entry !== 'string' || rule.test.test(entry) !== rule.refuse) return
+      const field = rule.each ? `${rule.field}[${index}]` : rule.field
+      throw new InvalidCapabilityArgument(
+        `${kind} ${operation}: invalid argument "${field}" (${JSON.stringify(entry.slice(0, 80))}): ${rule.message}`,
+        field,
+      )
+    })
+  }
+}
+
+function objectField(source: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = source[key]
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
 }
 
 // The JSON-Schema `required` array names the arguments a caller MUST supply.

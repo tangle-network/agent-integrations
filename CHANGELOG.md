@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.69.0
+
+- fix(github): read commits by sha and refuse a sha where a branch name belongs
+
+## 0.68.0
+
+- feat(integrations): bind native Meta WhatsApp messages to owned numbers
+
+## 0.67.3
+
+- fix(phony): keep ph0ny's status and message on refused calls
+
 ## 0.67.2
 
 - fix(whatsapp): route sends through Meta phone number IDs

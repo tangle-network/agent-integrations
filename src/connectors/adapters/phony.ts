@@ -86,6 +86,7 @@ import {
   type CapabilityReadResult,
   type CapabilityMutationResult,
   CredentialsExpired,
+  ProviderRequestError,
 } from '../types.js'
 import { VoiceClient, VoiceApiException } from '@ph0ny/sdk'
 
@@ -113,7 +114,13 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
     } catch (error) {
       if (!(error instanceof VoiceApiException)) throw error
       if (error.statusCode === 401) throw new CredentialsExpired('ph0ny rejected credentials (401)', sourceId)
-      throw new Error(`phony ${label} ${error.statusCode}: ${error.message.slice(0, 200)}`)
+      // ph0ny's status, code and message reach the caller: a 400 naming a bad
+      // field is the caller's to fix, and must not read as a gateway fault.
+      throw new ProviderRequestError(
+        `phony ${label} ${error.statusCode} ${error.code}: ${error.message.slice(0, 500)}`,
+        sourceId,
+        { status: error.statusCode, reason: error.code, body: { code: error.code, message: error.message, details: error.details } },
+      )
     }
   }
 
@@ -410,12 +417,16 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'list_voices',
         class: 'read',
         description:
-          'List voices an agent can speak with: your cloned voices, ElevenLabs account voices and, with provider "cartesia", Cartesia stock voices. Each voice names provider and providerVoiceId; set them as an agent\'s ttsProvider and voiceId.',
+          'List voices: your cloned voices, ElevenLabs account voices, and the voices of ph0ny\'s OpenAI ("openai-tts"), Gemini ("google-gemini"), Kokoro ("kokoro") and Fish Audio ("fish-audio") providers; with provider "cartesia", Cartesia stock voices. Each voice names provider, providerVoiceId and callCapable. synthesize_speech takes any voice as provider + voiceId; update_agent accepts only a callCapable voice, because phone calls cannot speak the others.',
         parameters: {
           type: 'object',
           properties: {
-            provider: { type: 'string', enum: ['cartesia'], description: 'Also list this provider\'s stock voices.' },
-            query: { type: 'string', description: 'Filter provider voices by name (with provider).' },
+            provider: {
+              type: 'string',
+              enum: ['cartesia', 'openai-tts', 'google-gemini', 'kokoro', 'fish-audio'],
+              description: 'List only this provider\'s voices ("cartesia" adds Cartesia stock voices).',
+            },
+            query: { type: 'string', description: 'Filter provider voices by name.' },
             limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
             cursor: { type: 'string', description: 'Pagination cursor from a prior response.' },
           },
@@ -455,7 +466,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           properties: {
             text: { type: 'string', description: 'What to say (1-10000 chars).' },
             voiceId: { type: 'string', description: 'providerVoiceId from list_voices; omitted uses the default voice.' },
-            provider: { type: 'string', description: 'The voice\'s provider from list_voices, e.g. "cartesia" or "elevenlabs".' },
+            provider: { type: 'string', description: 'The voice\'s provider from list_voices, e.g. "openai-tts", "kokoro" or "cartesia". Omitted lets ph0ny choose a working default voice.' },
             format: { type: 'string', enum: ['mp3', 'wav', 'ogg'], default: 'mp3' },
             speed: { type: 'number', minimum: 0.5, maximum: 2 },
           },
@@ -563,7 +574,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             systemPrompt: { type: 'string' },
             firstMessage: { type: 'string' },
             voiceId: { type: 'string', description: 'providerVoiceId from list_voices.' },
-            ttsProvider: { type: 'string', description: 'provider from list_voices.' },
+            ttsProvider: { type: 'string', description: 'provider of a callCapable voice from list_voices; phone calls cannot speak the others.' },
             ttsModel: { type: 'string' },
             sttProvider: { type: 'string' },
             llmProvider: { type: 'string' },
@@ -655,7 +666,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
     if (inv.capabilityName === 'list_voices') {
       const { provider, query, limit, cursor } = inv.args as { provider?: string; query?: string; limit?: number; cursor?: string }
       const params = new URLSearchParams({ includeCustom: 'true', limit: String(Math.min(Math.max(1, limit ?? 50), 200)) })
-      if (provider === 'cartesia') params.set('provider', 'cartesia')
+      if (provider) params.set('provider', provider)
       if (query) params.set('q', query)
       if (cursor) params.set('cursor', cursor)
       const json = await ph0ny<{ data?: unknown[]; nextCursor?: string; hasMore?: boolean }>(

@@ -97,6 +97,13 @@ export function buildMessagingReply(
       } } }
     }
   }
+  if (event.provider === 'whatsapp' || event.provider === 'whatsapp-business') {
+    if (text.length > 4096) return fail('WhatsApp text is limited to 4096 characters')
+    const bound = object(input.payload)
+    return { ok: true, reply: { idempotencyKey: operationId, action: `${event.provider}.messages.reply`, input: {
+      phoneNumberId: bound.phoneNumberId, to: event.sender.id, text, replyToMessageId: event.eventId,
+    } } }
+  }
   if (event.provider === 'linq-whatsapp') {
     if (text.length > 4096) return fail('WhatsApp text is limited to 4096 characters')
     return { ok: true, reply: { idempotencyKey: operationId, action: 'linq-whatsapp.messages.reply', input: { chat_id: event.conversationId, text } } }

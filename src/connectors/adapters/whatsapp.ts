@@ -1,3 +1,4 @@
+import { readWhatsappNumbers, whatsappNumbersCapability, whatsappWebhookStatusCapability } from './whatsapp-cloud.js'
 import { declarativeRestConnector } from './declarative-rest.js'
 
 const base = declarativeRestConnector({
@@ -9,7 +10,7 @@ const base = declarativeRestConnector({
     hint: 'WhatsApp Business System User Access Token.',
   },
   category: 'comms',
-  defaultConsistencyModel: 'authoritative',
+  defaultConsistencyModel: 'advisory',
   baseUrl: 'https://graph.facebook.com/v21.0',
   // Validate the token identity without requiring a model-supplied sending ID.
   test: { method: 'GET', path: '/me', query: { fields: 'id' } },
@@ -38,7 +39,7 @@ const base = declarativeRestConnector({
           text: { body: '{text}' },
         },
       },
-      cas: 'native-idempotency',
+      cas: 'none',
     },
     {
       name: 'media.send',
@@ -71,7 +72,7 @@ const base = declarativeRestConnector({
           ['{type}']: { link: '{media}', caption: '{caption}', filename: '{filename}' },
         },
       },
-      cas: 'native-idempotency',
+      cas: 'none',
     },
     {
       name: 'template.send',
@@ -102,7 +103,7 @@ const base = declarativeRestConnector({
           },
         },
       },
-      cas: 'native-idempotency',
+      cas: 'none',
     },
     {
       name: 'messages.reply',
@@ -130,7 +131,7 @@ const base = declarativeRestConnector({
           text: { body: '{text}' },
         },
       },
-      cas: 'native-idempotency',
+      cas: 'none',
       externalEffect: true,
     },
     {
@@ -158,7 +159,7 @@ const base = declarativeRestConnector({
           reaction: { message_id: '{messageId}', emoji: '{emoji}' },
         },
       },
-      cas: 'native-idempotency',
+      cas: 'none',
       externalEffect: true,
     },
     {
@@ -177,7 +178,7 @@ const base = declarativeRestConnector({
         method: 'DELETE',
         path: '/{businessAccountId}/messages/{messageId}',
       },
-      cas: 'native-idempotency',
+      cas: 'none',
       externalEffect: true,
     },
     {
@@ -206,6 +207,11 @@ const base = declarativeRestConnector({
 const sendCapabilities = new Set(['messages.send', 'media.send', 'template.send', 'messages.reply', 'messages.react'])
 export const whatsappConnector: typeof base = {
   ...base,
+  manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities, whatsappNumbersCapability, whatsappWebhookStatusCapability] },
+  async executeRead(inv) {
+    if ((inv.capabilityName === 'numbers.list' || inv.capabilityName === 'webhooks.status')) return readWhatsappNumbers(inv)
+    return base.executeRead!(inv)
+  },
   async executeMutation(inv) {
     if (sendCapabilities.has(inv.capabilityName)) {
       const { phoneNumberId, businessAccountId } = inv.args

@@ -585,6 +585,46 @@ export class ProviderRateLimited extends Error {
   }
 }
 
+/** Thrown when the provider settles a call with a non-2xx status that is not
+ *  a credential, permission or rate-limit failure: a 400 naming a bad field, a
+ *  404, a 409, or a 5xx. Carries `{status, reason, body}` so the platform
+ *  answers a refusal as a refusal (a 4xx with the provider's message) instead
+ *  of a gateway fault, and keeps the provider's own error code as `reason`. */
+export class ProviderRequestError extends Error {
+  override readonly name = 'ProviderRequestError'
+  readonly status: number
+  readonly reason?: string
+  readonly body?: unknown
+  constructor(
+    message: string,
+    public readonly dataSourceId: string,
+    init: ProviderHttpErrorInit,
+  ) {
+    super(message)
+    this.status = init.status
+    this.reason = init.reason
+    this.body = init.body
+  }
+}
+
+/** Thrown before any provider request when a caller's argument breaks the
+ *  capability's declared contract: a value that fails its `pattern`, or one the
+ *  provider would refuse with a misleading answer (a commit sha where a branch
+ *  name belongs reads back as "Branch not found"). `field` names the argument,
+ *  and the message says what to pass instead. `status` is 400 so a platform
+ *  classifier answers it as a settled refusal: the same arguments fail again. */
+export class InvalidCapabilityArgument extends Error {
+  override readonly name = 'InvalidCapabilityArgument'
+  readonly status = 400
+  readonly reason = 'invalid_argument'
+  constructor(
+    message: string,
+    public readonly field: string,
+  ) {
+    super(message)
+  }
+}
+
 export interface ConnectorManifestValidationIssue {
   path: string
   message: string
