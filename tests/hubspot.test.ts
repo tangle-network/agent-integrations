@@ -46,6 +46,7 @@ describe('hubspot adapter', () => {
         'oauth',
         'crm.objects.contacts.read',
         'crm.objects.contacts.write',
+        'crm.objects.deals.read',
         'crm.objects.deals.write',
         'tickets',
       ],
