@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.74.0
+
+- feat(cloudbeds): property-pinned PMS reads, housekeeping, rates, and reservation webhooks
+- fix(hubspot): request crm.objects.deals.read at connect-time — the adapter declared it required but never asked for it
+
 ## 0.73.0
 
 - chore(manifests): republish the pulls.propose file schema
