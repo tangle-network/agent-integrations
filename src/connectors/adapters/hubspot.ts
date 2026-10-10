@@ -51,9 +51,10 @@ import { exchangeAuthorizationCode, refreshAccessToken } from '../oauth.js'
 
 const SCOPE_CONTACTS_READ = 'crm.objects.contacts.read'
 const SCOPE_CONTACTS_WRITE = 'crm.objects.contacts.write'
+const SCOPE_DEALS_READ = 'crm.objects.deals.read'
 const SCOPE_DEALS_WRITE = 'crm.objects.deals.write'
 const SCOPE_TICKETS_WRITE = 'tickets'
-const SCOPES_BASE = ['oauth', SCOPE_CONTACTS_READ, SCOPE_CONTACTS_WRITE]
+const SCOPES_BASE = ['oauth', SCOPE_CONTACTS_READ, SCOPE_CONTACTS_WRITE, SCOPE_DEALS_READ]
 const AUTH_URL = 'https://app.hubspot.com/oauth/authorize'
 const TOKEN_URL = 'https://api.hubapi.com/oauth/v1/token'
 const API = 'https://api.hubapi.com'
