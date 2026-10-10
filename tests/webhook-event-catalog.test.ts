@@ -38,7 +38,7 @@ const ALL_PROVIDERS: WebhookProvider[] = Object.values(webhooks).filter(isWebhoo
 // validated. Kept explicit so dropping a catalog from a wired provider fails
 // here loudly, while a non-event provider (gmail/gdrive push, generic HMAC) may
 // legitimately have none.
-const EVENT_SOURCE_PROVIDER_IDS = ['stripe', 'slack', 'docuseal', 'telegram', 'hellosign']
+const EVENT_SOURCE_PROVIDER_IDS = ['stripe', 'slack', 'docuseal', 'telegram', 'hellosign', 'cloudbeds']
 
 describe('event catalog — shape invariants', () => {
   // Assert every provider that DECLARES a catalog declares a well-formed one —
