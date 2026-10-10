@@ -27,11 +27,12 @@ describe('Cloudbeds property and folio contract', () => {
     const result = await cloudbedsConnector.executeRead!(invoke(cloudbeds, 'reservations.list', {
       checkInFrom: '2026-10-20', checkInTo: '2026-10-20', pageNumber: 1, pageSize: 1,
     }))
-    expect(result.data).toEqual({ reservations: [{ propertyId: '1234', reservationId: 'res-1', status: 'checked_in', arrivalDate: '2026-10-20', departureDate: '2026-10-27', guestName: 'Test Guest', balance: 0 }], pageNumber: 1, pageSize: 1, total: 3, hasMore: true })
+    expect(result.data).toEqual({ reservations: [{ propertyId: '1234', reservationId: 'res-1', status: 'checked_in', arrivalDate: '2026-10-20', departureDate: '2026-10-27', guestId: null, guestName: 'Test Guest', balance: 0, roomTypeIds: [], roomIds: [], roomNames: [] }], pageNumber: 1, pageSize: 1, total: 3, hasMore: true })
     const url = new URL(fetcher.mock.calls[0]![0] as string)
     expect(url.origin).toBe('https://api.cloudbeds.com')
     expect(url.searchParams.get('propertyID')).toBe('1234')
     expect(url.searchParams.get('includeGuestsDetails')).toBeNull()
+    expect(url.searchParams.get('includeAllRooms')).toBe('true')
     expect(url.searchParams.get('pageSize')).toBe('1')
   })
 
