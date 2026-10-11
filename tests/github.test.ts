@@ -1234,3 +1234,44 @@ describe('github adapter', () => {
     })
   })
 })
+
+
+describe('GitHub knowledge ref resolution', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it.each(['HEAD', 'main', 'v1.2.3', 'feature/source-import', 'a'.repeat(40)])('resolves %s through the repository commit endpoint', async ref => {
+    const body = { sha: 'a'.repeat(40), commit: { tree: { sha: 'b'.repeat(40) } } }
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(body))
+    vi.stubGlobal('fetch', fetch)
+    const result = await githubConnector.executeRead!({ source: source(), capabilityName: 'repos.getCommit', args: { owner: 'tangle-network', repo: 'docs', ref }, idempotencyKey: 'read' })
+    expect(result.data).toEqual(body)
+    expect(String(fetch.mock.calls[0]![0])).toBe(`https://api.github.com/repos/tangle-network/docs/commits/${encodeURIComponent(ref)}`)
+    expect(fetch.mock.calls[0]![1].redirect).toBe('error')
+    expect(fetch.mock.calls[0]![1].headers.authorization).toBe('Bearer ghp_test')
+  })
+  it('rejects oversized commit responses before decoding', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { headers: { 'content-length': String(9 * 1024 * 1024) } })))
+    await expect(githubConnector.executeRead!({ source: source(), capabilityName: 'repos.getCommit', args: { owner: 'org', repo: 'docs', ref: 'HEAD' }, idempotencyKey: 'read' })).rejects.toThrow('byte limit')
+  })
+  it('does not silently follow moved repository redirects', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 301, headers: { location: 'https://other.example/commit' } }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(githubConnector.executeRead!({ source: source(), capabilityName: 'repos.getCommit', args: { owner: 'org', repo: 'docs', ref: 'HEAD' }, idempotencyKey: 'read' })).rejects.toThrow('HTTP 301')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+describe('GitHub immutable source fetch transport', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it.each([
+    ['git.getTree', { owner: 'org', repo: 'docs', tree_sha: 'a'.repeat(40), recursive: '1' }, 8],
+    ['git.getBlob', { owner: 'org', repo: 'docs', file_sha: 'b'.repeat(40) }, 32],
+  ])('%s rejects redirects and bounds response bytes', async (capabilityName, args, maximum) => {
+    const fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ sha: 'a'.repeat(40) })).mockResolvedValueOnce(new Response('{}', { headers: { 'content-length': String((Number(maximum) + 1) * 1024 * 1024) } }))
+    vi.stubGlobal('fetch', fetch)
+    const inv = { source: source(), capabilityName: String(capabilityName), args: args as Record<string, unknown>, idempotencyKey: 'read' }
+    await githubConnector.executeRead!(inv)
+    expect(fetch.mock.calls[0]![1].redirect).toBe('error')
+    await expect(githubConnector.executeRead!(inv)).rejects.toThrow('byte limit')
+  })
+})

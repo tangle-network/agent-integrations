@@ -37,7 +37,10 @@ export const pineconeConnector = declarativeRestConnector({
   },
   category: 'other',
   defaultConsistencyModel: 'authoritative',
-  baseUrl: { metadataKey: 'indexHost', fallback: 'https://api.pinecone.io' },
+  baseUrl: 'https://api.pinecone.io',
+  allowedBaseUrls: ['https://api.pinecone.io'],
+  allowedBaseUrlSuffixes: ['.pinecone.io'],
+  requirePublicHttpsBaseUrl: true,
   credentialPlacement: { kind: 'header', header: 'Api-Key' },
   defaultHeaders: {
     'X-Pinecone-API-Version': PINECONE_API_VERSION,
@@ -185,8 +188,8 @@ export const pineconeConnector = declarativeRestConnector({
 
     // ─── Data plane: vectors ──────────────────────────────────────────
     // Every capability below requires metadata.indexHost to be set on the
-    // DataSource — otherwise the request lands on api.pinecone.io and the
-    // control plane returns 404.
+    // DataSource. Without it, the
+    // adapter refuses the missing data-plane endpoint before sending a request.
     {
       name: 'vectors.upsert',
       class: 'mutation',
@@ -213,6 +216,8 @@ export const pineconeConnector = declarativeRestConnector({
         required: ['vectors'],
       },
       request: {
+        baseUrl: { metadataKey: 'indexHost' },
+        redirect: 'error',
         method: 'POST',
         path: '/vectors/upsert',
         body: { vectors: '{vectors}', namespace: '{namespace}' },
@@ -241,7 +246,7 @@ export const pineconeConnector = declarativeRestConnector({
         },
         required: ['top_k'],
       },
-      request: { method: 'POST', path: '/query', body: 'args' },
+      request: { baseUrl: { metadataKey: 'indexHost' }, redirect: 'error', method: 'POST', path: '/query', body: 'args' },
     },
     {
       name: 'vectors.fetch',
@@ -256,6 +261,8 @@ export const pineconeConnector = declarativeRestConnector({
         required: ['ids'],
       },
       request: {
+        baseUrl: { metadataKey: 'indexHost' },
+        redirect: 'error',
         method: 'GET',
         path: '/vectors/fetch',
         // Pinecone wants ids as repeated `ids=` params; the declarative-rest
@@ -279,7 +286,7 @@ export const pineconeConnector = declarativeRestConnector({
         },
         required: ['id'],
       },
-      request: { method: 'POST', path: '/vectors/update', body: 'args' },
+      request: { baseUrl: { metadataKey: 'indexHost' }, redirect: 'error', method: 'POST', path: '/vectors/update', body: 'args' },
       cas: 'native-idempotency',
       externalEffect: true,
     },
@@ -297,7 +304,7 @@ export const pineconeConnector = declarativeRestConnector({
           filter: { type: 'object' },
         },
       },
-      request: { method: 'POST', path: '/vectors/delete', body: 'args' },
+      request: { baseUrl: { metadataKey: 'indexHost' }, redirect: 'error', method: 'POST', path: '/vectors/delete', body: 'args' },
       cas: 'native-idempotency',
       externalEffect: true,
     },
@@ -316,6 +323,8 @@ export const pineconeConnector = declarativeRestConnector({
         },
       },
       request: {
+        baseUrl: { metadataKey: 'indexHost' },
+        redirect: 'error',
         method: 'GET',
         path: '/vectors/list',
         query: {
@@ -334,7 +343,7 @@ export const pineconeConnector = declarativeRestConnector({
         type: 'object',
         properties: { filter: { type: 'object' } },
       },
-      request: { method: 'POST', path: '/describe_index_stats', body: 'args' },
+      request: { baseUrl: { metadataKey: 'indexHost' }, redirect: 'error', method: 'POST', path: '/describe_index_stats', body: 'args' },
     },
 
     // ─── Assistants (Pinecone Assistant API) ──────────────────────────

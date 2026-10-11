@@ -455,6 +455,26 @@ const githubSpec: RestConnectorSpec = {
       ],
     },
     {
+      name: 'repos.getCommit',
+      class: 'read',
+      description: 'Resolve a branch, tag, HEAD or commit SHA to an immutable repository commit. Returns sha and commit.tree.sha; use the tree SHA for a consistent source snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          ref: { type: 'string', minLength: 1, description: 'Branch, tag, HEAD, or commit SHA. Slash-containing branch names are supported.' },
+        },
+        required: ['owner', 'repo', 'ref'],
+      },
+      request: {
+        method: 'GET',
+        path: '/repos/{owner}/{repo}/commits/{ref}',
+        redirect: 'error',
+        maxResponseBytes: 8 * 1024 * 1024,
+      },
+    },
+    {
       name: 'git.getCommit',
       class: 'read',
       description:
@@ -485,7 +505,7 @@ const githubSpec: RestConnectorSpec = {
         },
         required: ['owner', 'repo', 'tree_sha'],
       },
-      request: {
+      request: { redirect: 'error', maxResponseBytes: 8 * 1024 * 1024,
         method: 'GET',
         path: '/repos/{owner}/{repo}/git/trees/{tree_sha}',
         query: { recursive: '{recursive}' },
@@ -504,7 +524,7 @@ const githubSpec: RestConnectorSpec = {
         },
         required: ['owner', 'repo', 'file_sha'],
       },
-      request: { method: 'GET', path: '/repos/{owner}/{repo}/git/blobs/{file_sha}' },
+      request: { redirect: 'error', maxResponseBytes: 32 * 1024 * 1024, method: 'GET', path: '/repos/{owner}/{repo}/git/blobs/{file_sha}' },
     },
     {
       name: 'git.createTree',
