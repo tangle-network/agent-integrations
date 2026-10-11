@@ -3,7 +3,7 @@ import { declarativeRestConnector } from './declarative-rest.js'
 
 const base = declarativeRestConnector({
   kind: 'whatsapp',
-  displayName: 'WhatsApp Cloud API (access token)',
+  displayName: 'WhatsApp (Tangle number)',
   description: 'Send messages, media, and templates via WhatsApp Business API.',
   auth: {
     kind: 'api-key',
