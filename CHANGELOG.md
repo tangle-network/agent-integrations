@@ -2,9 +2,10 @@
 
 ## 0.74.1
 
-- fix(github): bound immutable source tree and blob reads
-- fix(pinecone): separate index control and vector data endpoints
-- resolve: manifest conflict (regenerate after rebase)
+- fix(github): resolve source refs to immutable commit/tree SHAs and bound commit, tree, and blob responses while rejecting redirects.
+- fix(s3): support bucket/prefix ListObjectsV2 pagination and exact binary or versioned object reads; bound response sizes and reject malformed/entity XML, unsafe key paths, and redirects.
+- fix(qdrant): bound responses and reject redirects on Knowledge-used collection and point operations.
+- fix(pinecone): separate index management control-plane calls from vector data-plane calls and require the configured index host for vector operations.
 
 ## 0.74.0
 
