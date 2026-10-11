@@ -55,7 +55,7 @@ export function whatsappBusiness(opts: WhatsappBusinessOptions): ConnectorAdapte
   const adapter: ConnectorAdapter = {
     manifest: {
       kind: 'whatsapp-business',
-      displayName: 'WhatsApp Business',
+      displayName: 'WhatsApp Business (your own number)',
       description:
         'Send text and template messages from a verified WhatsApp Business number, and read your approved message templates. Advisory surface — WhatsApp sends are append-only.',
       auth: {
