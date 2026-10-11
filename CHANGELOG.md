@@ -6,6 +6,7 @@
 - fix(s3): support bucket/prefix ListObjectsV2 pagination and exact binary or versioned object reads; bound response sizes and reject malformed/entity XML, unsafe key paths, and redirects.
 - fix(qdrant): bound responses and reject redirects on Knowledge-used collection and point operations.
 - fix(pinecone): separate index management control-plane calls from vector data-plane calls and require the configured index host for vector operations.
+- fix(whatsapp): title the catalog connectors by who owns the number: whatsapp is "WhatsApp (Tangle number)" and whatsapp-business is "WhatsApp Business (your own number)".
 
 ## 0.74.0
 
