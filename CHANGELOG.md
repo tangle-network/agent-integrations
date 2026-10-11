@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.74.1
+
+- fix(github): bound immutable source tree and blob reads
+- fix(pinecone): separate index control and vector data endpoints
+- resolve: manifest conflict (regenerate after rebase)
+
 ## 0.74.0
 
 - feat(cloudbeds): property-pinned PMS reads, housekeeping, rates, and reservation webhooks
