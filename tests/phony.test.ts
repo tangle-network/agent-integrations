@@ -476,7 +476,7 @@ describe('phony agent language', () => {
     const capability = phonyConnector.manifest.capabilities.find(capability => capability.name === capabilityName)
     expect(capability?.parameters.required).toEqual(['name', 'language'])
     expect((capability?.parameters.properties as Record<string, { description?: string }>).language.description)
-      .toContain('the language the people on these calls speak')
+      .toContain('The language the people on these calls speak')
     const update = phonyConnector.manifest.capabilities.find(capability => capability.name === 'update_agent')
     expect(update?.parameters.required ?? []).not.toContain('language')
   })
