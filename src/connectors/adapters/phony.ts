@@ -249,7 +249,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'create_agent',
         class: 'mutation',
         description:
-          'Create a voice agent on your ph0ny developer account. Only name is required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
+          'Create a voice agent on your ph0ny developer account. name and language are required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
         cas: 'none',
         externalEffect: true,
         parameters: {
@@ -275,7 +275,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             collectionId: { type: 'string', description: 'Deprecated — KB collection id to attach. Prefer libraryId.' },
             styleProfile: { type: 'object', description: 'Optional style profile object.' },
             promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
-            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
+            language: {
+              type: 'string',
+              description:
+                'The language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient\'s saved language or the business default. ph0ny refuses a greeting, prompt or voice in another language and picks a native voice when voiceId is omitted.',
+            },
             temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
             maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
             contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
@@ -286,7 +290,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             },
             metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
           },
-          required: ['name'],
+          required: ['name', 'language'],
         },
       },
       {
@@ -319,7 +323,11 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
             collectionId: { type: 'string', description: 'Existing KB collection id to attach instead of creating one.' },
             styleProfile: { type: 'object', description: 'Optional style profile object.' },
             promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
-            language: { type: 'string', description: 'BCP-47 language code; defaults to "en".' },
+            language: {
+              type: 'string',
+              description:
+                'The language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient\'s saved language or the business default. ph0ny refuses a greeting, prompt or voice in another language and picks a native voice when voiceId is omitted.',
+            },
             temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
             maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
             contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
@@ -353,7 +361,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
               },
             },
           },
-          required: ['name'],
+          required: ['name', 'language'],
         },
       },
       {
@@ -785,6 +793,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       }
     }
     if (inv.capabilityName === 'create_agent') {
+      requireAgentLanguage(inv.args, 'create_agent')
       const payload = pick(inv.args as Record<string, unknown>, AGENT_FIELDS)
       const json = await ph0ny<Record<string, unknown>>(
         inv.source.id,
@@ -800,6 +809,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       }
     }
     if (inv.capabilityName === 'provision_agent') {
+      requireAgentLanguage(inv.args, 'provision_agent')
       const args = inv.args as Record<string, unknown>
       const payload = pick(args, AGENT_FIELDS)
       if (args.collection !== undefined) payload.collection = args.collection
@@ -1132,6 +1142,16 @@ function validateCloneArgs(args: Record<string, unknown>): Record<string, unknow
     throw new Error('phony clone_voice consent.statement must quote the speaker consenting to the clone')
   }
   return pick(args, ['name', 'sampleUrls', 'language', 'description', 'consent'])
+}
+
+/** A new agent's language is decided by the caller, never defaulted to English. */
+function requireAgentLanguage(args: unknown, capability: string): void {
+  const language = isRecord(args) ? args.language : undefined
+  if (typeof language !== 'string' || !/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(language)) {
+    throw new Error(
+      `phony ${capability} requires language: the language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient's saved language or the business default`,
+    )
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

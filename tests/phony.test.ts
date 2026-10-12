@@ -410,12 +410,12 @@ describe('phony outbound agent provisioning', () => {
     await phonyConnector.executeMutation!({
       source: source(),
       capabilityName,
-      args: { name: 'Router voice', agentKind: 'personal_assistant' },
+      args: { name: 'Router voice', agentKind: 'personal_assistant', language: 'en' },
       idempotencyKey: `voice-kind-${capabilityName}`,
     })
     expect(captured.method).toBe('POST')
     expect(captured.url).toBe(`https://api.ph0ny.com${route}`)
-    expect(captured.body).toEqual({ name: 'Router voice', agentKind: 'personal_assistant' })
+    expect(captured.body).toEqual({ name: 'Router voice', agentKind: 'personal_assistant', language: 'en' })
   })
 })
 
@@ -429,6 +429,7 @@ describe('phony create_agent', () => {
       capabilityName: 'create_agent',
       args: {
         name: 'Booker',
+        language: 'en-US',
         systemPrompt: 'Book reservations politely.',
         llmProvider: 'openai',
         temperature: 0.4,
@@ -444,6 +445,7 @@ describe('phony create_agent', () => {
     expect(cap.headers?.['content-type']).toBe('application/json')
     expect(cap.body).toEqual({
       name: 'Booker',
+      language: 'en-US',
       systemPrompt: 'Book reservations politely.',
       llmProvider: 'openai',
       temperature: 0.4,
@@ -460,10 +462,39 @@ describe('phony create_agent', () => {
       phonyConnector.executeMutation!({
         source: source(),
         capabilityName: 'create_agent',
-        args: { name: 'X' },
+        args: { name: 'X', language: 'en' },
         idempotencyKey: 'create-401',
       }),
     ).rejects.toMatchObject({ name: 'CredentialsExpired' })
+  })
+})
+
+describe('phony agent language', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each(['create_agent', 'provision_agent'])('%s requires language and keeps update_agent partial', (capabilityName) => {
+    const capability = phonyConnector.manifest.capabilities.find(capability => capability.name === capabilityName)
+    expect(capability?.parameters.required).toEqual(['name', 'language'])
+    expect((capability?.parameters.properties as Record<string, { description?: string }>).language.description)
+      .toContain('The language the people on these calls speak')
+    const update = phonyConnector.manifest.capabilities.find(capability => capability.name === 'update_agent')
+    expect(update?.parameters.required ?? []).not.toContain('language')
+  })
+
+  it.each([
+    ['create_agent', {}],
+    ['provision_agent', { language: '' }],
+    ['create_agent', { language: 'Spanish' }],
+  ])('%s refuses %j before calling ph0ny', async (capabilityName, extra) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(phonyConnector.executeMutation!({
+      source: source(),
+      capabilityName,
+      args: { name: 'Casa Luna', firstMessage: '¡Hola! ¿En qué puedo ayudarle?', ...extra },
+      idempotencyKey: `lang-${capabilityName}`,
+    })).rejects.toThrow(/requires language/)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 
@@ -486,6 +517,7 @@ describe('phony provision_agent', () => {
       capabilityName: 'provision_agent',
       args: {
         name: 'Concierge',
+        language: 'es-CR',
         collection: { name: 'FAQ', description: 'House rules' },
         initialContent: [{ content: 'Check-in is 3pm.', contentType: 'text' }],
       },
@@ -496,6 +528,7 @@ describe('phony provision_agent', () => {
     expect(cap.headers?.authorization).toBe(BEARER)
     expect(cap.body).toEqual({
       name: 'Concierge',
+      language: 'es-CR',
       collection: { name: 'FAQ', description: 'House rules' },
       initialContent: [{ content: 'Check-in is 3pm.', contentType: 'text' }],
     })
