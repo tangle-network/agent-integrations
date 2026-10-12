@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.75.0
+
+- fix(phony): require the agent language on create_agent and provision_agent (#403)
+- feat(neon): serverless Postgres management adapter
+
 ## 0.74.1
 
 - fix(github): resolve source refs to immutable commit/tree SHAs and bound commit, tree, and blob responses while rejecting redirects.
