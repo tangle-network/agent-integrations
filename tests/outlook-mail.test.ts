@@ -100,10 +100,23 @@ describe('outlook-mail adapter', () => {
     expect(observed!.headers.get('consistencylevel')).toBe('eventual')
   })
 
-  it('read_message expands attachments and filters inline parts', async () => {
+  it('read_message expands attachments, filters inline parts and returns the security-mail header', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      expect(String(input)).toContain('$expand=attachments')
+      const url = new URL(String(input))
+      expect(url.searchParams.get('$expand')).toContain('attachments')
+      // Graph returns internetMessageHeaders only when $select names it, and
+      // then returns only the selected fields.
+      const selected = new Set(url.searchParams.get('$select')?.split(',') ?? [])
+      expect([...selected]).toEqual(
+        expect.arrayContaining(['id', 'from', 'body', 'internetMessageHeaders']),
+      )
       return jsonResponse({
+        internetMessageHeaders: selected.has('internetMessageHeaders')
+          ? [
+              { name: 'Received', value: 'from mx.example' },
+              { name: 'X-Tangle-Security-Mail', value: '1' },
+            ]
+          : undefined,
         id: 'msg1',
         conversationId: 'conv1',
         subject: 'Hi',
@@ -128,7 +141,9 @@ describe('outlook-mail adapter', () => {
     const data = result.data as {
       body: { contentType: string; content: string }
       attachments: Array<{ id: string; name: string }>
+      tangleSecurityMail?: string
     }
+    expect(data.tangleSecurityMail).toBe('1')
     expect(data.body.contentType).toBe('html')
     expect(data.body.content).toBe('<p>hello</p>')
     expect(data.attachments).toHaveLength(1)
