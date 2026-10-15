@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- feat(gmail, outlook-mail): list_messages (Gmail) and read_message (Gmail and Outlook) return `tangleSecurityMail`, the `X-Tangle-Security-Mail` header Tangle Platform sets on its security mail, so Platform withholds that mail even when a forwarder rewrites its From.
+
 ## 0.75.0
 
 - fix(phony): require the agent language on create_agent and provision_agent (#403)

@@ -46,6 +46,8 @@ describe('gmail adapter', () => {
         return jsonResponse({ messages: [{ id: 'm1', threadId: 't1' }], nextPageToken: 'next' })
       }
       if (url.includes('/messages/m1?format=metadata')) {
+        // Gmail's metadata format returns only the headers the request names.
+        const named = new Set(new URL(url).searchParams.getAll('metadataHeaders'))
         return jsonResponse({
           id: 'm1',
           threadId: 't1',
@@ -58,7 +60,8 @@ describe('gmail adapter', () => {
               { name: 'To', value: 'c@d.com' },
               { name: 'Subject', value: 'Hello' },
               { name: 'Date', value: 'Wed, 1 Jan 2025 00:00:00 +0000' },
-            ],
+              { name: 'X-Tangle-Security-Mail', value: '1' },
+            ].filter((h) => named.has(h.name)),
           },
         })
       }
@@ -75,7 +78,11 @@ describe('gmail adapter', () => {
     const data = result.data as { messages: Array<{ from?: string; subject?: string }>; nextPageToken?: string }
     expect(data.nextPageToken).toBe('next')
     expect(data.messages).toHaveLength(1)
-    expect(data.messages[0]).toMatchObject({ from: 'a@b.com', subject: 'Hello' })
+    expect(data.messages[0]).toMatchObject({
+      from: 'a@b.com',
+      subject: 'Hello',
+      tangleSecurityMail: '1',
+    })
   })
 
   it('read_message parses text+html bodies and attachment manifest', async () => {
@@ -90,6 +97,7 @@ describe('gmail adapter', () => {
           headers: [
             { name: 'From', value: 'a@b.com' },
             { name: 'Subject', value: 'Hi' },
+            { name: 'x-tangle-security-mail', value: '1' },
           ],
           parts: [
             { mimeType: 'text/plain', body: { data: textBase64, size: 10 } },
@@ -107,7 +115,12 @@ describe('gmail adapter', () => {
       args: { id: 'm1' },
       idempotencyKey: 'k1',
     })
-    const data = result.data as { body: { text?: string; html?: string }; attachments: Array<{ filename: string }> }
+    const data = result.data as {
+      body: { text?: string; html?: string }
+      attachments: Array<{ filename: string }>
+      tangleSecurityMail?: string
+    }
+    expect(data.tangleSecurityMail).toBe('1')
     expect(data.body.text).toBe('plain body')
     expect(data.body.html).toBe('<p>html body</p>')
     expect(data.attachments).toHaveLength(1)

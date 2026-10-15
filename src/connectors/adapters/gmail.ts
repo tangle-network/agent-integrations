@@ -5,13 +5,13 @@
  * replies, and watches a label" without exposing all of Gmail's surface:
  *
  *   list_messages(labelIds?, query?, maxResults?)
- *     → {messages: [{id, threadId, snippet, internalDate, from, to, subject, labelIds}], nextPageToken?}
+ *     → {messages: [{id, threadId, snippet, internalDate, from, to, subject, labelIds, tangleSecurityMail?}], nextPageToken?}
  *     Read. `users.messages.list` + a parallel `users.messages.get` for
  *     each id with `format=metadata` so the agent gets actionable header
  *     fields, not just ids.
  *
  *   read_message(id, format?)
- *     → {id, threadId, from, to, subject, internalDate, body: {text?, html?}, attachments: [{filename, mimeType, attachmentId}]}
+ *     → {id, threadId, from, to, subject, internalDate, body: {text?, html?}, attachments: [{filename, mimeType, attachmentId}], tangleSecurityMail?}
  *     Read. `users.messages.get?format=full` then a small MIME walker that
  *     extracts `text/plain` + `text/html` + a flat attachment manifest.
  *     Attachment bodies are NOT inlined (could be huge) — the caller can
@@ -47,6 +47,11 @@
  *     forces re-registration every 7 days; we surface the upstream
  *     `expiration` so the caller can schedule a refresh.
  *
+ * Both reads return `tangleSecurityMail`, the value of the
+ * `X-Tangle-Security-Mail` header Tangle Platform sets on mail whose link or
+ * code acts on an account, so Platform can withhold that mail even when a
+ * forwarder has rewritten its From.
+ *
  * Auth: OAuth2 with `gmail.readonly` (list/read), `gmail.send` (send,
  * send_reply), `gmail.modify` (watch). Caller toggles which to include
  * via the `scopes` option.
@@ -72,6 +77,8 @@ const SCOPE_MODIFY = 'https://www.googleapis.com/auth/gmail.modify'
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me'
+/** Set by Tangle Platform on its security mail; see the module comment. */
+const SECURITY_MAIL_HEADER = 'X-Tangle-Security-Mail'
 
 export interface GmailOptions {
   clientId: string
@@ -322,7 +329,7 @@ async function listMessages(
   const ids = listJson.messages ?? []
   const metas = await Promise.all(
     ids.map(async ({ id }) => {
-      const res = await fetch(`${API}/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`, {
+      const res = await fetch(`${API}/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=${SECURITY_MAIL_HEADER}`, {
         headers: { authorization: `Bearer ${accessToken}` },
         signal: AbortSignal.timeout(timeoutMs),
       })
@@ -349,6 +356,7 @@ function toMessageSummary(meta: MessageMetadata): Record<string, unknown> {
     to: headers.get('to'),
     subject: headers.get('subject'),
     date: headers.get('date'),
+    tangleSecurityMail: headers.get(SECURITY_MAIL_HEADER.toLowerCase()),
   }
 }
 
@@ -403,6 +411,7 @@ async function readMessage(
       date: headers.get('date'),
       body,
       attachments,
+      tangleSecurityMail: headers.get(SECURITY_MAIL_HEADER.toLowerCase()),
     },
     fetchedAt: Date.now(),
   }

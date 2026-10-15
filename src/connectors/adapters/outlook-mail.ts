@@ -13,8 +13,12 @@
  *   read_message(id)
  *     → {id, conversationId, subject, from, toRecipients, ccRecipients,
  *        receivedDateTime, body: {contentType, content}, attachments:
- *        [{id, name, contentType, size}]}
- *     Read. `GET /me/messages/{id}?$expand=attachments($select=id,name,...)`.
+ *        [{id, name, contentType, size}], tangleSecurityMail?}
+ *     Read. `GET /me/messages/{id}?$select=...,internetMessageHeaders&$expand=attachments($select=id,name,...)`.
+ *     `tangleSecurityMail` is the value of the `X-Tangle-Security-Mail`
+ *     header Tangle Platform sets on mail whose link or code acts on an
+ *     account, so Platform can withhold that mail even when a forwarder has
+ *     rewritten its From.
  *     Attachment bytes are NOT inlined — caller follows up with
  *     `/me/messages/{id}/attachments/{id}/$value` if needed.
  *
@@ -64,6 +68,8 @@ const SCOPE_OFFLINE = 'offline_access'
 const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 const API = 'https://graph.microsoft.com/v1.0'
+/** Set by Tangle Platform on its security mail; see read_message above. */
+const SECURITY_MAIL_HEADER = 'x-tangle-security-mail'
 
 export interface OutlookMailOptions {
   clientId: string
@@ -455,6 +461,7 @@ interface GraphMessage {
   ccRecipients?: GraphRecipient[]
   body?: { contentType?: 'text' | 'html'; content?: string }
   internetMessageId?: string
+  internetMessageHeaders?: Array<{ name?: string; value?: string }>
   attachments?: Array<{
     id: string
     name?: string
@@ -533,7 +540,9 @@ async function readMessage(
   timeoutMs: number,
 ): Promise<CapabilityReadResult> {
   const { id } = inv.args as { id: string }
-  const url = `${API}/me/messages/${encodeURIComponent(id)}?$expand=attachments($select=id,name,contentType,size,isInline)`
+  // Graph returns internetMessageHeaders only when $select names it, so the
+  // select lists every field the result below reads.
+  const url = `${API}/me/messages/${encodeURIComponent(id)}?$select=id,conversationId,subject,receivedDateTime,from,toRecipients,ccRecipients,body,internetMessageHeaders&$expand=attachments($select=id,name,contentType,size,isInline)`
   const res = await fetch(url, {
     headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(timeoutMs),
@@ -571,6 +580,9 @@ async function readMessage(
           contentType: a.contentType ?? 'application/octet-stream',
           size: a.size ?? 0,
         })),
+      tangleSecurityMail: m.internetMessageHeaders?.find(
+        (h) => h.name?.toLowerCase() === SECURITY_MAIL_HEADER,
+      )?.value,
     },
     fetchedAt: Date.now(),
   }
