@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.75.1
+
+- Return the X-Tangle-Security-Mail header from Gmail and Outlook reads (#406)
+
 ## Unreleased
 
 - feat(gmail, outlook-mail): list_messages (Gmail) and read_message (Gmail and Outlook) return `tangleSecurityMail`, the `X-Tangle-Security-Mail` header Tangle Platform sets on its security mail, so Platform withholds that mail even when a forwarder rewrites its From.
