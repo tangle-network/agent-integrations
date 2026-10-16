@@ -71,6 +71,23 @@ try {
     runtimePath: join(packageDirectory, 'dist/internal/bundled-manifest-runtime.js'),
   })
 
+  const { manifestToConnector } = await import(pathToFileURL(join(packageDirectory, 'dist/index.js')).href)
+  const { gmail } = await import(pathToFileURL(join(packageDirectory, 'dist/connectors/adapters/index.js')).href)
+  const bundledGmail = JSON.parse(readFileSync(join(packageDirectory, 'data/bundled-adapter-manifests.json'), 'utf8'))
+    .find((manifest) => manifest.kind === 'gmail')
+  for (const adapter of [gmail({ clientId: 'artifact-check', clientSecret: 'artifact-check' }), { manifest: bundledGmail }]) {
+    const connector = manifestToConnector('first-party', adapter)
+    for (const [id, risk, approvalRequired] of [
+      ['list_messages', 'read', false], ['read_message', 'read', false],
+      ['send', 'destructive', true], ['send_reply', 'destructive', true], ['watch_label', 'write', true],
+    ]) {
+      const action = connector.actions.find((action) => action.id === id)
+      if (action?.risk !== risk || action?.approvalRequired !== approvalRequired) {
+        throw new Error(`Packed Gmail catalog has incorrect risk or approval requirement for ${id}.`)
+      }
+    }
+  }
+
   const workerModule = await import(pathToFileURL(join(packageDirectory, 'dist/worker.js')).href)
   if (typeof workerModule.createIntegrationAuditEvent !== 'function') {
     throw new Error('Release artifact worker entry point did not load.')

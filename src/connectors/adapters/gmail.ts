@@ -200,7 +200,8 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
           description:
             "Register a Cloud Pub/Sub topic to receive push notifications when a label changes. Returns the upstream historyId + expiration. Re-issue every 7 days.",
           cas: 'native-idempotency',
-          externalEffect: true,
+          // Configures the caller-owned notification subscription; no mailbox content changes.
+          externalEffect: false,
           requiredScopes: [SCOPE_MODIFY],
           parameters: {
             type: 'object',
