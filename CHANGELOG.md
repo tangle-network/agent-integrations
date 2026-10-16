@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.75.2
+
+- fix(gmail): classify label watches as configuration writes (#409)
+
 ## 0.75.1
 
 - Return the X-Tangle-Security-Mail header from Gmail and Outlook reads (#406)
