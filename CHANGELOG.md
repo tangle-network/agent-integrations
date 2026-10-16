@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.75.3
+
+- fix(rest): render JSON body field names as data (#411)
+
 ## 0.75.2
 
 - fix(gmail): classify label watches as configuration writes (#409)
