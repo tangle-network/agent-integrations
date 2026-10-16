@@ -1075,8 +1075,11 @@ function renderObject(
   args: Record<string, unknown>,
   requiredArgs?: readonly string[],
 ): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(input)) {
+  // Dynamic JSON labels are data, including names such as __proto__.
+  const out: Record<string, unknown> = Object.create(null)
+  for (const [templateKey, value] of Object.entries(input)) {
+    const key = templateKey.replace(/\{([a-zA-Z0-9_.-]+)\}/g,
+      (_match, path: string) => String(readRequiredPath(args, path)))
     // A body field whose value is exactly `{placeholder}` is OPTIONAL unless the
     // placeholder is named in the capability's JSON-Schema `required` list:
     //   required → throw on absence (fail fast, preserves existing behavior),
