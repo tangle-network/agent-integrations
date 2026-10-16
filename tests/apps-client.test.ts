@@ -1,3 +1,5 @@
+import { createServer } from 'node:http'
+import { once } from 'node:events'
 import { describe, expect, it, vi } from 'vitest'
 import { TangleAppsClient, requireBrokerGrantReceipt, createTangleAppsClient } from '../src/apps'
 import { IntegrationRuntimeError } from '../src/errors'
@@ -15,6 +17,91 @@ function mockFetch(handler: (url: string, init?: RequestInit) => Response | Prom
 }
 
 describe('TangleAppsClient', () => {
+  it('lists the Platform array over HTTP using the configured endpoint and owner bearer', async () => {
+    const apps = [{
+      id: 'app_1', clientId: 'appcid_x', oauthClientId: null, name: 'insurance-agent',
+      redirectUris: ['https://insurance.tangle.tools/cb'], allowedScopes: ['gmail.messages_read'],
+      homepageUrl: null, accessPayer: 'user', status: 'active',
+      createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z',
+    }]
+    const requests: { path?: string; method?: string; authorization?: string }[] = []
+    const server = createServer((request, response) => {
+      requests.push({ path: request.url, method: request.method, authorization: request.headers.authorization })
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ success: true, data: apps }))
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    try {
+      const address = server.address()
+      if (!address || typeof address === 'string') throw new Error('Expected a TCP server')
+      const client = createTangleAppsClient({ endpoint: `http://127.0.0.1:${address.port}/platform/` })
+      await expect(client.listApps('sk-tan-owner')).resolves.toEqual(apps)
+      expect(requests).toEqual([{
+        path: '/platform/v1/apps', method: 'GET', authorization: 'Bearer sk-tan-owner',
+      }])
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    }
+  })
+
+  it('returns an empty list only when Platform returns an empty array', async () => {
+    const fetchImpl = mockFetch(() => jsonResponse({ success: true, data: [] }))
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+    await expect(client.listApps('session-owner')).resolves.toEqual([])
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['missing data', { success: true }],
+    ['null data', { success: true, data: null }],
+    ['object data', { success: true, data: {} }],
+    ['nested apps', { success: true, data: { apps: [] } }],
+    ['string data', { success: true, data: 'not an array' }],
+  ])('rejects a malformed list response with %s', async (_label, response) => {
+    const fetchImpl = mockFetch(() => jsonResponse(response))
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+    await expect(client.listApps('sk-tan-owner')).rejects.toMatchObject({
+      code: 'input_invalid', status: 502, metadata: { path: '/v1/apps' },
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects invalid JSON instead of returning an empty list', async () => {
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl: mockFetch(() =>
+      new Response('not JSON', { status: 200, headers: { 'content-type': 'application/json' } }),
+    ) })
+    await expect(client.listApps('sk-tan-owner')).rejects.toMatchObject({ code: 'input_invalid', status: 502 })
+  })
+
+  it('rejects non-2xx list responses even when they carry a success envelope', async () => {
+    const fetchImpl = mockFetch(() => jsonResponse({ success: true, data: [] }, 503))
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+    await expect(client.listApps('sk-tan-owner')).rejects.toMatchObject({
+      code: 'unknown', status: 503, metadata: { path: '/v1/apps' },
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains Platform errors on list requests', async () => {
+    const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl: mockFetch(() => jsonResponse({
+      success: false, error: { code: 'FORBIDDEN', message: 'Apps are not accessible' },
+    }, 403)) })
+    await expect(client.listApps('sk-tan-owner')).rejects.toMatchObject({
+      code: 'unknown', status: 403, message: 'Apps are not accessible',
+      metadata: { platformCode: 'FORBIDDEN', path: '/v1/apps' },
+    })
+  })
+
+  it.each(['', '  ', 'sk-router-owner', 'sk-tan-', 'sk-tan-broker-owner'])(
+    'rejects invalid owner bearer %j before listing', async ownerBearer => {
+      const fetchImpl = mockFetch(() => jsonResponse({ success: true, data: [] }))
+      const client = new TangleAppsClient({ endpoint: ENDPOINT, fetchImpl })
+      await expect(client.listApps(ownerBearer)).rejects.toMatchObject({ code: 'input_invalid', status: 400 })
+      expect(fetchImpl).not.toHaveBeenCalled()
+    },
+  )
+
   it('registerApp posts to /v1/apps with the owner bearer and returns the once-shown secret', async () => {
     let captured: { url: string; init?: RequestInit } | undefined
     const client = createTangleAppsClient({

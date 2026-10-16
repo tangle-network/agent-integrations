@@ -127,8 +127,16 @@ export class TangleAppsClient {
   /** List the caller's registered apps (no secrets). */
   async listApps(ownerBearer: string): Promise<AppSummary[]> {
     assertOwnerBearer(ownerBearer)
-    const data = await this.request<{ apps: AppSummary[] }>('GET', '/v1/apps', undefined, ownerBearer)
-    return data.apps ?? []
+    const data = await this.request<AppSummary[]>('GET', '/v1/apps', undefined, ownerBearer)
+    if (!Array.isArray(data)) {
+      throw new IntegrationRuntimeError({
+        code: 'input_invalid',
+        status: 502,
+        message: 'Tangle apps returned an invalid app list',
+        metadata: { path: '/v1/apps' },
+      })
+    }
+    return data
   }
 
   /** Revoke an app and cascade-kill its grants + tokens. */
