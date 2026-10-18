@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.75.4
+
+- fix(apps): preserve the Platform app-list response (#405)
+
 ## 0.75.3
 
 - fix(rest): render JSON body field names as data (#411)
