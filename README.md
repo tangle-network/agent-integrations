@@ -448,15 +448,7 @@ without obscuring the package contract.
 
 ## Development
 
-```sh
-pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm run check:bundled-manifest-freshness
-pnpm pack
-pnpm run release
-```
+For package code changes, merge `origin/main` and run the canonical local gate (the launcher performs the frozen install): `beelink-gate auto https://github.com/tangle-network/agent-integrations.git <full-sha> -- bash -lc 'pnpm typecheck && pnpm run release && pnpm exec vitest run <touched-integration-files>'`. Supply the touched integration test files; the release command builds and verifies the packed artifact before those tests run. Workflow and documentation changes use YAML and content checks.
 
 `pnpm run release` builds the package, generates and checks bundled adapter
 metadata, packs one exact archive, and tests that archive without publishing.
@@ -470,18 +462,16 @@ The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
 ## Prepare a release
 
 Feature PRs must leave the package version and `CHANGELOG.md` unchanged.
-Feature checks compare against the common ancestor, so releases merged into `main` do not invalidate unchanged feature metadata.
 After features merge, run the **Prepare Release** workflow and choose a patch, minor, or major bump.
 The workflow uses Node and Git to open a `release/v<version>` PR from current `main`.
 It does not install dependencies or publish a package.
 
-Verification requires the branch version to match the next package version.
+Review that the release branch version matches the next package version.
 Only the package version and generated changelog entry may change in that PR.
 Existing changelog history must remain unchanged.
 The generated notes describe the `main` snapshot used by the preparation workflow.
 Before merging, compare the notes with the final release commits and update them if `main` advanced.
-Approve the generated PR's workflow runs if GitHub requests approval.
-Merge the release PR after its checks pass.
+Read all reviews and the local gate receipt before merging the release PR.
 
 After publication approval, tag the merged commit with `v<version>` to start the existing **Publish** workflow.
 Confirm that the published archive installs and its intended consumer flow works before reporting availability.
