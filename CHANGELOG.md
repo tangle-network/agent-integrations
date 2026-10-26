@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.76.0
+
+- ci: move PR verification to the local gate
+
 ## 0.75.4
 
 - fix(apps): preserve the Platform app-list response (#405)
