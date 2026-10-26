@@ -11,6 +11,7 @@ import { zendeskSellConnector } from '../src/connectors/adapters/zendesk-sell.js
 import { cloudbedsConnector } from '../src/connectors/adapters/cloudbeds.js'
 import { pricelabsConnector } from '../src/connectors/adapters/pricelabs.js'
 import { whatsappConnector } from '../src/connectors/adapters/whatsapp.js'
+import { workdayConnector } from '../src/connectors/adapters/workday.js'
 import { reddit } from '../src/connectors/adapters/reddit.js'
 import { twitter } from '../src/connectors/adapters/twitter.js'
 import { listBundledConnectorAdapters } from '../src/connectors/bundled-manifest-runtime.js'
@@ -89,7 +90,8 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
         response.statusCode = probeHealthy ? 200 : 503
         response.end('{}')
       } else if (request.method === 'POST') {
-        response.end(JSON.stringify({ access_token: 'issued-access', refresh_token: 'issued-refresh', expires_in: 3600 }))
+        response.end(JSON.stringify({ access_token: 'issued-access', refresh_token: 'issued-refresh', expires_in: 3600,
+          ...(body.get('code') === 'explicit-scope' ? { scope: 'read' } : {}) }))
       } else response.end(JSON.stringify({ user: { id: 42 }, data: [] }))
       if (body.get('code') === 'slow') finishSlow!()
     })
@@ -97,7 +99,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const port = (server.address() as { port: number }).port
     globalThis.fetch = (input, init) => {
       const url = new URL(String(input))
-      if (!['tenant.zendesk.com', 'api.twitter.com', 'api.x.com', 'api.sellsy.com', 'www.reddit.com', 'oauth.reddit.com'].includes(url.hostname)) throw new Error('External network forbidden')
+      if (!['tenant.zendesk.com', 'services1.myworkday.com', 'api.twitter.com', 'api.x.com', 'api.sellsy.com', 'www.reddit.com', 'oauth.reddit.com'].includes(url.hostname)) throw new Error('External network forbidden')
       const headers = new Headers(init?.headers)
       headers.set('x-provider-host', url.hostname)
       return realFetch(`http://127.0.0.1:${port}${url.pathname}${url.search}`, { ...init, headers })
@@ -182,6 +184,42 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const business = await configured.hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: ['read'], redirectUri, metadata: { subdomain: 'tenant' } })
     expect(new URL(business.authUrl).searchParams.get('config_id')).toBe('business-config')
     expect(new URL(business.authUrl).searchParams.has('scope')).toBe(false)
+    expect(business.requestedScopes).toEqual([])
+    expect(JSON.parse(String(db.prepare('SELECT record FROM states WHERE id=?').get(business.state)!.record)).requestedScopes).toEqual([])
+    const configuredConnection = await configured.hub.completeAuth('first-party', {
+      connectorId: 'zendesk', owner, code: 'configured', state: business.state, redirectUri, requestedScopes: ['read', 'write'],
+    })
+    expect(configuredConnection.grantedScopes).toEqual([])
+    expect((await connections.get(configuredConnection.id))?.grantedScopes).toEqual([])
+    await expect(configured.hub.issueCapability({ connectionId: configuredConnection.id, subject: owner,
+      scopes: ['read'], allowedActions: ['tickets.list'], ttlMs: 1000 })).rejects.toMatchObject({ code: 'scope_denied' })
+    // Platform also completes host-authorized states created before this fix.
+    const legacy = await configured.provider.completeAuth!({ connectorId: 'zendesk', owner, code: 'legacy', state: 'stored-state',
+      redirectUri, codeVerifier: verifier, requestedScopes: ['read'], metadata: { subdomain: 'tenant' } })
+    expect(legacy.grantedScopes).toEqual([])
+    const explicit = await configured.hub.startAuth('first-party', { connectorId: 'zendesk', owner,
+      requestedScopes: [], redirectUri, metadata: { subdomain: 'tenant' } })
+    expect(explicit.requestedScopes).toEqual([])
+    const returnedGrant = await configured.hub.completeAuth('first-party', { connectorId: 'zendesk', owner,
+      code: 'explicit-scope', state: explicit.state, redirectUri })
+    expect(returnedGrant.grantedScopes).toEqual(['read'])
+    expect((await connections.get(returnedGrant.id))?.grantedScopes).toEqual(['read'])
+  })
+
+  it('keeps omitted grants unknown when the manifest disables the scope parameter', async () => {
+    const { hub, provider } = host([workdayConnector])
+    const metadata = { workdayBaseUrl: 'https://services1.myworkday.com', tenant: 'acme' }
+    const started = await hub.startAuth('first-party', { connectorId: 'workday', owner, requestedScopes: [], redirectUri, metadata })
+    expect(new URL(started.authUrl).searchParams.has('scope')).toBe(false)
+    expect(started.requestedScopes).toEqual([])
+    const connection = await hub.completeAuth('first-party', { connectorId: 'workday', owner, code: 'workday-code', state: started.state, redirectUri })
+    expect(connection.grantedScopes).toEqual([])
+    expect((await connections.get(connection.id))?.grantedScopes).toEqual([])
+    expect(wire[0].host).toBe('services1.myworkday.com')
+    expect(wire[0].body.has('code_verifier')).toBe(false)
+    const legacy = await provider.completeAuth!({ connectorId: 'workday', owner, code: 'legacy-code', state: 'stored-state',
+      requestedScopes: ['Staffing'], redirectUri, metadata })
+    expect(legacy.grantedScopes).toEqual([])
   })
 
   it('uses the maintained adapter-owned Basic exchange and fences late credentials after its deadline', async () => {

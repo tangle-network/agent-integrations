@@ -113,7 +113,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       resolveOAuthUrlTemplate(auth.tokenUrl, metadata, request.connectorId, auth.urlTemplateMetadata)
       const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       const state = request.state ?? randomState()
-      const requestedScopes = request.requestedScopes.length ? request.requestedScopes : auth.scopes
+      const requestedScopes = client.configId || auth.sendScopeParam === false ? [] : request.requestedScopes.length ? request.requestedScopes : auth.scopes
       return {
         providerId, connectorId: request.connectorId, state, requestedScopes,
         authUrl: buildOAuthAuthorizationUrl({
@@ -163,7 +163,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const issued = now().toISOString()
       return commit({
         id: randomConnectionId(), owner: request.owner, providerId, connectorId: request.connectorId,
-        status: 'active', grantedScopes: exchanged.scopes.length ? exchanged.scopes : request.requestedScopes ?? [],
+        status: 'active', grantedScopes: exchanged.scopes.length ? exchanged.scopes : client.configId || auth.sendScopeParam === false ? [] : request.requestedScopes ?? [],
         createdAt: issued, updatedAt: issued,
         expiresAt: credentials.expiresAt ? new Date(credentials.expiresAt).toISOString() : undefined,
         metadata: { ...metadata, ...exchanged.metadata },
