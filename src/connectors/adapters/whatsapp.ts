@@ -207,6 +207,12 @@ const base = declarativeRestConnector({
 const sendCapabilities = new Set(['messages.send', 'media.send', 'template.send', 'messages.reply', 'messages.react'])
 export const whatsappConnector: typeof base = {
   ...base,
+  validateConnectionMetadata(metadata) {
+    if (Object.keys(metadata).some(key => !['wabaId', 'phoneNumberId'].includes(key))) return null
+    return typeof metadata.wabaId === 'string' && /^[0-9]{1,64}$/.test(metadata.wabaId)
+      && (metadata.phoneNumberId === undefined || typeof metadata.phoneNumberId === 'string' && /^[0-9]{1,64}$/.test(metadata.phoneNumberId))
+      ? metadata : null
+  },
   manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities, whatsappNumbersCapability, whatsappWebhookStatusCapability] },
   async executeRead(inv) {
     if ((inv.capabilityName === 'numbers.list' || inv.capabilityName === 'webhooks.status')) return readWhatsappNumbers(inv)

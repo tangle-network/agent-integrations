@@ -6,6 +6,9 @@ import { IntegrationHub } from '../src/hub.js'
 import { createCredentialBackedAdapterProvider } from '../src/credentials.js'
 import { zendeskConnector } from '../src/connectors/adapters/zendesk.js'
 import { zendeskSellConnector } from '../src/connectors/adapters/zendesk-sell.js'
+import { cloudbedsConnector } from '../src/connectors/adapters/cloudbeds.js'
+import { pricelabsConnector } from '../src/connectors/adapters/pricelabs.js'
+import { whatsappConnector } from '../src/connectors/adapters/whatsapp.js'
 import { twitter } from '../src/connectors/adapters/twitter.js'
 import { listBundledConnectorAdapters } from '../src/connectors/bundled-manifest-runtime.js'
 import type { ConnectorAdapter, ConnectorCredentials } from '../src/connectors/types.js'
@@ -166,7 +169,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
 
   it('uses the maintained adapter-owned Basic exchange and fences late credentials after its deadline', async () => {
     const adapter = twitter(client)
-    const { hub } = host([adapter], 30)
+    const { hub } = host([adapter])
     const begin = () => hub.startAuth('first-party', { connectorId: 'twitter', owner, requestedScopes: [], redirectUri })
     const started = await begin()
     const connected = await hub.completeAuth('first-party', { connectorId: 'twitter', owner, code: 'one-time', state: started.state, redirectUri })
@@ -174,18 +177,25 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     expect(wire[0].auth).toBe(`Basic ${Buffer.from('client+id%3A%E2%9C%93:s+e%2Bc%25r%3Aet').toString('base64')}`)
     expect(wire[0].body.has('client_secret')).toBe(false)
     expect(connected.id).toBe('canonical-host-owner-twitter')
-    const pending = await begin()
-    await expect(hub.completeAuth('first-party', { connectorId: 'twitter', owner, code: 'slow', state: pending.state, redirectUri })).rejects.toThrow(/timed out/)
+    let observedSlow: () => void
+    const completedSlow = new Promise<void>(resolve => { observedSlow = resolve })
+    const delayed = host([{ ...adapter, exchangeOAuth: input => adapter.exchangeOAuth!(input).finally(() => observedSlow!()) }], 30)
+    const pending = await delayed.hub.startAuth('first-party', { connectorId: 'twitter', owner, requestedScopes: [], redirectUri })
+    await expect(delayed.hub.completeAuth('first-party', { connectorId: 'twitter', owner, code: 'slow', state: pending.state, redirectUri })).rejects.toThrow(/timed out/)
     const before = db.prepare('SELECT payload FROM secrets').get()!.payload
     releaseSlow()
     await slowFinished
+    await completedSlow
     // Completing the old provider request cannot commit its late result.
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(db.prepare('SELECT payload FROM secrets').get()!.payload).toEqual(before)
   })
 
   it('validates API keys through real HTTP and exposes probe failures without persisting rejected keys', async () => {
-    const { hub } = host([zendeskSellConnector])
+    const { hub } = host([zendeskSellConnector, cloudbedsConnector, pricelabsConnector, whatsappConnector])
+    for (const connectorId of ['cloudbeds', 'pricelabs', 'whatsapp']) {
+      await expect(hub.connectApiKey('first-party', { connectorId, owner, apiKey: 'valid-key', metadata: { apiUrl: 'https://attacker.test' } })).rejects.toMatchObject({ code: 'connection_metadata_invalid' })
+    }
     const connect = (apiKey: string) => hub.connectApiKey('first-party', { connectorId: 'zendesk-sell', owner, apiKey })
     await expect(connect('revoked')).rejects.toMatchObject({ code: 'credential_invalid' })
     await expect(connect('limited')).rejects.toMatchObject({ code: 'credential_rate_limited' })
@@ -218,8 +228,14 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const configured = listBundledConnectorAdapters({ envSource: { GOOGLE_OAUTH_CLIENT_ID: client.clientId, GOOGLE_OAUTH_CLIENT_SECRET: client.clientSecret }, includeUnconfigured: true })
     expect(catalog.find(adapter => adapter.manifest.kind === 'google-calendar')!.catalogOnly).toBe(true)
     expect(configured.find(adapter => adapter.manifest.kind === 'google-calendar')!.catalogOnly).toBe(false)
-    const { hub } = host(catalog)
+    const { hub, provider } = host(catalog)
     await expect(hub.startAuth('first-party', { connectorId: 'google-calendar', owner, requestedScopes: [], redirectUri })).rejects.toMatchObject({ code: 'config_missing' })
+    const issued = new Date().toISOString()
+    const connection: IntegrationConnection = { id: 'catalog-connection', owner, connectorId: 'google-calendar', providerId: 'first-party',
+      status: 'active', grantedScopes: [], createdAt: issued, updatedAt: issued }
+    await connections.put(connection)
+    const action = catalog.find(adapter => adapter.manifest.kind === 'google-calendar')!.manifest.capabilities[0].name
+    await expect(provider.invokeAction(connection, { connectionId: connection.id, action })).rejects.toMatchObject({ code: 'config_missing' })
     expect(wire).toHaveLength(0)
   })
 })

@@ -18,7 +18,7 @@ import type {
 } from './core-types.js'
 import { CredentialsExpired, ProviderRateLimited, ProviderConfigError } from './connectors/types.js'
 import { IntegrationError } from './core-error.js'
-import { buildOAuthAuthorizationUrl, exchangeAuthorizationCode } from './connectors/oauth.js'
+import { buildOAuthAuthorizationUrl, exchangeAuthorizationCode, redactOAuthSensitiveText, oauthClientCredentialRedactionValues, createOAuthBasicAuthorizationHeader } from './connectors/oauth-protocol.js'
 
 /** OAuth client credentials the host resolves at start/exchange time.
  *  The lib never reads env or any vault — kept edge-runtime-safe. */
@@ -150,6 +150,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         } catch (cause) {
           throw new IntegrationError(cause instanceof Error ? cause.message : 'OAuth exchange failed.', 'provider_failure')
         }
+      }).catch((cause: unknown) => {
+        const secrets = [request.code!, codeVerifier ?? '', ...oauthClientCredentialRedactionValues(client.clientId, client.clientSecret,
+          client.clientSecret ? createOAuthBasicAuthorizationHeader(client.clientId, client.clientSecret) : undefined)]
+        throw new IntegrationError(redactOAuthSensitiveText(cause instanceof Error ? cause.message : 'OAuth exchange failed.', secrets), 'provider_failure')
       })
       if (request.signal?.aborted) throw new IntegrationError('OAuth exchange aborted.', 'provider_failure')
       const credentials = exchanged.credentials
@@ -184,6 +188,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       } catch (cause) {
         return classifyConnectionFailure(cause)
       }
+      if (status === 'unsupported') return status
       if (rotated) {
         if (!options.onCredentialsRotated) return 'credential_persistence_failure'
         try { await options.onCredentialsRotated({ connection, credentials: rotated }) }
@@ -205,7 +210,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         status: 'active', grantedScopes: [], createdAt: issued, updatedAt: issued, metadata,
       }
       const credentials: ConnectorCredentials = { kind: 'api-key', apiKey: request.apiKey }
-      const probe = createConnectorAdapterProvider({ ...options,
+      const probe = createConnectorAdapterProvider({ ...options, onCredentialsRotated: undefined,
         resolveDataSource: () => ({ id: connection.id, projectId: request.owner.id, publishedAgentId: null,
           kind: request.connectorId, label: adapter.manifest.displayName, consistencyModel: adapter.manifest.defaultConsistencyModel,
           scopes: [], metadata, credentials, status: 'active' }),
@@ -217,10 +222,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       return commit(connection, credentials)
     },
     async invokeAction(connection, request) {
-      const adapter = adapters.get(connection.connectorId)
-      if (!adapter) {
-        throw new IntegrationError(`Connector adapter ${connection.connectorId} not found.`, 'connector_not_found')
-      }
+      const adapter = requireAdapter(connection.connectorId)
       const capability = adapter.manifest.capabilities.find((candidate) => candidate.name === request.action)
       if (!capability) {
         throw new IntegrationError(`Capability ${request.action} is not defined by ${connection.connectorId}.`, 'action_not_found')
