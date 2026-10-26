@@ -215,7 +215,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
         if (response.outcome) {
           return {
             ok: false,
-            reason: response.message || `${spec.displayName} test request was ${response.outcome}`,
+            reason: `${spec.displayName} test HTTP ${response.status}: ${response.message || response.outcome}`,
           }
         }
         validateTestResponse(spec, spec.test, response.data)

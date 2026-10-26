@@ -14,6 +14,7 @@ export const gorgiasConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://{subdomain}.gorgias.com/oauth2/authorize',
     tokenUrl: 'https://{subdomain}.gorgias.com/oauth2/token',
+    urlTemplateMetadata: { subdomain: { kind: 'dns-label', label: 'Gorgias subdomain', connectionMetadata: { key: 'subdomainUrl', template: 'https://{subdomain}.gorgias.com' } } },
     scopes: [
       'openid',
       'profile',

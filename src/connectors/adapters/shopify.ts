@@ -38,6 +38,7 @@ export const shopifyConnector = declarativeRestConnector({
     // same pattern.
     authorizationUrl: 'https://{shop}.myshopify.com/admin/oauth/authorize',
     tokenUrl: 'https://{shop}.myshopify.com/admin/oauth/access_token',
+    urlTemplateMetadata: { shop: { kind: 'dns-label', label: 'Shopify shop', connectionMetadata: { key: 'apiBaseUrl', template: 'https://{shop}.myshopify.com' } } },
     scopes: [
       'read_products',
       'write_products',

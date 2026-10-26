@@ -15,6 +15,7 @@ export const zendeskConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://{subdomain}.zendesk.com/oauth/authorizations/new',
     tokenUrl: 'https://{subdomain}.zendesk.com/oauth/tokens',
+    urlTemplateMetadata: { subdomain: { kind: 'dns-label', label: 'Zendesk subdomain', connectionMetadata: { key: 'subdomainUrl', template: 'https://{subdomain}.zendesk.com' } } },
     scopes: ['read', 'write'],
     clientIdEnv: 'ZENDESK_OAUTH_CLIENT_ID',
     clientSecretEnv: 'ZENDESK_OAUTH_CLIENT_SECRET',

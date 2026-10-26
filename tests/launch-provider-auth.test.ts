@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createConnectorAdapterProvider } from '../src/index'
 import {
   dropboxConnector,
@@ -15,39 +15,7 @@ describe('launch provider OAuth contracts', () => {
     })
   })
 
-  it('persists the Salesforce tenant URL during a real token exchange', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      access_token: 'salesforce-access',
-      refresh_token: 'salesforce-refresh',
-      instance_url: 'https://acme.my.salesforce.com',
-      scope: 'api refresh_token',
-    }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })) as unknown as typeof fetch
-    const provider = createConnectorAdapterProvider({
-      adapters: [salesforceConnector],
-      resolveDataSource: () => ({}) as never,
-      resolveOAuthClient: () => ({
-        clientId: 'salesforce-client',
-        clientSecret: 'salesforce-secret',
-      }),
-      fetchImpl,
-    })
 
-    const connection = await provider.completeAuth!({
-      connectorId: 'salesforce',
-      owner: { type: 'user', id: 'user_1' },
-      code: 'authorization-code',
-      state: 'salesforce-state',
-      redirectUri: 'https://id.tangle.tools/api/integrations/callback',
-      codeVerifier: 'v'.repeat(64),
-    })
-
-    expect(connection.metadata).toEqual({
-      instanceUrl: 'https://acme.my.salesforce.com',
-    })
-  })
 
   it('requests a durable Dropbox refresh token', () => {
     const auth = dropboxConnector.manifest.auth

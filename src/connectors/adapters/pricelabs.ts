@@ -7,10 +7,10 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
 interface Listing { id: string; pms: string }
 
 function identifier(value: unknown, name: string): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 256 || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(value)) {
     throw new Error(`pricelabs: invalid ${name}`)
   }
-  return value
+  return value.trim()
 }
 
 function providerText(value: unknown, max: number): string | null {
@@ -21,7 +21,7 @@ function providerText(value: unknown, max: number): string | null {
   return value
 }
 
-function selectedListings(source: ResolvedDataSource): Listing[] {
+function selectedListings(source: Pick<ResolvedDataSource, 'metadata'>): Listing[] {
   const value = source.metadata.listings
   if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
     throw new Error('pricelabs: connection requires one or more pinned listings')
@@ -97,6 +97,14 @@ function readPrice(row: unknown, from: string, to: string): Record<string, unkno
 }
 
 export const pricelabsConnector: ConnectorAdapter = {
+  validateConnectionMetadata(metadata) {
+    try {
+      if (Object.keys(metadata).some(key => key !== 'listings')) return null
+      const listings = selectedListings({ metadata })
+      if ((metadata.listings as Record<string, unknown>[]).some(row => Object.keys(row).some(key => !['id', 'pms'].includes(key)))) return null
+      return { listings }
+    } catch { return null }
+  },
   manifest: {
     kind: 'pricelabs',
     displayName: 'PriceLabs',
