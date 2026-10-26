@@ -67,7 +67,7 @@ function malformed(what: string): never {
   throw new ProviderProtocolError(`Cloudbeds returned malformed ${what}`, 'invalid_response')
 }
 
-function propertyId(source: ResolvedDataSource): string {
+function propertyId(source: Pick<ResolvedDataSource, 'metadata'>): string {
   const value = source.metadata.propertyId
   if (typeof value !== 'string' || !PROPERTY_ID.test(value)) {
     throw new Error('cloudbeds: connection requires one numeric propertyId')
@@ -616,6 +616,16 @@ const ID = { type: 'string', pattern: PROVIDER_ID.source } as const
 const STAY = { startDate: { type: 'string', format: 'date' }, endDate: { type: 'string', format: 'date' } } as const
 
 export const cloudbedsConnector: ConnectorAdapter = {
+  validateConnectionMetadata(metadata) {
+    try {
+      if (Object.keys(metadata).some(key => !['propertyId', 'currency'].includes(key))) return null
+      const property = propertyId({ metadata })
+      if (metadata.currency === undefined) return { propertyId: property }
+      if (typeof metadata.currency !== 'string') return null
+      const currency = metadata.currency.trim().toUpperCase()
+      return Intl.supportedValuesOf('currency').includes(currency) ? { propertyId: property, currency } : null
+    } catch { return null }
+  },
   manifest: {
     kind: 'cloudbeds',
     displayName: 'Cloudbeds',

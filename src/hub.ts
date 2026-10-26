@@ -12,6 +12,7 @@ import {
 import { IntegrationError } from './core-error.js'
 import type {
   CompleteAuthRequest,
+  ConnectApiKeyRequest,
   IntegrationActionGuard,
   IntegrationActionRequest,
   IntegrationActionResult,
@@ -90,11 +91,11 @@ export class IntegrationHub {
       providerId,
       connectorId: request.connectorId,
       owner: request.owner,
-      requestedScopes: request.requestedScopes,
+      requestedScopes: result.requestedScopes ?? request.requestedScopes,
       redirectUri: request.redirectUri,
       codeVerifier: pkcePair?.verifier,
       expiresAt: this.now().getTime() + this.oauthStateTtlMs,
-      metadata: request.metadata,
+      metadata: result.metadata ?? request.metadata,
     }
     await this.oauthStateStore.put(record)
     return result
@@ -123,10 +124,26 @@ export class IntegrationHub {
       state: outcome.state.state,
       redirectUri: outcome.state.redirectUri,
       codeVerifier: outcome.state.codeVerifier,
+      requestedScopes: outcome.state.requestedScopes,
       metadata: pinnedMetadata,
     })
     await this.store.put(connection)
     return connection
+  }
+
+  async connectApiKey(providerId: string, request: ConnectApiKeyRequest): Promise<IntegrationConnection> {
+    const provider = this.requireProvider(providerId)
+    if (!provider.connectApiKey) throw new IntegrationError('Provider does not support API-key connections.', 'auth_not_supported')
+    const connection = await provider.connectApiKey(request)
+    await this.store.put(connection)
+    return connection
+  }
+
+  async testConnection(connectionId: string) {
+    const connection = await this.requireConnection(connectionId)
+    this.assertConnectionActive(connection)
+    const provider = this.requireProvider(connection.providerId)
+    return provider.testConnection ? provider.testConnection(connection) : 'unsupported' as const
   }
 
   async upsertConnection(connection: IntegrationConnection): Promise<IntegrationConnection> {
