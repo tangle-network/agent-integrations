@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.76.2
+
+- fix: keep suppressed OAuth scopes unknown (#419)
+
 ## 0.76.1
 
 - test: retire obsolete mock OAuth host cases (#417)
