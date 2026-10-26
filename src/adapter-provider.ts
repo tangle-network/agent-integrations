@@ -186,9 +186,10 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         )
         status = !observed ? 'unsupported' : result.ok ? 'healthy' : classifyConnectionFailure(result.reason)
       } catch (cause) {
-        return classifyConnectionFailure(cause)
+        if (cause instanceof ProviderOperationAborted) return 'network'
+        status = classifyConnectionFailure(cause)
       }
-      if (status === 'unsupported') return status
+      if (!observed || status === 'unsupported') return 'unsupported'
       if (rotated) {
         if (!options.onCredentialsRotated) return 'credential_persistence_failure'
         try { await options.onCredentialsRotated({ connection, credentials: rotated }) }
@@ -685,6 +686,8 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+class ProviderOperationAborted extends Error {}
+
 /** The losing promise remains observed; only an on-time result reaches a credential commit. */
 async function boundedProviderCall<T>(timeoutMs: number | undefined, parent: AbortSignal | undefined, start: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const budget = timeoutMs ?? 10_000
@@ -692,7 +695,7 @@ async function boundedProviderCall<T>(timeoutMs: number | undefined, parent: Abo
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
   let rejectAbort: (reason: Error) => void = () => {}
-  const abort = () => { controller.abort(); rejectAbort(new Error('Provider operation aborted or timed out.')) }
+  const abort = () => { controller.abort(); rejectAbort(new ProviderOperationAborted('Provider operation aborted or timed out.')) }
   try {
     return await Promise.race([
       new Promise<never>((_, reject) => {

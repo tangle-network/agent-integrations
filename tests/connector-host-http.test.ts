@@ -9,6 +9,7 @@ import { zendeskSellConnector } from '../src/connectors/adapters/zendesk-sell.js
 import { cloudbedsConnector } from '../src/connectors/adapters/cloudbeds.js'
 import { pricelabsConnector } from '../src/connectors/adapters/pricelabs.js'
 import { whatsappConnector } from '../src/connectors/adapters/whatsapp.js'
+import { reddit } from '../src/connectors/adapters/reddit.js'
 import { twitter } from '../src/connectors/adapters/twitter.js'
 import { listBundledConnectorAdapters } from '../src/connectors/bundled-manifest-runtime.js'
 import type { ConnectorAdapter, ConnectorCredentials } from '../src/connectors/types.js'
@@ -75,6 +76,9 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
       } else if (request.headers.authorization === 'Bearer limited') {
         response.statusCode = 429
         response.end('{}')
+      } else if (request.headers['x-provider-host'] === 'oauth.reddit.com') {
+        response.statusCode = 503
+        response.end('{}')
       } else if (request.method === 'POST') {
         response.end(JSON.stringify({ access_token: 'issued-access', refresh_token: 'issued-refresh', expires_in: 3600 }))
       } else response.end(JSON.stringify({ user: { id: 42 }, data: [] }))
@@ -84,7 +88,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const port = (server.address() as { port: number }).port
     globalThis.fetch = (input, init) => {
       const url = new URL(String(input))
-      if (!['tenant.zendesk.com', 'api.twitter.com', 'api.x.com', 'api.sellsy.com'].includes(url.hostname)) throw new Error('External network forbidden')
+      if (!['tenant.zendesk.com', 'api.twitter.com', 'api.x.com', 'api.sellsy.com', 'www.reddit.com', 'oauth.reddit.com'].includes(url.hostname)) throw new Error('External network forbidden')
       const headers = new Headers(init?.headers)
       headers.set('x-provider-host', url.hostname)
       return realFetch(`http://127.0.0.1:${port}${url.pathname}${url.search}`, { ...init, headers })
@@ -203,6 +207,30 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const active = await connect('valid-key')
     expect(active.secretRef!.id).toBe(active.id)
     expect(wire.at(-1)!.auth).toBe('Bearer valid-key')
+  })
+
+  it('persists a real refresh when the following HTTP probe rejects', async () => {
+    const adapter = reddit(client)
+    const test = adapter.test.bind(adapter)
+    // Exercise the public rejected-promise failure contract with the same
+    // maintained HTTP probe and refresh; no simulated token response.
+    adapter.test = async (source, onRotated) => {
+      const result = await test(source, onRotated)
+      if (!result.ok) throw new Error(result.reason)
+      return result
+    }
+    const { hub } = host([adapter])
+    const issued = new Date().toISOString()
+    const secretRef = { provider: 'sql-vault', id: 'refresh-then-fail' }
+    const connection: IntegrationConnection = { id: secretRef.id, owner, connectorId: 'reddit', providerId: 'first-party',
+      status: 'active', grantedScopes: [], secretRef, createdAt: issued, updatedAt: issued }
+    await secrets.put(secretRef, { kind: 'oauth2', accessToken: 'old-access', refreshToken: 'old-refresh', expiresAt: Date.now() + 30_000 })
+    await connections.put(connection)
+    expect(await hub.testConnection(connection.id)).toBe('provider_failure')
+    expect(wire.map(request => request.host)).toEqual(['www.reddit.com', 'oauth.reddit.com'])
+    expect(wire[0].body.get('refresh_token')).toBe('old-refresh')
+    expect(wire[1].auth).toBe('Bearer issued-access')
+    expect(await secrets.get(secretRef)).toMatchObject({ accessToken: 'issued-access', refreshToken: 'issued-refresh' })
   })
 
   it('redacts provider reflections and refuses private endpoints or bad tenants before provider traffic', async () => {
