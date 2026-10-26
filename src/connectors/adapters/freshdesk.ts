@@ -21,6 +21,7 @@ export const freshdeskConnector = declarativeRestConnector({
     kind: 'oauth2',
     authorizationUrl: 'https://{subdomain}.freshdesk.com/oauth/authorize',
     tokenUrl: 'https://{subdomain}.freshdesk.com/oauth/token',
+    urlTemplateMetadata: { subdomain: { kind: 'dns-label', label: 'Freshdesk subdomain', connectionMetadata: { key: 'subdomainUrl', template: 'https://{subdomain}.freshdesk.com' } } },
     scopes: ['freshdesk.api'],
     clientIdEnv: 'FRESHDESK_OAUTH_CLIENT_ID',
     clientSecretEnv: 'FRESHDESK_OAUTH_CLIENT_SECRET',

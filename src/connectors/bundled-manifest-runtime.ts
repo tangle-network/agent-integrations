@@ -1,6 +1,7 @@
 import type { ConnectorAdapter, ConnectorManifest } from './types.js'
 import {
   CONNECTOR_ADAPTER_FACTORIES,
+  resolveConnectorAdapterFactoryOptions,
   type ConnectorAdapterFactoryDefinition,
 } from './adapters/factories.js'
 import * as bundledAdapters from './adapters/index.js'
@@ -35,7 +36,11 @@ function manifestFromFactory(
  * as named exports for webhook hosts, but never compete with action adapters
  * for a public connector kind.
  */
-export function listBundledConnectorAdapters(): ConnectorAdapter[] {
+export function listBundledConnectorAdapters(options: {
+  envSource?: Readonly<Record<string, string | undefined>>
+  includeUnconfigured?: boolean
+  onConfigurationError?: (kind: string, error: unknown) => void
+} = {}): ConnectorAdapter[] {
   const byKind = new Map<string, ConnectorAdapter>()
   const exportByKind = new Map<string, string>()
   for (const [exportName, value] of Object.entries(bundledAdapters)) {
@@ -49,6 +54,33 @@ export function listBundledConnectorAdapters(): ConnectorAdapter[] {
     }
     exportByKind.set(kind, exportName)
     byKind.set(kind, value)
+  }
+  if (options.envSource || options.includeUnconfigured) {
+    for (const definition of CONNECTOR_ADAPTER_FACTORIES) {
+      const configured = resolveConnectorAdapterFactoryOptions(definition, options.envSource ?? {})
+      if (!configured && (byKind.has(definition.kind) || !options.includeUnconfigured)) continue
+      try {
+        const adapter = definition.factory(configured ?? Object.fromEntries(
+          Object.keys(definition.envMap).map((name) => [name, `${MANIFEST_PROBE_PREFIX}${name}`]),
+        ))
+        if (adapter.manifest.kind !== definition.kind || adapter.inboundOnly) throw new Error('Invalid public factory adapter kind.')
+        const envName = (key: string) => {
+          const names = definition.envMap[key]
+          return (typeof names === 'string' ? [names] : names ?? []).find((name) => options.envSource?.[name])
+        }
+        const auth = adapter.manifest.auth
+        byKind.set(definition.kind, {
+          ...adapter, catalogOnly: !configured,
+          manifest: { ...adapter.manifest, auth: auth.kind === 'oauth2' ? {
+            ...auth, clientIdEnv: envName('clientId') ?? envName('keystring') ?? auth.clientIdEnv,
+            clientSecretEnv: envName('clientSecret') ?? auth.clientSecretEnv,
+          } : auth },
+        })
+      } catch (error) {
+        if (!options.onConfigurationError) throw error
+        options.onConfigurationError(definition.kind, error)
+      }
+    }
   }
   return [...byKind.values()]
 }

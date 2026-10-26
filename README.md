@@ -160,6 +160,12 @@ Generated code calls your product integration endpoint with the scoped
 capability bundle. It never receives provider refresh tokens, API keys, or raw
 OAuth credentials.
 
+Connector hosts keep browser/session proof, tenancy, account identity and encrypted
+storage in the product. `IntegrationHub.startAuth` pins normalized provider metadata;
+`completeAuth` uses its single-use state. Adapter-owned exchanges take precedence.
+`listBundledConnectorAdapters({ envSource, includeUnconfigured: true })` supplies
+configured factories plus catalog-only declarations that cannot execute.
+
 ## Core Primitives
 
 | Primitive | Purpose |
@@ -201,7 +207,7 @@ OAuth credentials.
 | `buildIntegrationInvocationEnvelope` | Sandbox-safe action envelope. |
 | `validateIntegrationInvocationEnvelope` | Runtime validation for tool/action consistency and input limits. |
 | `createHttpIntegrationProvider` | Adapter for hosted integration gateways. |
-| `createConnectorAdapterProvider` | Runs first-party `ConnectorAdapter`s through the same provider contract. |
+| `createConnectorAdapterProvider` | Connector execution, bounded OAuth exchange, API-key connect and credential probes. Supply `persistConnection` to encrypt initial credentials and return the canonical connection with its secret reference; completion fails closed without it. |
 | `declarativeRestConnector` | Builds REST-backed first-party adapters from compact specs. |
 | `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
 | `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |

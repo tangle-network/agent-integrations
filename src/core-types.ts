@@ -136,6 +136,7 @@ export interface CompleteAuthRequest {
   /** PKCE verifier injected by the host. IntegrationHub replaces any caller
    *  value with the verifier stored against the single-use OAuth state. */
   codeVerifier?: string
+  signal?: AbortSignal
   metadata?: Record<string, unknown>
 }
 
@@ -178,10 +179,21 @@ export interface IntegrationTriggerEvent<T = unknown> {
   metadata?: Record<string, unknown>
 }
 
+export type IntegrationConnectionTestStatus = 'healthy' | 'reconnect_required' | 'rate_limited' | 'network' | 'provider_failure' | 'credential_persistence_failure' | 'unsupported'
+
+export interface ConnectApiKeyRequest {
+  connectorId: string
+  owner: IntegrationActor
+  apiKey: string
+  metadata?: Record<string, unknown>
+}
+
 export interface IntegrationProvider {
   id: string
   kind: IntegrationProviderKind
   listConnectors(): Promise<IntegrationConnector[]> | IntegrationConnector[]
+  testConnection?(connection: IntegrationConnection): Promise<IntegrationConnectionTestStatus>
+  connectApiKey?(request: ConnectApiKeyRequest): Promise<IntegrationConnection>
   startAuth?(request: StartAuthRequest): Promise<StartAuthResult> | StartAuthResult
   completeAuth?(request: CompleteAuthRequest): Promise<IntegrationConnection> | IntegrationConnection
   invokeAction(connection: IntegrationConnection, request: IntegrationActionRequest): Promise<IntegrationActionResult> | IntegrationActionResult

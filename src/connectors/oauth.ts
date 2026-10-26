@@ -14,7 +14,7 @@
  */
 
 import { createHash, randomBytes } from 'crypto'
-import type { OAuth2TokenClientAuthMethod } from './types.js'
+import type { OAuth2TokenClientAuthMethod, TokenMetadataSource } from './types.js'
 
 export type OAuthPkceMode = 'required' | 'supported' | 'unsupported'
 
@@ -129,28 +129,41 @@ export function startOAuthFlow(input: StartOAuthInput): StartOAuthOutput {
     expiresAt: now + PENDING_TTL_MS,
   })
 
+  return {
+    authorizationUrl: buildOAuthAuthorizationUrl({ ...input, state, codeChallenge }),
+    state,
+  }
+}
+
+/** Shared by stateful flows and hosts that persist their own state. Reserved
+ * parameters always override provider extras and values embedded in the URL. */
+export function buildOAuthAuthorizationUrl(input: {
+  authorizationUrl: string
+  clientId: string
+  authorizationClientIdParam?: string
+  redirectUri: string
+  scopes: readonly string[]
+  scopeSeparator?: ' ' | ','
+  sendScopeParam?: boolean
+  configId?: string
+  state: string
+  codeChallenge?: string
+  extraAuthParams?: Readonly<Record<string, string>>
+}): string {
   const url = new URL(input.authorizationUrl)
+  for (const [key, value] of Object.entries(input.extraAuthParams ?? {})) url.searchParams.set(key, value)
+  for (const key of ['client_id', 'scope', 'config_id', 'code_challenge', 'code_challenge_method']) url.searchParams.delete(key)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set(
-    oauthParameterName(input.authorizationClientIdParam, 'client_id'),
-    input.clientId,
-  )
+  url.searchParams.set(oauthParameterName(input.authorizationClientIdParam, 'client_id'), input.clientId)
   url.searchParams.set('redirect_uri', input.redirectUri)
-  url.searchParams.set('scope', input.scopes.join(input.scopeSeparator ?? ' '))
-  url.searchParams.set('state', state)
-  if (input.extraAuthParams) {
-    for (const [k, v] of Object.entries(input.extraAuthParams)) {
-      url.searchParams.set(k, v)
-    }
-  }
-  if (codeChallenge) {
-    url.searchParams.set('code_challenge', codeChallenge)
+  url.searchParams.set('state', input.state)
+  if (input.configId) url.searchParams.set('config_id', input.configId)
+  else if (input.sendScopeParam !== false && input.scopes.length) url.searchParams.set('scope', input.scopes.join(input.scopeSeparator ?? ' '))
+  if (input.codeChallenge) {
+    url.searchParams.set('code_challenge', input.codeChallenge)
     url.searchParams.set('code_challenge_method', 'S256')
-  } else {
-    url.searchParams.delete('code_challenge')
-    url.searchParams.delete('code_challenge_method')
   }
-  return { authorizationUrl: url.toString(), state }
+  return url.toString()
 }
 
 /** Look up + remove the pending flow record. Throws if state is unknown
@@ -174,6 +187,7 @@ export interface ExchangeCodeInput {
   tokenClientIdParam?: string
   tokenClientSecretParam?: string
   code: string
+  tokenMetadata?: Record<string, TokenMetadataSource>
   /** Required unless pkce is explicitly unsupported. */
   codeVerifier?: string
   /** PKCE posture. Defaults to required. */
@@ -195,6 +209,8 @@ export interface OAuthTokens {
    *  `openid`. Kept separate from the access credential so adapters can
    *  capture stable account metadata without persisting the ID token. */
   idToken?: string
+  /** Only explicitly declared, non-credential token response fields. */
+  metadata?: Record<string, string>
 }
 
 /** POST authorization code → token endpoint. Provider-agnostic; if a
@@ -211,61 +227,7 @@ export async function exchangeAuthorizationCode(input: ExchangeCodeInput): Promi
     redirect_uri: input.redirectUri,
   })
   if (usePkce) body.set('code_verifier', input.codeVerifier!)
-  const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
-  applyTokenClientAuthentication(input, body, headers)
-  const redactionValues = [
-    input.code,
-    ...(input.codeVerifier ? [input.codeVerifier] : []),
-    ...oauthClientCredentialRedactionValues(
-      input.clientId,
-      input.clientSecret,
-      headers.authorization,
-    ),
-  ]
-  let res: Response
-  try {
-    res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
-      method: 'POST',
-      headers,
-      body,
-      signal: input.signal,
-    })
-  } catch (cause) {
-    const detail = redactOAuthSensitiveText(
-      (cause as Error)?.message ?? 'unknown',
-      redactionValues,
-    )
-    throw new Error(`OAuth token exchange transport error: ${detail}`)
-  }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
-    const detail = redactOAuthSensitiveText(text, redactionValues).slice(0, 200)
-    throw new Error(
-      `OAuth token exchange failed: ${res.status} ${statusText} — ${detail}`,
-    )
-  }
-  let json: {
-    access_token: string
-    refresh_token?: string
-    expires_in?: number
-    scope?: string
-    token_type?: string
-    id_token?: string
-  }
-  try {
-    json = await res.json() as typeof json
-  } catch {
-    throw new Error('OAuth token exchange returned invalid JSON')
-  }
-  return {
-    accessToken: json.access_token,
-    refreshToken: json.refresh_token,
-    expiresIn: json.expires_in,
-    scope: json.scope,
-    tokenType: json.token_type,
-    idToken: json.id_token,
-  }
+  return requestOAuthTokens(input, body, 'token exchange', [input.code, input.codeVerifier ?? ''])
 }
 
 export interface RefreshInput {
@@ -291,60 +253,70 @@ export async function refreshAccessToken(input: RefreshInput): Promise<OAuthToke
     grant_type: 'refresh_token',
     refresh_token: input.refreshToken,
   })
+  return requestOAuthTokens(input, body, 'refresh', [input.refreshToken])
+}
+
+async function requestOAuthTokens(
+  input: RefreshInput | ExchangeCodeInput,
+  body: URLSearchParams,
+  operation: string,
+  secrets: string[],
+): Promise<OAuthTokens> {
   const headers = createOAuthTokenRequestHeaders(input.tokenRequestHeaders)
   applyTokenClientAuthentication(input, body, headers)
-  const redactionValues = [
-    input.refreshToken,
-    ...oauthClientCredentialRedactionValues(
-      input.clientId,
-      input.clientSecret,
-      headers.authorization,
-    ),
-  ]
-  let res: Response
+  const redaction = [...secrets, ...oauthClientCredentialRedactionValues(input.clientId, input.clientSecret, headers.authorization)]
   try {
-    res = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
-      method: 'POST',
-      headers,
-      body,
-      signal: input.signal,
+    const response = await (input.fetchImpl ?? fetch)(input.tokenUrl, {
+      method: 'POST', headers, body, signal: input.signal,
     })
+    if (!response.ok) {
+      const detail = `${response.status} ${response.statusText} — ${await response.text()}`
+      throw new Error(`OAuth ${operation} failed: ${detail}`)
+    }
+    const raw: unknown = await response.json()
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`OAuth ${operation} returned invalid JSON`)
+    const json = raw as Record<string, unknown>
+    if (typeof json.access_token !== 'string' || !json.access_token) throw new Error(`OAuth ${operation} returned no access_token`)
+    return {
+      accessToken: json.access_token,
+      refreshToken: typeof json.refresh_token === 'string' ? json.refresh_token : undefined,
+      expiresIn: typeof json.expires_in === 'number' ? json.expires_in : undefined,
+      scope: typeof json.scope === 'string' ? json.scope : undefined,
+      tokenType: typeof json.token_type === 'string' ? json.token_type : undefined,
+      idToken: typeof json.id_token === 'string' ? json.id_token : undefined,
+      ...('tokenMetadata' in input && input.tokenMetadata ? { metadata: captureOAuthTokenMetadata(input.tokenMetadata, json) } : {}),
+    }
   } catch (cause) {
-    const detail = redactOAuthSensitiveText(
-      (cause as Error)?.message ?? 'unknown',
-      redactionValues,
-    )
-    throw new Error(`OAuth refresh transport error: ${detail}`)
+    throw new Error(redactOAuthSensitiveText(cause instanceof Error ? cause.message : `OAuth ${operation} failed`, redaction).slice(0, 500))
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    const statusText = redactOAuthSensitiveText(res.statusText, redactionValues)
-    const detail = redactOAuthSensitiveText(text, redactionValues).slice(0, 200)
-    throw new Error(`OAuth refresh failed: ${res.status} ${statusText} — ${detail}`)
+}
+
+export function captureOAuthTokenMetadata(
+  tokenMetadata: Record<string, TokenMetadataSource> | undefined,
+  json: Record<string, unknown>,
+): Record<string, string> {
+  if (!tokenMetadata) return {}
+  const captured: Record<string, string> = {}
+  for (const [metaKey, source] of Object.entries(tokenMetadata)) {
+    const field = typeof source === 'string' ? source : source.field
+    const required = typeof source === 'string' ? false : source.required === true
+    const raw = json[field]
+    // Trim string values so capture-side emptiness matches the consumer's
+    // emptiness check (e.g. resolveBaseUrl's `.trim()` guard). A whitespace-only
+    // value must fail loud here at connect for a required field, not defer the
+    // break to first call where the host already looks active.
+    const value = typeof raw === 'string' ? raw.trim() : raw
+    if (value === undefined || value === null || value === '') {
+      if (required) {
+        throw new Error(
+          `OAuth token exchange did not return required field "${field}" for metadata.${metaKey}.`,
+        )
+      }
+      continue
+    }
+    captured[metaKey] = String(value)
   }
-  let json: {
-    access_token: string
-    refresh_token?: string
-    expires_in?: number
-    scope?: string
-    token_type?: string
-    id_token?: string
-  }
-  try {
-    json = await res.json() as typeof json
-  } catch {
-    throw new Error('OAuth refresh returned invalid JSON')
-  }
-  return {
-    accessToken: json.access_token,
-    // Some providers omit refresh_token on refresh — keep the previous one
-    // in that case (caller passes through if undefined).
-    refreshToken: json.refresh_token,
-    expiresIn: json.expires_in,
-    scope: json.scope,
-    tokenType: json.token_type,
-    idToken: json.id_token,
-  }
+  return captured
 }
 
 /** Build token-endpoint headers without permitting an adapter-supplied value

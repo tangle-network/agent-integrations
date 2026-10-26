@@ -26,6 +26,11 @@ export type IntegrationErrorRuntimeCode =
   | 'policy_denied'
   | 'config_missing'
   | 'provider_failure'
+  | 'credential_invalid'
+  | 'credential_rate_limited'
+  | 'credential_probe_unsupported'
+  | 'credential_persistence_failure'
+  | 'connection_metadata_invalid'
 
 export class IntegrationError extends Error {
   constructor(

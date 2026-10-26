@@ -239,12 +239,16 @@ export interface EventHandlerResult {
 export interface ConnectorAdapter {
   /** Manifest entry the registry uses to render UI + validate args. */
   manifest: ConnectorManifest
+  /** Strict normalization of caller-supplied connection metadata; null rejects it. */
+  validateConnectionMetadata?(metadata: Record<string, unknown>): Record<string, unknown> | null
   /**
    * True when this adapter only receives provider events and must not appear
    * in public connector or action discovery. Hosts can still register it
    * explicitly for their inbound route, which preserves its stable kind id.
    */
   inboundOnly?: boolean
+  /** Catalog declaration whose factory has no deployment configuration. Never execute it. */
+  catalogOnly?: boolean
   /** Read invocation. Required when manifest.capabilities contains reads.
    *  Should return whatever shape the capability declared
    *  in its parameters output schema. */
@@ -285,6 +289,7 @@ export interface ConnectorAdapter {
     /** Required unless this connector declares PKCE as unsupported. */
     codeVerifier?: string
     redirectUri: string
+    signal?: AbortSignal
   }): Promise<{
     credentials: ConnectorCredentials
     scopes: string[]
@@ -378,6 +383,7 @@ export type OAuth2TokenClientAuthMethod =
   | 'client_secret_basic'
 
 export type OAuth2UrlTemplateMetadataSpec =
+  | { kind: 'dns-label'; label?: string; connectionMetadata?: { key: string; template: string } }
   | {
       /** A complete HTTPS provider base URL, substituted for a URL template
        *  placeholder such as `{accountUrl}`. */
@@ -715,10 +721,10 @@ function validateOAuth2AuthSpec(
     })
   }
   for (const [key, spec] of Object.entries(auth.urlTemplateMetadata ?? {})) {
-    if (spec.kind !== 'base-url' && spec.kind !== 'path-segment') {
+    if (!['base-url', 'path-segment', 'dns-label'].includes(spec.kind)) {
       issues.push({
         path: `${path}.urlTemplateMetadata.${key}.kind`,
-        message: 'OAuth URL metadata kind must be base-url or path-segment',
+        message: 'OAuth URL metadata kind must be base-url, path-segment, or dns-label',
       })
       continue
     }
@@ -748,7 +754,7 @@ function validateOAuth2AuthSpec(
           })
         }
       }
-    } else {
+    } else if (spec.kind === 'path-segment') {
       for (const endpoint of [auth.authorizationUrl, auth.tokenUrl]) {
         if (
           endpoint?.includes(placeholder) &&
