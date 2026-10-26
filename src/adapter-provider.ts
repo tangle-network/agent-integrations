@@ -110,6 +110,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const client = await requireClient(request.connectorId, auth)
       if (!auth.authorizationUrl) throw new IntegrationError('OAuth authorization URL missing.', 'config_missing')
       const metadata = resolveOAuthConnectionMetadata(auth, request.metadata, request.connectorId)
+      resolveOAuthUrlTemplate(auth.tokenUrl, metadata, request.connectorId, auth.urlTemplateMetadata)
       const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       const state = request.state ?? randomState()
       return {

@@ -253,8 +253,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const auth = zendeskConnector.manifest.auth
     if (auth.kind !== 'oauth2') throw new Error('Expected OAuth connector')
     const privateHost = host([{ ...zendeskConnector, manifest: { ...zendeskConnector.manifest, auth: { ...auth, tokenUrl: 'https://127.0.0.1/token' } } }])
-    const pending = await privateHost.hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri, metadata: { subdomain: 'tenant' } })
-    await expect(privateHost.hub.completeAuth('first-party', { connectorId: 'zendesk', owner, code: 'one-time', state: pending.state, redirectUri })).rejects.toMatchObject({ code: 'config_missing' })
+    await expect(privateHost.hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri, metadata: { subdomain: 'tenant' } })).rejects.toMatchObject({ code: 'config_missing' })
     expect(wire).toHaveLength(1)
   })
 
