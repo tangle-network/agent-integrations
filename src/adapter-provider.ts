@@ -461,7 +461,7 @@ function resolveOAuthUrlTemplate(
       if (typeof raw !== 'string') {
         throw new IntegrationError(
           `OAuth URL for ${connectorId} requires metadata.${key} as a provider base URL.`,
-          'config_missing',
+          raw === undefined ? 'connection_parameters_missing' : 'connection_parameters_invalid',
         )
       }
       resolved = resolved.replaceAll(
@@ -480,7 +480,7 @@ function resolveOAuthUrlTemplate(
       if (typeof raw !== 'string' || !isOAuthPathSegment(raw.trim())) {
         throw new IntegrationError(
           `OAuth URL for ${connectorId} requires metadata.${key} as a valid path segment.`,
-          'config_missing',
+          raw === undefined ? 'connection_parameters_missing' : 'connection_parameters_invalid',
         )
       }
       resolved = resolved.replaceAll(match[0], encodeURIComponent(raw.trim()))
@@ -489,7 +489,7 @@ function resolveOAuthUrlTemplate(
     if (typeof raw !== 'string' || !isDnsLabel(raw.trim())) {
       throw new IntegrationError(
         `OAuth URL for ${connectorId} requires metadata.${key} as a valid tenant label.`,
-        'config_missing',
+        raw === undefined ? 'connection_parameters_missing' : 'connection_parameters_invalid',
       )
     }
     resolved = resolved.replaceAll(match[0], raw.trim().toLowerCase())
@@ -588,7 +588,7 @@ function resolveOAuthMetadataBaseUrl(
 function invalidOAuthMetadataBaseUrl(connectorId: string, metadataKey: string): IntegrationError {
   return new IntegrationError(
     `OAuth URL for ${connectorId} requires metadata.${metadataKey} as an allowed HTTPS provider root.`,
-    'config_missing',
+    'connection_parameters_invalid',
   )
 }
 
@@ -739,7 +739,7 @@ function resolveOAuthConnectionMetadata(auth: NonNullable<ReturnType<typeof oaut
     const spec = auth.urlTemplateMetadata?.[parameter.key]
     if (parameter.kind !== 'dns-label') continue
     const value = metadata[parameter.key]
-    if (typeof value !== 'string' || !isDnsLabel(value.trim())) throw new IntegrationError(`Invalid tenant label ${parameter.key}.`, 'config_missing')
+    if (typeof value !== 'string' || !isDnsLabel(value.trim())) throw new IntegrationError(`Invalid tenant label ${parameter.key}.`, value === undefined ? 'connection_parameters_missing' : 'connection_parameters_invalid')
     metadata[parameter.key] = value.trim().toLowerCase()
     if (spec?.kind === 'dns-label' && spec.connectionMetadata) {
       metadata[spec.connectionMetadata.key] = resolveOAuthUrlTemplate(spec.connectionMetadata.template, metadata, id, auth.urlTemplateMetadata)

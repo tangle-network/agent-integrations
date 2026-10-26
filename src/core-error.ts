@@ -32,6 +32,8 @@ export type IntegrationErrorRuntimeCode =
   | 'credential_probe_unsupported'
   | 'credential_persistence_failure'
   | 'connection_metadata_invalid'
+  | 'connection_parameters_missing'
+  | 'connection_parameters_invalid'
 
 export class IntegrationError extends Error {
   constructor(

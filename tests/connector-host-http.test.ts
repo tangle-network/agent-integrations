@@ -242,7 +242,8 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
   it('redacts provider reflections and refuses private endpoints or bad tenants before provider traffic', async () => {
     const { hub } = host([zendeskConnector])
     const start = (subdomain: string) => hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri, metadata: { subdomain } })
-    await expect(start('tenant.attacker.test')).rejects.toMatchObject({ code: 'config_missing' })
+    await expect(start('tenant.attacker.test')).rejects.toMatchObject({ code: 'connection_parameters_invalid' })
+    await expect(hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri })).rejects.toMatchObject({ code: 'connection_parameters_missing' })
     expect(wire).toHaveLength(0)
     const started = await start('tenant')
     const result = hub.completeAuth('first-party', { connectorId: 'zendesk', owner, code: 'reflect-secret', state: started.state, redirectUri })
