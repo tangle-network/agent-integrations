@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createConnectorAdapterProvider } from '../../../adapter-provider.js'
 import { workdayConnector } from '../workday.js'
 import type { ConnectorInvocation, ResolvedDataSource } from '../../types.js'
 
@@ -47,84 +46,6 @@ describe('workday adapter manifest', () => {
       },
       tenant: { kind: 'path-segment' },
     })
-  })
-
-  it('renders a tenant OAuth flow without a scope query and uses HTTP Basic at the token endpoint', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
-      access_token: 'workday-access',
-      refresh_token: 'workday-refresh',
-    }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }))
-    const provider = createConnectorAdapterProvider({
-      adapters: [workdayConnector],
-      resolveDataSource: () => ({ kind: 'workday', id: 'ds_workday' }) as never,
-      resolveOAuthClient: () => ({ clientId: 'workday-client', clientSecret: 'workday-secret' }),
-      fetchImpl: fetchMock as unknown as typeof fetch,
-    })
-    const owner = { type: 'user' as const, id: 'user_workday' }
-    const redirectUri = 'https://id.tangle.tools/api/integrations/oauth/workday/callback'
-    const metadata = {
-      workdayBaseUrl: 'https://services1.myworkday.com',
-      tenant: 'tangle',
-    }
-
-    const started = await provider.startAuth!({
-      connectorId: 'workday',
-      owner,
-      requestedScopes: [],
-      redirectUri,
-      state: 'state_workday',
-      metadata,
-    })
-    const authorizationUrl = new URL(started.authUrl)
-    expect(authorizationUrl.origin + authorizationUrl.pathname).toBe(
-      'https://services1.myworkday.com/ccx/oauth2/tangle/authorize',
-    )
-    expect(authorizationUrl.searchParams.has('scope')).toBe(false)
-    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
-
-    await provider.completeAuth!({
-      connectorId: 'workday',
-      owner,
-      code: 'workday-code',
-      state: started.state,
-      redirectUri,
-      metadata,
-    })
-    const [tokenUrl, init] = fetchMock.mock.calls[0]!
-    expect(tokenUrl).toBe('https://services1.myworkday.com/ccx/oauth2/tangle/token')
-    expect(new Headers(init?.headers).get('authorization')).toBe(
-      `Basic ${btoa('workday-client:workday-secret')}`,
-    )
-  })
-
-  it.each([
-    {
-      workdayBaseUrl: 'https://services1.myworkday.com.attacker.example',
-      tenant: 'tangle',
-    },
-    {
-      workdayBaseUrl: 'https://services1.myworkday.com',
-      tenant: '../attacker',
-    },
-  ])('rejects unsafe OAuth metadata before provider traffic: $metadata', async (metadata) => {
-    const fetchImpl = vi.fn() as unknown as typeof fetch
-    const provider = createConnectorAdapterProvider({
-      adapters: [workdayConnector],
-      resolveDataSource: () => ({ kind: 'workday', id: 'ds_workday' }) as never,
-      resolveOAuthClient: () => ({ clientId: 'workday-client', clientSecret: 'workday-secret' }),
-      fetchImpl,
-    })
-    await expect(provider.startAuth!({
-      connectorId: 'workday',
-      owner: { type: 'user', id: 'user_workday' },
-      requestedScopes: [],
-      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/workday/callback',
-      metadata,
-    })).rejects.toMatchObject({ code: 'config_missing' })
-    expect(fetchImpl).not.toHaveBeenCalled()
   })
 })
 

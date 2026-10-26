@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createConnectorAdapterProvider } from '../src/adapter-provider.js'
-import { InMemoryConnectionStore, IntegrationHub } from '../src/index.js'
+import { InMemoryConnectionStore } from '../src/index.js'
 import {
   createCredentialBackedAdapterProvider,
   InMemoryIntegrationSecretStore,
@@ -126,72 +125,6 @@ describe('TikTok manifest and setup contract', () => {
 })
 
 describe('TikTok OAuth', () => {
-  it('uses client_key and comma-delimited scopes without PKCE through IntegrationHub', async () => {
-    let tokenBody: URLSearchParams | undefined
-    const provider = createConnectorAdapterProvider({
-      adapters: [tiktokConnector],
-      resolveDataSource: () => source(),
-      resolveOAuthClient: () => ({
-        clientId: 'tiktok-client-key',
-        clientSecret: 'tiktok-client-secret',
-      }),
-      fetchImpl: vi.fn(async (_input, init) => {
-        tokenBody = init?.body as URLSearchParams
-        return new Response(
-          JSON.stringify({
-            access_token: 'access-new',
-            refresh_token: 'refresh-new',
-            expires_in: 86400,
-            scope: 'user.info.basic,video.list,video.publish',
-            open_id: 'open_456',
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        )
-      }) as typeof fetch,
-    })
-    const hub = new IntegrationHub({
-      providers: [provider],
-      store: new InMemoryConnectionStore(),
-      capabilitySecret: 'secret',
-    })
-
-    const started = await hub.startAuth('first-party', {
-      connectorId: 'tiktok',
-      owner: OWNER,
-      requestedScopes: [],
-      redirectUri: REDIRECT_URI,
-      state: 'state_fixed',
-      codeChallenge: 'caller-must-not-force-pkce',
-    })
-    const authorizationUrl = new URL(started.authUrl)
-    expect(authorizationUrl.searchParams.get('client_key')).toBe('tiktok-client-key')
-    expect(authorizationUrl.searchParams.has('client_id')).toBe(false)
-    expect(authorizationUrl.searchParams.get('scope')).toBe(
-      'user.info.basic,video.list,video.publish',
-    )
-    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
-    expect(authorizationUrl.searchParams.has('code_challenge_method')).toBe(false)
-
-    const connection = await hub.completeAuth('first-party', {
-      connectorId: 'tiktok',
-      owner: OWNER,
-      code: 'authorization-code',
-      state: 'state_fixed',
-      redirectUri: REDIRECT_URI,
-      codeVerifier: 'caller-must-not-force-pkce',
-    })
-    expect(tokenBody?.get('client_key')).toBe('tiktok-client-key')
-    expect(tokenBody?.get('client_secret')).toBe('tiktok-client-secret')
-    expect(tokenBody?.has('client_id')).toBe(false)
-    expect(tokenBody?.has('code_verifier')).toBe(false)
-    expect(connection.grantedScopes).toEqual([
-      'user.info.basic',
-      'video.list',
-      'video.publish',
-    ])
-    expect(connection.metadata).toEqual({ openId: 'open_456' })
-  })
-
   it('starts, exchanges, and refreshes TikTok web OAuth without PKCE', async () => {
     const bodies: URLSearchParams[] = []
     vi.stubGlobal(

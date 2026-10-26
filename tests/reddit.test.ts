@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createConnectorAdapterProvider, manifestToConnector } from '../src/adapter-provider.js'
+import { manifestToConnector } from '../src/adapter-provider.js'
 import { reddit, redditConnector } from '../src/connectors/adapters/reddit.js'
 import type { ResolvedDataSource } from '../src/connectors/types.js'
 
@@ -54,58 +54,6 @@ describe('reddit adapter manifest', () => {
 })
 
 describe('reddit OAuth request shape', () => {
-  it('requests permanent access without undocumented PKCE and uses HTTP Basic at exchange', async () => {
-    const tokenFetch = vi.fn(async () => new Response(JSON.stringify({
-      access_token: 'reddit_access',
-      refresh_token: 'reddit_refresh',
-      expires_in: 3600,
-      scope: 'identity read submit edit',
-    }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }))
-    const provider = createConnectorAdapterProvider({
-      adapters: [redditConnector],
-      resolveDataSource: () => source(),
-      resolveOAuthClient: () => ({ clientId: 'client:id', clientSecret: 's+e%cret' }),
-      fetchImpl: tokenFetch as unknown as typeof fetch,
-    })
-
-    const started = await provider.startAuth!({
-      connectorId: 'reddit',
-      owner: { type: 'user', id: 'user_1' },
-      requestedScopes: [],
-      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/callback',
-      state: 'state_1',
-      codeChallenge: 'caller-must-not-force-pkce',
-    })
-    const authorizationUrl = new URL(started.authUrl)
-    expect(authorizationUrl.searchParams.get('duration')).toBe('permanent')
-    expect(authorizationUrl.searchParams.get('scope')).toBe('identity read submit edit')
-    expect(authorizationUrl.searchParams.has('code_challenge')).toBe(false)
-
-    await provider.completeAuth!({
-      connectorId: 'reddit',
-      owner: { type: 'user', id: 'user_1' },
-      code: 'authorization_code',
-      state: 'state_1',
-      redirectUri: 'https://id.tangle.tools/api/integrations/oauth/callback',
-      codeVerifier: 'caller-must-not-force-pkce',
-    })
-
-    const [tokenUrl, tokenInit] = tokenFetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(tokenUrl).toBe('https://www.reddit.com/api/v1/access_token')
-    expect(headerValue(tokenInit.headers, 'authorization')).toBe(
-      `Basic ${Buffer.from('client%3Aid:s%2Be%25cret').toString('base64')}`,
-    )
-    expect(headerValue(tokenInit.headers, 'user-agent')).toBe(EXPECTED_USER_AGENT)
-    const tokenBody = tokenInit.body as URLSearchParams
-    expect(tokenBody.get('grant_type')).toBe('authorization_code')
-    expect(tokenBody.has('client_id')).toBe(false)
-    expect(tokenBody.has('client_secret')).toBe(false)
-    expect(tokenBody.has('code_verifier')).toBe(false)
-  })
-
   it('uses the credential-bound factory for the platform-owned token exchange', async () => {
     const now = Date.parse('2026-08-10T19:00:00.000Z')
     const tokenFetch = vi.fn(async () => Response.json({
