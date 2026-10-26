@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.76.1
+
+- test: retire obsolete mock OAuth host cases (#417)
+
 ## 0.76.0
 
 - feat: consolidate connector OAuth and credential hosting (#415)
