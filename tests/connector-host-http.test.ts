@@ -154,7 +154,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
       state: 'attacker', redirect_uri: 'https://attacker.test', client_id: 'attacker', scope: 'admin', config_id: 'attacker', code_challenge: 'attacker', prompt: 'consent',
     } } } }
     const { hub } = host([adapter])
-    const start = () => hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: ['read'], redirectUri, metadata: { subdomain: ' TENANT ' } })
+    const start = () => hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: ['read'], redirectUri, metadata: { subdomain: ' HTTPS://TENANT.ZENDESK.COM/ ' } })
     const started = await start()
     const url = new URL(started.authUrl)
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ state: started.state, redirect_uri: redirectUri, client_id: client.clientId, scope: 'read', prompt: 'consent', code_challenge_method: 'S256' })
@@ -307,6 +307,9 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const { hub } = host([zendeskConnector])
     const start = (subdomain: string) => hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri, metadata: { subdomain } })
     await expect(start('tenant.attacker.test')).rejects.toMatchObject({ code: 'connection_parameters_invalid' })
+    for (const tenant of ['https://tenant.zendesk.com:8443', 'https://tenant.zendesk.com/admin', 'https://tenant.zendesk.com@attacker.test', 'https://tenant.zendesk.com.attacker.test']) {
+      await expect(start(tenant)).rejects.toMatchObject({ code: 'connection_parameters_invalid' })
+    }
     await expect(hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri })).rejects.toMatchObject({ code: 'connection_parameters_missing' })
     expect(wire).toHaveLength(0)
     const started = await start('tenant')

@@ -751,7 +751,18 @@ function resolveOAuthConnectionMetadata(auth: NonNullable<ReturnType<typeof oaut
   for (const parameter of oauthConnectionParameters(auth)) {
     const spec = auth.urlTemplateMetadata?.[parameter.key]
     if (parameter.kind !== 'dns-label') continue
-    const value = metadata[parameter.key]
+    let value = metadata[parameter.key]
+    if (typeof value === 'string' && /^https:\/\//i.test(value.trim())) {
+      try {
+        const url = new URL(value.trim())
+        const template = spec?.kind === 'dns-label' ? spec.connectionMetadata?.template : undefined
+        const expected = template ? new URL(template.replaceAll(`{${parameter.key}}`, 'oauth-tenant')) : undefined
+        const suffix = expected?.hostname.startsWith('oauth-tenant.') ? expected.hostname.slice('oauth-tenant'.length) : undefined
+        if (!suffix || !url.hostname.endsWith(suffix) || url.username || url.password || url.port
+          || url.pathname !== '/' || url.search || url.hash) throw new Error('Invalid tenant origin')
+        value = url.hostname.slice(0, -suffix.length)
+      } catch { throw new IntegrationError(`Invalid tenant origin ${parameter.key}.`, 'connection_parameters_invalid') }
+    }
     if (typeof value !== 'string' || !isDnsLabel(value.trim())) throw new IntegrationError(`Invalid tenant label ${parameter.key}.`, value === undefined ? 'connection_parameters_missing' : 'connection_parameters_invalid')
     metadata[parameter.key] = value.trim().toLowerCase()
     if (spec?.kind === 'dns-label' && spec.connectionMetadata) {
