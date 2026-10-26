@@ -186,6 +186,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       let persistence = Promise.resolve()
       const persistRotation = (next: ConnectorCredentials) => {
         if (!observed || !acceptRotations || deadlineExpired) return Promise.resolve()
+        if (!options.onCredentialsRotated) { rotationFailed = true; return Promise.resolve() }
         persistence = persistence.then(async () => {
           if (deadlineExpired) return
           try { await options.onCredentialsRotated!({ connection, credentials: next }) }
@@ -196,7 +197,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       let status: import('./core-types.js').IntegrationConnectionTestStatus
       try {
         const result = await boundedProviderCall(options.operationTimeoutMs, undefined, () =>
-          adapter.test({ ...source, credentials }, options.onCredentialsRotated ? persistRotation : undefined),
+          adapter.test({ ...source, credentials }, persistRotation),
           () => { deadlineExpired = true },
         )
         status = result.ok ? 'healthy' : classifyConnectionFailure(result.reason)

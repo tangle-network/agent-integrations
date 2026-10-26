@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createConnectorAdapterProvider } from '../src/adapter-provider.js'
 import { IntegrationError } from '../src/core-error.js'
 import { IntegrationHub } from '../src/hub.js'
 import { createCredentialBackedAdapterProvider } from '../src/credentials.js'
@@ -29,6 +30,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
   let close: () => Promise<void>
   let releaseSlow: () => void
   let slowFinished: Promise<void>
+  let probeHealthy: boolean
   let hangProbe: boolean
   let releaseProbe: () => void
   let wire: Array<{ host: string; path: string; auth: string; body: URLSearchParams }>
@@ -36,6 +38,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
   beforeEach(async () => {
     wire = []
     hangProbe = false
+    probeHealthy = false
     const heldProbe = new Promise<void>(resolve => { releaseProbe = resolve })
     db = new DatabaseSync(':memory:')
     db.exec('CREATE TABLE connections (id TEXT PRIMARY KEY, record TEXT); CREATE TABLE secrets (id TEXT PRIMARY KEY, payload BLOB); CREATE TABLE states (id TEXT PRIMARY KEY, record TEXT)')
@@ -83,7 +86,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
         response.end('{}')
       } else if (request.headers['x-provider-host'] === 'oauth.reddit.com') {
         if (hangProbe) await heldProbe
-        response.statusCode = 503
+        response.statusCode = probeHealthy ? 200 : 503
         response.end('{}')
       } else if (request.method === 'POST') {
         response.end(JSON.stringify({ access_token: 'issued-access', refresh_token: 'issued-refresh', expires_in: 3600 }))
@@ -280,6 +283,24 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     releaseSlow()
     await finished
     expect(await secrets.get(secretRef)).toEqual(original)
+  })
+
+  it('reports rotated credentials without a persistence hook instead of a healthy connection', async () => {
+    probeHealthy = true
+    const adapter = reddit(client)
+    const issued = new Date().toISOString()
+    const secretRef = { provider: 'sql-vault', id: 'unconfigured-rotation-sink' }
+    const connection: IntegrationConnection = { id: secretRef.id, owner, connectorId: 'reddit', providerId: 'first-party',
+      status: 'active', grantedScopes: [], secretRef, createdAt: issued, updatedAt: issued }
+    const credentials: ConnectorCredentials = { kind: 'oauth2', accessToken: 'old-access', refreshToken: 'old-refresh', expiresAt: Date.now() + 30_000 }
+    await secrets.put(secretRef, credentials)
+    const provider = createConnectorAdapterProvider({ adapters: [adapter], resolveDataSource: () => ({
+      id: connection.id, projectId: owner.id, publishedAgentId: null, kind: 'reddit', label: 'Reddit',
+      consistencyModel: 'advisory', scopes: [], metadata: {}, credentials, status: 'active',
+    }) })
+    expect(await provider.testConnection!(connection)).toBe('credential_persistence_failure')
+    expect(wire.map(request => request.host)).toEqual(['www.reddit.com', 'oauth.reddit.com'])
+    expect(await secrets.get(secretRef)).toEqual(credentials)
   })
 
   it('redacts provider reflections and refuses private endpoints or bad tenants before provider traffic', async () => {
