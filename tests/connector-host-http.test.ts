@@ -29,10 +29,14 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
   let close: () => Promise<void>
   let releaseSlow: () => void
   let slowFinished: Promise<void>
+  let hangProbe: boolean
+  let releaseProbe: () => void
   let wire: Array<{ host: string; path: string; auth: string; body: URLSearchParams }>
 
   beforeEach(async () => {
     wire = []
+    hangProbe = false
+    const heldProbe = new Promise<void>(resolve => { releaseProbe = resolve })
     db = new DatabaseSync(':memory:')
     db.exec('CREATE TABLE connections (id TEXT PRIMARY KEY, record TEXT); CREATE TABLE secrets (id TEXT PRIMARY KEY, payload BLOB); CREATE TABLE states (id TEXT PRIMARY KEY, record TEXT)')
     const key = randomBytes(32)
@@ -66,7 +70,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
       for await (const chunk of request) raw += chunk
       const body = new URLSearchParams(raw)
       wire.push({ host: String(request.headers['x-provider-host']), path: request.url!, auth: String(request.headers.authorization ?? ''), body })
-      if (body.get('code') === 'slow') await slow
+      if (body.get('code') === 'slow' || body.get('refresh_token') === 'slow-refresh') await slow
       response.setHeader('content-type', 'application/json')
       if (body.get('code') === 'reflect-secret') {
         response.statusCode = 400
@@ -78,6 +82,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
         response.statusCode = 429
         response.end('{}')
       } else if (request.headers['x-provider-host'] === 'oauth.reddit.com') {
+        if (hangProbe) await heldProbe
         response.statusCode = 503
         response.end('{}')
       } else if (request.method === 'POST') {
@@ -96,6 +101,7 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     }
     close = () => new Promise<void>((resolve, reject) => {
       releaseSlow()
+      releaseProbe()
       server.close(error => error ? reject(error) : resolve())
       server.closeAllConnections()
     })
@@ -150,10 +156,12 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const url = new URL(started.authUrl)
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ state: started.state, redirect_uri: redirectUri, client_id: client.clientId, scope: 'read', prompt: 'consent', code_challenge_method: 'S256' })
     expect(url.searchParams.has('config_id')).toBe(false)
-    const complete = (state: string) => hub.completeAuth('first-party', { connectorId: 'zendesk', owner, code: 'one-time', state, redirectUri,
+    const complete = (state: string) => hub.completeAuth('first-party', { connectorId: 'zendesk', owner, code: 'one-time', state, redirectUri, requestedScopes: ['write'],
       metadata: { subdomain: 'attacker', subdomainUrl: 'https://attacker.test' } })
     const connection = await complete(started.state)
     expect(connection.id).toBe('canonical-host-owner-zendesk')
+    expect(connection.grantedScopes).toEqual(['read'])
+    await expect(hub.issueCapability({ connectionId: connection.id, subject: owner, scopes: ['write'], allowedActions: ['tickets.create'], ttlMs: 1000 })).rejects.toMatchObject({ code: 'scope_denied' })
     expect(connection.metadata).toMatchObject({ subdomain: 'tenant', subdomainUrl: 'https://tenant.zendesk.com/' })
     const verifier = wire[0].body.get('code_verifier')!
     expect(createHash('sha256').update(verifier).digest('base64url')).toBe(url.searchParams.get('code_challenge'))
@@ -237,6 +245,41 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     expect(wire[0].body.get('refresh_token')).toBe('old-refresh')
     expect(wire[1].auth).toBe('Bearer issued-access')
     expect(await secrets.get(secretRef)).toMatchObject({ accessToken: 'issued-access', refreshToken: 'issued-refresh' })
+  })
+
+  it('commits an observed refresh before the subsequent HTTP probe times out', async () => {
+    hangProbe = true
+    const adapter = reddit(client)
+    const { hub } = host([adapter])
+    const issued = new Date().toISOString()
+    const secretRef = { provider: 'sql-vault', id: 'refresh-before-hung-probe' }
+    const connection: IntegrationConnection = { id: secretRef.id, owner, connectorId: 'reddit', providerId: 'first-party',
+      status: 'active', grantedScopes: [], secretRef, createdAt: issued, updatedAt: issued }
+    await secrets.put(secretRef, { kind: 'oauth2', accessToken: 'old-access', refreshToken: 'old-refresh', expiresAt: Date.now() + 30_000 })
+    await connections.put(connection)
+    expect(await hub.testConnection(connection.id)).toBe('network')
+    expect(wire.map(request => request.host)).toEqual(['www.reddit.com', 'oauth.reddit.com'])
+    expect(await secrets.get(secretRef)).toMatchObject({ accessToken: 'issued-access', refreshToken: 'issued-refresh' })
+    releaseProbe()
+  })
+
+  it('refuses a refresh callback arriving after the provider deadline', async () => {
+    const maintained = reddit(client)
+    let complete: () => void
+    const finished = new Promise<void>(resolve => { complete = resolve })
+    const adapter = { ...maintained, test: (...args: Parameters<ConnectorAdapter['test']>) => maintained.test(...args).finally(() => complete!()) }
+    const { hub } = host([adapter])
+    const issued = new Date().toISOString()
+    const secretRef = { provider: 'sql-vault', id: 'late-refresh' }
+    const connection: IntegrationConnection = { id: secretRef.id, owner, connectorId: 'reddit', providerId: 'first-party',
+      status: 'active', grantedScopes: [], secretRef, createdAt: issued, updatedAt: issued }
+    const original: ConnectorCredentials = { kind: 'oauth2', accessToken: 'old-access', refreshToken: 'slow-refresh', expiresAt: Date.now() + 30_000 }
+    await secrets.put(secretRef, original)
+    await connections.put(connection)
+    expect(await hub.testConnection(connection.id)).toBe('network')
+    releaseSlow()
+    await finished
+    expect(await secrets.get(secretRef)).toEqual(original)
   })
 
   it('redacts provider reflections and refuses private endpoints or bad tenants before provider traffic', async () => {

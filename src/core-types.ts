@@ -119,6 +119,8 @@ export interface StartAuthRequest {
 }
 
 export interface StartAuthResult {
+  /** Effective scope request, including provider defaults. */
+  requestedScopes?: string[]
   providerId: string
   connectorId: string
   authUrl: string
@@ -137,6 +139,8 @@ export interface CompleteAuthRequest {
    *  value with the verifier stored against the single-use OAuth state. */
   codeVerifier?: string
   signal?: AbortSignal
+  /** Host-pinned start scopes; used only when the provider omits its grant scopes. */
+  requestedScopes?: string[]
   metadata?: Record<string, unknown>
 }
 

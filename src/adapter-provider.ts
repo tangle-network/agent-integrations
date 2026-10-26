@@ -113,12 +113,13 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       resolveOAuthUrlTemplate(auth.tokenUrl, metadata, request.connectorId, auth.urlTemplateMetadata)
       const pkce = resolveOAuthPkceMode(auth.pkce, request.connectorId)
       const state = request.state ?? randomState()
+      const requestedScopes = request.requestedScopes.length ? request.requestedScopes : auth.scopes
       return {
-        providerId, connectorId: request.connectorId, state,
+        providerId, connectorId: request.connectorId, state, requestedScopes,
         authUrl: buildOAuthAuthorizationUrl({
           ...auth, ...client, state, redirectUri: request.redirectUri,
           authorizationUrl: resolveOAuthUrlTemplate(auth.authorizationUrl, metadata, request.connectorId, auth.urlTemplateMetadata),
-          scopes: request.requestedScopes.length ? request.requestedScopes : auth.scopes,
+          scopes: requestedScopes,
           codeChallenge: pkce === 'unsupported' ? undefined : requirePkceChallenge(request.codeChallenge, request.connectorId),
         }),
         metadata,
@@ -162,7 +163,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const issued = now().toISOString()
       return commit({
         id: randomConnectionId(), owner: request.owner, providerId, connectorId: request.connectorId,
-        status: 'active', grantedScopes: exchanged.scopes.length ? exchanged.scopes : auth.scopes,
+        status: 'active', grantedScopes: exchanged.scopes.length ? exchanged.scopes : request.requestedScopes ?? [],
         createdAt: issued, updatedAt: issued,
         expiresAt: credentials.expiresAt ? new Date(credentials.expiresAt).toISOString() : undefined,
         metadata: { ...metadata, ...exchanged.metadata },
@@ -179,23 +180,33 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
         ownKeys(target) { observed = true; return Reflect.ownKeys(target) },
         set(target, key, value, receiver) { observed = true; return Reflect.set(target, key, value, receiver) },
       })
-      let rotated: ConnectorCredentials | undefined
+      let acceptRotations = true
+      let deadlineExpired = false
+      let rotationFailed = false
+      let persistence = Promise.resolve()
+      const persistRotation = (next: ConnectorCredentials) => {
+        if (!observed || !acceptRotations || deadlineExpired) return Promise.resolve()
+        persistence = persistence.then(async () => {
+          if (deadlineExpired) return
+          try { await options.onCredentialsRotated!({ connection, credentials: next }) }
+          catch { rotationFailed = true }
+        })
+        return persistence
+      }
       let status: import('./core-types.js').IntegrationConnectionTestStatus
       try {
         const result = await boundedProviderCall(options.operationTimeoutMs, undefined, () =>
-          adapter.test({ ...source, credentials }, (next) => { rotated = next }),
+          adapter.test({ ...source, credentials }, options.onCredentialsRotated ? persistRotation : undefined),
+          () => { deadlineExpired = true },
         )
-        status = !observed ? 'unsupported' : result.ok ? 'healthy' : classifyConnectionFailure(result.reason)
+        status = result.ok ? 'healthy' : classifyConnectionFailure(result.reason)
       } catch (cause) {
         if (cause instanceof ProviderOperationAborted) return 'network'
         status = classifyConnectionFailure(cause)
-      }
-      if (!observed || status === 'unsupported') return 'unsupported'
-      if (rotated) {
-        if (!options.onCredentialsRotated) return 'credential_persistence_failure'
-        try { await options.onCredentialsRotated({ connection, credentials: rotated }) }
-        catch { return 'credential_persistence_failure' }
-      }
+      } finally { acceptRotations = false }
+      await persistence
+      if (!observed) return 'unsupported'
+      if (rotationFailed) return 'credential_persistence_failure'
       return status
     },
     async connectApiKey(request) {
@@ -690,13 +701,13 @@ function base64UrlEncode(bytes: Uint8Array): string {
 class ProviderOperationAborted extends Error {}
 
 /** The losing promise remains observed; only an on-time result reaches a credential commit. */
-async function boundedProviderCall<T>(timeoutMs: number | undefined, parent: AbortSignal | undefined, start: (signal: AbortSignal) => Promise<T>): Promise<T> {
+async function boundedProviderCall<T>(timeoutMs: number | undefined, parent: AbortSignal | undefined, start: (signal: AbortSignal) => Promise<T>, onAbort?: () => void): Promise<T> {
   const budget = timeoutMs ?? 10_000
   if (!Number.isFinite(budget) || budget <= 0) throw new IntegrationError('Invalid provider timeout.', 'config_missing')
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
   let rejectAbort: (reason: Error) => void = () => {}
-  const abort = () => { controller.abort(); rejectAbort(new ProviderOperationAborted('Provider operation aborted or timed out.')) }
+  const abort = () => { onAbort?.(); controller.abort(); rejectAbort(new ProviderOperationAborted('Provider operation aborted or timed out.')) }
   try {
     return await Promise.race([
       new Promise<never>((_, reject) => {

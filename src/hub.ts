@@ -91,7 +91,7 @@ export class IntegrationHub {
       providerId,
       connectorId: request.connectorId,
       owner: request.owner,
-      requestedScopes: request.requestedScopes,
+      requestedScopes: result.requestedScopes ?? request.requestedScopes,
       redirectUri: request.redirectUri,
       codeVerifier: pkcePair?.verifier,
       expiresAt: this.now().getTime() + this.oauthStateTtlMs,
@@ -124,6 +124,7 @@ export class IntegrationHub {
       state: outcome.state.state,
       redirectUri: outcome.state.redirectUri,
       codeVerifier: outcome.state.codeVerifier,
+      requestedScopes: outcome.state.requestedScopes,
       metadata: pinnedMetadata,
     })
     await this.store.put(connection)
