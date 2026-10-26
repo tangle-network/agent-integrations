@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { IntegrationError } from '../src/core-error.js'
 import { IntegrationHub } from '../src/hub.js'
 import { createCredentialBackedAdapterProvider } from '../src/credentials.js'
 import { zendeskConnector } from '../src/connectors/adapters/zendesk.js'
@@ -106,11 +107,12 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     db.close()
   })
 
-  function host(adapters: ConnectorAdapter[], timeoutMs = 1000, configId?: string) {
+  function host(adapters: ConnectorAdapter[], timeoutMs = 1000, configId?: string, refuseScope = false) {
     const provider = createCredentialBackedAdapterProvider({
       id: 'first-party', adapters, secrets, connections, operationTimeoutMs: timeoutMs,
       resolveOAuthClient: () => ({ ...client, configId }),
       async persistConnection({ connection, credentials }) {
+        if (refuseScope) throw new IntegrationError(client.clientSecret, 'credential_scope_invalid')
         // A reconnect preserves the account's canonical id and replaces its
         // encrypted credential, rather than returning the provider's random id.
         const id = `canonical-${connection.owner.id}-${connection.connectorId}`
@@ -207,6 +209,10 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     const active = await connect('valid-key')
     expect(active.secretRef!.id).toBe(active.id)
     expect(wire.at(-1)!.auth).toBe('Bearer valid-key')
+    const scoped = host([zendeskSellConnector], 1000, undefined, true)
+    const refused = scoped.hub.connectApiKey('first-party', { connectorId: 'zendesk-sell', owner, apiKey: 'valid-key' })
+    await expect(refused).rejects.toMatchObject({ code: 'credential_scope_invalid', message: 'Credential commit rejected.' })
+    await expect(refused).rejects.not.toThrow(client.clientSecret)
   })
 
   it('persists a real refresh when the following HTTP probe rejects', async () => {

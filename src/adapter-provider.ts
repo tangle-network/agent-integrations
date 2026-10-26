@@ -98,7 +98,7 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       if (!stored.id || !stored.secretRef?.id || stored.owner.id !== connection.owner.id || stored.owner.type !== connection.owner.type
         || stored.providerId !== connection.providerId || stored.connectorId !== connection.connectorId) throw new Error('Invalid credential commit result.')
       return stored
-    } catch { throw new IntegrationError('Credential persistence failed.', 'credential_persistence_failure') }
+    } catch (cause) { throw new IntegrationError('Credential commit rejected.', cause instanceof IntegrationError ? cause.code : 'credential_persistence_failure') }
   }
   const provider: IntegrationProvider = {
     id: providerId,

@@ -27,6 +27,7 @@ export type IntegrationErrorRuntimeCode =
   | 'config_missing'
   | 'provider_failure'
   | 'credential_invalid'
+  | 'credential_scope_invalid'
   | 'credential_rate_limited'
   | 'credential_probe_unsupported'
   | 'credential_persistence_failure'
