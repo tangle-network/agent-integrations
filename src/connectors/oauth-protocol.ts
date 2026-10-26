@@ -129,7 +129,7 @@ async function requestOAuthTokens(
       const detail = `${response.status} ${response.statusText} — ${await response.text()}`
       throw new Error(`OAuth ${operation} failed: ${detail}`)
     }
-    const raw: unknown = await response.json()
+    const raw: unknown = await response.json().catch(() => { throw new Error(`OAuth ${operation} returned invalid JSON`) })
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`OAuth ${operation} returned invalid JSON`)
     const json = raw as Record<string, unknown>
     if (typeof json.access_token !== 'string' || !json.access_token) throw new Error(`OAuth ${operation} returned no access_token`)
