@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0
+
+- First stable release, the same code as 0.76.2. Later compatible changes ship as patch releases ([release versioning](https://github.com/tangle-network/agent-runtime/blob/main/docs/release-versioning.md)).
+
 ## 0.76.2
 
 - fix: keep suppressed OAuth scopes unknown (#419)
