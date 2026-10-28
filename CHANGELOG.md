@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- feat(gmail): add bounded attachment downloads
+- ci(release): admit the release version before publishing (#422)
+
 ## 1.0.0
 
 - First stable release, the same code as 0.76.2. Later compatible changes ship as patch releases ([release versioning](https://github.com/tangle-network/agent-runtime/blob/main/docs/release-versioning.md)).
