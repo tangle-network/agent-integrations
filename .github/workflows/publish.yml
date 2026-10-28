@@ -63,5 +63,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Admit the release version
+        uses: tangle-network/agent-runtime/.github/actions/admit-release@18749b731dc159cd20adf44b3c50188b4e233a65
+        with:
+          directories: .
+
       - name: Build, pack, test, and publish exact artifact
         run: pnpm run release -- --publish
