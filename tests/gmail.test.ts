@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   gmail,
+  type GmailDownloadAttachmentResult,
   type ResolvedDataSource,
 } from '../src/connectors/index'
 
@@ -125,6 +126,201 @@ describe('gmail adapter', () => {
     expect(data.body.html).toBe('<p>html body</p>')
     expect(data.attachments).toHaveLength(1)
     expect(data.attachments[0].filename).toBe('invoice.pdf')
+  })
+
+  it('discovers download_attachment with exact inputs and only gmail.readonly', () => {
+    const capability = adapter.manifest.capabilities.find(({ name }) => name === 'download_attachment')
+    expect(capability).toMatchObject({
+      class: 'read',
+      requiredScopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+      parameters: {
+        type: 'object',
+        required: ['messageId', 'attachmentId'],
+      },
+    })
+    expect(Object.keys(capability!.parameters.properties ?? {})).toEqual(['messageId', 'attachmentId'])
+  })
+
+  it('download_attachment returns non-UTF8 bytes as standard base64 without credential extras', async () => {
+    const bytes = Buffer.from([0x00, 0xff, 0x80, 0xfb, 0xff, 0xef, 0x41])
+    let calledUrl = ''
+    let authorization = ''
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calledUrl = String(input)
+      authorization = new Headers(init?.headers).get('authorization') ?? ''
+      return jsonResponse({ size: bytes.byteLength, data: bytes.toString('base64url') })
+    }))
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'message/1', attachmentId: 'attachment/1' },
+      idempotencyKey: 'k1',
+    })
+    expect(calledUrl).toBe('https://gmail.googleapis.com/gmail/v1/users/me/messages/message%2F1/attachments/attachment%2F1')
+    expect(authorization).toBe('Bearer at')
+    const data = result.data as GmailDownloadAttachmentResult
+    expect(data).toEqual({
+      messageId: 'message/1',
+      attachmentId: 'attachment/1',
+      size: bytes.byteLength,
+      contentBytes: bytes.toString('base64'),
+    })
+    expect(Buffer.from(data.contentBytes, 'base64').equals(bytes)).toBe(true)
+    expect(Object.keys(data)).toEqual(['messageId', 'attachmentId', 'size', 'contentBytes'])
+    expect(JSON.stringify(data)).not.toMatch(/"at"|"rt"|"sec"|accessToken|refreshToken|clientSecret/)
+  })
+
+  it('download_attachment accepts exactly 25 MiB', async () => {
+    const bytes = Buffer.alloc(25 * 1024 * 1024, 0x5a)
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
+      size: bytes.byteLength,
+      data: bytes.toString('base64url'),
+    })))
+
+    const result = await adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })
+    const data = result.data as GmailDownloadAttachmentResult
+    expect(data.size).toBe(25 * 1024 * 1024)
+    expect(data.contentBytes).toHaveLength(4 * Math.ceil(bytes.byteLength / 3))
+    expect(Buffer.from(data.contentBytes, 'base64').equals(bytes)).toBe(true)
+  }, 20_000)
+
+  it('download_attachment rejects declared oversize before decoding data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ size: 25 * 1024 * 1024 + 1, data: 'AA' })))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/attachment exceeds 26214400 byte limit/)
+  })
+
+  it('download_attachment rejects decoded oversize', async () => {
+    const bytes = Buffer.alloc(25 * 1024 * 1024 + 1)
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
+      size: 25 * 1024 * 1024,
+      data: bytes.toString('base64url'),
+    })))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/attachment exceeds 26214400 byte limit/)
+  }, 20_000)
+
+  it('download_attachment rejects an oversized Content-Length before reading the body', async () => {
+    const response = new Response('{}', {
+      headers: { 'content-length': String(36 * 1024 * 1024) },
+    })
+    const cancel = vi.spyOn(response.body!, 'cancel')
+    vi.stubGlobal('fetch', vi.fn(async () => response))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/provider response exceeds .* byte limit/)
+    expect(cancel).toHaveBeenCalledOnce()
+  })
+
+  it('download_attachment stops buffering an oversized streamed JSON response', async () => {
+    let reads = 0
+    const chunk = new Uint8Array(1024 * 1024)
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        reads += 1
+        if (reads === 36) controller.close()
+        else controller.enqueue(chunk)
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body)))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/provider response exceeds .* byte limit/)
+    expect(reads).toBeLessThan(36)
+  })
+
+  it.each([
+    ['invalid JSON', new Response('{')],
+    ['missing data', jsonResponse({ size: 1 })],
+    ['invalid size', jsonResponse({ size: '1', data: 'AA' })],
+    ['negative size', jsonResponse({ size: -1, data: '' })],
+  ])('download_attachment rejects malformed payload: %s', async (_name, response) => {
+    vi.stubGlobal('fetch', vi.fn(async () => response))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/malformed/)
+  })
+
+  it.each(['AA==', 'AA+/', 'A', 'A A', 'AB'])('download_attachment rejects invalid base64url %s', async (data) => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ size: 1, data })))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/malformed base64url/)
+  })
+
+  it('download_attachment rejects declared and decoded size mismatches', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ size: 2, data: 'AA' })))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/declared size 2 does not match decoded size 1/)
+  })
+
+  it.each([
+    [401, { error: { status: 'UNAUTHENTICATED' } }, 'CredentialsExpired'],
+    [403, { error: { status: 'RESOURCE_EXHAUSTED', errors: [{ reason: 'quotaExceeded' }] } }, 'ProviderRateLimited'],
+    [429, { error: { status: 'RESOURCE_EXHAUSTED' } }, 'ProviderRateLimited'],
+    [500, { error: { message: 'provider failed' } }, 'Error'],
+  ])('download_attachment classifies provider error %i', async (status, body, name) => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(body, { status })))
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toMatchObject({ name })
+  })
+
+  it('download_attachment reports a missing attachment and validates required identifiers', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({}, { status: 404 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/attachment a1 on message m1 not found/)
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: '', attachmentId: 'a1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/`messageId` is required/)
+    await expect(adapter.executeRead!({
+      source: source(),
+      capabilityName: 'download_attachment',
+      args: { messageId: 'm1' },
+      idempotencyKey: 'k1',
+    })).rejects.toThrow(/`attachmentId` is required/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('send_reply pulls In-Reply-To from the last thread message', async () => {

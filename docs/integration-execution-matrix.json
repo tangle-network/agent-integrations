@@ -40746,6 +40746,16 @@
           "dataClass": "private"
         }
       ],
+      "urlTemplateMetadata": {
+        "subdomain": {
+          "kind": "dns-label",
+          "label": "Freshdesk subdomain",
+          "connectionMetadata": {
+            "key": "subdomainUrl",
+            "template": "https://{subdomain}.freshdesk.com"
+          }
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/freshdesk/callback",
       "pkce": "required"
     },
@@ -44522,6 +44532,16 @@
           "dataClass": "private"
         }
       ],
+      "urlTemplateMetadata": {
+        "subdomain": {
+          "kind": "dns-label",
+          "label": "Gorgias subdomain",
+          "connectionMetadata": {
+            "key": "subdomainUrl",
+            "template": "https://{subdomain}.gorgias.com"
+          }
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/gorgias/callback",
       "pkce": "required"
     },
@@ -47784,6 +47804,14 @@
           "title": "HubSpot write",
           "reason": "Create or update HubSpot resources after policy approval.",
           "risk": "write",
+          "dataClass": "private"
+        },
+        {
+          "normalized": "crm.read",
+          "providerScope": "crm.objects.deals.read",
+          "title": "HubSpot read",
+          "reason": "Read HubSpot data for user-authorized agent workflows.",
+          "risk": "read",
           "dataClass": "private"
         }
       ],
@@ -67660,6 +67688,30 @@
     ]
   },
   {
+    "id": "neon",
+    "title": "neon",
+    "category": "internal",
+    "catalogAuth": null,
+    "setupAuth": "custom",
+    "runtimePackage": null,
+    "actionCount": null,
+    "triggerCount": 0,
+    "setupStatus": "executable",
+    "tangleContractStatus": "native_backed",
+    "implementationKind": "native_adapter",
+    "nativeAdapter": true,
+    "catalogActionMappings": null,
+    "quality": {
+      "tangleContract": true,
+      "authFieldsMapped": true,
+      "actionNamesMapped": true,
+      "triggerNamesMapped": true,
+      "runtimePackageMapped": false,
+      "nativeAdapter": true
+    },
+    "missing": []
+  },
+  {
     "id": "netlify",
     "title": "Netlify",
     "category": "workflow",
@@ -86627,6 +86679,16 @@
           "dataClass": "sensitive"
         }
       ],
+      "urlTemplateMetadata": {
+        "shop": {
+          "kind": "dns-label",
+          "label": "Shopify shop",
+          "connectionMetadata": {
+            "key": "apiBaseUrl",
+            "template": "https://{shop}.myshopify.com"
+          }
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/shopify/callback",
       "pkce": "required"
     },
@@ -109972,6 +110034,16 @@
           "dataClass": "private"
         }
       ],
+      "urlTemplateMetadata": {
+        "subdomain": {
+          "kind": "dns-label",
+          "label": "Zendesk subdomain",
+          "connectionMetadata": {
+            "key": "subdomainUrl",
+            "template": "https://{subdomain}.zendesk.com"
+          }
+        }
+      },
       "redirectUriTemplate": "https://{host}/api/integrations/oauth/zendesk/callback",
       "pkce": "required"
     },

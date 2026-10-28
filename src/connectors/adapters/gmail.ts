@@ -1,8 +1,8 @@
 /**
  * @stable Gmail connector — email-triggered agent workflows.
  *
- * Five capabilities, picked to cover "agent reads inbox, sends and
- * replies, and watches a label" without exposing all of Gmail's surface:
+ * Six capabilities, picked to cover "agent reads inbox and attachments,
+ * sends and replies, and watches a label" without exposing all of Gmail's surface:
  *
  *   list_messages(labelIds?, query?, maxResults?)
  *     → {messages: [{id, threadId, snippet, internalDate, from, to, subject, labelIds, tangleSecurityMail?}], nextPageToken?}
@@ -15,7 +15,12 @@
  *     Read. `users.messages.get?format=full` then a small MIME walker that
  *     extracts `text/plain` + `text/html` + a flat attachment manifest.
  *     Attachment bodies are NOT inlined (could be huge) — the caller can
- *     follow up with `get_attachment` if needed.
+ *     follow up with `download_attachment` if needed.
+ *
+ *   download_attachment(messageId, attachmentId)
+ *     → {messageId, attachmentId, size, contentBytes}
+ *     Read. `users.messages.attachments.get`, bounded to 25 MiB and returned
+ *     as standard-base64 contentBytes.
  *
  *   send(to, subject, body, cc?, bcc?, replyTo?, html?)
  *     → {id, threadId, labelIds}
@@ -77,8 +82,17 @@ const SCOPE_MODIFY = 'https://www.googleapis.com/auth/gmail.modify'
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me'
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+const MAX_ATTACHMENT_JSON_BYTES = 4 * Math.ceil(MAX_ATTACHMENT_BYTES / 3) + 64 * 1024
 /** Set by Tangle Platform on its security mail; see the module comment. */
 const SECURITY_MAIL_HEADER = 'X-Tangle-Security-Mail'
+
+export interface GmailDownloadAttachmentResult {
+  messageId: string
+  attachmentId: string
+  size: number
+  contentBytes: string
+}
 
 export interface GmailOptions {
   clientId: string
@@ -140,6 +154,21 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
               id: { type: 'string' },
             },
             required: ['id'],
+          },
+        },
+        {
+          name: 'download_attachment',
+          class: 'read',
+          description:
+            'Download attachment bytes (up to 25 MiB) as standard-base64 contentBytes. Gmail GET users.messages.attachments.get.',
+          requiredScopes: [SCOPE_READ],
+          parameters: {
+            type: 'object',
+            properties: {
+              messageId: { type: 'string', description: 'Gmail message id owning the attachment.' },
+              attachmentId: { type: 'string', description: 'Gmail attachment id from read_message attachments[].attachmentId.' },
+            },
+            required: ['messageId', 'attachmentId'],
           },
         },
         {
@@ -220,6 +249,7 @@ export function gmail(opts: GmailOptions): ConnectorAdapter {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret, inv.onCredentialsRotated)
       if (inv.capabilityName === 'list_messages') return listMessages(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'read_message') return readMessage(inv, accessToken, timeoutMs)
+      if (inv.capabilityName === 'download_attachment') return downloadAttachment(inv, accessToken, timeoutMs)
       throw new Error(`gmail: unknown read capability ${inv.capabilityName}`)
     },
 
@@ -438,6 +468,96 @@ function walkParts(
     })
   }
   for (const child of part.parts ?? []) walkParts(child, body, attachments)
+}
+
+async function downloadAttachment(
+  inv: ConnectorInvocation,
+  accessToken: string,
+  timeoutMs: number,
+): Promise<CapabilityReadResult> {
+  const args = inv.args as { messageId?: unknown; attachmentId?: unknown }
+  if (typeof args.messageId !== 'string' || args.messageId.length === 0) {
+    throw new Error('gmail download_attachment: `messageId` is required')
+  }
+  if (typeof args.attachmentId !== 'string' || args.attachmentId.length === 0) {
+    throw new Error('gmail download_attachment: `attachmentId` is required')
+  }
+  const { messageId, attachmentId } = args
+  const res = await fetch(`${API}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (res.status === 404) {
+    throw new Error(`gmail download_attachment: attachment ${attachmentId} on message ${messageId} not found`)
+  }
+  if (!res.ok) throw await googleApiError(res, 'gmail download_attachment', inv.source.id)
+
+  const payload = await readAttachmentJson(res)
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    !Number.isSafeInteger(payload.size) ||
+    (payload.size as number) < 0 ||
+    typeof payload.data !== 'string'
+  ) {
+    throw new Error('gmail download_attachment: malformed attachment payload')
+  }
+  const declaredSize = payload.size as number
+  if (declaredSize > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`gmail download_attachment: attachment exceeds ${MAX_ATTACHMENT_BYTES} byte limit`)
+  }
+  if (!/^[A-Za-z0-9_-]*$/.test(payload.data) || payload.data.length % 4 === 1) {
+    throw new Error('gmail download_attachment: malformed base64url attachment data')
+  }
+  const bytes = Buffer.from(payload.data, 'base64url')
+  if (bytes.byteLength > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`gmail download_attachment: attachment exceeds ${MAX_ATTACHMENT_BYTES} byte limit`)
+  }
+  if (bytes.toString('base64url') !== payload.data) {
+    throw new Error('gmail download_attachment: malformed base64url attachment data')
+  }
+  if (bytes.byteLength !== declaredSize) {
+    throw new Error(`gmail download_attachment: declared size ${declaredSize} does not match decoded size ${bytes.byteLength}`)
+  }
+  const data: GmailDownloadAttachmentResult = {
+    messageId,
+    attachmentId,
+    size: bytes.byteLength,
+    contentBytes: bytes.toString('base64'),
+  }
+  return { data, fetchedAt: Date.now() }
+}
+
+async function readAttachmentJson(res: Response): Promise<{ size?: unknown; data?: unknown }> {
+  const declaredLength = res.headers.get('content-length')
+  if (declaredLength !== null && Number(declaredLength) > MAX_ATTACHMENT_JSON_BYTES) {
+    await res.body?.cancel()
+    throw new Error(`gmail download_attachment: provider response exceeds ${MAX_ATTACHMENT_JSON_BYTES} byte limit`)
+  }
+  const chunks: Uint8Array[] = []
+  let size = 0
+  if (res.body) {
+    const reader = res.body.getReader()
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.byteLength
+        if (size > MAX_ATTACHMENT_JSON_BYTES) {
+          await reader.cancel()
+          throw new Error(`gmail download_attachment: provider response exceeds ${MAX_ATTACHMENT_JSON_BYTES} byte limit`)
+        }
+        chunks.push(value)
+      }
+    } finally {
+      reader.releaseLock()
+    }
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks, size).toString('utf8')) as { size?: unknown; data?: unknown }
+  } catch {
+    throw new Error('gmail download_attachment: malformed provider JSON')
+  }
 }
 
 function decodeBase64Url(s: string): string {

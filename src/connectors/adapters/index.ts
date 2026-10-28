@@ -28,7 +28,7 @@ export { googleCalendar, type GoogleCalendarOptions } from './google-calendar.js
 export { googleDrive, type GoogleDriveOptions } from './google-drive.js'
 export { googleSheets, type GoogleSheetsOptions } from './google-sheets.js'
 export { googleSlidesConnector } from './google-slides.js'
-export { gmail, type GmailOptions } from './gmail.js'
+export { gmail, type GmailDownloadAttachmentResult, type GmailOptions } from './gmail.js'
 export {
   classifyGoogleError,
   classifyGoogleReason,
