@@ -173,18 +173,19 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       const adapter = requireAdapter(connection.connectorId)
       let source: ResolvedDataSource
       try { source = await options.resolveDataSource(connection) } catch { return 'credential_persistence_failure' }
-      let observed = false
+      let observed = false, written = false
       const credentials = new Proxy(source.credentials, {
         get(target, key, receiver) { observed = true; return Reflect.get(target, key, receiver) },
         has(target, key) { observed = true; return Reflect.has(target, key) },
         ownKeys(target) { observed = true; return Reflect.ownKeys(target) },
-        set(target, key, value, receiver) { observed = true; return Reflect.set(target, key, value, receiver) },
+        set(target, key, value, receiver) { observed = written = true; return Reflect.set(target, key, value, receiver) },
       })
       let acceptRotations = true
       let deadlineExpired = false
       let rotationFailed = false
       let persistence = Promise.resolve()
       const persistRotation = (next: ConnectorCredentials) => {
+        written = false
         if (!observed || !acceptRotations || deadlineExpired) return Promise.resolve()
         if (!options.onCredentialsRotated) { rotationFailed = true; return Promise.resolve() }
         persistence = persistence.then(async () => {
@@ -196,10 +197,9 @@ export function createConnectorAdapterProvider(options: ConnectorAdapterProvider
       }
       let status: import('./core-types.js').IntegrationConnectionTestStatus
       try {
-        const result = await boundedProviderCall(options.operationTimeoutMs, undefined, () =>
-          adapter.test({ ...source, credentials }, persistRotation),
-          () => { deadlineExpired = true },
-        )
+        const result = await boundedProviderCall(options.operationTimeoutMs, undefined, () => adapter.test({ ...source, credentials }, persistRotation), () => { deadlineExpired = true })
+        // Most adapters refresh by writing the credentials they were given and never call back.
+        if (written) await persistRotation({ ...source.credentials })
         status = result.ok ? 'healthy' : classifyConnectionFailure(result.reason)
       } catch (cause) {
         if (cause instanceof ProviderOperationAborted) return 'network'

@@ -341,6 +341,32 @@ describe('connector host over HTTP and encrypted SQL persistence', () => {
     expect(await secrets.get(secretRef)).toEqual(credentials)
   })
 
+  it('persists the token a connection test refreshed when the adapter only wrote it in place', async () => {
+    const seen: string[] = []
+    globalThis.fetch = async (input, init) => {
+      const url = String(input)
+      if (url.startsWith('https://oauth2.googleapis.com/token')) return Response.json({ access_token: 'ya29.refreshed', expires_in: 3600 })
+      seen.push(new Headers(init?.headers).get('authorization') ?? '')
+      return Response.json({ emailAddress: 'owner@example.test' })
+    }
+    const gmail = listBundledConnectorAdapters({ envSource: { GOOGLE_OAUTH_CLIENT_ID: 'id', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' }, includeUnconfigured: true })
+      .find(adapter => adapter.manifest.kind === 'gmail')!
+    const rotations: ConnectorCredentials[] = []
+    const provider = createConnectorAdapterProvider({
+      adapters: [gmail],
+      resolveDataSource: () => ({ id: 'source', projectId: 'project', publishedAgentId: null, kind: 'gmail', label: 'Gmail',
+        consistencyModel: gmail.manifest.defaultConsistencyModel, scopes: [], metadata: {}, status: 'active',
+        credentials: { kind: 'oauth2', accessToken: 'ya29.expired', refreshToken: '1//refresh', expiresAt: 1 } }),
+      onCredentialsRotated: ({ credentials }) => { rotations.push(credentials) },
+    })
+    const connection: IntegrationConnection = { id: 'source', owner, providerId: 'first-party', connectorId: 'gmail', status: 'active', grantedScopes: [], createdAt: '2026-10-30T00:00:00.000Z', updatedAt: '2026-10-30T00:00:00.000Z', metadata: {} }
+
+    expect(await provider.testConnection!(connection)).toBe('healthy')
+    expect(seen).toEqual(['Bearer ya29.refreshed'])
+    expect(rotations).toHaveLength(1)
+    expect(rotations[0]).toMatchObject({ kind: 'oauth2', accessToken: 'ya29.refreshed', refreshToken: '1//refresh' })
+  })
+
   it('redacts provider reflections and refuses private endpoints or bad tenants before provider traffic', async () => {
     const { hub } = host([zendeskConnector])
     const start = (subdomain: string) => hub.startAuth('first-party', { connectorId: 'zendesk', owner, requestedScopes: [], redirectUri, metadata: { subdomain } })
