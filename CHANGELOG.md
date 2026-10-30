@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- fix: a connection test keeps the token an adapter refreshed in place (#425)
+
 ## 1.0.1
 
 - feat(gmail): add bounded attachment downloads
