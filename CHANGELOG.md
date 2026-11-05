@@ -1,9 +1,5 @@
 # Changelog
 
-## 1.0.3
-
-- feat(github): create check runs through the existing approval-aware mutation path.
-
 ## 1.0.2
 
 - fix: a connection test keeps the token an adapter refreshed in place (#425)
