@@ -93,7 +93,8 @@ it('keeps GitHub check creation behind approval and posts the approved payload o
   expect(received).toHaveLength(1)
   const denied = approvals.list({ status: 'pending' })[0]
   await resolveIntegrationApproval({ store: approvals, approvalId: denied.id, approved: false, resolvedBy: owner })
-  await expect(invoke('denied', { ...input, head_sha: 'b'.repeat(40) }, denied.id)).rejects.toMatchObject({ code: 'policy_denied' })
+  expect(await invoke('denied', { ...input, head_sha: 'b'.repeat(40) }, denied.id)).toMatchObject({ ok: false, output: { approvalRequired: true } })
+  expect((await approvals.get(denied.id))?.status).toBe('denied')
   expect(received).toHaveLength(1)
   await expect(githubConnector.executeRead!({
     source: { id: connection.id, projectId: 'checks', publishedAgentId: null, kind: 'github', label: 'GitHub App',
