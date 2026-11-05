@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- feat(github): publish check runs through approved mutations (#427)
+
 ## 1.0.2
 
 - fix: a connection test keeps the token an adapter refreshed in place (#425)
