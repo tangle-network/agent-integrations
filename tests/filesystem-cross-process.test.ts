@@ -34,7 +34,8 @@ function send(message) {
   return new Promise((resolve) => process.send(message, resolve))
 }
 
-process.on('message', async (message) => {
+await send({ type: 'ready' })
+process.once('message', async (message) => {
   if (message !== 'go') return
   const acquired = await store.claim(key, ttlMs)
   const finished = mode === 'claim'
@@ -83,7 +84,6 @@ process.on('message', async (message) => {
     })
   }
 })
-await send({ type: 'ready' })
 `
 
 const subscriptionWorker = `
@@ -96,13 +96,13 @@ function send(message) {
   return new Promise((resolve) => process.send(message, resolve))
 }
 
-process.on('message', async (message) => {
+await send({ type: 'ready' })
+process.once('message', async (message) => {
   if (message !== 'go') return
   const written = await store.saveIfVersion(candidate, 0)
   await send({ type: 'written', written, eventId: candidate.lastEventId })
   process.exit(0)
 })
-await send({ type: 'ready' })
 `
 
 beforeAll(async () => {
@@ -266,9 +266,7 @@ describe('filesystem stores across processes', () => {
   }, 20_000)
 })
 
-interface TestWorker extends ChildProcess {
-  stderrText: string
-}
+type TestWorker = ChildProcess & { stderrText: string; closed?: boolean }
 
 function startWorker(source: string, extraEnv: Record<string, string>): TestWorker {
   const env: NodeJS.ProcessEnv = { ...process.env, ...extraEnv }
@@ -279,6 +277,7 @@ function startWorker(source: string, extraEnv: Record<string, string>): TestWork
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   }) as TestWorker
   child.stderrText = ''
+  child.once('close', () => { child.closed = true })
   child.stderr?.on('data', (chunk) => { child.stderrText += String(chunk) })
   return child
 }
@@ -287,7 +286,7 @@ function waitForMessage<T extends object = Record<string, never>>(
   child: TestWorker,
   type: string,
 ): Promise<T> {
-  if (child.exitCode !== null || child.signalCode !== null) {
+  if (child.closed) {
     return Promise.reject(new Error(`worker exited ${child.exitCode ?? child.signalCode}: ${child.stderrText}`))
   }
   return new Promise((resolveMessage, rejectMessage) => {
@@ -300,18 +299,18 @@ function waitForMessage<T extends object = Record<string, never>>(
       cleanup()
       rejectMessage(error)
     }
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    const onClose = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup()
       rejectMessage(new Error(`worker exited ${code ?? signal}: ${child.stderrText}`))
     }
     const cleanup = () => {
       child.off('message', onMessage)
       child.off('error', onError)
-      child.off('exit', onExit)
+      child.off('close', onClose)
     }
     child.on('message', onMessage)
     child.on('error', onError)
-    child.on('exit', onExit)
+    child.on('close', onClose)
   })
 }
 
