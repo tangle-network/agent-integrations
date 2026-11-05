@@ -158,9 +158,7 @@ describe('filesystem stores across processes', () => {
     }
   }, 20_000)
 
-  // The lease is 10 heartbeats wide, so a single late heartbeat on a loaded
-  // machine cannot expire it and hand the claim to the contender. A narrower
-  // ratio makes the assertion measure host scheduling, not lease renewal.
+  // Ten heartbeats per lease distinguish renewal from host scheduling.
   it('renews an active owner beyond its lease and blocks a second process', async () => {
     const root = resolve(await temporaryDirectory('over-lease'))
     const owner = startWorker(idempotencyWorker, {
@@ -175,7 +173,6 @@ describe('filesystem stores across processes', () => {
     owner.send('go')
     expect((await claimed).acquired).toBe(true)
 
-    // Past three whole leases, so the claim survives only by renewal.
     await delay(1_300)
     const contender = new FileSystemAtomicIdempotencyStore(root, {
       processingLeaseMs: 400,
@@ -271,6 +268,7 @@ describe('filesystem stores across processes', () => {
 
 interface TestWorker extends ChildProcess {
   stderrText: string
+  closed: boolean
 }
 
 function startWorker(source: string, extraEnv: Record<string, string>): TestWorker {
@@ -282,6 +280,8 @@ function startWorker(source: string, extraEnv: Record<string, string>): TestWork
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   }) as TestWorker
   child.stderrText = ''
+  child.closed = false
+  child.once('close', () => { child.closed = true })
   child.stderr?.on('data', (chunk) => { child.stderrText += String(chunk) })
   return child
 }
@@ -290,7 +290,7 @@ function waitForMessage<T extends object = Record<string, never>>(
   child: TestWorker,
   type: string,
 ): Promise<T> {
-  if (child.exitCode !== null || child.signalCode !== null) {
+  if (child.closed) {
     return Promise.reject(new Error(`worker exited ${child.exitCode ?? child.signalCode}: ${child.stderrText}`))
   }
   return new Promise((resolveMessage, rejectMessage) => {
@@ -303,18 +303,18 @@ function waitForMessage<T extends object = Record<string, never>>(
       cleanup()
       rejectMessage(error)
     }
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    const onClose = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup()
       rejectMessage(new Error(`worker exited ${code ?? signal}: ${child.stderrText}`))
     }
     const cleanup = () => {
       child.off('message', onMessage)
       child.off('error', onError)
-      child.off('exit', onExit)
+      child.off('close', onClose)
     }
     child.on('message', onMessage)
     child.on('error', onError)
-    child.on('exit', onExit)
+    child.on('close', onClose)
   })
 }
 
