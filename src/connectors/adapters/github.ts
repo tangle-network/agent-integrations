@@ -242,7 +242,7 @@ const githubSpec: RestConnectorSpec = {
     {
       name: 'checks.create',
       class: 'mutation',
-      description: 'Create a check run for a commit using a GitHub App installation token with checks:write permission.',
+      description: 'Create a check run with a GitHub App checks:write token. Reconcile with checks.listForRef before retrying an uncertain create; GitHub has no idempotency key.',
       parameters: repoParams({
         name: { type: 'string', minLength: 1 },
         head_sha: { type: 'string', pattern: `^${GIT_SHA}$` },
@@ -355,20 +355,7 @@ const githubSpec: RestConnectorSpec = {
         query: { per_page: '{per_page}', page: '{page}' },
       },
     },
-    // ---------- Git Data: propose a change on a NEW branch ----------
-    // A change is proposed as a draft pull request in this order, each step
-    // one request:
-    //   1. repos.getBranch    the BASE branch by name: head commit + tree sha
-    //   2. git.createTree     base tree + every changed file -> new tree sha
-    //   3. git.createCommit   new tree, parents [base head]  -> new commit sha
-    //      git.getCommit      optional: verify that commit by sha
-    //   4. git.createRef      refs/heads/<new-branch> at the new commit
-    //   5. pulls.create       head <new-branch>, base <base>, draft: true
-    // (git.getTree / git.getBlob read the files being edited before step 2.)
-    // There is deliberately no ref-update action: a caller can create a new
-    // branch but can never move an existing one, so the default branch and
-    // every protected branch stay out of reach. GitHub refuses
-    // `git.createRef` for a ref that already exists (422).
+    // New-branch proposals never move an existing ref.
     {
       name: 'repos.getBranch',
       class: 'read',
@@ -665,6 +652,12 @@ const baseMutation = base.executeMutation!
 
 export const githubConnector: ConnectorAdapter = {
   ...base,
+  manifest: {
+    ...base.manifest,
+    capabilities: base.manifest.capabilities.map(capability => capability.name === 'checks.create'
+      ? { ...capability, consistencyModel: 'advisory' }
+      : capability),
+  },
   async executeMutation(inv: ConnectorInvocation) {
     if (inv.capabilityName === 'pulls.propose') return proposePullRequest(inv)
     return baseMutation(inv)

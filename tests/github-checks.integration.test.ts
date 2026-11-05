@@ -62,7 +62,7 @@ it('keeps GitHub check creation behind approval and posts the approved payload o
   })
   const catalog = await provider.listConnectors()
   expect(catalog[0].actions.find(action => action.id === 'checks.create')).toMatchObject({
-    risk: 'destructive', approvalRequired: true,
+    risk: 'destructive', approvalRequired: true, consistencyModel: 'advisory',
   })
   const capability = await hub.issueCapability({
     subject, connectionId: connection.id, scopes: [], allowedActions: ['checks.create'], ttlMs: 60_000,
