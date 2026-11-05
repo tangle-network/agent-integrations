@@ -56,7 +56,7 @@ it('keeps GitHub check creation behind approval and posts the approved payload o
     policy: new ApprovalBackedPolicyEngine({
       store: approvals,
       base: createDefaultIntegrationPolicyEngine({
-        rules: [{ id: 'approve-checks', connectorId: 'github', action: 'checks.create', effect: 'require_approval', reason: 'Owner approves the published check.' }],
+        defaultDestructiveEffect: 'require_approval',
       }),
     }),
   })
