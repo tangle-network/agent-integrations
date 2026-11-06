@@ -130,6 +130,40 @@ describe('connector adapter factory registry', () => {
     })
   })
 
+  it('does not arm the shared Zoho packs from a Bigin-only environment (#262)', () => {
+    const sharedKinds = [
+      'zoho-crm',
+      'zoho-desk',
+      'zoho-bookings',
+      'zoho-books',
+      'zoho-invoice',
+      'zoho-mail',
+      'zoho-campaigns',
+    ]
+    const biginOnly = {
+      BIGIN_BY_ZOHO_OAUTH_CLIENT_ID: 'bigin-client',
+      BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET: 'bigin-secret',
+    }
+    for (const kind of sharedKinds) {
+      const definition = CONNECTOR_ADAPTER_FACTORIES.find(
+        (candidate) => candidate.kind === kind,
+      )
+      expect(definition, kind).toBeDefined()
+      expect(resolveConnectorAdapterFactoryOptions(definition!, biginOnly), kind).toBeNull()
+    }
+
+    // The shared aliases still arm the shared packs.
+    const crm = CONNECTOR_ADAPTER_FACTORIES.find(
+      (candidate) => candidate.kind === 'zoho-crm',
+    )
+    expect(
+      resolveConnectorAdapterFactoryOptions(crm!, {
+        ZOHO_CRM_OAUTH_CLIENT_ID: 'crm-client',
+        ZOHO_CRM_OAUTH_CLIENT_SECRET: 'crm-secret',
+      }),
+    ).toEqual({ clientId: 'crm-client', clientSecret: 'crm-secret' })
+  })
+
   it('keeps inbound receivers out of public discovery while retaining their stable ids', () => {
     const publicAdapters = listBundledConnectorAdapters()
     const kinds = publicAdapters.map((adapter) => adapter.manifest.kind)

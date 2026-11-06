@@ -382,16 +382,8 @@ const microsoftOAuthEnvMap = {
 } as const
 
 const zohoOAuthEnvMap = {
-  clientId: [
-    'ZOHO_OAUTH_CLIENT_ID',
-    'ZOHO_CRM_OAUTH_CLIENT_ID',
-    'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
-  ],
-  clientSecret: [
-    'ZOHO_OAUTH_CLIENT_SECRET',
-    'ZOHO_CRM_OAUTH_CLIENT_SECRET',
-    'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
-  ],
+  clientId: ['ZOHO_OAUTH_CLIENT_ID', 'ZOHO_CRM_OAUTH_CLIENT_ID'],
+  clientSecret: ['ZOHO_OAUTH_CLIENT_SECRET', 'ZOHO_CRM_OAUTH_CLIENT_SECRET'],
 } as const
 
 const biginByZohoOAuthEnvMap = {
