@@ -87,13 +87,12 @@ export function redactUnknown(value: unknown): unknown {
  *  top-level args (each still redacted), unset falls back to redactUnknown. */
 export function projectInputPreview(policy: IntegrationInputPreview | undefined, value: unknown): unknown {
   if (policy === 'none') return undefined
-  if (policy && policy.include.length) {
+  if (policy) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-    const out: Record<string, unknown> = {}
-    for (const key of policy.include) {
-      if (key in value) out[key] = redactUnknown((value as Record<string, unknown>)[key])
-    }
-    return out
+    const source = value as Record<string, unknown>
+    const picked: Record<string, unknown> = {}
+    for (const key of policy.include) if (key in source) picked[key] = source[key]
+    return redactUnknown(picked)
   }
   return redactUnknown(value)
 }

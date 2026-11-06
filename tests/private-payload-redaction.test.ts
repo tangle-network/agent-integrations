@@ -9,7 +9,7 @@ import {
   type IntegrationInputPreview,
 } from '../src/index.js'
 import { redactInvocationEnvelope, type IntegrationInvocationEnvelope } from '../src/sandbox.js'
-import { redactUnknown } from '../src/redaction.js'
+import { projectInputPreview, redactUnknown } from '../src/redaction.js'
 
 const contentBase64 = Buffer.from('private voice recording').toString('base64')
 const shortBase64 = Buffer.from('secret voice').toString('base64')
@@ -177,6 +177,12 @@ describe('per-action preview projections', () => {
     const none = redactInvocationEnvelope(envelope, { inputPreview: 'none' })
     expect(none.input).toBeUndefined()
     expectPrivateValuesHidden(projected)
+  })
+
+  it('treats an empty include list as empty and redacts sensitive named keys', () => {
+    expect(projectInputPreview({ include: [] }, input)).toEqual({})
+    expect(projectInputPreview({ include: ['contentType', 'password'] }, { ...input, password: 'hunter2' }))
+      .toEqual({ contentType: 'audio/ogg', password: '[REDACTED]' })
   })
 
   it('projects error metadata.input and drops it entirely for none', () => {
