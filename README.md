@@ -178,8 +178,8 @@ configured factories plus catalog-only declarations that cannot execute.
 | `IntegrationGrant` | Persistent grant from a user-owned connection to an app, agent, or sandbox consumer. |
 | `createIntegrationRuntime` | Facade for manifest resolution, grant creation, and sandbox capability bundles. |
 | `createIntegrationWorkflowRuntime` | Installs trigger workflows and dispatches normalized provider events. |
-| `createApprovalBackedPolicyEngine` | Persists approval requests and allows approved invocations to resume. |
-| `createDefaultIntegrationActionGuard` | Adds idempotency replay, dry-run mutation handling, rate-limit hooks, and audit events. |
+| `ApprovalBackedPolicyEngine` | Persists approval requests and allows approved invocations to resume. |
+| `DefaultIntegrationActionGuard` | Adds idempotency replay, dry-run mutation handling, rate-limit hooks, and audit events. |
 | `createConnectionCredentialResolver` | Resolves secret refs into in-memory connector credentials and refreshes expired OAuth credentials. |
 | `runIntegrationHealthchecks` | Checks connection status, registry executability, scope shape, and optional live provider tests. |
 | `receiveIntegrationWebhook` | Verifies inbound webhooks, dedupes provider events, and dispatches normalized trigger events. |
@@ -189,7 +189,7 @@ configured factories plus catalog-only declarations that cannot execute.
 | `handleDelegatedToolCall` / `handleDelegatedToolRequest` | Transport-agnostic JSON-RPC 2.0 callback handler with fail-closed gates (token fresh, tool allow-listed, integration connected) via product-supplied seams. |
 | `createTangleIntegrationsClient` | Tiny generated-app/sandbox client for platform `/v1/integrations/invoke`. |
 | `inferIntegrationManifestFromTools` / `validateIntegrationManifest` | Deterministic manifest helpers for Builder and platform APIs. |
-| `renderConsentSummary` / `renderApprovalCopy` | User-facing consent and approval copy from manifests/actions. |
+| `renderConsentSummary` | User-facing consent copy from manifests/actions. |
 | `createPlatformIntegrationPolicyPreset` | Secure defaults: reads allowed after grant, writes need approval, destructive denied, passthrough disabled. |
 | `buildCanonicalLaunchConnectors` | Product-ready launch action schemas for Calendar, Gmail, Drive, GitHub, and Slack. |
 | `validateProviderPassthroughRequest` | Policy-gated provider-native HTTP escape hatch validation. |
@@ -211,7 +211,7 @@ configured factories plus catalog-only declarations that cannot execute.
 | `declarativeRestConnector` | Builds REST-backed first-party adapters from compact specs. |
 | `listIntegrationSpecs` | Generates setup/execution specs from the coverage catalog and family defaults. |
 | `renderRunbookMarkdown` / `renderConsoleSteps` | Render operator docs or admin UI steps from the same spec source. |
-| `validateCredentialSet` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
+| `validateCredentialFormat` / `buildHealthcheckPlan` | Validate setup input and describe the correct healthcheck path. |
 
 ## Worker-safe Imports
 

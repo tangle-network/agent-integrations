@@ -43,26 +43,6 @@ export function renderConsentSummary(
   }
 }
 
-export function renderApprovalCopy(input: {
-  appName: string
-  connectorTitle: string
-  action: IntegrationConnectorAction
-  approvalId?: string
-}): ConsentSummary {
-  return {
-    title: `${input.appName} wants to ${input.action.title.toLowerCase()}`,
-    body: `${input.appName} is requesting permission to run "${input.action.title}" on ${input.connectorTitle}.`,
-    bullets: [
-      `Risk: ${input.action.risk}`,
-      `Data: ${input.action.dataClass}`,
-      ...(input.approvalId ? [`Approval id: ${input.approvalId}`] : []),
-    ],
-    primaryAction: input.action.risk === 'read' ? 'Allow' : 'Approve action',
-    risk: input.action.risk,
-    connectorIds: [],
-  }
-}
-
 function sentenceForRequirement(appName: string, requirement: IntegrationRequirement): string {
   if (requirement.connectorId === 'google-calendar' && requirement.mode === 'read') {
     return `${appName} wants to read your Google Calendar to find schedule-aware recommendations.`

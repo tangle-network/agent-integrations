@@ -363,9 +363,3 @@ export const azureOpenaiConnector = declarativeRestConnector({
     },
   ],
 })
-
-// Exported so tests and downstream tooling can pin the GA / preview defaults.
-export const AZURE_OPENAI_DEFAULT_API_VERSIONS = {
-  ga: AZURE_OPENAI_GA_API_VERSION,
-  preview: AZURE_OPENAI_PREVIEW_API_VERSION,
-}

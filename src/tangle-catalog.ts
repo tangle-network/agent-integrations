@@ -3,7 +3,6 @@ import {
   listActivepiecesCatalogEntries,
   type ActivepiecesCatalogEntry,
 } from './activepieces-catalog.js'
-import { createCatalogExecutorProvider } from './catalog-executor.js'
 import {
   auditIntegrationCatalogFreshness,
   extractActivepiecesPublicPieceCount,
@@ -36,27 +35,6 @@ export const TANGLE_INTEGRATIONS_CATALOG_SOURCE = 'tangle-integrations-catalog'
 
 export type TangleIntegrationImplementationKind = 'native_adapter' | 'package_runtime'
 export type TangleIntegrationContractStatus = 'contract_ready' | 'runtime_backed' | 'native_backed'
-
-export interface TangleIntegrationCatalogEntry {
-  id: string
-  title: string
-  description: string
-  category: IntegrationConnector['category']
-  auth: IntegrationConnector['auth']
-  authFields?: ActivepiecesCatalogEntry['authFields']
-  domains: string[]
-  actions: Array<{
-    id: string
-    title: string
-    risk: IntegrationConnector['actions'][number]['risk']
-    upstreamName?: string
-  }>
-  triggers: Array<{
-    id: string
-    title: string
-    upstreamName?: string
-  }>
-}
 
 export interface TangleIntegrationContract {
   id: string
@@ -110,47 +88,6 @@ export interface TangleCatalogRuntimePackageManifest {
     generatedFrom: typeof TANGLE_INTEGRATIONS_CATALOG_SOURCE
   }
 }
-
-export interface TangleCatalogExecutorInvocation {
-  connection: IntegrationConnection
-  request: IntegrationActionRequest
-  connector: IntegrationConnector
-  catalogEntry: TangleIntegrationCatalogEntry
-  piece: {
-    id: string
-    packageName?: string
-    version?: string
-    actionId: string
-    upstreamActionName?: string
-  }
-}
-
-export interface TangleCatalogTriggerInvocation {
-  connection: IntegrationConnection
-  connector: IntegrationConnector
-  catalogEntry: TangleIntegrationCatalogEntry
-  trigger: NonNullable<IntegrationConnector['triggers']>[number]
-  targetUrl?: string
-  piece: {
-    id: string
-    packageName?: string
-    version?: string
-    triggerId: string
-    upstreamTriggerName?: string
-  }
-}
-
-export interface TangleCatalogExecutorProviderOptions {
-  id?: string
-  connectors?: IntegrationConnector[]
-  startAuth?: (request: StartAuthRequest) => Promise<StartAuthResult> | StartAuthResult
-  completeAuth?: (request: CompleteAuthRequest) => Promise<IntegrationConnection> | IntegrationConnection
-  executeAction: (invocation: TangleCatalogExecutorInvocation) => Promise<IntegrationActionResult> | IntegrationActionResult
-  subscribeTrigger?: (invocation: TangleCatalogTriggerInvocation) => Promise<IntegrationTriggerSubscription> | IntegrationTriggerSubscription
-  unsubscribeTrigger?: (subscriptionId: string) => Promise<void> | void
-  normalizeTriggerEvent?: (raw: unknown) => Promise<IntegrationTriggerEvent> | IntegrationTriggerEvent
-}
-
 export type TangleIntegrationCatalogFreshnessOptions = IntegrationCatalogFreshnessOptions
 
 export interface TangleIntegrationCatalogFreshnessResult {
@@ -189,10 +126,6 @@ export function listTangleNativeAdapterIds(): string[] {
     ids.add(adapter.manifest.kind)
   }
   return [...ids].sort()
-}
-
-export function listTangleIntegrationCatalogEntries(): TangleIntegrationCatalogEntry[] {
-  return listActivepiecesCatalogEntries().map((entry) => sanitizeEntry(entry))
 }
 
 export function listTangleIntegrationContracts(): TangleIntegrationContract[] {
@@ -276,21 +209,6 @@ export function buildTangleCatalogRuntimePackageManifest(
   }
 }
 
-export function renderTangleCatalogRuntimePnpmAddCommand(options: {
-  includeAgentIntegrationsPackage?: boolean
-  agentIntegrationsVersion?: string
-} = {}): string {
-  const manifest = buildTangleCatalogRuntimePackageManifest({
-    includeAgentIntegrationsPackage: options.includeAgentIntegrationsPackage,
-    agentIntegrationsVersion: options.agentIntegrationsVersion,
-  })
-  return [
-    'pnpm',
-    'add',
-    ...Object.entries(manifest.dependencies).map(([name, version]) => `${name}@${version}`),
-  ].join(' ')
-}
-
 export function buildTangleIntegrationCatalogConnectors(options: {
   providerId?: string
   includeCatalogActions?: boolean
@@ -301,70 +219,6 @@ export function buildTangleIntegrationCatalogConnectors(options: {
     ...options,
     providerId,
   }).map((connector) => sanitizeConnector(connector, providerId))
-}
-
-export function createTangleCatalogExecutorProvider(options: TangleCatalogExecutorProviderOptions) {
-  const providerId = options.id ?? TANGLE_INTEGRATIONS_CATALOG_PROVIDER_ID
-  const connectors = options.connectors ?? buildTangleIntegrationCatalogConnectors({
-    providerId,
-    includeCatalogActions: true,
-    executable: true,
-  })
-  const byEntry = new Map(listActivepiecesCatalogEntries().map((entry) => [entry.id, entry]))
-
-  return createCatalogExecutorProvider({
-    id: providerId,
-    kind: 'tangle_catalog',
-    connectors,
-    startAuth: options.startAuth,
-    completeAuth: options.completeAuth,
-    executeAction: async ({ connection, request, connector, action }) => {
-      const importedEntry = byEntry.get(connector.id)
-      if (!importedEntry) {
-        throw new IntegrationError(`Tangle catalog entry ${connector.id} not found.`, 'connector_not_found')
-      }
-      const catalogAction = importedEntry.actions.find((candidate) => candidate.id === action.id)
-      return options.executeAction({
-        connection,
-        request,
-        connector,
-        catalogEntry: sanitizeEntry(importedEntry),
-        piece: {
-          id: importedEntry.id,
-          packageName: importedEntry.npmPackage,
-          version: importedEntry.version,
-          actionId: action.id,
-          upstreamActionName: catalogAction?.upstreamName,
-        },
-      })
-    },
-    subscribeTrigger: options.subscribeTrigger
-      ? async (connection, trigger, targetUrl) => {
-          const connector = connectors.find((candidate) => candidate.id === connection.connectorId)
-          const importedEntry = byEntry.get(connection.connectorId)
-          if (!connector || !importedEntry) {
-            throw new IntegrationError(`Tangle catalog entry ${connection.connectorId} not found.`, 'connector_not_found')
-          }
-          const catalogTrigger = importedEntry.triggers.find((candidate) => candidate.id === trigger.id)
-          return options.subscribeTrigger!({
-            connection,
-            connector,
-            catalogEntry: sanitizeEntry(importedEntry),
-            trigger,
-            targetUrl,
-            piece: {
-              id: importedEntry.id,
-              packageName: importedEntry.npmPackage,
-              version: importedEntry.version,
-              triggerId: trigger.id,
-              upstreamTriggerName: catalogTrigger?.upstreamName,
-            },
-          })
-        }
-      : undefined,
-    unsubscribeTrigger: options.unsubscribeTrigger,
-    normalizeTriggerEvent: options.normalizeTriggerEvent,
-  })
 }
 
 export const extractExternalCatalogPublicCount = extractActivepiecesPublicPieceCount
@@ -399,29 +253,6 @@ export async function auditTangleIntegrationCatalogFreshness(
         }
       : undefined,
     warnings: result.warnings.map((warning) => warning.replaceAll('Activepieces', 'Tangle Integrations Catalog')),
-  }
-}
-
-function sanitizeEntry(entry: ActivepiecesCatalogEntry): TangleIntegrationCatalogEntry {
-  return {
-    id: entry.id,
-    title: entry.title,
-    description: entry.description,
-    category: entry.category,
-    auth: entry.auth,
-    authFields: entry.authFields,
-    domains: entry.domains.filter((domain) => !domain.toLowerCase().includes('activepieces')),
-    actions: entry.actions.map((action) => ({
-      id: action.id,
-      title: action.title,
-      risk: action.risk,
-      upstreamName: action.upstreamName,
-    })),
-    triggers: entry.triggers.map((trigger) => ({
-      id: trigger.id,
-      title: trigger.title,
-      upstreamName: trigger.upstreamName,
-    })),
   }
 }
 

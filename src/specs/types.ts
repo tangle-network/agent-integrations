@@ -228,11 +228,6 @@ export interface RenderedConsoleStep extends ConsoleStep {
   copyValue?: string
 }
 
-export interface CredentialValidationInput {
-  field: CredentialFieldSpec
-  value: string
-}
-
 export interface CredentialValidationResult {
   ok: boolean
   field: string
@@ -244,11 +239,4 @@ export interface HealthcheckPlan {
   healthcheck: HealthcheckSpec
   requires: Array<'client_id' | 'client_secret' | 'api_key' | 'hmac_secret' | 'connection_credentials'>
   message: string
-}
-
-export function specAuthToConnectorAuth(auth: IntegrationAuthSpec): IntegrationConnector['auth'] {
-  if (auth.mode === 'api_key') return 'api_key'
-  if (auth.mode === 'oauth2') return 'oauth2'
-  if (auth.mode === 'none') return 'none'
-  return 'custom'
 }

@@ -38,8 +38,6 @@ export const PRODUCT_FREE_CREDIT_SOURCES = Object.freeze([
   'synthetic',
 ] as const)
 
-export type ProductFreeCreditSource = (typeof PRODUCT_FREE_CREDIT_SOURCES)[number]
-
 export type TrustedFundingEvidence =
   | {
       kind: 'paid_purchase'

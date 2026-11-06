@@ -1,4 +1,3 @@
-import { CANONICAL_INTEGRATION_ACTIONS } from './actions.js'
 import { IntegrationRuntimeError } from './errors.js'
 
 export interface ProviderHttpRequestInput {
@@ -15,8 +14,6 @@ export interface ProviderPassthroughPolicy {
   allowedPathPrefixes?: string[]
   maxBodyBytes?: number
 }
-
-export const PROVIDER_PASSTHROUGH_ACTION = CANONICAL_INTEGRATION_ACTIONS.providerHttpRequest
 
 export function validateProviderPassthroughRequest(
   input: ProviderHttpRequestInput,

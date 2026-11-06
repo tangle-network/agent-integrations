@@ -58,12 +58,14 @@ const registry = buildDefaultIntegrationRegistry({
 import {
   listIntegrationSpecs,
   renderConsoleSteps,
-  validateCredentialSet,
+  validateCredentialFormat,
 } from '@tangle-network/agent-integrations'
 
 const spec = listIntegrationSpecs().find((candidate) => candidate.kind === 'google-calendar')
 const steps = renderConsoleSteps(spec!, { host: 'id.example.com' })
-const validation = validateCredentialSet(spec!, submittedCredentials)
+const validation = spec!.setup.credentialFields.map((field) =>
+  validateCredentialFormat(field, submittedCredentials[field.env ?? field.label] ?? ''),
+)
 ```
 
 3. Store provider credentials in your vault, then persist an
@@ -79,7 +81,7 @@ Create one hub per product runtime.
 ```ts
 import {
   createConnectorAdapterProvider,
-  createDefaultIntegrationActionGuard,
+  DefaultIntegrationActionGuard,
   IntegrationHub,
   createPlatformIntegrationPolicyPreset,
 } from '@tangle-network/agent-integrations'
@@ -90,12 +92,12 @@ const hub = new IntegrationHub({
       adapters,
       resolveDataSource: (connection) => credentialResolver.resolve(connection),
     }),
-    // createHttpIntegrationProvider(...) or createTangleCatalogExecutorProvider(...)
+    // createHttpIntegrationProvider(...) or createCatalogExecutorProvider(...)
   ],
   store: connections,
   capabilitySecret: process.env.INTEGRATION_CAPABILITY_SECRET!,
   policy: createPlatformIntegrationPolicyPreset(),
-  guard: createDefaultIntegrationActionGuard({
+  guard: new DefaultIntegrationActionGuard({
     audit,
     idempotency,
   }),

@@ -161,10 +161,6 @@ export class DefaultIntegrationActionGuard implements IntegrationActionGuard {
   }
 }
 
-export function createDefaultIntegrationActionGuard(options: ConstructorParameters<typeof DefaultIntegrationActionGuard>[0] = {}): DefaultIntegrationActionGuard {
-  return new DefaultIntegrationActionGuard(options)
-}
-
 async function hashRequest(ctx: IntegrationGuardContext): Promise<string> {
   return sha256Base64Url(JSON.stringify({
     connectionId: ctx.connection.id,
