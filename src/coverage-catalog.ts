@@ -349,30 +349,6 @@ export function buildIntegrationCoverageConnectors(options: {
     .map((spec) => specToConnector(spec, providerId))
 }
 
-export function integrationCoverageChecklistMarkdown(): string {
-  const specs = listIntegrationCoverageSpecs()
-  const lines = [
-    '# Agent Integrations Coverage Checklist',
-    '',
-    'Generated from `listIntegrationCoverageSpecs()`. Catalog presence means the product can plan/request/connect the integration; native adapters and runtime backends execute behind the same provider contract.',
-    '',
-    '## Summary',
-    '',
-    `- Total cataloged integrations: ${specs.length}`,
-    `- Tier 0: ${specs.filter((spec) => spec.priority === 'tier_0').length}`,
-    `- Tier 1: ${specs.filter((spec) => spec.priority === 'tier_1').length}`,
-    `- Tier 2: ${specs.filter((spec) => spec.priority === 'tier_2').length}`,
-    `- Long tail: ${specs.filter((spec) => spec.priority === 'long_tail').length}`,
-    '',
-    '## Checklist',
-    '',
-  ]
-  for (const spec of specs) {
-    lines.push(`- [ ] ${spec.priority} / ${spec.category} / ${spec.title} (${spec.id}) - ${spec.domains.join(', ')}`)
-  }
-  return `${lines.join('\n')}\n`
-}
-
 function specToConnector(spec: IntegrationCoverageSpec, providerId: string): IntegrationConnector {
   const actions = actionPack(spec.actionPack, spec.scopes ?? [])
   return {

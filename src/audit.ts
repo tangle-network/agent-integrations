@@ -9,7 +9,7 @@ import type {
   IntegrationGuardContext,
 } from './core-types.js'
 import { createWebCryptoUuid } from './web-crypto.js'
-import { redactUnknown } from './redaction.js'
+import { projectInputPreview, redactUnknown } from './redaction.js'
 
 export type IntegrationAuditEventType =
   | 'connection.created'
@@ -126,23 +126,6 @@ export function createAuditingActionGuard(options: {
   }
 }
 
-export function sanitizeAuditConnection(connection: IntegrationConnection): Record<string, unknown> {
-  return {
-    id: connection.id,
-    owner: connection.owner,
-    providerId: connection.providerId,
-    connectorId: connection.connectorId,
-    status: connection.status,
-    grantedScopes: connection.grantedScopes,
-    account: connection.account,
-    hasSecretRef: Boolean(connection.secretRef),
-    createdAt: connection.createdAt,
-    updatedAt: connection.updatedAt,
-    expiresAt: connection.expiresAt,
-    lastUsedAt: connection.lastUsedAt,
-  }
-}
-
 function actionEvent(input: {
   ctx: IntegrationGuardContext
   request: IntegrationActionRequest
@@ -170,7 +153,9 @@ function actionEvent(input: {
       dryRun: input.request.dryRun,
       externalId: input.result?.externalId,
       warnings: input.result?.warnings,
-      inputPreview: input.includeInputPreview ? redactUnknown(input.request.input) : undefined,
+      inputPreview: input.includeInputPreview
+        ? projectInputPreview(input.ctx.action?.inputPreview, input.request.input)
+        : undefined,
     },
   })
 }

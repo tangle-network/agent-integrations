@@ -8,6 +8,7 @@ import {
   type ConnectorAdapter,
   type ConnectorCredentials,
   type ConnectorInvocation,
+  type IntegrationInputPreview,
   CredentialsExpired,
   InvalidCapabilityArgument,
   ProviderRateLimited,
@@ -99,6 +100,9 @@ export interface RestOperationSpec {
   request: RestRequestSpec
   cas?: 'etag-if-match' | 'native-idempotency' | 'optimistic-read-verify' | 'none'
   externalEffect?: boolean
+  /** Overrides heuristic preview redaction for this op's args on the
+   *  approval, audit, sandbox, and error paths. */
+  inputPreview?: IntegrationInputPreview
   /** Values the schema's type admits but the provider would answer
    *  misleadingly, refused before any request. They stay out of the published
    *  schema so a model provider never has to compile them. */
@@ -240,7 +244,7 @@ function validateTestResponse(spec: RestConnectorSpec, test: RestTestSpec, data:
       ? [test.expectResponse]
       : []
   for (const expectation of expectations) {
-    const actual = readPathFromUnknown(data, expectation.path)
+    const actual = readPath(data, expectation.path)
     if (!isJsonEqual(actual, expectation.equals)) {
       throw new Error(
         `${spec.displayName} test response expected ${expectation.path}=${formatValue(expectation.equals)}, got ${formatValue(actual)}`,
@@ -265,6 +269,7 @@ function operationToCapability(op: RestOperationSpec): Capability {
     description: op.description,
     parameters: op.parameters,
     requiredScopes: op.requiredScopes,
+    ...(op.inputPreview ? { inputPreview: op.inputPreview } : {}),
   }
   if (op.class === 'read') {
     return { ...base, class: 'read' }
@@ -1140,22 +1145,13 @@ function interpolate(template: string, args: Record<string, unknown>, pathSegmen
   })
 }
 
-function readRequiredPath(input: Record<string, unknown>, path: string): unknown {
+function readRequiredPath(input: unknown, path: string): unknown {
   const value = readPath(input, path)
   if (value === undefined || value === null) throw new Error(`missing required argument: ${path}`)
   return value
 }
 
-function readPath(input: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce<unknown>((value, part) => {
-    if (value && typeof value === 'object' && part in value) {
-      return (value as Record<string, unknown>)[part]
-    }
-    return undefined
-  }, input)
-}
-
-function readPathFromUnknown(input: unknown, path: string): unknown {
+function readPath(input: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((value, part) => {
     if (value && typeof value === 'object' && part in value) {
       return (value as Record<string, unknown>)[part]

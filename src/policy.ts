@@ -7,7 +7,7 @@ import type {
   IntegrationPolicyEngine,
 } from './core-types.js'
 import { createWebCryptoUuid } from './web-crypto.js'
-import { redactUnknown } from './redaction.js'
+import { projectInputPreview } from './redaction.js'
 
 export type IntegrationPolicyEffect = 'allow' | 'require_approval' | 'deny'
 
@@ -29,15 +29,6 @@ export interface StaticIntegrationPolicyOptions {
   defaultWriteEffect?: IntegrationPolicyEffect
   defaultDestructiveEffect?: IntegrationPolicyEffect
   now?: () => Date
-}
-
-export interface IntegrationApprovalResolution {
-  approvalId: string
-  approved: boolean
-  resolvedBy: string
-  resolvedAt: string
-  reason?: string
-  metadata?: Record<string, unknown>
 }
 
 export class StaticIntegrationPolicyEngine implements IntegrationPolicyEngine {
@@ -101,14 +92,7 @@ export function buildApprovalRequest(
     dataClass: ctx.action.dataClass,
     reason,
     requestedAt: requestedAt.toISOString(),
-    inputPreview: redactUnknown(ctx.request.input),
-  }
-}
-
-export function redactApprovalRequest(request: IntegrationApprovalRequest): IntegrationApprovalRequest {
-  return {
-    ...request,
-    inputPreview: redactUnknown(request.inputPreview),
+    inputPreview: projectInputPreview(ctx.action.inputPreview, ctx.request.input),
   }
 }
 

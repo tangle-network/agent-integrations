@@ -80,16 +80,6 @@ export function parseIntegrationBridgeEnvironment(
   return decodeIntegrationBridgePayload(encoded)
 }
 
-export function redactIntegrationBridgePayload(payload: IntegrationBridgePayload): IntegrationBridgePayload {
-  return {
-    ...payload,
-    tools: payload.tools.map((tool) => ({
-      ...tool,
-      capabilityToken: '[REDACTED]',
-    })),
-  }
-}
-
 function assertBridgePayload(value: unknown): asserts value is IntegrationBridgePayload {
   if (!value || typeof value !== 'object') throw new Error('Invalid integration bridge payload.')
   const payload = value as Partial<IntegrationBridgePayload>

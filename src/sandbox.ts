@@ -3,10 +3,11 @@ import type {
   IntegrationApprovalRequest,
   IntegrationCapability,
   IntegrationConnector,
+  IntegrationConnectorAction,
   InvokeWithCapabilityRequest,
 } from './index.js'
 import { parseIntegrationToolName } from './catalog.js'
-import { redactUnknown } from './redaction.js'
+import { projectInputPreview, redactUnknown } from './redaction.js'
 
 export interface IntegrationInvocationEnvelope {
   kind: 'integration.invocation'
@@ -108,19 +109,15 @@ export function validateIntegrationInvocationEnvelope(
   }
 }
 
-export function redactInvocationEnvelope(envelope: IntegrationInvocationEnvelope): Omit<IntegrationInvocationEnvelope, 'capabilityToken'> & { capabilityToken: '[REDACTED]' } {
+export function redactInvocationEnvelope(
+  envelope: IntegrationInvocationEnvelope,
+  action?: Pick<IntegrationConnectorAction, 'inputPreview'>,
+): Omit<IntegrationInvocationEnvelope, 'capabilityToken'> & { capabilityToken: '[REDACTED]' } {
   return {
     ...envelope,
     capabilityToken: '[REDACTED]',
-    input: redactUnknown(envelope.input),
+    input: projectInputPreview(action?.inputPreview, envelope.input),
     metadata: redactUnknown(envelope.metadata) as Record<string, unknown> | undefined,
-  }
-}
-
-export function redactCapability(capability: IntegrationCapability): IntegrationCapability {
-  return {
-    ...capability,
-    metadata: redactUnknown(capability.metadata) as Record<string, unknown> | undefined,
   }
 }
 
@@ -167,18 +164,6 @@ export async function dispatchIntegrationInvocation(
       action: typeof envelope?.action === 'string' ? envelope.action : 'unknown',
       error: error instanceof Error ? error.message : 'Integration invocation failed.',
     }
-  }
-}
-
-export class IntegrationSandboxHost {
-  private readonly options: IntegrationSandboxHostOptions
-
-  constructor(options: IntegrationSandboxHostOptions) {
-    this.options = options
-  }
-
-  dispatch(envelope: IntegrationInvocationEnvelope): Promise<NormalizedIntegrationResult> {
-    return dispatchIntegrationInvocation(envelope, this.options)
   }
 }
 

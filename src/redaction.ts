@@ -1,3 +1,5 @@
+import type { IntegrationInputPreview } from './core-types.js'
+
 const SENSITIVE_INPUT_KEY = /token|secret|password|authorization|api[_-]?key|credential|refresh|base64|bytes|binary|audio|attachment|media|payload/i
 const MIN_OPAQUE_PREVIEW_VALUE_LENGTH = 16
 const MAX_DATA_URL_HEADER_LENGTH = 256
@@ -78,4 +80,19 @@ export function redactUnknown(value: unknown): unknown {
     out[key] = SENSITIVE_INPUT_KEY.test(key) ? '[REDACTED]' : redactUnknown(child)
   }
   return out
+}
+
+/** Apply an action's preview policy before a preview is stored or returned:
+ *  `'none'` yields no preview at all, an include-list keeps only the named
+ *  top-level args (each still redacted), unset falls back to redactUnknown. */
+export function projectInputPreview(policy: IntegrationInputPreview | undefined, value: unknown): unknown {
+  if (policy === 'none') return undefined
+  if (policy) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+    const source = value as Record<string, unknown>
+    const picked: Record<string, unknown> = {}
+    for (const key of policy.include) if (key in source) picked[key] = source[key]
+    return redactUnknown(picked)
+  }
+  return redactUnknown(value)
 }

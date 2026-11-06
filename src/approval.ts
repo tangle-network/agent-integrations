@@ -124,10 +124,6 @@ export class ApprovalBackedPolicyEngine implements IntegrationPolicyEngine {
   }
 }
 
-export function createApprovalBackedPolicyEngine(options: ApprovalBackedPolicyOptions): ApprovalBackedPolicyEngine {
-  return new ApprovalBackedPolicyEngine(options)
-}
-
 export async function resolveIntegrationApproval(input: {
   store: IntegrationApprovalStore
   approvalId: string

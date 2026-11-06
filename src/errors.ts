@@ -1,4 +1,5 @@
-import { redactUnknown } from './redaction.js'
+import { projectInputPreview, redactUnknown } from './redaction.js'
+import type { IntegrationInputPreview } from './core-types.js'
 
 export type IntegrationErrorCode =
   | 'missing_connection'
@@ -34,6 +35,7 @@ export class IntegrationRuntimeError extends Error {
   readonly status: number
   readonly userAction?: IntegrationUserAction
   readonly metadata?: Record<string, unknown>
+  readonly inputPreview?: IntegrationInputPreview
 
   constructor(input: {
     code: IntegrationErrorCode
@@ -41,6 +43,7 @@ export class IntegrationRuntimeError extends Error {
     status?: number
     userAction?: IntegrationUserAction
     metadata?: Record<string, unknown>
+    inputPreview?: IntegrationInputPreview
   }) {
     super(input.message)
     this.name = 'IntegrationRuntimeError'
@@ -48,6 +51,7 @@ export class IntegrationRuntimeError extends Error {
     this.status = input.status ?? statusForCode(input.code)
     this.userAction = input.userAction
     this.metadata = input.metadata
+    this.inputPreview = input.inputPreview
   }
 }
 
@@ -60,6 +64,15 @@ export interface NormalizedIntegrationError {
   metadata?: Record<string, unknown>
 }
 
+/** Project `metadata.input` through the action's preview policy before the
+ *  rest of the metadata is redacted; drops the key entirely for `'none'`. */
+function projectErrorInput(error: IntegrationRuntimeError): Record<string, unknown> | undefined {
+  if (!error.metadata || !error.inputPreview || !('input' in error.metadata)) return error.metadata
+  const { input, ...rest } = error.metadata
+  const projected = projectInputPreview(error.inputPreview, input)
+  return projected === undefined ? rest : { ...rest, input: projected }
+}
+
 export function normalizeIntegrationError(error: unknown): NormalizedIntegrationError {
   if (error instanceof IntegrationRuntimeError) {
     return {
@@ -68,7 +81,7 @@ export function normalizeIntegrationError(error: unknown): NormalizedIntegration
       message: error.message,
       status: error.status,
       userAction: error.userAction,
-      metadata: redactUnknown(error.metadata) as Record<string, unknown> | undefined,
+      metadata: redactUnknown(projectErrorInput(error)) as Record<string, unknown> | undefined,
     }
   }
   const message = error instanceof Error ? error.message : String(error ?? 'Unknown integration error.')

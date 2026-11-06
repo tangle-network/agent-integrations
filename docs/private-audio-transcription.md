@@ -18,7 +18,7 @@ A direct `IntegrationHub` host instead supplies its own policy engine with an ex
 
 `contentBase64` must be canonical base64 and decode to 1 through 16,000,000 bytes.
 Sandbox envelopes default to a 256 KiB input limit.
-A sandbox host that carries larger audio must pass the same `maxInputBytes` to `buildIntegrationInvocationEnvelope` and `IntegrationSandboxHost`.
+A sandbox host that carries larger audio must pass the same `maxInputBytes` to `buildIntegrationInvocationEnvelope` and `dispatchIntegrationInvocation`.
 For the maximum clip, use `4 * Math.ceil(16_000_000 / 3) + 4096` bytes to cover base64 and JSON overhead.
 Hosted Hub `tools.invoke` calls use the Platform exec path and do not use this sandbox envelope.
 `contentType` must be a supported audio MIME type, including `audio/ogg; codecs=opus` for WhatsApp voice notes.

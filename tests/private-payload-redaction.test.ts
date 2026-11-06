@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   InMemoryIntegrationAuditStore,
   IntegrationRuntimeError,
+  buildApprovalRequest,
   createAuditingActionGuard,
   normalizeIntegrationError,
   type IntegrationGuardContext,
+  type IntegrationInputPreview,
 } from '../src/index.js'
 import { redactInvocationEnvelope, type IntegrationInvocationEnvelope } from '../src/sandbox.js'
-import { redactUnknown } from '../src/redaction.js'
+import { projectInputPreview, redactUnknown } from '../src/redaction.js'
 
 const contentBase64 = Buffer.from('private voice recording').toString('base64')
 const shortBase64 = Buffer.from('secret voice').toString('base64')
@@ -116,5 +118,86 @@ describe('private action input previews', () => {
     const normalized = normalizeIntegrationError(error)
     expect(normalized.metadata).toEqual({ input: redactedInput, contentBase64: '[REDACTED]' })
     expectPrivateValuesHidden(normalized)
+  })
+})
+
+describe('per-action preview projections', () => {
+  const guardContext = (inputPreview: IntegrationInputPreview | undefined): IntegrationGuardContext => ({
+    connection: {
+      id: 'deepgram-connection', owner: { type: 'user', id: 'owner-1' },
+      providerId: 'first-party', connectorId: 'deepgram', status: 'active',
+      grantedScopes: [], createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+    },
+    request: { connectionId: 'deepgram-connection', action: 'transcription.bytes', input, idempotencyKey: 'voice-2' },
+    action: { id: 'transcription.bytes', title: 'Transcribe audio', risk: 'destructive',
+      requiredScopes: [], dataClass: 'private', inputPreview },
+  })
+
+  it('projects approval previews down to the allowlisted args', () => {
+    const request = buildApprovalRequest(
+      { ...guardContext({ include: ['contentType'] }), subject: { type: 'user', id: 'owner-1' } },
+      'private transcription',
+      new Date(0),
+    )
+    expect(request.inputPreview).toEqual({ contentType: 'audio/ogg' })
+    expectPrivateValuesHidden(request)
+  })
+
+  it('stores no approval preview when the action declares none', () => {
+    const request = buildApprovalRequest(
+      { ...guardContext('none'), subject: { type: 'user', id: 'owner-1' } },
+      'private transcription',
+      new Date(0),
+    )
+    expect(request.inputPreview).toBeUndefined()
+  })
+
+  it('projects audit previews to the allowlisted args and drops them for none', async () => {
+    for (const inputPreview of [{ include: ['contentType'] }, 'none'] as const) {
+      const audit = new InMemoryIntegrationAuditStore()
+      const guard = createAuditingActionGuard({ sink: audit, includeInputPreview: true })
+      await guard.invokeAction(guardContext(inputPreview),
+        async () => ({ ok: true, action: 'transcription.bytes', output: {} }))
+      const events = audit.list({ type: 'action.invoked' })
+      expect(events[0]?.metadata?.inputPreview).toEqual(
+        inputPreview === 'none' ? undefined : { contentType: 'audio/ogg' },
+      )
+      expectPrivateValuesHidden(events)
+    }
+  })
+
+  it('projects sandbox envelope input through the action policy', () => {
+    const envelope: IntegrationInvocationEnvelope = {
+      kind: 'integration.invocation', capabilityToken: 'private-capability-token',
+      toolName: 'first-party.deepgram.transcription.bytes', action: 'transcription.bytes',
+      input, idempotencyKey: 'voice-2', metadata: {},
+    }
+    const projected = redactInvocationEnvelope(envelope, { inputPreview: { include: ['contentType'] } })
+    expect(projected.input).toEqual({ contentType: 'audio/ogg' })
+    const none = redactInvocationEnvelope(envelope, { inputPreview: 'none' })
+    expect(none.input).toBeUndefined()
+    expectPrivateValuesHidden(projected)
+  })
+
+  it('treats an empty include list as empty and redacts sensitive named keys', () => {
+    expect(projectInputPreview({ include: [] }, input)).toEqual({})
+    expect(projectInputPreview({ include: ['contentType', 'password'] }, { ...input, password: 'hunter2' }))
+      .toEqual({ contentType: 'audio/ogg', password: '[REDACTED]' })
+  })
+
+  it('projects error metadata.input and drops it entirely for none', () => {
+    const projected = normalizeIntegrationError(new IntegrationRuntimeError({
+      code: 'provider_error', message: 'Deepgram rejected the recording.',
+      metadata: { input, requestId: 'req-1' },
+      inputPreview: { include: ['contentType'] },
+    }))
+    expect(projected.metadata).toEqual({ input: { contentType: 'audio/ogg' }, requestId: 'req-1' })
+    const none = normalizeIntegrationError(new IntegrationRuntimeError({
+      code: 'provider_error', message: 'Deepgram rejected the recording.',
+      metadata: { input, requestId: 'req-1' },
+      inputPreview: 'none',
+    }))
+    expect(none.metadata).toEqual({ requestId: 'req-1' })
+    expectPrivateValuesHidden([projected, none])
   })
 })

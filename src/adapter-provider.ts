@@ -332,6 +332,7 @@ export function manifestToConnector(providerId: string, adapter: ConnectorAdapte
         requiredScopes: capability.requiredScopes ?? [],
         dataClass: inferDataClass(manifest.category),
         ...(capability.consistencyModel ? { consistencyModel: capability.consistencyModel } : {}),
+        ...(capability.inputPreview ? { inputPreview: capability.inputPreview } : {}),
         description: capability.description,
         approvalRequired: capability.class === 'mutation',
         inputSchema: capability.parameters,

@@ -46,10 +46,8 @@ export type CapabilityParameterSchema = Record<string, unknown>
 /** What the rest of the system is allowed to assume about freshness. */
 export type ConsistencyModel = 'authoritative' | 'cache' | 'advisory'
 
-/** Capability classes. `read` is safe to retry; `mutation` must go through
- *  MutationGuard (CAS + idempotency). `subscribe` is reserved for future
- *  push-driven sources (webhook callbacks) and is not yet wired. */
-export type CapabilityClass = 'read' | 'mutation' | 'subscribe'
+import type { IntegrationInputPreview } from '../core-types.js'
+export type { IntegrationInputPreview }
 
 /** Compare-and-swap strategy a mutation uses to detect conflicts. */
 export type CASStrategy =
@@ -82,6 +80,9 @@ export interface CapabilityRead {
    *  capability requires. The capability is hidden from the agent's
    *  tool registry if the user's grant didn't include them. */
   requiredScopes?: string[]
+  /** How input previews (approval, audit, sandbox, errors) project this
+   *  capability's args; defaults to heuristic redaction. */
+  inputPreview?: IntegrationInputPreview
 }
 
 export interface CapabilityMutation {
@@ -99,18 +100,12 @@ export interface CapabilityMutation {
    *  before the call. */
   externalEffect: boolean
   requiredScopes?: string[]
+  /** How input previews (approval, audit, sandbox, errors) project this
+   *  capability's args; defaults to heuristic redaction. */
+  inputPreview?: IntegrationInputPreview
 }
 
 export type Capability = CapabilityRead | CapabilityMutation
-
-/** OAuth2 scope catalog the user has granted us, plus arbitrary metadata
- *  the connector pinned at connect-time (calendar id, sheet id, webhook
- *  url, …). `metadata` MUST NOT contain secrets — those go in the
- *  encrypted credentials envelope. */
-export interface DataSourceMetadata {
-  scopes: string[]
-  [key: string]: unknown
-}
 
 /** A connected, authenticated, ready-to-call data source for a project.
  *  Persistence shape mirrors the product's connection/source row but normalized — the

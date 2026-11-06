@@ -80,7 +80,3 @@ function renderRedirectUri(spec: IntegrationSpec, options: RenderSpecOptions): s
     .replaceAll('{host}', options.host)
     .replaceAll('{kind}', spec.kind)
 }
-
-export function consoleStepsToText(steps: ConsoleStep[]): string {
-  return steps.map((step, index) => `${index + 1}. ${step.title}: ${step.detail}`).join('\n')
-}

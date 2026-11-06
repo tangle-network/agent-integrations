@@ -211,9 +211,6 @@ export type StripeBillingListener = (event: StripeBillingEvent) => void | Promis
 
 export interface StripeEventIdempotencyStore extends AtomicIdempotencyStore {}
 
-/** Process-local store for direct dispatcher use and tests. */
-export class InMemoryStripeEventIdempotencyStore extends InMemoryAtomicIdempotencyStore implements StripeEventIdempotencyStore {}
-
 /** Durable store for workers that share the same filesystem directory. */
 export class FileSystemStripeEventIdempotencyStore extends FileSystemAtomicIdempotencyStore implements StripeEventIdempotencyStore {}
 

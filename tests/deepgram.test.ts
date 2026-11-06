@@ -169,24 +169,10 @@ describe('Deepgram private audio transcription', () => {
     })
     const pending = approvals.list({ status: 'pending' })
     expect(result).toMatchObject({ ok: false, output: {
-      approvalRequired: true, approval: { inputPreview: {
-        contentBase64: '[REDACTED]', contentType: args.contentType,
-        extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
-          foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
-          longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
-          tabbed: '[REDACTED]', indented: '[REDACTED]',
-          padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' },
-      } },
+      approvalRequired: true, approval: { inputPreview: { contentType: args.contentType } },
     } })
     expect(pending).toHaveLength(1)
-    expect(pending[0]?.request.inputPreview).toEqual({
-      contentBase64: '[REDACTED]', contentType: args.contentType,
-      extra: { data: '[REDACTED]', dataUrl: '[REDACTED]', wrapped: '[REDACTED]',
-        foldedDataUrl: '[REDACTED]', tabbedDataUrl: '[REDACTED]',
-        longHeaderDataUrl: '[REDACTED]', spaced: '[REDACTED]',
-        tabbed: '[REDACTED]', indented: '[REDACTED]',
-        padA: '[REDACTED]', padB: '[REDACTED]', padC: '[REDACTED]', padD: '[REDACTED]' },
-    })
+    expect(pending[0]?.request.inputPreview).toEqual({ contentType: args.contentType })
     expect(JSON.stringify({ result, pending })).not.toContain(args.contentBase64)
     expect(JSON.stringify({ result, pending })).not.toContain(unexpectedAudio)
     expect(JSON.stringify({ result, pending })).not.toContain(dataUrl)

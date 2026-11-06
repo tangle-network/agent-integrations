@@ -23,14 +23,6 @@ export interface InferIntegrationRequirementsOptions {
   metadata?: Record<string, unknown>
 }
 
-export interface MissingRequirementExplanation {
-  requirementId: string
-  connectorId: string
-  status: string
-  message: string
-  userAction: 'connect' | 'enable' | 'ignore_optional'
-}
-
 export function validateIntegrationManifest(manifest: IntegrationManifest): ManifestValidationResult {
   const issues: ManifestValidationIssue[] = []
   if (!manifest.id?.trim()) issues.push({ path: 'id', message: 'Manifest id is required.' })
@@ -96,16 +88,6 @@ export function inferIntegrationManifestFromTools(options: InferIntegrationRequi
   }
   assertValidIntegrationManifest(manifest)
   return manifest
-}
-
-export function explainMissingRequirements(resolution: IntegrationManifestResolution): MissingRequirementExplanation[] {
-  return [...resolution.missing, ...resolution.optionalMissing].map((item) => ({
-    requirementId: item.requirement.id,
-    connectorId: item.requirement.connectorId,
-    status: item.status,
-    message: item.message,
-    userAction: item.requirement.optional ? 'ignore_optional' : item.status === 'not_executable' ? 'enable' : 'connect',
-  }))
 }
 
 export function calendarExercisePlannerManifest(id = 'exercise-calendar-planner'): IntegrationManifest {

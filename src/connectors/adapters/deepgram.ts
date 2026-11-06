@@ -211,6 +211,7 @@ export const deepgramConnector: ConnectorAdapter = {
   manifest: { ...base.manifest, capabilities: [...base.manifest.capabilities,
     { name: 'transcription.bytes', class: 'mutation', cas: 'none', externalEffect: true,
       consistencyModel: 'advisory',
+      inputPreview: { include: ['contentType'] },
       description: 'Transcribe private audio bytes with Nova-3 multilingual. Supports English and Spanish in the same clip; up to 16 MB. This billable action sends audio to Deepgram without exposing a public media URL.',
       parameters: { type: 'object', properties: {
         contentBase64: { type: 'string', minLength: 4, maxLength: MAX_BASE64_LENGTH },

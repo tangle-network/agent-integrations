@@ -359,6 +359,7 @@ function actionsFromManifest(
       // A mutation reaching resources outside the caller needs confirmation
       // before it runs; the adapter is what knows which those are.
       approvalRequired: mutation ? capability.externalEffect : undefined,
+      ...(capability.inputPreview ? { inputPreview: capability.inputPreview } : {}),
       inputSchema: capability.parameters,
     }
   })

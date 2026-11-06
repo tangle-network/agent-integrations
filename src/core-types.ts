@@ -45,6 +45,12 @@ export interface IntegrationActor {
   id: string
 }
 
+/** Per-action input preview policy. `'none'` stores no input preview on any
+ *  path; `{ include: [...] }` previews only those top-level argument names
+ *  (each value still passes the shared redactor). Unset keeps the default
+ *  heuristic redaction. */
+export type IntegrationInputPreview = 'none' | { include: readonly string[] }
+
 export interface IntegrationConnectorAction {
   id: string
   title: string
@@ -55,6 +61,7 @@ export interface IntegrationConnectorAction {
   consistencyModel?: 'authoritative' | 'cache' | 'advisory'
   description?: string
   approvalRequired?: boolean
+  inputPreview?: IntegrationInputPreview
   inputSchema?: unknown
   outputSchema?: unknown
 }

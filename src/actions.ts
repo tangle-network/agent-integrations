@@ -21,9 +21,6 @@ export const CANONICAL_INTEGRATION_ACTIONS = {
   providerHttpRequest: 'provider.http.request',
 } as const
 
-export type CanonicalIntegrationActionId =
-  typeof CANONICAL_INTEGRATION_ACTIONS[keyof typeof CANONICAL_INTEGRATION_ACTIONS]
-
 export interface CanonicalLaunchConnectorOptions {
   providerId?: string
   includeProviderPassthrough?: boolean

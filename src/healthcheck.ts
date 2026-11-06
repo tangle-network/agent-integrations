@@ -118,16 +118,6 @@ export async function runIntegrationHealthchecks(input: {
   return results
 }
 
-export function healthcheckRequest(action = 'healthcheck'): IntegrationActionRequest {
-  return {
-    connectionId: '__healthcheck__',
-    action,
-    input: {},
-    dryRun: true,
-    metadata: { healthcheck: true },
-  }
-}
-
 function connectionStatusCheck(connection: IntegrationConnection, now: () => Date): IntegrationHealthcheckCheck {
   if (connection.status !== 'active') {
     return { id: 'connection-active', status: 'unhealthy', message: `Connection is ${connection.status}.` }
