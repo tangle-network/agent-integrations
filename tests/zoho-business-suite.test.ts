@@ -56,18 +56,10 @@ describe('Zoho shared OAuth application', () => {
     // env names in fallback order — a deployment may still carry the older
     // per-product names. Bigin is deliberately NOT behind that app: it has its
     // own OAuth client, so it names one env var and a shared credential must
-    // not satisfy it.
+    // not satisfy it — nor may its credentials arm the shared packs (#262).
     const sharedEnvMap = {
-      clientId: [
-        'ZOHO_OAUTH_CLIENT_ID',
-        'ZOHO_CRM_OAUTH_CLIENT_ID',
-        'BIGIN_BY_ZOHO_OAUTH_CLIENT_ID',
-      ],
-      clientSecret: [
-        'ZOHO_OAUTH_CLIENT_SECRET',
-        'ZOHO_CRM_OAUTH_CLIENT_SECRET',
-        'BIGIN_BY_ZOHO_OAUTH_CLIENT_SECRET',
-      ],
+      clientId: ['ZOHO_OAUTH_CLIENT_ID', 'ZOHO_CRM_OAUTH_CLIENT_ID'],
+      clientSecret: ['ZOHO_OAUTH_CLIENT_SECRET', 'ZOHO_CRM_OAUTH_CLIENT_SECRET'],
     }
     const isolated: Record<
       string,
