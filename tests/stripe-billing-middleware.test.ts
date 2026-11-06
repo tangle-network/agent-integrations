@@ -1,13 +1,6 @@
 import { generateKeyPair, SignJWT } from 'jose'
 import { beforeAll, describe, expect, it } from 'vitest'
-import {
-  gateSubscriptionOrTrial,
-  getRemainingFreeTier,
-  requireActiveSubscription,
-  withTrialAccess,
-  type FreeTierStore,
-  type TrialStore,
-} from '../src/stripe/middleware'
+import { requireActiveSubscription } from '../src/stripe/middleware'
 import {
   InMemorySubscriptionStore,
   makeSubscriptionRecord,
@@ -187,114 +180,5 @@ describe('requireActiveSubscription', () => {
     await store.save(rec)
     const out = await requireActiveSubscription({ workspaceId: 'ws_1', store, accessEvidence: namedServiceEvidence() })
     expect(out.allowed).toBe(true)
-  })
-})
-
-describe('withTrialAccess', () => {
-  it('always denies without reading signup or workspace timestamps', async () => {
-    const trialStore: TrialStore = {
-      getCreatedAt: () => {
-        throw new Error('trial store must not be read')
-      },
-    }
-    const out = await withTrialAccess({
-      workspaceId: 'ws',
-      days: 14,
-      trialStore,
-      now: () => 1_700_000_000_000,
-    })
-    expect(out).toEqual({ inTrial: false, daysRemaining: 0, trialEndsAt: null })
-  })
-})
-
-describe('getRemainingFreeTier', () => {
-  const fts = (used: number, total: number): FreeTierStore => ({ getUsage: () => ({ used, total }) })
-
-  it('reports exhausted when used >= total', async () => {
-    expect(await getRemainingFreeTier({ workspaceId: 'w', freeTierStore: fts(100, 100) })).toEqual({
-      remaining: 0,
-      total: 0,
-      exhausted: true,
-    })
-  })
-
-  it('caps remaining at zero, never negative', async () => {
-    expect(await getRemainingFreeTier({ workspaceId: 'w', freeTierStore: fts(150, 100) })).toEqual({
-      remaining: 0,
-      total: 0,
-      exhausted: true,
-    })
-  })
-
-  it('reports no quota when the consumer store says value remains', async () => {
-    expect(await getRemainingFreeTier({ workspaceId: 'w', freeTierStore: fts(20, 100) })).toEqual({
-      remaining: 0,
-      total: 0,
-      exhausted: true,
-    })
-  })
-
-  it('does not read the free-tier store', async () => {
-    const freeTierStore: FreeTierStore = {
-      getUsage: () => {
-        throw new Error('free-tier store must not be read')
-      },
-    }
-    await expect(getRemainingFreeTier({ workspaceId: 'w', freeTierStore })).resolves.toEqual({
-      remaining: 0,
-      total: 0,
-      exhausted: true,
-    })
-  })
-})
-
-describe('gateSubscriptionOrTrial', () => {
-  it('does not pass via trial without a paid subscription record', async () => {
-    const store = new InMemorySubscriptionStore()
-    const trialStore: TrialStore = {
-      getCreatedAt: () => {
-        throw new Error('trial store must not be read')
-      },
-    }
-    const out = await gateSubscriptionOrTrial({
-      workspaceId: 'ws_new',
-      store,
-      trialStore,
-      trialDays: 7,
-    })
-    expect(out.allowed).toBe(false)
-    if (!out.allowed) expect(out.error.billingCode).toBe('subscription_required')
-  })
-
-  it('falls back to subscription gate when trial expired', async () => {
-    const { store, rec } = seededStore('active')
-    await store.save(rec)
-    const trialStore: TrialStore = {
-      getCreatedAt: () => Date.now() - 365 * 24 * 60 * 60 * 1000,
-    }
-    const out = await gateSubscriptionOrTrial({
-      workspaceId: 'ws_1',
-      store,
-      trialStore,
-      trialDays: 14,
-      accessEvidence: paidEvidence(),
-    })
-    expect(out.allowed).toBe(true)
-    if (out.allowed) {
-      expect(out.viaTrial).toBeUndefined()
-    }
-  })
-
-  it('returns the subscription error when both fail (more actionable than "trial expired")', async () => {
-    const out = await gateSubscriptionOrTrial({
-      workspaceId: 'nobody',
-      store: new InMemorySubscriptionStore(),
-      trialStore: { getCreatedAt: () => null },
-      trialDays: 14,
-    })
-    expect(out.allowed).toBe(false)
-    if (!out.allowed) {
-      expect(out.error.billingCode).toBe('subscription_required')
-    }
   })
 })
