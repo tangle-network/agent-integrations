@@ -549,6 +549,7 @@ describe('github adapter', () => {
       ['pulls.listFiles', { owner: 'a', repo: 'b', pull_number: 1 }],
       ['repos.getCombinedStatusForRef', { owner: 'a', repo: 'b', ref: 'main' }],
       ['checks.listForRef', { owner: 'a', repo: 'b', ref: 'main' }],
+      ['repos.listDeployments', { owner: 'a', repo: 'b' }],
     ] as const
 
     for (const [capabilityName, args] of paged) {

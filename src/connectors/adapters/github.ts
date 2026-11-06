@@ -25,6 +25,11 @@ function repoParams(properties: Record<string, unknown> = {}, required: string[]
   }
 }
 
+/** The per_page/page pair every list capability pages with. */
+function paged() {
+  return { per_page: { type: 'integer' as const, minimum: 1, maximum: 100 }, page: { type: 'integer' as const, minimum: 1 } }
+}
+
 const githubSpec: RestConnectorSpec = {
   kind: 'github',
   displayName: 'GitHub',
@@ -55,8 +60,7 @@ const githubSpec: RestConnectorSpec = {
         properties: {
           sort: { type: 'string', enum: ['created', 'updated', 'pushed', 'full_name'] },
           affiliation: { type: 'string', description: 'Comma-separated owner, collaborator, organization_member.' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
         },
         required: [],
       },
@@ -184,8 +188,7 @@ const githubSpec: RestConnectorSpec = {
       description: 'List the files a pull request changes, with per-file patches. Page with per_page — a large PR exceeds a single response budget.',
       parameters: repoParams({
           pull_number: { type: 'integer' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
       }, ['pull_number']),
       request: {
         method: 'GET',
@@ -199,8 +202,7 @@ const githubSpec: RestConnectorSpec = {
       description: 'List the reviews already submitted on a pull request, so a reviewer does not repeat existing findings.',
       parameters: repoParams({
           pull_number: { type: 'integer' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
       }, ['pull_number']),
       request: {
         method: 'GET',
@@ -214,8 +216,7 @@ const githubSpec: RestConnectorSpec = {
       description: 'List the inline review comments on a pull request.',
       parameters: repoParams({
           pull_number: { type: 'integer' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
       }, ['pull_number']),
       request: {
         method: 'GET',
@@ -230,8 +231,7 @@ const githubSpec: RestConnectorSpec = {
         'Read the combined commit status for a ref (a SHA, branch or tag): its overall state and every status context, such as CI jobs or deploy receipts. Page with per_page.',
       parameters: repoParams({
           ref: { type: 'string', description: 'A commit SHA, branch name or tag name.' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
       }, ['ref']),
       request: {
         method: 'GET',
@@ -271,14 +271,21 @@ const githubSpec: RestConnectorSpec = {
         'List the check runs (for example GitHub Actions jobs) reported on a ref, with their status and conclusion. Page with per_page.',
       parameters: repoParams({
           ref: { type: 'string', description: 'A commit SHA, branch name or tag name.' },
-          per_page: { type: 'integer', minimum: 1, maximum: 100 },
-          page: { type: 'integer', minimum: 1 },
+          ...paged(),
       }, ['ref']),
       request: {
         method: 'GET',
         path: '/repos/{owner}/{repo}/commits/{ref}/check-runs',
         query: { per_page: '{per_page}', page: '{page}' },
       },
+    },
+    {
+      name: 'repos.listDeployments',
+      class: 'read',
+      description:
+        'List the deployments a repository has recorded (environment, ref, sha) so a ship check can tie a ref to what served it.',
+      parameters: repoParams(paged(), []),
+      request: { method: 'GET', path: '/repos/{owner}/{repo}/deployments', query: { per_page: '{per_page}', page: '{page}' } },
     },
     {
       name: 'issues.get',
@@ -578,12 +585,9 @@ const githubSpec: RestConnectorSpec = {
         },
         required: ['owner', 'repo', 'base', 'branch', 'title', 'files'],
       },
-      // Executed by `proposePullRequest` below as six requests; this is the
-      // request that makes the change visible.
+      // `proposePullRequest` below executes this as six requests; the new
+      // branch is the at-most-once guard (GitHub refuses an existing ref).
       request: { method: 'POST', path: '/repos/{owner}/{repo}/pulls' },
-      // The new branch is the at-most-once guard: GitHub refuses to create a
-      // ref that exists, so a replay fails before it can open a second pull
-      // request.
       cas: 'optimistic-read-verify',
       externalEffect: true,
     },
