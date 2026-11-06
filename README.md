@@ -33,35 +33,23 @@ provider SDK.
 
 ## What It Provides
 
-- A normalized connector/action/trigger catalog.
-- Tangle integration contracts for every catalog connector.
-- User-owned connection records that reference secrets without storing raw
+- A normalized connector/action/trigger catalog with Tangle contracts for
+  every connector, and generated `IntegrationSpec`s for setup docs,
+  permissions, healthchecks, and tool descriptions.
+- User-owned connection records referencing secrets in vaults, never raw
   credentials in public shapes.
-- Short-lived capability tokens for sandbox-safe access to a subset of a user's
-  connection.
-- Policy checks for read/write/destructive actions.
-- Invocation-envelope validation before sandbox tool calls reach the hub.
-- A generic HTTP provider boundary for hosted integration gateways.
-- A gateway catalog provider for hosted integration gateways, executor-style
-  runtimes, and internal connector registries.
-- A first-party `ConnectorAdapter` boundary for direct provider execution.
-- A declarative REST adapter factory for promoting REST APIs from reviewed specs.
-- A broad catalog for discovering hundreds of integrations while keeping
-  executable backend state explicit.
+- Short-lived, scoped capability tokens for sandbox-safe access to a subset of
+  a user's connection, with policy checks and invocation-envelope validation.
+- First-party `ConnectorAdapter` and declarative REST factories for direct
+  execution; gateway providers for hosted gateways, executor-style runtimes,
+  and internal registries.
 - A canonical registry that deduplicates overlapping catalogs, keeps support
-  tiers explicit, and reports auth/category conflicts.
+  tiers explicit, and keeps executable backend state distinct from discovery.
 - App/agent manifests, grants, and sandbox bundles so generated apps, domain
-  agents, and executor-backed runtimes can reuse the same user-owned
-  connections safely.
-- Workflow trigger installation and normalized event dispatch for non-agent UI
-  automation, sync jobs, webhooks, and product workflows.
-- Approval persistence, audit events, healthchecks, credential resolution,
-  webhook ingestion, idempotency guards, and sandbox/CLI bridge payloads.
-- Generated-app client helpers, manifest inference/validation, consent copy,
-  platform policy presets, canonical launch action schemas, and controlled
-  provider-native passthrough validation.
-- A generated `IntegrationSpec` registry used for setup docs, admin UI steps,
-  normalized permissions, healthcheck plans, and tool descriptions.
+  agents, and runtimes reuse user-owned connections safely.
+- Workflow trigger installation, normalized event dispatch, approvals, audit
+  events, healthchecks, idempotency guards, webhook ingestion, consent copy,
+  and sandbox/CLI bridge payloads.
 
 ## Architecture
 
@@ -383,6 +371,19 @@ See [voice tools](./docs/voice-tools.md) for voice memos, voices, self-clones, t
 See [Integration Execution Audit](./docs/integration-execution-audit.md) for
 the exact current split between catalog, setup, first-party execution, and
 package-runtime execution.
+
+### Readiness States
+
+Copy names a connector's state instead of implying execution: **catalogued**
+(discovery only), **configured** (product registered an adapter or gateway
+backend), **connected** (user completed setup and owns a connection record),
+**authorized** (a grant scopes actions to an app or agent), **executed** (a
+provider call ran and returned a result). Catalog breadth is not a promise
+that every action works for every customer: say "Available in the catalog;
+account setup required" rather than a generic "Connected", and surface the
+provider's own result — limits, failures, and revocation intact — for executed
+writes. Tool descriptors carry `supportTier` and `runnable` so discovery
+tools stay distinguishable from runtime tools.
 
 ## Executable Coverage
 

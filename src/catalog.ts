@@ -94,10 +94,8 @@ export function buildIntegrationToolCatalog(connectors: IntegrationConnector[]):
   return tools
 }
 
-/** Flatten a single (connector, action) pair into the tool descriptor the
- *  catalog exposes. The inverse of {@link parseIntegrationToolName} +
- *  {@link integrationToolName}: every tool name round-trips back to exactly
- *  this shape via {@link describeIntegrationTool}. */
+/** Flatten a (connector, action) pair into the tool descriptor; the inverse of
+ *  {@link integrationToolName} + {@link describeIntegrationTool}. */
 export function flattenIntegrationToolDefinition(
   connector: IntegrationConnector,
   action: IntegrationConnectorAction,
@@ -134,11 +132,9 @@ export function flattenIntegrationToolDefinition(
   }
 }
 
-/** Resolve a single tool's full descriptor from an opaque
- *  `int_<provider>_<connector>_<action>` name against a composed registry.
- *  Returns undefined when the name is malformed, the connector is unknown,
- *  or the action is not defined by that connector. Powers `/tools/describe`
- *  without callers re-implementing parse → byId → action → flatten. */
+/** Resolve a tool's full descriptor from an opaque `int_<provider>_<connector>_<action>`
+ *  name against a composed registry; undefined when malformed, unknown, or the
+ *  action is not defined by that connector. Powers `/tools/describe`. */
 export function describeIntegrationTool(
   registry: IntegrationRegistry,
   toolName: string,
