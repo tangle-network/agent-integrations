@@ -68,6 +68,29 @@ describe('backblaze adapter manifest', () => {
     expect(overrideUrl.pathname).toBe('/other-files')
   })
 
+  it('keeps slashes in object keys as path separators, not %2F (#120)', async () => {
+    const fetchMock = mockFetch('<ListBucketResult />')
+
+    await backblazeConnector.executeRead!({
+      source,
+      capabilityName: 'files.read',
+      args: { key: 'reports/2026/q1.pdf' },
+      idempotencyKey: 'read-slash-key',
+    })
+    await backblazeConnector.executeMutation!({
+      source,
+      capabilityName: 'files.s3_upload',
+      args: { folderPath: 'reports/2026', fileName: 'q1.pdf', file: 'x', type: 'application/pdf' },
+      idempotencyKey: 'upload-slash-path',
+    })
+
+    const [readUrl] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    const [uploadUrl] = fetchMock.mock.calls[1] as [URL, RequestInit]
+    expect(readUrl.pathname).toBe('/customer-files/reports/2026/q1.pdf')
+    expect(uploadUrl.pathname).toBe('/customer-files/reports/2026/q1.pdf')
+    expect(readUrl.pathname).not.toContain('%2F')
+  })
+
   it('fails the connection probe clearly when the bucket is absent', async () => {
     const sourceWithoutBucket: ResolvedDataSource = {
       ...source,

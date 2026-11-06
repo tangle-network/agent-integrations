@@ -1,40 +1,21 @@
 import { declarativeRestConnector } from './declarative-rest.js'
 
 /**
- * Backblaze B2 connector — S3-compatible object storage.
+ * Backblaze B2 connector — S3-compatible object storage at
+ * https://s3.{region}.backblazeb2.com, signed with AWS SigV4 (service `s3`)
+ * from the credential bundle in the api-key field (accessKeyId +
+ * secretAccessKey + region [+ endpoint]); the region substitutes into the
+ * `{region}` host template. The catalog models Backblaze as an api-key
+ * connector with exactly those wiring fields.
  *
- * The activepieces catalog entry models Backblaze as an api-key connector
- * with four wiring fields: accessKeyId, secretAccessKey, bucket, and region
- * (endpoint is optional and computed from region when omitted). That maps
- * directly onto Backblaze B2's S3-compatible REST surface, which lives at
- *   https://s3.{region}.backblazeb2.com
- * (e.g. s3.us-west-001.backblazeb2.com) and accepts AWS SigV4-signed
- * requests against the bucket as a virtual-hosted-style or path-style
- * resource. The declarative-REST adapter signs each request with AWS Signature
- * V4 (`credentialPlacement: aws-sigv4`, service `s3`) from the credential bundle
- * in the api-key field (accessKeyId + secretAccessKey + region); the region is
- * substituted into the `{region}` host template.
+ * Action surface mirrors the activepieces catalog 1:1 (files.read,
+ * files.s3_upload). Its polling trigger ("new.back.blaze.file") is
+ * intentionally omitted: B2 emits no native webhooks, and polling triggers
+ * belong in a poller adapter, not a request/response adapter.
  *
- * Action surface mirrors the activepieces catalog 1:1:
- *   - files.read         Read object bytes / metadata from a key in the bucket.
- *   - files.s3_upload    Upload an object to a key (or folderPath/fileName).
- *
- * Triggers (catalog "new.back.blaze.file") are not modeled on the
- * declarative-REST adapter — Backblaze does not emit native webhooks for
- * object events; the activepieces trigger polls the bucket. Polling-style
- * triggers belong in a poller adapter, not a request/response adapter,
- * so they're intentionally omitted here.
- *
- * Consistency model is `authoritative`: B2's bucket APIs return canonical
- * post-write state (the upload response carries the assigned fileId, sha1,
- * and content metadata), so a successful 2xx is the source of truth.
- *
- * CAS:
- *   - files.read is a plain read.
- *   - files.s3_upload is marked `native-idempotency` because B2 lets the
- *     client supply an `X-Bz-Content-Sha1` (or use the S3 `If-None-Match: *`
- *     header on the PUT) to make the upload conditional / dedupable on the
- *     destination key.
+ * Consistency is `authoritative` (upload responses carry canonical post-write
+ * state). files.s3_upload is `native-idempotency`: B2 honors
+ * `X-Bz-Content-Sha1` / S3 `If-None-Match: *` to dedupe on the destination key.
  */
 export const backblazeConnector = declarativeRestConnector({
   kind: 'backblaze',
@@ -74,7 +55,7 @@ export const backblazeConnector = declarativeRestConnector({
         },
         required: ['key'],
       },
-      request: { method: 'GET', path: '/{bucket}/{key}' },
+      request: { method: 'GET', path: '/{bucket}/{key}', pathSegmentParameters: ['key'] },
     },
     {
       name: 'files.s3_upload',
@@ -120,6 +101,7 @@ export const backblazeConnector = declarativeRestConnector({
       request: {
         method: 'PUT',
         path: '/{bucket}/{folderPath}/{fileName}',
+        pathSegmentParameters: ['folderPath'],
         headers: {
           'content-type': '{type}',
           'x-amz-acl': '{acl}',
@@ -188,6 +170,7 @@ export const backblazeConnector = declarativeRestConnector({
       request: {
         method: 'DELETE',
         path: '/{bucket}/{key}',
+        pathSegmentParameters: ['key'],
       },
       cas: 'native-idempotency',
       externalEffect: true,
@@ -227,6 +210,7 @@ export const backblazeConnector = declarativeRestConnector({
       request: {
         method: 'PUT',
         path: '/{bucket}/{destKey}',
+        pathSegmentParameters: ['destKey'],
         headers: {
           'x-amz-copy-source': '/{sourceBucket}/{sourceKey}',
           'x-amz-acl': '{acl}',
