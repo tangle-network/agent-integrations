@@ -169,7 +169,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
       category: spec.category,
       defaultConsistencyModel: spec.defaultConsistencyModel,
       capabilities,
-    },
+    }, rest: spec,
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const op = readOperation(spec, inv.capabilityName, 'read')

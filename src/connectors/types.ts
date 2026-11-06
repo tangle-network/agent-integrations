@@ -47,6 +47,7 @@ export type CapabilityParameterSchema = Record<string, unknown>
 export type ConsistencyModel = 'authoritative' | 'cache' | 'advisory'
 
 import type { IntegrationInputPreview } from '../core-types.js'
+import type { RestConnectorSpec } from './adapters/declarative-rest.js'
 export type { IntegrationInputPreview }
 
 /** Compare-and-swap strategy a mutation uses to detect conflicts. */
@@ -234,6 +235,8 @@ export interface EventHandlerResult {
 export interface ConnectorAdapter {
   /** Manifest entry the registry uses to render UI + validate args. */
   manifest: ConnectorManifest
+  /** Declarative REST spec the adapter was generated from; present when built by declarativeRestConnector. */
+  rest?: RestConnectorSpec
   /** Strict normalization of caller-supplied connection metadata; null rejects it. */
   validateConnectionMetadata?(metadata: Record<string, unknown>): Record<string, unknown> | null
   /**
