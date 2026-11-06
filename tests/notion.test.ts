@@ -127,9 +127,11 @@ describe('notion blocks.delete', () => {
   it('DELETEs /v1/blocks/{blockId}', async () => {
     let capturedUrl = ''
     let capturedMethod = ''
+    let capturedHeaders: Record<string, string> = {}
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       capturedUrl = String(input)
       capturedMethod = init?.method ?? ''
+      capturedHeaders = (init?.headers ?? {}) as Record<string, string>
       return jsonResponse({ object: 'block', id: 'b_1', archived: true })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -143,6 +145,7 @@ describe('notion blocks.delete', () => {
 
     expect(capturedMethod).toBe('DELETE')
     expect(capturedUrl).toContain('/v1/blocks/b_1')
+    expect(new Headers(capturedHeaders).get('Idempotency-Key')).toBe('k-block-del')
     expect(result.status).toBe('committed')
   })
 
