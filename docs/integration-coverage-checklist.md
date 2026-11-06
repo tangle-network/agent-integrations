@@ -69,18 +69,7 @@ Goal: cover the integrations that make agents useful for 99% of practical produc
 
 ## Coverage Catalog
 
-The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown()`. Current catalog scope includes:
-
-- Email and calendar: Gmail, Outlook, Google Calendar, Outlook Calendar, Calendly, Zoom.
-- Collaboration: Slack, Teams, Discord, Telegram, WhatsApp Business.
-- Knowledge and files: Google Drive, OneDrive, Dropbox, Box, Google Docs, Notion, Confluence, SharePoint.
-- CRM and support: HubSpot, Salesforce, Pipedrive, Zoho, Zendesk, Intercom, Freshdesk, Help Scout, Front.
-- Project and dev: Linear, Jira, GitHub, GitLab, Asana, Trello, ClickUp, Sentry, Datadog, PagerDuty.
-- Commerce and finance: Stripe, QuickBooks, Xero, NetSuite, Shopify, WooCommerce, Amazon Seller Central.
-- Marketing and social: Mailchimp, Klaviyo, Marketo, Braze, Facebook Pages, Instagram Business, LinkedIn, X, YouTube.
-- Data and infra: Snowflake, BigQuery, Redshift, Postgres, MySQL, MongoDB, Supabase, Firebase, S3, Cloudflare.
-- HR/legal/signature: Workday, BambooHR, Greenhouse, Lever, Gusto, Rippling, DocuSign, Ironclad, Clio.
-- AI/vector/workflow: OpenAI, Anthropic, Gemini, Hugging Face, Pinecone, Weaviate, Qdrant, Zapier, Make, hosted gateways, and imported automation catalogs.
+The exhaustive checklist is generated from `integrationCoverageChecklistMarkdown()`.
 
 ## Remaining Work
 
