@@ -80,6 +80,10 @@ export interface RestConnectorSpec {
   credentialsExpiredStatuses?: readonly number[]
   credentialPlacement?: RestCredentialPlacement
   defaultHeaders?: Record<string, string>
+  /** Header the provider deduplicates retried mutations on (Notion:
+   *  `Idempotency-Key`). Forwarded for native-idempotency mutations only;
+   *  opt-in per spec because a wrong name can poison caches or fail validation. */
+  idempotencyHeader?: string
   /** Server-owned app credentials, never copied to the public manifest or model arguments. */
   credentialHeaders?: Readonly<Record<string, string>>
   capabilities: RestOperationSpec[]
@@ -169,9 +173,7 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
       const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
       // `CapabilityReadResult` has no soft-failure channel, so a tagged
       // transport outcome MUST throw here: returning it as `data` reported the
-      // provider's 429/409 error body as a successful read — the caller (and
-      // `invokeAction`, which wraps every read result in `ok: true`) then
-      // treated "API rate limit exceeded" as the answer to the read.
+      // provider's 429/409 error body as a successful read.
       if (response.outcome === 'rate-limited') {
         const retryAfterMs = response.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS
         throw new ProviderRateLimited(
@@ -195,7 +197,10 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
     async executeMutation(inv: ConnectorInvocation): Promise<CapabilityMutationResult> {
       const op = readOperation(spec, inv.capabilityName, 'mutation')
       checkArguments(spec.kind, op.name, argumentRules.get(op.name)!, inv.args)
-      const response = await executeRestRequest(spec, op.request, inv, requiredArgsOf(op.parameters))
+      const request = spec.idempotencyHeader && (op.cas ?? 'native-idempotency') === 'native-idempotency'
+        ? { ...op.request, headers: { ...op.request.headers, [spec.idempotencyHeader]: inv.idempotencyKey } }
+        : op.request
+      const response = await executeRestRequest(spec, request, inv, requiredArgsOf(op.parameters))
       return mutationResultFromTransport(spec.displayName, response)
     },
 
@@ -209,9 +214,9 @@ export function declarativeRestConnector(spec: RestConnectorSpec): ConnectorAdap
           idempotencyKey: 'test',
         })
         // A throttled or conflicted probe proved nothing about the connection;
-        // validating expectations against the provider's error body (or
-        // passing outright when the spec has none) would report a health check
-        // that never ran as green.
+        // validating expectations against the error body (or passing outright
+        // when the spec has none) would report a health check that never ran
+        // as green.
         if (response.outcome) {
           return {
             ok: false,
@@ -290,13 +295,12 @@ interface ArgumentRule {
   message: string
 }
 
-// A declared `pattern` is the capability's contract, so it is enforced before
-// the request rather than left for the provider to answer. A provider's answer
-// to a value that breaks the contract is often misleading: GitHub reads a
-// commit sha passed as a branch name as "Branch not found". Only top-level
-// string arguments and arrays of strings are checked; that is where declarative
-// schemas put their patterns. Patterns compile once, when the connector is
-// built, so a malformed one fails at import instead of on a customer's call.
+// A declared `pattern` is the capability's contract, enforced before the
+// request: a provider's answer to a broken value is often misleading (GitHub
+// reads a commit sha passed as a branch name as "Branch not found"). Only
+// top-level string arguments and arrays of strings are checked — that is where
+// declarative schemas put their patterns. Patterns compile at connector build,
+// so a malformed one fails at import instead of on a customer's call.
 function compileArgumentRules(kind: string, op: RestOperationSpec): ArgumentRule[] {
   const rules: ArgumentRule[] = []
   const properties = objectField(op.parameters, 'properties')
@@ -358,9 +362,9 @@ function objectField(source: Record<string, unknown>, key: string): Record<strin
     : {}
 }
 
-// The JSON-Schema `required` array names the arguments a caller MUST supply.
-// Body rendering uses it to decide which standalone `{placeholder}` body fields
-// throw on absence (required) versus get omitted (optional).
+// The JSON-Schema `required` array names the arguments a caller MUST supply;
+// body rendering uses it to decide which standalone `{placeholder}` body
+// fields throw on absence versus get omitted.
 function requiredArgsOf(parameters: Record<string, unknown>): readonly string[] | undefined {
   const required = (parameters as { required?: unknown }).required
   return Array.isArray(required) ? required.filter((entry): entry is string => typeof entry === 'string') : undefined
@@ -369,8 +373,7 @@ function requiredArgsOf(parameters: Record<string, unknown>): readonly string[] 
 /**
  * One transport result. `outcome` is absent on a normal success; when present
  * it names a non-commit the caller must not treat as a write. It lives beside
- * `data` rather than inside it so an upstream field can never be mistaken for
- * a transport tag, and so `data` is always the upstream's own parsed body.
+ * `data` so an upstream field can never be mistaken for a transport tag.
  */
 export interface RestTransportResponse {
   data: unknown
@@ -388,9 +391,8 @@ export interface RestTransportResponse {
  * Map a transport response onto the mutation contract. A CAS conflict
  * (409/412) and a throttle (429) are NOT commits — reporting them under
  * `status: 'committed'` told the caller a write landed when nothing was
- * written, so the caller skipped its retry and the record silently never
- * existed. Shared so hand-rolled adapters that call `executeRestRequest`
- * directly (e.g. Notion's partial update) apply the same rule.
+ * written, so the caller skipped its retry. Shared so hand-rolled adapters
+ * that call `executeRestRequest` directly apply the same rule.
  */
 export function mutationResultFromTransport(displayName: string, response: RestTransportResponse): CapabilityMutationResult {
   if (response.outcome === 'conflict') {
@@ -428,10 +430,8 @@ export async function executeRestRequest(
 ): Promise<RestTransportResponse> {
   const placement = spec.credentialPlacement ?? { kind: 'bearer' }
 
-  // AWS SigV4 binds the target region into the HOST and signs the request body,
-  // so the credential bundle has to be resolved up front: the region selects
-  // the host before the URL is built, and the serialized body must exist before
-  // the signature is computed. Non-AWS placements are unaffected.
+  // SigV4 signs the body and binds the region into the host, so the credential
+  // bundle must resolve before the URL is built. Non-AWS placements are unaffected.
   const aws = placement.kind === 'aws-sigv4' ? parseAwsCredentialBundle(inv.source.credentials) : undefined
   const awsRegion = aws ? resolveAwsRegion(aws, inv.source.metadata, placement as { defaultRegion?: string }) : undefined
 
@@ -444,18 +444,13 @@ export async function executeRestRequest(
   )
   if (aws) baseUrl = applyRegionTemplate(baseUrl, awsRegion!, aws.endpoint)
   // Placeholder scope = the capability's arguments PLUS a reserved
-  // `connection.*` namespace reading the connection's own metadata. Some
-  // providers pin a tenant/realm/company identifier at connect time and then
-  // require it on every request (QuickBooks `realmId` in the path, Xero
-  // `xero-tenant-id` as a header). Before this, such a value could only reach
-  // the request through `baseUrl.metadataKey` — which cannot serve a header, a
-  // query param, or `test`, whose invocation has no arguments at all. Args win
-  // on a name clash, so no existing adapter changes behavior.
+  // `connection.*` namespace reading the connection's own metadata, for
+  // providers that pin a tenant/realm/company id at connect time and require
+  // it on every request (QuickBooks `realmId` in the path, Xero
+  // `xero-tenant-id` as a header). Args win on a name clash.
   const scope = renderScope(inv, aws?.bucket ? { bucket: aws.bucket } : undefined)
-  // Make the operation path RELATIVE to the base URL so a base like
-  // `https://api.emailit.com/v1` preserves its `/v1` prefix. An absolute path
-  // (leading `/`) would otherwise be resolved against the origin and drop
-  // every path segment the base URL carries.
+  // Keep the operation path RELATIVE to the base URL so a base like
+  // `https://api.emailit.com/v1` preserves its `/v1` prefix.
   const templatePath = request.path.replace(/^\/+/, '')
   const renderedPath = interpolate(templatePath, scope, request.pathSegmentParameters)
   // encodeURIComponent leaves `.` intact, so an argument of `.` or `..` would
@@ -473,12 +468,10 @@ export async function executeRestRequest(
     const rendered = renderQueryValue(value, scope)
     if (rendered !== undefined && rendered !== '') url.searchParams.set(key, String(rendered))
   }
-  // Some AWS capabilities (Bedrock control-plane) target a different host than
-  // the connector's base URL and express it as a `host` request header. `fetch`
-  // cannot send a custom Host, so fold it into the URL itself. The header value
-  // carries a `{region}` token resolved HERE (not a capability argument), so it
-  // must bypass `renderHeaders`/`interpolate` — which would throw on the unknown
-  // `{region}` placeholder before we ever get to substitute it.
+  // Some AWS capabilities (Bedrock control-plane) express a different target
+  // host as a `host` request header. `fetch` cannot send a custom Host, so fold
+  // it into the URL; its `{region}` token bypasses `renderHeaders`, which would
+  // throw on the unknown placeholder before we could substitute it.
   const requestHeaders = request.headers ?? {}
   const hostOverride = aws
     ? Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === 'host')?.[1]
@@ -516,10 +509,9 @@ export async function executeRestRequest(
   // take the record identifier in a DELETE body. GET never carries a body.
   const sendsBody = request.method !== 'GET' && (request.method !== 'DELETE' || request.body !== undefined)
   const bodyEncoding = request.bodyEncoding ?? 'json'
-  // Default content-type case-insensitively: AWS adapters declare a capitalized
-  // `Content-Type` in defaultHeaders, and a blind `headers['content-type']`
-  // default would add a SECOND, conflicting content-type entry (and corrupt the
-  // SigV4 signed-header set).
+  // Content-type must default case-insensitively: AWS adapters declare a
+  // capitalized `Content-Type`, and a blind lowercase default would add a
+  // second, conflicting entry (and corrupt the SigV4 signed-header set).
   if (sendsBody && getHeaderCI(headers, 'content-type') === undefined) {
     headers['content-type'] = bodyEncoding === 'form'
       ? 'application/x-www-form-urlencoded'
@@ -590,12 +582,10 @@ export async function executeRestRequest(
     throw new CredentialsExpired(`${spec.displayName} rejected credentials (${res.status})`, inv.source.id)
   }
   // A non-commit is reported on the ENVELOPE, never as a `status` field inside
-  // the body. Tagging the body meant two things went wrong at once: the
-  // upstream's own JSON was discarded in favour of the wrapper (so a caller
-  // reading `currentState` got the tag instead of the state), and any
-  // connector whose successful 2xx body happens to carry `status: 'conflict'`
-  // would have had a landed write reclassified as a failure. ~200 connectors
-  // share this transport, so that was a foot-gun waiting on one adapter.
+  // the body: tagging the body discarded the upstream's own JSON (a caller
+  // reading `currentState` got the tag), and any 2xx body that happens to carry
+  // `status: 'conflict'` would have a landed write reclassified as a failure.
+  // ~200 connectors share this transport.
   if (res.status === 409 || res.status === 412) {
     const text = redactCredentialText(
       boundedBytes?.toString('utf8') ?? await safeErrorText(res),
@@ -625,11 +615,9 @@ export async function executeRestRequest(
     }
   }
   // Existence-probe semantics: 204 = present, 404 = absent. Resolve to an
-  // explicit boolean BEFORE the generic success path (which would return a
-  // null body for the 204) and BEFORE the `!res.ok` throw (which would surface
-  // the 404 as an error). Only 204/404 are special-cased here; every other
-  // status falls through to its normal handling, so a real failure (500, 422,
-  // an auth 401/403 caught above) still fails loud.
+  // explicit boolean BEFORE the generic success path (204 would return a null
+  // body) and BEFORE the `!res.ok` throw (404 would surface as an error);
+  // every other status keeps its normal handling and still fails loud.
   if (request.existenceCheck && (res.status === 204 || res.status === 404)) {
     return { data: { exists: res.status === 204 } }
   }
@@ -646,10 +634,9 @@ export async function executeRestRequest(
     return { data: { base64: bytes.toString('base64'), contentType: res.headers.get('content-type') ?? undefined }, etag: res.headers.get('etag') ?? undefined }
   }
   const text = boundedBytes?.toString('utf8') ?? await res.text()
-  // Most upstreams return JSON, but some return raw payloads — scrapers
-  // (ZenRows, Bright Data Web Unlocker) return HTML/markdown/PDF, a few APIs
-  // return plain text. Parse JSON when we can; otherwise surface the raw text
-  // under `{ raw }` rather than throwing a SyntaxError on a successful 200.
+  // Most upstreams return JSON, but some return raw payloads (scrapers return
+  // HTML/markdown/PDF). Parse JSON when we can; otherwise surface the raw text
+  // under `{ raw }` rather than throwing on a successful 200.
   let data: unknown = null
   if (text) {
     try {

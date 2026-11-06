@@ -168,6 +168,20 @@ describe('declarative REST adapters', () => {
     expect(String(fetchMock.mock.calls[0]![0])).toBe('https://path.example.test/v1/records/..%2Fadmin')
   })
 
+  it('forwards the idempotency key only for native-idempotency mutations', async () => {
+    const fetchMock = mockFetch({ id: 'r1' }, { status: 201 })
+    const source = sourceFor({ ...connection, connectorId: 'idempotency-test' })
+    await idempotencyConnector.executeMutation!({
+      source, capabilityName: 'records.create', args: {}, idempotencyKey: 'idem-1',
+    })
+    await idempotencyConnector.executeMutation!({
+      source, capabilityName: 'records.replace', args: { id: 'r1' }, idempotencyKey: 'idem-2',
+    })
+    const headers = fetchMock.mock.calls.map(([, init]) => new Headers((init as RequestInit).headers))
+    expect(headers[0]!.get('Idempotency-Key')).toBe('idem-1')
+    expect(headers[1]!.get('Idempotency-Key')).toBeNull()
+  })
+
   it('uses provider-specific credential placement for GitLab', async () => {
     const fetchMock = mockFetch([{ id: 1 }])
     const provider = createConnectorAdapterProvider({
@@ -239,6 +253,33 @@ const pathConnector = declarativeRestConnector({
 
 // Every declarative adapter shares this transport, so these cases stand in for
 // the per-adapter copies that each re-asserted the same mapping.
+const idempotencyConnector = declarativeRestConnector({
+  kind: 'idempotency-test',
+  displayName: 'Idempotency Test',
+  description: 'Exercises native idempotency header forwarding.',
+  auth: { kind: 'api-key', hint: 'Test token.' },
+  category: 'other',
+  defaultConsistencyModel: 'authoritative',
+  baseUrl: 'https://idempotency.example.test',
+  idempotencyHeader: 'Idempotency-Key',
+  capabilities: [{
+    name: 'records.create',
+    class: 'mutation',
+    description: 'Create a record.',
+    parameters: { type: 'object', properties: {} },
+    request: { method: 'POST', path: '/records', body: 'args' },
+    externalEffect: true,
+  }, {
+    name: 'records.replace',
+    class: 'mutation',
+    description: 'Replace a record without native dedup.',
+    parameters: { type: 'object', properties: { id: { type: 'string' } } },
+    request: { method: 'PUT', path: '/records/{id}', body: 'args' },
+    cas: 'none',
+    externalEffect: true,
+  }],
+})
+
 describe('declarative REST shared transport', () => {
   const source = sourceFor({ ...connection, connectorId: 'github' })
 

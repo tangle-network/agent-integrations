@@ -56,10 +56,10 @@ const NOTION_SPEC: RestConnectorSpec = {
   category: 'doc',
   defaultConsistencyModel: 'authoritative',
   baseUrl: 'https://api.notion.com/v1',
-  // Notion rejects any request without a Notion-Version header (400
-  // invalid_request). The declarative executor merges defaultHeaders into
-  // every read/mutation, so the whole surface carries it.
+  // Notion rejects any request without a Notion-Version header (400 invalid_request).
   defaultHeaders: { 'Notion-Version': NOTION_VERSION },
+  // Notion dedupes retried writes on this header (see RestConnectorSpec.idempotencyHeader).
+  idempotencyHeader: 'Idempotency-Key',
   test: { method: 'GET', path: '/users/me' },
   capabilities: [
     {
