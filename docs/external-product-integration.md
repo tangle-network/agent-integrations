@@ -171,6 +171,13 @@ Imported catalog entries are backlog only. Do not expose them as callable tools
 until they are backed by a reviewed adapter or an intentionally owned hosted
 provider.
 
+Setup and consent copy follow the same ladder: catalogued, configured,
+connected, authorized, executed. A connector that is merely catalogued renders
+"Available in the catalog; account setup required", never a generic
+"Connected"; consent copy states requested authority (read/write/destructive),
+not readiness; and an executed write surfaces the provider's own result with
+limits, failures, and revocation preserved.
+
 ## Security Requirements
 
 - Never pass provider refresh tokens or API keys into a sandbox.
