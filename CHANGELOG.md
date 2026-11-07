@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.4
+
+- feat(connectors): add live connector API validation harness (#438)
+- feat(redaction): project private action input previews across policy paths (#437)
+- docs: name connector readiness states in README, setup, and consent copy (#436)
+- fix(backblaze): keep slashes in object keys as path separators (#435)
+- feat(connectors): forward idempotency keys on provider idempotency headers (#434)
+- chore(deps): bump zod from 4.6.5 to 4.6.7 (#431)
+- chore(deps): bump source-map-js from 1.2.1 to 1.2.2 (#430)
+- chore(deps-dev): bump vite from 8.3.1 to 8.3.3 (#429)
+- fix(zoho): a Bigin-only OAuth config no longer arms the shared Zoho packs (#433)
+- feat(github): read repository deployments (#432)
+
 ## 1.0.3
 
 - feat(github): publish check runs through approved mutations (#427)
