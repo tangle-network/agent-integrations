@@ -470,7 +470,7 @@ The test suite packs the npm artifact and bundles `/worker`, `/specs`, and
 
 Feature PRs must leave the package version and `CHANGELOG.md` unchanged.
 After features merge, run the **Prepare Release** workflow and choose a patch, minor, or major bump.
-The workflow uses Node and Git to open a `release/v<version>` PR from current `main`.
+The workflow reads the stable npm predecessor and uses Node and Git to open a `release/v<version>` PR from current `main`. An unpublished tag does not become the changelog baseline. Compatible releases after 1.0 use a patch; the shared archive admission check decides whether a change requires a major.
 It does not install dependencies or publish a package.
 
 Review that the release branch version matches the next package version.
