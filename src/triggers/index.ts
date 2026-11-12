@@ -8,10 +8,10 @@
  *
  *   - the first poll after a subscription records a baseline and emits
  *     nothing, so turning a trigger on never replays history;
- *   - each later poll emits the records created at or after the cursor that it
- *     has not already emitted, oldest first, at most {@link MAX_EVENTS_PER_POLL};
+ *   - timestamp providers emit unseen records at or after the boundary; feed
+ *     providers consume one page in provider order, at most {@link MAX_EVENTS_PER_POLL};
  *   - the cursor advances only past emitted records, so a capped or failed
- *     poll resumes where it stopped.
+ *     poll resumes where it stopped; feed pages are checkpointed before admission.
  *
  * Events are normalized: a stable `id` (the delivery id), the trigger's
  * `type`, when the record was created, the person it names (email, name,
