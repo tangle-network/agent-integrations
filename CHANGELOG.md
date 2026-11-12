@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.5
+
+- fix(release): reject non-successor explicit versions before writes
+- fix(release): update the parsed package manifest
+- test(release): isolate the dependency-free preparation journey
+- fix(release): prepare from the published predecessor
+- docs(release): include final hosted trigger contract notes
+- docs: define retained hosted-trigger progress
+- fix: retain the complete active timestamp boundary
+- feat: retain Drive change-feed pages for hosted triggers
+
 ## 1.1.0
 
 - docs: define retained hosted-trigger progress
