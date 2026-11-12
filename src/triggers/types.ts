@@ -24,6 +24,8 @@ export interface HostedTriggerCursor {
   since: string
   /** Keys emitted at or near `since`, newest last, so a boundary record is never emitted twice. */
   seen: string[]
+  /** Provider-owned JSON progress; opaque to the host. */
+  state?: unknown
 }
 
 /** Run one READ capability of the trigger's connector on the subscribed connection; resolves to its data. */
@@ -47,7 +49,19 @@ export interface HostedTriggerDefinition {
   intervalSeconds: number
   /** Every capability `list` may read; each must be a READ on this connector. */
   reads: readonly string[]
-  /** Candidate records created at or after `since`; the runner filters and orders them. */
-  list(context: { read: HostedTriggerRead; since: string; now: Date }): Promise<PolledRecord[]>
+  /** Establish the current provider position without replaying history, under the connection credential. */
+  initialize?(context: { read: HostedTriggerRead; now: Date }): Promise<unknown>
+  /** Candidate records. Legacy providers use timestamp filtering; progress providers preserve feed order. */
+  list(context: {
+    read: HostedTriggerRead
+    since: string
+    now: Date
+    /** Available through pollHostedTrigger; never replace an uncertain state with a new baseline. */
+    progress?: {
+      state: unknown
+      limit: number
+      set(next: { state: unknown; more: boolean; checkpoint: unknown }): void
+    }
+  }): Promise<PolledRecord[]>
 }
 
