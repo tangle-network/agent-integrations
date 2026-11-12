@@ -33,9 +33,11 @@ test('prepares from published history despite a newer refused tag and refuses in
     await commit('chore(release): 1.1.0')
     await git('tag', 'v1.1.0')
     const before = await readFile(join(directory, 'package.json'), 'utf8')
-    await assert.rejects(execute(process.execPath, [script, 'minor'], { cwd: directory, env: environment }), /Compatible 1.x/)
-    assert.equal(await readFile(join(directory, 'package.json'), 'utf8'), before)
-    assert.equal(await readFile(join(directory, 'CHANGELOG.md'), 'utf8'), baseline)
+    for (const request of ['minor', '1.0.3', '0.99.0', '1.0.6', '1.1.0']) {
+      await assert.rejects(execute(process.execPath, [script, request], { cwd: directory, env: environment }), /Compatible 1.x|next patch/)
+      assert.equal(await readFile(join(directory, 'package.json'), 'utf8'), before)
+      assert.equal(await readFile(join(directory, 'CHANGELOG.md'), 'utf8'), baseline)
+    }
     const output = join(directory, 'output')
     await execute(process.execPath, [script, 'patch'], { cwd: directory, env: { ...environment, GITHUB_OUTPUT: output } })
     assert.equal(JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')).version, '1.0.5')

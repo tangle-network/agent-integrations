@@ -15,13 +15,15 @@ let version = request
 if (['patch', 'minor', 'major'].includes(request)) {
   if (request === 'minor' && parts[0] >= 1) throw new Error('Compatible 1.x+ releases use patch; breaking changes use major')
   const index = { major: 0, minor: 1, patch: 2 }[request]
-  parts[index]++
-  parts.fill(0, index + 1)
-  version = parts.join('.')
+  const selected = [...parts]
+  selected[index]++
+  selected.fill(0, index + 1)
+  version = selected.join('.')
 }
 if (!/^\d+\.\d+\.\d+$/.test(version || '')) throw new Error('usage: node scripts/prepare-release.mjs <patch|minor|major|x.y.z>')
-const selected = version.split('.').map(Number)
-if (parts[0] >= 1 && selected[0] === parts[0] && selected[1] !== parts[1]) throw new Error('Compatible 1.x+ releases use patch; breaking changes use major')
+const [major, minor, patch] = parts
+const successors = [`${major}.${minor}.${patch + 1}`, `${major + 1}.0.0`, ...(major === 0 ? [`0.${minor + 1}.0`] : [])]
+if (!successors.includes(version)) throw new Error('Release must be the next patch or the next admitted major; only 0.x admits a minor')
 if (manifest.version === version) throw new Error(`already ${version}`)
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
 const tag = `v${previous}`
