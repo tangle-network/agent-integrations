@@ -15,7 +15,7 @@ test('prepares from published history despite a newer refused tag and refuses in
   const peer = createServer((_request, response) => response.end(JSON.stringify({ version: '1.0.4' })))
   await new Promise((resolve) => peer.listen(0, '127.0.0.1', resolve))
   const environment = { ...process.env, npm_config_registry: `http://127.0.0.1:${peer.address().port}` }
-  const git = (...args) => execute('git', args, { cwd: directory })
+  const git = (...args) => execute('git', args, { cwd: directory, env: { ...process.env, GIT_ALLOW_TEST_IDENTITY: '1' } })
   const commit = (message) => git('-c', 'user.name=Release Fixture', '-c', 'user.email=release@example.invalid', 'commit', '-qm', message)
   try {
     await git('init', '-q')
