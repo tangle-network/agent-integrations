@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- docs: define retained hosted-trigger progress
+- fix: retain the complete active timestamp boundary
+- feat: retain Drive change-feed pages for hosted triggers
+
 ## 1.0.4
 
 - feat(connectors): add live connector API validation harness (#438)
