@@ -105,6 +105,23 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
       rateLimit: { requests: 1000, windowMs: 60_000, scope: 'oauth-client' },
       capabilities: [
         {
+          name: 'get_start_page_token',
+          class: 'read',
+          description: 'Get the current change-feed position without reading document contents.',
+          requiredScopes: SCOPES_READONLY,
+          parameters: { type: 'object', properties: {} },
+        },
+        {
+          name: 'list_changes',
+          class: 'read',
+          description: 'Read one page of file-change metadata, including removals. Continue with nextPageToken, or newStartPageToken after the final page.',
+          requiredScopes: SCOPES_READONLY,
+          parameters: { type: 'object', properties: {
+            pageToken: { type: 'string', minLength: 1 },
+            pageSize: { type: 'integer', minimum: 1, maximum: 1000, default: 100 },
+          }, required: ['pageToken'] },
+        },
+        {
           name: 'list_files',
           class: 'read',
           description:
@@ -232,6 +249,7 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
 
     async executeRead(inv: ConnectorInvocation): Promise<CapabilityReadResult> {
       const accessToken = await ensureFreshAccessToken(inv.source.credentials, clientId, clientSecret)
+      if (inv.capabilityName === 'get_start_page_token' || inv.capabilityName === 'list_changes') return readChanges(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'list_files') return listFiles(inv, accessToken, timeoutMs)
       if (inv.capabilityName === 'read_file') return readFile(inv, accessToken, timeoutMs)
       throw new Error(`google-drive: unknown read capability ${inv.capabilityName}`)
@@ -304,6 +322,27 @@ export function googleDrive(opts: GoogleDriveOptions): ConnectorAdapter {
     },
   }
   return adapter
+}
+
+/** Changes are metadata only; never request media, export, permissions or document content. */
+async function readChanges(inv: ConnectorInvocation, token: string, timeoutMs: number): Promise<CapabilityReadResult> {
+  const start = inv.capabilityName === 'get_start_page_token'
+  const url = new URL(`${API}/changes${start ? '/startPageToken' : ''}`)
+  url.searchParams.set('supportsAllDrives', 'true')
+  if (start) url.searchParams.set('fields', 'startPageToken')
+  else {
+    if (typeof inv.args.pageToken !== 'string' || !inv.args.pageToken) throw new Error('google-drive: pageToken required')
+    const pageSize = inv.args.pageSize ?? 100
+    if (typeof pageSize !== 'number' || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) throw new Error('google-drive: invalid pageSize')
+    url.searchParams.set('pageToken', inv.args.pageToken)
+    url.searchParams.set('pageSize', String(pageSize))
+    url.searchParams.set('includeItemsFromAllDrives', 'true')
+    url.searchParams.set('includeRemoved', 'true')
+    url.searchParams.set('fields', 'nextPageToken,newStartPageToken,changes(fileId,time,removed,changeType,file(id,name,mimeType,modifiedTime,trashed,parents,version,size,webViewLink))')
+  }
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(timeoutMs) })
+  if (!response.ok) throw await googleApiError(response, `google-drive.${inv.capabilityName}`, inv.source.id)
+  return { data: await response.json(), fetchedAt: Date.now() }
 }
 
 async function listFiles(

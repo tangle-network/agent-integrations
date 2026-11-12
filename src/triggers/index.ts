@@ -28,7 +28,8 @@ export type * from './types.js'
 export { HOSTED_TRIGGER_DEFINITIONS }
 
 export const MAX_EVENTS_PER_POLL = 50
-const SEEN_KEYS = 200
+// Refuse an unbounded timestamp tie instead of forgetting IDs and replaying its first page.
+const MAX_BOUNDARY_KEYS = 10_000
 
 export interface HostedTriggerPollResult {
   events: HostedTriggerEvent[]
@@ -40,19 +41,54 @@ export interface HostedTriggerPollResult {
 /** Poll one subscription once. `cursor` is null on the first poll after it is created. */
 export async function pollHostedTrigger(
   trigger: HostedTriggerDefinition,
-  context: { read: HostedTriggerRead; cursor: HostedTriggerCursor | null; now: Date },
+  context: {
+    read: HostedTriggerRead; cursor: HostedTriggerCursor | null; now: Date
+    /** Durably retain a pending page BEFORE returning its events. Required for provider progress. */
+    checkpoint?: (cursor: HostedTriggerCursor) => Promise<void>
+  },
 ): Promise<HostedTriggerPollResult> {
-  if (!context.cursor) return { events: [], cursor: { since: context.now.toISOString(), seen: [] }, more: false }
+  if (!context.cursor) {
+    const state = await trigger.initialize?.({ read: context.read, now: context.now })
+    return { events: [], cursor: { since: context.now.toISOString(), seen: [], ...(state === undefined ? {} : { state }) }, more: false }
+  }
   const cursor = context.cursor
   const sinceMs = Date.parse(cursor.since)
+  if (!Number.isFinite(sinceMs) || !Array.isArray(cursor.seen) || cursor.seen.some((key) => typeof key !== 'string')) {
+    throw new Error(`${trigger.event}: invalid cursor; refusing to reset its baseline`)
+  }
   const seen = new Set(cursor.seen)
-  const records = await trigger.list({ read: context.read, since: cursor.since, now: context.now })
+  const page: { next?: { state: unknown; more: boolean; checkpoint: unknown } } = {}
+  const records = await trigger.list({
+    read: context.read, since: cursor.since, now: context.now,
+    progress: { state: cursor.state, limit: MAX_EVENTS_PER_POLL, set(next) {
+      if (page.next) throw new Error(`${trigger.event}: more than one page per poll`)
+      page.next = next
+    } },
+  })
+  const progress = page.next
+  if (progress) {
+    if (!context.checkpoint) throw new Error(`${trigger.event}: durable page checkpoint required before admission`)
+    if (records.length > MAX_EVENTS_PER_POLL || new Set(records.map((record) => record.key)).size !== records.length ||
+      records.some((record) => !record.key || !Number.isFinite(Date.parse(record.occurredAt)))) {
+      throw new Error(`${trigger.event}: invalid or oversized provider page`)
+    }
+    await context.checkpoint({ ...cursor, state: progress.checkpoint })
+    return {
+      events: records.map((record) => ({ id: `${trigger.provider}:${record.key}`, type: trigger.event,
+        occurredAt: new Date(Date.parse(record.occurredAt)).toISOString(), person: record.person, summary: record.summary, record: record.record })),
+      cursor: { ...cursor, state: progress.state }, more: progress.more,
+    }
+  }
   const fresh = records
     .filter((record) => !seen.has(record.key) && Number.isFinite(Date.parse(record.occurredAt)) && Date.parse(record.occurredAt) >= sinceMs)
     .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))
   const emitted = fresh.slice(0, MAX_EVENTS_PER_POLL)
   const since = emitted.reduce((latest, record) => Date.parse(record.occurredAt) > Date.parse(latest) ? new Date(Date.parse(record.occurredAt)).toISOString() : latest, cursor.since)
-  const keys = [...cursor.seen.filter((key) => !emitted.some((record) => record.key === key)), ...emitted.map((record) => record.key)]
+  const keys = [...new Set([
+    ...(since === cursor.since ? cursor.seen : []),
+    ...emitted.filter((record) => Date.parse(record.occurredAt) === Date.parse(since)).map((record) => record.key),
+  ])]
+  if (keys.length > MAX_BOUNDARY_KEYS) throw new Error(`${trigger.event}: timestamp boundary exceeds retained-key capacity; cursor retained`)
   return {
     events: emitted.map((record) => ({
       id: `${trigger.provider}:${record.key}`,
@@ -62,7 +98,7 @@ export async function pollHostedTrigger(
       summary: record.summary,
       record: record.record,
     })),
-    cursor: { since, seen: keys.slice(-SEEN_KEYS) },
+    cursor: { since, seen: keys },
     more: fresh.length > emitted.length,
   }
 }

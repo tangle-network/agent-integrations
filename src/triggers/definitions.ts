@@ -1,3 +1,4 @@
+import { googleDriveChanged } from './google-drive.js'
 import type { HostedTriggerDefinition, HostedTriggerPerson, HostedTriggerRead, PolledRecord } from './types.js'
 
 /**
@@ -449,5 +450,5 @@ const intercom: HostedTriggerDefinition = {
 
 export const HOSTED_TRIGGER_DEFINITIONS: readonly HostedTriggerDefinition[] = [
   gmail, outlook, hubspotContact, hubspotDeal, attioPerson, pipedrivePerson, pipedriveDeal,
-  typeform, tally, webflow, calendly, calCom, intercom,
+  typeform, tally, webflow, calendly, calCom, intercom, googleDriveChanged,
 ]

@@ -486,3 +486,11 @@ Confirm that the published archive installs and its intended consumer flow works
 ## License
 
 MIT
+
+### Drive change-feed triggers
+
+`google-drive.file.changed` reads metadata and removals through `get_start_page_token` and `list_changes`, using the existing `drive.readonly` grant. It does not request document contents or create watch channels. Its first poll obtains the current change-feed position; later polls consume one bounded page in provider order, independent of timestamp ties.
+
+Hosts keep `HostedTriggerCursor.state` opaque. Pass a durable `checkpoint(cursor)` callback to `pollHostedTrigger`: the Drive provider freezes each pending page there before returning events. Admit every event with its stable `id`, then persist the returned cursor only after all admissions succeed. On interruption, retry the checkpoint cursor; it replays identical events without rereading mutable metadata. A missing checkpoint sink, invalid cursor, incomplete continuation or malformed page fails without resetting the feed. Existing timestamp-based definitions and callers keep their prior behavior. See Google's [change-feed contract](https://developers.google.com/workspace/drive/api/guides/manage-changes).
+
+Timestamp providers retain all admitted IDs at the active timestamp boundary and discard them only when the boundary advances. The retained-key bound lives in `MAX_BOUNDARY_KEYS` in the trigger runner; overflow fails explicitly with the prior cursor intact. These definitions remain limited by each provider's existing listing/history contract; they do not provide Drive's token-based feed guarantees.
