@@ -29,7 +29,8 @@ if (git('merge-base', tag, 'HEAD') !== git('rev-parse', `${tag}^{commit}`)) thro
 const subjects = git('log', '--no-merges', '--format=%s', `${tag}..HEAD`).split('\n').filter((line) => line && !line.startsWith('chore(release):'))
 if (!subjects.length) throw new Error(`no commits since ${tag}`)
 const old = readFileSync('CHANGELOG.md', 'utf8')
-writeFileSync('package.json', file.replace(/^(\s*"version":\s*)"[^"]+"/m, (_match, prefix) => `${prefix}"${version}"`))
+manifest.version = version
+writeFileSync('package.json', `${JSON.stringify(manifest, null, 2)}\n`)
 writeFileSync('CHANGELOG.md', `# Changelog\n\n## ${version}\n\n${subjects.map((subject) => `- ${subject}`).join('\n')}\n\n${old.replace(/^# Changelog\s*/, '')}`)
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`)
 console.log(`Prepared ${version} from ${subjects.length} commits since published ${tag}`)
