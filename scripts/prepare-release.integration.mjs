@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import { promisify } from 'node:util'
 
 const execute = promisify(execFile)
-const script = fileURLToPath(new URL('../scripts/prepare-release.mjs', import.meta.url))
+const script = fileURLToPath(new URL('./prepare-release.mjs', import.meta.url))
 test('prepares from published history despite a newer refused tag and refuses invalid requests before writes', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'prepare-published-release-'))
   const peer = createServer((_request, response) => response.end(JSON.stringify({ version: '1.0.4' })))

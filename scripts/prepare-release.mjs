@@ -20,6 +20,8 @@ if (['patch', 'minor', 'major'].includes(request)) {
   version = parts.join('.')
 }
 if (!/^\d+\.\d+\.\d+$/.test(version || '')) throw new Error('usage: node scripts/prepare-release.mjs <patch|minor|major|x.y.z>')
+const selected = version.split('.').map(Number)
+if (parts[0] >= 1 && selected[0] === parts[0] && selected[1] !== parts[1]) throw new Error('Compatible 1.x+ releases use patch; breaking changes use major')
 if (manifest.version === version) throw new Error(`already ${version}`)
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
 const tag = `v${previous}`
