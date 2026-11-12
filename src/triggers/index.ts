@@ -28,7 +28,8 @@ export type * from './types.js'
 export { HOSTED_TRIGGER_DEFINITIONS }
 
 export const MAX_EVENTS_PER_POLL = 50
-const SEEN_KEYS = 200
+// Refuse an unbounded timestamp tie instead of forgetting IDs and replaying its first page.
+const MAX_BOUNDARY_KEYS = 10_000
 
 export interface HostedTriggerPollResult {
   events: HostedTriggerEvent[]
@@ -83,7 +84,11 @@ export async function pollHostedTrigger(
     .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))
   const emitted = fresh.slice(0, MAX_EVENTS_PER_POLL)
   const since = emitted.reduce((latest, record) => Date.parse(record.occurredAt) > Date.parse(latest) ? new Date(Date.parse(record.occurredAt)).toISOString() : latest, cursor.since)
-  const keys = [...cursor.seen.filter((key) => !emitted.some((record) => record.key === key)), ...emitted.map((record) => record.key)]
+  const keys = [...new Set([
+    ...(since === cursor.since ? cursor.seen : []),
+    ...emitted.filter((record) => Date.parse(record.occurredAt) === Date.parse(since)).map((record) => record.key),
+  ])]
+  if (keys.length > MAX_BOUNDARY_KEYS) throw new Error(`${trigger.event}: timestamp boundary exceeds retained-key capacity; cursor retained`)
   return {
     events: emitted.map((record) => ({
       id: `${trigger.provider}:${record.key}`,
@@ -93,7 +98,7 @@ export async function pollHostedTrigger(
       summary: record.summary,
       record: record.record,
     })),
-    cursor: { since, seen: keys.slice(-SEEN_KEYS) },
+    cursor: { since, seen: keys },
     more: fresh.length > emitted.length,
   }
 }

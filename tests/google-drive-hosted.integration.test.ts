@@ -102,6 +102,28 @@ describe('Drive changes through the public connector and real HTTP transport', (
     expect(await recover()).toEqual(staged)
   })
 
+  it('drains more than the old retained-key window of timestamp ties without replay or starvation', async () => {
+    pages.set('ties', { changes: Array.from({ length: 305 }, (_, i) => change(i)), newStartPageToken: 'settled' })
+    const timestampDefinition = { ...definition, initialize: undefined,
+      async list({ read }: { read: (capability: string, args: Record<string, unknown>) => Promise<unknown> }) {
+        const page = await read('list_changes', { pageToken: 'ties', pageSize: 1000 }) as { changes: ReturnType<typeof change>[] }
+        return page.changes.map((entry) => ({ key: entry.fileId, occurredAt: entry.time, person: null,
+          summary: entry.file.name, record: { id: entry.fileId } }))
+      } }
+    let result = await pollHostedTrigger(timestampDefinition, { read, cursor: null, now: NOW })
+    const emitted: string[] = []
+    for (let index = 0; index < 8; index++) {
+      result = await pollHostedTrigger(timestampDefinition, { read, cursor: result.cursor, now: NOW })
+      emitted.push(...result.events.map((event) => event.id))
+    }
+    expect(emitted).toHaveLength(305)
+    expect(new Set(emitted).size).toBe(305)
+    expect(result.events).toEqual([])
+    expect(result.more).toBe(false)
+    expect(result.cursor.seen).toHaveLength(305)
+    expect(requests).toHaveLength(8)
+  })
+
   it('refuses uncertain feeds/cursors and upstream failures without advancing stored progress', async () => {
     const baseline = await poll(null)
     await checkpoint(baseline.cursor)
