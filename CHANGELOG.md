@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+
+- feat(phony): translate audio only with translate_video output "audio"
+- chore(deps): bump fast-xml-parser from 5.11.2 to 5.12.0
+
 ## 1.0.5
 
 - fix(release): reject non-successor explicit versions before writes
