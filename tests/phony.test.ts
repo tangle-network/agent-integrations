@@ -856,3 +856,48 @@ describe('phony video translation', () => {
     expect((read.data as any).translation.source_cues).toBeUndefined()
   })
 })
+
+describe('phony update_agent and delete_agent', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('advertises and sends the knowledge and contact-capture fields ph0ny\'s update takes', async () => {
+    const update = phonyConnector.manifest.capabilities.find((c) => c.name === 'update_agent')
+    for (const field of ['collectionId', 'libraryId', 'contactCaptureEnabled', 'contactCaptureFields', 'styleProfile', 'promptByModel']) {
+      expect(update?.parameters.properties).toHaveProperty(field)
+    }
+    const fields = { collectionId: 'col_2', libraryId: 'lib_1', contactCaptureEnabled: true, contactCaptureFields: ['name', 'phone'] }
+    const captured = captureFetch(jsonResponse({ id: 'agent_1', ...fields }))
+    const result = await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'update_agent', args: { agentId: 'agent_1', ...fields }, idempotencyKey: 'update-kb',
+    })
+    expect(captured.method).toBe('PUT')
+    expect(captured.url).toBe('https://api.ph0ny.com/v1/agents/agent_1')
+    expect(captured.headers?.authorization).toBe(BEARER)
+    expect(captured.body).toEqual(fields)
+    expect(result.status === 'committed' && result.data).toEqual({ agent: { id: 'agent_1', ...fields } })
+  })
+
+  it('archives an agent with DELETE /v1/agents/:id after the user confirms', async () => {
+    const capability = phonyConnector.manifest.capabilities.find((c) => c.name === 'delete_agent')
+    expect(capability).toMatchObject({ class: 'mutation', cas: 'none', externalEffect: true, parameters: { required: ['agentId'] } })
+    expect(capability?.description).toContain('cannot be undone: confirm with the user first')
+    const captured = captureFetch(jsonResponse(null, { status: 204 }))
+    const result = await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'delete_agent', args: { agentId: 'agent_1' }, idempotencyKey: 'delete-1',
+    })
+    expect(captured.method).toBe('DELETE')
+    expect(captured.url).toBe('https://api.ph0ny.com/v1/agents/agent_1')
+    expect(captured.headers?.authorization).toBe(BEARER)
+    expect(captured.body).toBeUndefined()
+    expect(result.status === 'committed' && result.data).toEqual({ agentId: 'agent_1', archived: true })
+  })
+
+  it('surfaces the route\'s 404 code and message when the agent is not on the account', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ code: 'NOT_FOUND', message: 'Agent not found' }, { status: 404 })))
+    const failure = await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'delete_agent', args: { agentId: 'agent_gone' }, idempotencyKey: 'delete-404',
+    }).catch((error: unknown) => error)
+    expect(failure).toMatchObject({ name: 'ProviderRequestError', status: 404, reason: 'NOT_FOUND', body: { message: 'Agent not found' } })
+    expect((failure as Error).message).toContain('phony delete_agent 404 NOT_FOUND: Agent not found')
+  })
+})
