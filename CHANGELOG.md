@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6
+
+- chore(phony): regenerate bundled manifests for get_pricing and get_credits
+- feat(phony): read ph0ny's price list and remaining credits before spending
+- feat(phony): translate audio only with translate_video output "audio"
+- feat(github): support inline pull request reviews
+- chore(deps): bump fast-xml-parser from 5.11.2 to 5.12.0
+
 ## 1.0.5
 
 - fix(release): reject non-successor explicit versions before writes
