@@ -637,6 +637,34 @@ describe('phony kb_search', () => {
   })
 })
 
+describe('phony cost reads', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  // Shapes from ph0ny main: routes/pricing-api.ts GET / and billing/usage.ts getUsageStatsDb; the numbers are placeholders.
+  it.each([
+    ['get_pricing', '/v1/pricing', { currency: 'USD', usdPerCredit: { list: 1 }, rateCard: { chargeRule: 'credits = …' }, tts: [{ id: 'v/m', unit: 'per_1k_characters', creditsPerUnit: 2 }], stt: [] }],
+    ['get_credits', '/v1/usage', { tier: 'pro', credits: { used: 3, limit: 10, remaining: 7, overageAllowed: true }, requestCount: 4 }],
+  ])('%s GETs %s and returns ph0ny\'s answer as served', async (capabilityName, route, body) => {
+    expect(phonyConnector.manifest.capabilities.find((c) => c.name === capabilityName)?.class).toBe('read')
+    const captured = captureFetch(jsonResponse(body))
+    const result = await phonyConnector.executeRead!({ source: source(), capabilityName, args: {}, idempotencyKey: capabilityName })
+    expect(captured.method).toBe('GET')
+    expect(captured.url).toBe(`https://api.ph0ny.com${route}`)
+    expect(captured.headers?.authorization).toBe(BEARER)
+    expect(captured.body).toBeUndefined()
+    expect(result.data).toEqual(body)
+  })
+
+  it('surfaces the route\'s status, code and message when ph0ny refuses', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ code: 'HTTP_ERROR', message: 'Too many requests', requestId: 'req_1' }, { status: 429 })))
+    const failure = await phonyConnector.executeRead!({
+      source: source(), capabilityName: 'get_credits', args: {}, idempotencyKey: 'credits-429',
+    }).catch((error: unknown) => error)
+    expect(failure).toMatchObject({ name: 'ProviderRequestError', status: 429, reason: 'HTTP_ERROR' })
+    expect((failure as Error).message).toContain('phony get_credits 429 HTTP_ERROR: Too many requests')
+  })
+})
+
 describe('phony voice tools', () => {
   afterEach(() => vi.unstubAllGlobals())
 

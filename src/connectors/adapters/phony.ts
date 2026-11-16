@@ -381,10 +381,22 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         parameters: { type: 'object', properties: {} },
       },
       {
+        name: 'get_pricing',
+        class: 'read',
+        description: 'Read ph0ny\'s published prices (GET /v1/pricing: plans, credit value, charge rule, each TTS and STT model\'s rate) before synthesize_speech or transcribe.',
+        parameters: { type: 'object', properties: {} },
+      },
+      {
+        name: 'get_credits',
+        class: 'read',
+        description: 'Read this account\'s credits for the current billing period (GET /v1/usage: used, limit, remaining, overage) before a tool that spends them.',
+        parameters: { type: 'object', properties: {} },
+      },
+      {
         name: 'transcribe',
         class: 'read',
         consistencyModel: 'authoritative',
-        description: 'Transcribe speech from a public https audio URL (billed per audio minute). For a file on disk, use the phony CLI: `phony transcribe <file>`.',
+        description: 'Transcribe speech from a public https audio URL (billed per audio minute at get_pricing\'s STT rate). For a file on disk, use the phony CLI: `phony transcribe <file>`.',
         parameters: {
           type: 'object',
           properties: {
@@ -400,7 +412,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'synthesize_speech',
         class: 'mutation',
         description:
-          'Speak text in a voice and store it as an audio file (a voice memo). Returns audioUrl, a download link valid for about an hour: save the file to the workspace instead of pasting audio into the conversation.',
+          'Speak text in a voice and store it as an audio file (a voice memo), billed at its model\'s TTS rate from get_pricing. Returns audioUrl, a download link valid for about an hour: save the file to the workspace instead of pasting audio into the conversation.',
         cas: 'none',
         externalEffect: false,
         parameters: {
@@ -575,17 +587,8 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       return { data: { calls: json.calls ?? [] }, fetchedAt: Date.now() }
     }
     if (inv.capabilityName === 'kb_search') {
-      const { collectionId, query, limit, threshold, includeMetadata } = inv.args as {
-        collectionId: string
-        query: string
-        limit?: number
-        threshold?: number
-        includeMetadata?: boolean
-      }
-      const payload: Record<string, unknown> = { query }
-      if (limit !== undefined) payload.limit = limit
-      if (threshold !== undefined) payload.threshold = threshold
-      if (includeMetadata !== undefined) payload.includeMetadata = includeMetadata
+      const { collectionId, ...rest } = inv.args as { collectionId: string } & Record<string, unknown>
+      const payload = pick(rest, ['query', 'limit', 'threshold', 'includeMetadata'])
       const json = await ph0ny<{ results?: unknown[]; queryTokens?: number; graphContext?: unknown }>(
         inv.source.id,
         token,
@@ -631,6 +634,12 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         'list_phone_numbers',
       )
       return { data: { phoneNumbers: json.data ?? [] }, fetchedAt: Date.now() }
+    }
+    if (inv.capabilityName === 'get_pricing' || inv.capabilityName === 'get_credits') {
+      // ph0ny owns these numbers: its answer passes through, and no price or rate is written here.
+      const path = inv.capabilityName === 'get_pricing' ? '/v1/pricing' : '/v1/usage'
+      const json = await ph0ny<Record<string, unknown>>(inv.source.id, token, { method: 'GET', path, timeout: 10_000 }, inv.capabilityName)
+      return { data: json, fetchedAt: Date.now() }
     }
     if (inv.capabilityName === 'transcribe') {
       const args = inv.args as { audioUrl?: unknown; language?: unknown; diarize?: unknown; mode?: unknown }
@@ -737,12 +746,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         { method: 'POST', path: `/v1/agents`, body: payload, timeout: 20_000 },
         'create_agent',
       )
-      return {
-        status: 'committed',
-        data: { agent: json },
-        committedAt: Date.now(),
-        idempotentReplay: false,
-      }
+      return { status: 'committed', data: { agent: json }, committedAt: Date.now(), idempotentReplay: false }
     }
     if (inv.capabilityName === 'provision_agent') {
       requireAgentLanguage(inv.args, 'provision_agent')
@@ -768,14 +772,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       }
     }
     if (inv.capabilityName === 'kb_create_collection') {
-      const { name, description, metadata } = inv.args as {
-        name: string
-        description?: string
-        metadata?: Record<string, unknown>
-      }
-      const payload: Record<string, unknown> = { name }
-      if (description !== undefined) payload.description = description
-      if (metadata !== undefined) payload.metadata = metadata
+      const payload = pick(inv.args as Record<string, unknown>, ['name', 'description', 'metadata'])
       const json = await ph0ny<Record<string, unknown>>(
         inv.source.id,
         token,
