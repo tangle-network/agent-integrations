@@ -627,9 +627,14 @@ const githubSpec: RestConnectorSpec = {
     {
       name: 'pulls.reviews.create',
       class: 'mutation',
-      description: 'Submit a review on a pull request: approve, request changes, or comment.',
+      description: 'Submit a review on a pull request: approve, request changes, or comment, with optional inline findings against a specific commit.',
       parameters: repoParams({
           pull_number: { type: 'integer' },
+          commit_id: {
+            type: 'string',
+            pattern: `^${GIT_SHA}$`,
+            description: 'Commit sha being reviewed. Omit to review the current pull request head.',
+          },
           event: {
             type: 'string',
             enum: ['APPROVE', 'REQUEST_CHANGES', 'COMMENT'],
@@ -638,6 +643,22 @@ const githubSpec: RestConnectorSpec = {
           body: {
             type: 'string',
             description: 'Optional review body. Required by GitHub when `event` is REQUEST_CHANGES or COMMENT.',
+          },
+          comments: {
+            type: 'array',
+            description: 'Inline findings submitted with the review. Lines refer to the selected side of the pull request diff.',
+            items: {
+              type: 'object',
+              properties: {
+                path: { type: 'string', description: 'Repository-relative file path.' },
+                line: { type: 'integer', minimum: 1, description: 'Last line of the finding in the file.' },
+                side: { type: 'string', enum: ['LEFT', 'RIGHT'], description: 'LEFT for removed lines; RIGHT for added or context lines.' },
+                start_line: { type: 'integer', minimum: 1, description: 'First line of a multi-line finding.' },
+                start_side: { type: 'string', enum: ['LEFT', 'RIGHT'], description: 'Side of start_line for a multi-line finding.' },
+                body: { type: 'string', description: 'Finding text (markdown).' },
+              },
+              required: ['path', 'line', 'body'],
+            },
           },
       }, ['pull_number', 'event']),
       request: {
