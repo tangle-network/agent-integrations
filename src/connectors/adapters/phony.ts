@@ -536,7 +536,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         // DELETE /v1/agents/:id archives it (agents.ts:707-718): hidden from the list (:497), refused calls (outbound.ts:165-167),
         // and no route sets an archived agent active again.
         description:
-          'Delete a voice agent: ph0ny archives it, so it leaves list_agents and can place no calls, and nothing restores it. This cannot be undone: confirm with the user first.',
+          'Delete a voice agent: ph0ny archives it, so it leaves list_agents and can place no calls, and nothing restores it. This cannot be undone: confirm with the user first, unless the user has already asked to delete this agent.',
         cas: 'none',
         externalEffect: true,
         parameters: {
