@@ -6,74 +6,8 @@
  * developer (created in the developer portal via POST /v1/keys); the
  * connector sends it as `Authorization: Bearer <key>` on every request.
  *
- *   list_agents(limit?, cursor?)
- *     Read. GET /v1/outbound's sibling — GET /v1/agents. Lists the
- *     developer's agents (cursor-paginated, newest first).
- *
- *   get_call(id)
- *     Read. GET /v1/outbound/:id. Fetches one outbound call row including
- *     status, transcript, and extracted fields.
- *
- *   list_calls(agentId?, limit?)
- *     Read. GET /v1/outbound. Lists recent outbound calls for the
- *     developer, optionally filtered by agentId.
- *
- *   start_outbound_call(agentId, toNumber, fromNumber, mission, …)
- *     Mutation, external effect. POST /v1/outbound/start. Places a real
- *     phone call. `userConsentRecorded` is a REQUIRED gate — ph0ny rejects
- *     the request (400 CONSENT_REQUIRED) when it is false, even with valid
- *     auth. `dryRun: true` walks every gate but stops short of the carrier
- *     fetch and the row insert, returning a `dryRunReport`.
- *
- *   create_agent(name, …)
- *     Mutation, external effect. POST /v1/agents. Creates a voice agent on
- *     the developer account. Only `name` is required; every other column is
- *     optional and passed through verbatim from the route's CreateAgentSchema.
- *
- *   provision_agent(name, collection?, initialContent?, …)
- *     Mutation, external effect. POST /v1/agents/provision. One call that
- *     creates the agent, optionally a fresh KB collection, and optionally
- *     seeds that collection with initial content — atomic on the server.
- *     Returns { agent, collection?, ingested? }.
- *
- *   kb_create_collection(name, description?, metadata?)
- *     Mutation, external effect. POST /v1/collections. Creates a knowledge-
- *     base collection the agent can search at call time.
- *
- *   kb_ingest(collectionId, content|sourceUrl, contentType, …)
- *     Mutation, external effect. POST /v1/collections/:id/ingest. Chunks and
- *     embeds content into a collection (≤1MB text). contentType 'url' returns
- *     501 server-side; 'audio' requires a sourceUrl that ph0ny transcribes.
- *
- *   kb_search(collectionId, query, …)
- *     Read. POST /v1/collections/:id/search. Hybrid vector+keyword search
- *     over a collection. Returns { results, queryTokens, graphContext? }.
- *
- *   list_voices(provider?, query?, limit?, cursor?)
- *     Read. GET /v1/voices. Voices an agent can speak with: the account's
- *     clones plus provider voices, each naming `provider` and
- *     `providerVoiceId` (set those as an agent's ttsProvider and voiceId).
- *
- *   list_phone_numbers()
- *     Read. GET /v1/phone-numbers. Caller ids that start_outbound_call accepts.
- *
- *   synthesize_speech(text, voiceId?, provider?, format?, speed?)
- *     Mutation (billed). POST /v1/synthesize. A voice memo: ph0ny stores the
- *     audio and returns a download URL valid for about an hour; save it as a
- *     file rather than passing audio through the conversation.
- *
- *   transcribe(audioUrl, language?, diarize?, …)
- *     Read (billed). POST /v1/transcribe. Speech-to-text of a public URL.
- *
- *   clone_voice(name, sampleUrls, consent, …)
- *     Mutation, external effect. POST /v1/voices/clone. Instant clone of the
- *     requester's OWN voice only: consent.subject must be "self" and
- *     consent.statement must quote them consenting. ph0ny stores the consent
- *     with the voice. Use the returned voice.id as start_outbound_call's
- *     voiceCloneId.
- *
- *   update_agent(agentId, …)
- *     Mutation. PUT /v1/agents/:id. Change an agent's voice, prompt or model.
+ * Each capability's manifest entry below says what it does; executeRead and
+ * executeMutation hold the request it sends.
  *
  * The agent test/eval routes (/v1/agents/:id/tests/*, benchmark, redteam) are
  * deliberately NOT exposed here: they run platform-funded LLM/TTS inference with
@@ -450,7 +384,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'transcribe',
         class: 'read',
         consistencyModel: 'authoritative',
-        description: 'Transcribe speech from a public audio URL (billed per audio minute).',
+        description: 'Transcribe speech from a public https audio URL (billed per audio minute). For a file on disk, use the phony CLI: `phony transcribe <file>`.',
         parameters: {
           type: 'object',
           properties: {
@@ -519,13 +453,14 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'translate_video',
         class: 'mutation',
         description:
-          'Translate a video into another language with ph0ny: SRT/VTT captions (optionally burned in) and, with audio "dub", each speaker re-voiced over the original. Starts a job and returns its id; poll get_video_job until status is completed or failed (minutes for a long video). Speakers are dubbed in neutral voices; a cloned voice is used only when it is the requester\'s own clone made with recorded consent.',
+          'Translate a video or audio file into another language with ph0ny: SRT/VTT captions (optionally burned in) and, with audio "dub", each speaker re-voiced over the original. With output "audio", translate audio only: returns the dubbed speech as a WAV (get_video_job audioUrl). Takes a public https URL; for a file on disk, use the phony CLI: `phony translate <file> --to <language>`. Starts a job and returns its id; poll get_video_job until status is completed or failed (minutes for a long video). Speakers are dubbed in neutral voices; a cloned voice is used only when it is the requester\'s own clone made with recorded consent.',
         cas: 'none',
         externalEffect: false,
         parameters: {
           type: 'object',
           properties: {
-            videoUrl: { type: 'string', description: 'Public https URL of the video file (mp4, mov, webm, ...), up to 100 MB.' },
+            videoUrl: { type: 'string', description: 'Public https URL of the video file (mp4, mov, webm, ...), or of an audio file with output "audio", up to 100 MB.' },
+            output: { type: 'string', enum: ['video', 'audio'], default: 'video', description: 'audio returns only the translated speech as a WAV; it always dubs, so leave audio, captions and coverSourceCaptions unset.' },
             targetLanguage: { type: 'string', description: 'Language to translate into: ISO 639-1 code or English name.' },
             sourceLanguage: { type: 'string', description: 'Spoken language; detected when omitted.' },
             reviewedSourceSha256: { type: 'string', description: 'SHA-256 of the exact source bytes from a prior translation job. Supply with expected cue times on every override.' },
@@ -556,7 +491,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'get_video_job',
         class: 'read',
-        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated video link (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice. Optionally return one source cue for reviewed translation.',
+        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated videoUrl, or audioUrl for an output "audio" job (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice. Optionally return one source cue for reviewed translation.',
         parameters: {
           type: 'object',
           properties: {
@@ -722,7 +657,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         stage?: string
         progress?: number
         error?: { code: string; message: string }
-        result?: { video_url?: string; duration_seconds?: number; translation?: Record<string, unknown> }
+        result?: { video_url?: string; audio_url?: string; duration_seconds?: number; translation?: Record<string, unknown> }
       }>(inv.source.id, token, { method: 'GET', path: `/v1/video/${encodeURIComponent(id)}`, timeout: 15_000 }, 'get_video_job')
       const translation = job.result?.translation
       const sourceCues = translation?.source_cues
@@ -740,6 +675,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           progress: job.progress ?? null,
           error: job.error ?? null,
           videoUrl: job.result?.video_url ?? null,
+          audioUrl: job.result?.audio_url ?? null,
           durationSeconds: job.result?.duration_seconds ?? null,
           // Return one reviewed source cue without copying the full transcript into workflow state.
           translation: translation
@@ -879,7 +815,10 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       if (typeof args.targetLanguage !== 'string' || args.targetLanguage.trim().length < 2) {
         throw new Error('phony translate_video targetLanguage is required')
       }
-      const payload: Record<string, unknown> = { video_url: args.videoUrl, target_language: args.targetLanguage }
+      const output = args.output === undefined || args.output === '' || args.output === 'auto' ? 'video' : args.output
+      if (output !== 'video' && output !== 'audio') throw new Error('phony translate_video output must be "video" or "audio"')
+      // ph0ny names the source media_url for an audio-output job; video_url still names a video job's source.
+      const payload: Record<string, unknown> = { [output === 'audio' ? 'media_url' : 'video_url']: args.videoUrl, target_language: args.targetLanguage }
       const fields: Array<[string, string]> = [
         ['sourceLanguage', 'source_language'], ['captions', 'captions'], ['coverSourceCaptions', 'cover_source_captions'],
         ['audio', 'audio'], ['voice', 'voice'], ['speakerVoices', 'speaker_voices'], ['speakers', 'speakers'],
@@ -889,6 +828,13 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         const value = args[from]
         if (value === undefined || value === '' || value === 'auto') continue
         payload[to] = from === 'coverSourceCaptions' && typeof value === 'string' ? value === 'true' : value
+      }
+      if (output === 'audio') {
+        // ph0ny refuses an audio-output job that is not a dub or that burns or covers captions.
+        if ((payload.audio ?? 'dub') !== 'dub' || (payload.captions ?? 'none') !== 'none' || payload.cover_source_captions === true) {
+          throw new Error('phony translate_video output "audio" is a dub without picture captions: leave audio, captions and coverSourceCaptions unset, or use output "video"')
+        }
+        Object.assign(payload, { output: 'audio', audio: 'dub', captions: 'none' })
       }
       if (args.reviewedSourceSha256 !== undefined && args.reviewedSourceSha256 !== '') {
         payload.reviewed_source_sha256 = args.reviewedSourceSha256

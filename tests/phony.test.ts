@@ -761,6 +761,48 @@ describe('phony video translation', () => {
     expect(captured.url).toBeUndefined()
   })
 
+  it('starts an audio-only translation as a dub without picture captions', async () => {
+    const captured = captureFetch(new Response(JSON.stringify({ id: 'job_4', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
+    const result = await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 't5',
+      args: { videoUrl: 'https://media.test/interview.wav', targetLanguage: 'es', output: 'audio', speakers: 2 },
+    })
+    expect(captured.url).toMatch(/\/v1\/video\/translate$/)
+    expect(captured.body).toEqual({
+      media_url: 'https://media.test/interview.wav', target_language: 'es', speakers: 2, output: 'audio', audio: 'dub', captions: 'none',
+    })
+    expect(result.status === 'committed' && result.data).toMatchObject({ jobId: 'job_4' })
+  })
+
+  it.each([undefined, '', 'video'])('keeps a video job when output is %j', async (output) => {
+    const captured = captureFetch(new Response(JSON.stringify({ id: 'job_5', status: 'pending' }), { status: 202, headers: { 'content-type': 'application/json' } }))
+    await phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 't6',
+      args: { videoUrl: 'https://media.test/a.mp4', targetLanguage: 'en', output },
+    })
+    expect(captured.body).toEqual({ video_url: 'https://media.test/a.mp4', target_language: 'en' })
+  })
+
+  it.each([
+    { audio: 'original' }, { captions: 'burn' }, { coverSourceCaptions: 'true' }, { output: 'mp3' },
+  ])('refuses an audio job ph0ny would refuse before calling it: %j', async (extra) => {
+    const captured = captureFetch(new Response('{}'))
+    await expect(phonyConnector.executeMutation!({
+      source: source(), capabilityName: 'translate_video', idempotencyKey: 't7',
+      args: { videoUrl: 'https://media.test/a.wav', targetLanguage: 'en', output: 'audio', ...extra },
+    })).rejects.toThrow(/output/)
+    expect(captured.url).toBeUndefined()
+  })
+
+  it('reads a finished audio job\'s audioUrl', async () => {
+    captureFetch(new Response(JSON.stringify({
+      id: 'job_4', status: 'completed',
+      result: { audio_url: 'https://r2.test/out.wav', duration_seconds: 12, translation: { target_language: 'es', has_video: false } },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_4' } } as any)
+    expect(read.data).toMatchObject({ status: 'completed', audioUrl: 'https://r2.test/out.wav', videoUrl: null, durationSeconds: 12 })
+  })
+
   it('reads a finished job without the cue arrays', async () => {
     captureFetch(new Response(JSON.stringify({
       id: 'job_1', status: 'completed', stage: 'done', progress: 100,
@@ -770,7 +812,7 @@ describe('phony video translation', () => {
       },
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const read = await phonyConnector.executeRead!({ source: source(), capabilityName: 'get_video_job', args: { id: 'job_1' } } as any)
-    expect(read.data).toMatchObject({ status: 'completed', videoUrl: 'https://r2.test/out.mp4', translation: { captions: { vtt: 'WEBVTT' } } })
+    expect(read.data).toMatchObject({ status: 'completed', videoUrl: 'https://r2.test/out.mp4', audioUrl: null, translation: { captions: { vtt: 'WEBVTT' } } })
     expect((read.data as any).translation.cues).toBeUndefined()
     expect((read.data as any).translation.source_cues).toBeUndefined()
   })
