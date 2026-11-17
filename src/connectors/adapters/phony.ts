@@ -26,6 +26,57 @@ import { VoiceClient, VoiceApiException } from '@ph0ny/sdk'
 
 const E164 = /^\+[1-9]\d{7,14}$/
 
+// The agent fields create_agent, provision_agent and update_agent share: exactly the keys of ph0ny's
+// UpdateAgentSchema (infra/voice-api/src/routes/agents.ts:145-167), which CreateAgentSchema (:73-105) also takes.
+// ph0ny file:line citations in this file's comments are at tangle-network/ph0ny main 52777e83 (infra/voice-api/src
+// unless a path says otherwise).
+const AGENT_PROPERTIES = {
+  name: { type: 'string', description: 'Display name (1–100 chars).' },
+  // Mirrors agents.ts:84 and :148.
+  agentKind: {
+    type: 'string',
+    enum: ['inbound', 'personal_assistant', 'outbound'],
+    description: 'Agent runtime kind. Use personal_assistant for outbound calls; omitted on a new agent means inbound.',
+  },
+  description: { type: 'string', description: 'Optional description (≤1000 chars).' },
+  systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
+  firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
+  voiceId: { type: 'string', description: 'providerVoiceId from list_voices, or voice.providerVoiceId from clone_voice.' },
+  // agents.ts:125-129 refuses any other provider with INVALID_TTS_PROVIDER and the accepted list.
+  ttsProvider: {
+    type: 'string',
+    description: 'That voice\'s provider. ph0ny refuses a provider phone calls cannot speak and names the ones it accepts; "default" lets ph0ny choose.',
+  },
+  ttsModel: { type: 'string', description: 'Optional TTS model id.' },
+  sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
+  llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
+  llmModel: { type: 'string', description: 'Optional LLM model id.' },
+  // A call searches libraryId, else collectionId, and a personal_assistant searches neither (twilio-sessions.ts:3250-3253).
+  libraryId: { type: 'string', description: 'Ingest-service library id; searched instead of collectionId when set.' },
+  collectionId: {
+    type: 'string',
+    description: 'Knowledge collection id from kb_create_collection that the agent searches on its calls; a personal_assistant agent searches none.',
+  },
+  styleProfile: { type: 'object', description: 'Optional style profile object.' },
+  promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
+  // Checked by agent-language.ts:55-98 and, for providers, packages/agents/src/locales/resolver.ts:170-203.
+  language: {
+    type: 'string',
+    description:
+      'The language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient\'s saved language or the business default. ph0ny refuses a firstMessage or systemPrompt in another language and, for a non-English agent, a Cartesia or Kokoro stock voice or a speech provider that cannot speak it; it picks a native voice when voiceId is omitted. Your own clones, knowledge and call missions are not checked.',
+  },
+  temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); a new agent gets 0.7.' },
+  maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
+  contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
+  // Mirrors agents.ts:103 and :165.
+  contactCaptureFields: {
+    type: 'array',
+    items: { type: 'string', enum: ['name', 'email', 'phone'] },
+    description: 'Which contact fields to capture when capture is enabled.',
+  },
+  metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
+}
+
 export interface PhonyConnectorOptions {
   /** Operator-selected API, never taken from capability arguments. */
   baseUrl?: string
@@ -37,7 +88,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
   async function ph0ny<T>(
     sourceId: string,
     token: string,
-    request: { method: 'GET' | 'POST' | 'PUT'; path: string; body?: Record<string, unknown>; timeout: number },
+    request: { method: 'GET' | 'POST' | 'PUT' | 'DELETE'; path: string; body?: Record<string, unknown>; timeout: number },
     label: string,
   ): Promise<T> {
     try {
@@ -63,7 +114,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
     kind: 'phony',
     displayName: 'ph0ny',
     description:
-      'Place real outbound phone calls with a voice agent, then read back call status, transcript, and extracted fields. Outbound calls require recorded user consent and support a dry-run that validates the full configuration without dialing.',
+      'ph0ny voice agents: create, update and delete agents and their knowledge collections, place consented outbound calls and read their outcome, speak text in a voice, transcribe audio, clone your own voice and translate video or audio.',
     auth: {
       kind: 'api-key',
       hint: 'Paste your ph0ny API key (plabs_…). Create one in the developer portal via POST /v1/keys — it is shown once.',
@@ -90,7 +141,9 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'get_call',
         class: 'read',
-        description: 'Fetch a single outbound call by id, including status, transcript, and extracted fields.',
+        // Statuses ph0ny writes: outbound.ts:337, 583, 614, then 644/719 or 361/627; outcome fields at :716-728.
+        description:
+          'Fetch a single outbound call by id. status moves initiated, ringing, in_progress, then completed or failed; read again until it is one of those two. The call carries goalMet, hangupReason, voicemailDetected and durationMs, and once it ends its transcript and extractedFields (the fields mission.successSchema asked for).',
         parameters: {
           type: 'object',
           properties: {
@@ -115,7 +168,8 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'start_outbound_call',
         class: 'mutation',
         description:
-          'Place an outbound phone call. Requires userConsentRecorded=true (the user must have explicitly authorized the call). Set dryRun=true to validate the full configuration without dialing.',
+          // Response: outbound.ts:376-380, and :267-318 for a dry run.
+          'Place an outbound phone call. Requires userConsentRecorded=true (the user must have explicitly authorized the call). Set dryRun=true to validate the full configuration without dialing. Returns callId for get_call and callStatus "initiated", or "dry_run" with a dryRunReport.',
         cas: 'none',
         externalEffect: true,
         parameters: {
@@ -183,47 +237,13 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'create_agent',
         class: 'mutation',
         description:
-          'Create a voice agent on your ph0ny developer account. name and language are required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
+          // Response: the agent, agents.ts:483.
+          'Create a voice agent on your ph0ny developer account and return it with its id. name and language are required; the rest configure the LLM, TTS, voice, knowledge base, and capture behavior.',
         cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
-          properties: {
-            id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
-            name: { type: 'string', description: 'Display name (1–100 chars).' },
-            agentKind: {
-              type: 'string',
-              enum: ['inbound', 'personal_assistant', 'outbound'],
-              description: 'Agent runtime kind. Use personal_assistant for outbound calls; omitted defaults to inbound.',
-            },
-            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
-            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
-            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
-            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
-            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
-            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
-            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
-            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
-            llmModel: { type: 'string', description: 'Optional LLM model id.' },
-            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
-            collectionId: { type: 'string', description: 'Deprecated — KB collection id to attach. Prefer libraryId.' },
-            styleProfile: { type: 'object', description: 'Optional style profile object.' },
-            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
-            language: {
-              type: 'string',
-              description:
-                'The language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient\'s saved language or the business default. ph0ny refuses a greeting, prompt or voice in another language and picks a native voice when voiceId is omitted.',
-            },
-            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
-            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
-            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
-            contactCaptureFields: {
-              type: 'array',
-              items: { type: 'string', enum: ['name', 'email', 'phone'] },
-              description: 'Which contact fields to capture when capture is enabled.',
-            },
-            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
-          },
+          properties: { id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' }, ...AGENT_PROPERTIES },
           required: ['name', 'language'],
         },
       },
@@ -238,39 +258,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Optional caller-supplied agent id (1–60 chars).' },
-            name: { type: 'string', description: 'Display name (1–100 chars).' },
-            agentKind: {
-              type: 'string',
-              enum: ['inbound', 'personal_assistant', 'outbound'],
-              description: 'Agent runtime kind. Use personal_assistant for outbound calls; omitted defaults to inbound.',
-            },
-            description: { type: 'string', description: 'Optional description (≤1000 chars).' },
-            systemPrompt: { type: 'string', description: 'Optional system prompt (≤10000 chars).' },
-            firstMessage: { type: 'string', description: 'Optional opening line the agent speaks first (≤1000 chars).' },
-            voiceId: { type: 'string', description: 'Optional TTS voice id.' },
-            ttsProvider: { type: 'string', description: 'TTS provider; "default" lets ph0ny choose.' },
-            ttsModel: { type: 'string', description: 'Optional TTS model id.' },
-            sttProvider: { type: 'string', description: 'Optional speech-to-text provider.' },
-            llmProvider: { type: 'string', description: 'LLM provider (e.g. openai, anthropic). Defaults to openai server-side.' },
-            llmModel: { type: 'string', description: 'Optional LLM model id.' },
-            libraryId: { type: 'string', description: 'Ingest-service library id (preferred over collectionId).' },
-            collectionId: { type: 'string', description: 'Existing KB collection id to attach instead of creating one.' },
-            styleProfile: { type: 'object', description: 'Optional style profile object.' },
-            promptByModel: { type: 'object', description: 'Optional per-model prompt overrides (modelId → prompt).' },
-            language: {
-              type: 'string',
-              description:
-                'The language the people on these calls speak (BCP-47, e.g. es-CR); use the recipient\'s saved language or the business default. ph0ny refuses a greeting, prompt or voice in another language and picks a native voice when voiceId is omitted.',
-            },
-            temperature: { type: 'number', minimum: 0, maximum: 2, description: 'Sampling temperature (0–2); defaults to 0.7.' },
-            maxTokens: { type: 'integer', minimum: 1, maximum: 16384, description: 'Optional max output tokens.' },
-            contactCaptureEnabled: { type: 'boolean', description: 'Enable structured contact capture during calls.' },
-            contactCaptureFields: {
-              type: 'array',
-              items: { type: 'string', enum: ['name', 'email', 'phone'] },
-              description: 'Which contact fields to capture when capture is enabled.',
-            },
-            metadata: { type: 'object', description: 'Arbitrary metadata object stored with the agent.' },
+            ...AGENT_PROPERTIES,
             collection: {
               type: 'object',
               description: 'When present, create a fresh KB collection and attach it to the agent.',
@@ -301,7 +289,8 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'kb_create_collection',
         class: 'mutation',
-        description: 'Create a knowledge-base collection the agent can search at call time.',
+        // Response: the collection with its id, rag.ts:60-63.
+        description: 'Create a knowledge-base collection and return it with its id; give an agent its id as collectionId to search it at call time.',
         cas: 'none',
         externalEffect: true,
         parameters: {
@@ -358,17 +347,19 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'list_voices',
         class: 'read',
+        // Sources and fields: tts.ts:190-259; catalog descriptions voice-catalog.ts:66-68, Cartesia names voice-clone.ts:217.
         description:
-          'List voices: your cloned voices, ElevenLabs account voices, and the voices of ph0ny\'s OpenAI ("openai-tts"), Gemini ("google-gemini"), Kokoro ("kokoro") and Fish Audio ("fish-audio") providers; with provider "cartesia", Cartesia stock voices. Each voice names provider, providerVoiceId and callCapable. synthesize_speech takes any voice as provider + voiceId; update_agent accepts only a callCapable voice, because phone calls cannot speak the others.',
+          'List voices: your cloned voices, ElevenLabs account voices (provider "elevenlabs") and ph0ny\'s catalog voices; with provider "cartesia", Cartesia stock voices too. A voice has id, name, description and, except the built-in default voice, provider and providerVoiceId; synthesize_speech takes any voice as provider + voiceId, and an agent takes them as ttsProvider + voiceId. No field gives gender, accent or language: Kokoro descriptions name accent and gender, and Cartesia names end with the voice\'s language. Only catalog voices carry callCapable; an agent refuses a provider phone calls cannot speak.',
         parameters: {
           type: 'object',
           properties: {
             provider: {
               type: 'string',
+              // Mirrors tts.ts:246 ("cartesia") and CATALOG_PROVIDERS, voice-catalog.ts:73.
               enum: ['cartesia', 'openai-tts', 'google-gemini', 'kokoro', 'fish-audio'],
-              description: 'List only this provider\'s voices ("cartesia" adds Cartesia stock voices).',
+              description: 'Narrow the catalog voices to this provider ("cartesia" adds Cartesia stock voices). Your clones and ElevenLabs voices are listed whatever provider is named.',
             },
-            query: { type: 'string', description: 'Filter provider voices by name.' },
+            query: { type: 'string', description: 'Filter Cartesia stock and catalog voices by name; your clones and ElevenLabs voices are not filtered.' },
             limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
             cursor: { type: 'string', description: 'Pagination cursor from a prior response.' },
           },
@@ -396,14 +387,22 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'transcribe',
         class: 'read',
         consistencyModel: 'authoritative',
-        description: 'Transcribe speech from a public https audio URL (billed per audio minute at get_pricing\'s STT rate). For a file on disk, use the phony CLI: `phony transcribe <file>`.',
+        // Result: TranscribeResult, packages/contracts/src/stt.ts:37-43; billing stt.ts:327; backend choice stt.ts:233-323.
+        description:
+          'Transcribe speech from a public https audio URL; returns text, segments (start, end, text), language and duration in seconds. Billed per started audio minute, at least one, at the STT rate of the speech backend ph0ny picks, which the result does not name. For a file on disk, use the phony CLI: `phony transcribe <file>`.',
         parameters: {
           type: 'object',
           properties: {
             audioUrl: { type: 'string', description: 'Public https URL of the audio.' },
             language: { type: 'string', description: 'BCP-47 language hint, e.g. "en".' },
-            diarize: { type: 'boolean', description: 'Label speakers.' },
-            mode: { type: 'string', enum: ['fast', 'accurate'] },
+            // stt.ts:255-257, 297 and modal.ts:35-41 pass no diarize flag to any backend.
+            diarize: { type: 'boolean', description: 'Accepted, but ph0ny passes it to no speech backend: segments carry no speaker labels.' },
+            // Mirrors packages/contracts/src/stt.ts:6; only modal.ts:31 reads it.
+            mode: {
+              type: 'string',
+              enum: ['fast', 'accurate'],
+              description: 'accurate (the default) or fast picks the model on ph0ny\'s Modal speech backend; its other backends ignore it.',
+            },
           },
           required: ['audioUrl'],
         },
@@ -431,7 +430,7 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
         name: 'clone_voice',
         class: 'mutation',
         description:
-          'Clone the requester\'s OWN voice from their recording(s). Only self-clones are allowed: consent.subject must be "self" and consent.statement must quote the speaker consenting (for example "I consent to Tangle cloning my voice"). Never clone someone else\'s voice. Returns voice.id for start_outbound_call voiceCloneId.',
+          'Clone the requester\'s OWN voice from their recording(s). Only self-clones are allowed: consent.subject must be "self" and consent.statement must quote the speaker consenting (for example "I consent to Tangle cloning my voice"). Never clone someone else\'s voice. Returns voice.id for start_outbound_call voiceCloneId, and voice.provider and voice.providerVoiceId for an agent\'s ttsProvider and voiceId.',
         cas: 'none',
         externalEffect: true,
         parameters: {
@@ -445,7 +444,8 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
               items: { type: 'string' },
               description: 'Public https URLs of the speaker\'s recordings (any common audio format, including iMessage voice memos); 10 s to 3 min of clean speech works best.',
             },
-            language: { type: 'string', description: 'ISO 639-1 code; defaults to "en".' },
+            // tts.ts:391-401 returns both ids; agent-language.ts:101-112 accepts your own clone for any agent language.
+            language: { type: 'string', description: 'ISO 639-1 code of the recording; defaults to "en". An agent in another language still accepts the clone.' },
             description: { type: 'string', description: 'Optional description (<=500 chars).' },
             consent: {
               type: 'object',
@@ -464,8 +464,9 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'translate_video',
         class: 'mutation',
+        // Billing: video.ts:158-163 (the job writes its own stt, llm, tts and video usage); GET /v1/video/estimate quotes only :176.
         description:
-          'Translate a video or audio file into another language with ph0ny: SRT/VTT captions (optionally burned in) and, with audio "dub", each speaker re-voiced over the original. With output "audio", translate audio only: returns the dubbed speech as a WAV (get_video_job audioUrl). Takes a public https URL; for a file on disk, use the phony CLI: `phony translate <file> --to <language>`. Starts a job and returns its id; poll get_video_job until status is completed or failed (minutes for a long video). Speakers are dubbed in neutral voices; a cloned voice is used only when it is the requester\'s own clone made with recorded consent.',
+          'Translate a video or audio file into another language with ph0ny: SRT/VTT captions (optionally burned in) and, with audio "dub", each speaker re-voiced over the original. With output "audio", translate audio only: returns the dubbed speech as a WAV (get_video_job audioUrl). Takes a public https URL; for a file on disk, use the phony CLI: `phony translate <file> --to <language>`. Starts a job and returns its id; poll get_video_job until status is completed or failed (minutes for a long video). Speakers are dubbed in neutral voices; a cloned voice is used only when it is the requester\'s own clone made with recorded consent. A job is billed for the transcription, translation, speech and video work it runs; ph0ny publishes no price for a whole job, so no tool quotes one before it starts.',
         cas: 'none',
         externalEffect: false,
         parameters: {
@@ -503,7 +504,9 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'get_video_job',
         class: 'read',
-        description: 'Read a ph0ny video job: status, stage, progress, and when completed the translated videoUrl, or audioUrl for an output "audio" job (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice. Optionally return one source cue for reviewed translation.',
+        // Status: packages/contracts/src/video.ts:223; stages: services/video-translate/job.ts:112-267 and pipeline.ts:184-378.
+        description:
+          'Read a ph0ny video job: status (pending, processing, completed or failed), stage (the step it is on, e.g. transcribing, translating, dubbing, rendering, storing), progress from 0 to 100 with no time estimate, and when completed the translated videoUrl, or audioUrl for an output "audio" job (valid about an hour), the SRT/VTT captions and each speaker\'s dub voice. Optionally return one source cue for reviewed translation.',
         parameters: {
           type: 'object',
           properties: {
@@ -516,29 +519,29 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       {
         name: 'update_agent',
         class: 'mutation',
-        description: 'Update a voice agent: its voice (voiceId + ttsProvider from list_voices), prompt, greeting, kind or model.',
+        // Response: the agent, agents.ts:701.
+        description:
+          'Update a voice agent: its voice (voiceId + ttsProvider from list_voices or clone_voice), prompt, greeting, kind, model, knowledge collection or contact capture. Send only the fields to change; returns the agent.',
         cas: 'none',
         externalEffect: true,
         parameters: {
           type: 'object',
-          properties: {
-            agentId: { type: 'string', description: 'Agent to update.' },
-            name: { type: 'string' },
-            agentKind: { type: 'string', enum: ['inbound', 'personal_assistant', 'outbound'] },
-            description: { type: 'string' },
-            systemPrompt: { type: 'string' },
-            firstMessage: { type: 'string' },
-            voiceId: { type: 'string', description: 'providerVoiceId from list_voices.' },
-            ttsProvider: { type: 'string', description: 'provider of a callCapable voice from list_voices; phone calls cannot speak the others.' },
-            ttsModel: { type: 'string' },
-            sttProvider: { type: 'string' },
-            llmProvider: { type: 'string' },
-            llmModel: { type: 'string' },
-            language: { type: 'string' },
-            temperature: { type: 'number', minimum: 0, maximum: 2 },
-            maxTokens: { type: 'integer', minimum: 1, maximum: 16384 },
-            metadata: { type: 'object' },
-          },
+          properties: { agentId: { type: 'string', description: 'Agent to update.' }, ...AGENT_PROPERTIES },
+          required: ['agentId'],
+        },
+      },
+      {
+        name: 'delete_agent',
+        class: 'mutation',
+        // DELETE /v1/agents/:id archives it (agents.ts:707-718): hidden from the list (:497), refused calls (outbound.ts:165-167),
+        // and no route sets an archived agent active again.
+        description:
+          'Delete a voice agent: ph0ny archives it, so it leaves list_agents and can place no calls, and nothing restores it. This cannot be undone: confirm with the user first, unless the user has already asked to delete this agent.',
+        cas: 'none',
+        externalEffect: true,
+        parameters: {
+          type: 'object',
+          properties: { agentId: { type: 'string', description: 'Agent to delete.' } },
           required: ['agentId'],
         },
       },
@@ -922,17 +925,18 @@ export function createPhonyConnector(options: PhonyConnectorOptions = {}): Conne
       )
       return { status: 'committed', data: { voice: json.voice ?? null }, committedAt: Date.now(), idempotentReplay: false }
     }
-    if (inv.capabilityName === 'update_agent') {
+    if (inv.capabilityName === 'update_agent' || inv.capabilityName === 'delete_agent') {
       const { agentId, ...rest } = inv.args as { agentId?: unknown } & Record<string, unknown>
-      if (typeof agentId !== 'string' || agentId.length === 0 || agentId.length > 128) throw new Error('phony update_agent requires agentId')
-      const payload = pick(rest, AGENT_FIELDS.filter((f) => f !== 'id'))
+      if (typeof agentId !== 'string' || agentId.length === 0 || agentId.length > 128) throw new Error(`phony ${inv.capabilityName} requires agentId`)
+      const path = `/v1/agents/${encodeURIComponent(agentId)}`
+      if (inv.capabilityName === 'delete_agent') {
+        // ph0ny answers 204 with no body once the agent is archived.
+        await ph0ny(inv.source.id, token, { method: 'DELETE', path, timeout: 20_000 }, 'delete_agent')
+        return { status: 'committed', data: { agentId, archived: true }, committedAt: Date.now(), idempotentReplay: false }
+      }
+      const payload = pick(rest, Object.keys(AGENT_PROPERTIES))
       if (Object.keys(payload).length === 0) throw new Error('phony update_agent needs at least one field to change')
-      const json = await ph0ny<Record<string, unknown>>(
-        inv.source.id,
-        token,
-        { method: 'PUT', path: `/v1/agents/${encodeURIComponent(agentId)}`, body: payload, timeout: 20_000 },
-        'update_agent',
-      )
+      const json = await ph0ny<Record<string, unknown>>(inv.source.id, token, { method: 'PUT', path, body: payload, timeout: 20_000 }, 'update_agent')
       return { status: 'committed', data: { agent: json }, committedAt: Date.now(), idempotentReplay: false }
     }
     throw new Error(`phony: unknown mutation capability ${inv.capabilityName}`)
@@ -1115,30 +1119,7 @@ function pick(args: Record<string, unknown>, fields: readonly string[]): Record<
 
 // Field allowlists — exactly the keys each route's zod schema declares. The
 // :id path params (agentId, collectionId) are routed via the URL and excluded.
-const AGENT_FIELDS = [
-  'id',
-  'name',
-  'agentKind',
-  'description',
-  'systemPrompt',
-  'firstMessage',
-  'voiceId',
-  'ttsProvider',
-  'ttsModel',
-  'sttProvider',
-  'llmProvider',
-  'llmModel',
-  'libraryId',
-  'collectionId',
-  'styleProfile',
-  'promptByModel',
-  'language',
-  'temperature',
-  'maxTokens',
-  'contactCaptureEnabled',
-  'contactCaptureFields',
-  'metadata',
-] as const
+const AGENT_FIELDS = ['id', ...Object.keys(AGENT_PROPERTIES)]
 
 const INGEST_FIELDS = [
   'content',
